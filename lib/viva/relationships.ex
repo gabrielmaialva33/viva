@@ -1,0 +1,246 @@
+defmodule Viva.Relationships do
+  @moduledoc """
+  The Relationships context.
+  Manages relationships between avatars.
+  """
+
+  import Ecto.Query
+  alias Viva.Repo
+  alias Viva.Relationships.Relationship
+
+  # === Relationship CRUD ===
+
+  def list_relationships(avatar_id, opts \\ []) do
+    status = Keyword.get(opts, :status)
+    limit = Keyword.get(opts, :limit, 50)
+
+    Relationship
+    |> Relationship.involving(avatar_id)
+    |> maybe_filter_status(status)
+    |> order_by([r], desc: r.last_interaction_at)
+    |> limit(^limit)
+    |> Repo.all()
+  end
+
+  def get_relationship(id), do: Repo.get(Relationship, id)
+
+  def get_relationship!(id), do: Repo.get!(Relationship, id)
+
+  def get_relationship_between(avatar_a_id, avatar_b_id) do
+    Relationship
+    |> Relationship.between(avatar_a_id, avatar_b_id)
+    |> Repo.one()
+  end
+
+  def get_or_create_relationship(avatar_a_id, avatar_b_id) do
+    case get_relationship_between(avatar_a_id, avatar_b_id) do
+      nil -> create_relationship(avatar_a_id, avatar_b_id)
+      rel -> {:ok, rel}
+    end
+  end
+
+  def create_relationship(avatar_a_id, avatar_b_id) do
+    # Ensure consistent ordering (lower ID is always avatar_a)
+    {a_id, b_id} = order_avatar_ids(avatar_a_id, avatar_b_id)
+
+    %Relationship{}
+    |> Relationship.changeset(%{
+      avatar_a_id: a_id,
+      avatar_b_id: b_id,
+      status: :strangers,
+      first_met_at: DateTime.utc_now()
+    })
+    |> Repo.insert()
+  end
+
+  def update_relationship(%Relationship{} = rel, attrs) do
+    rel
+    |> Relationship.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_relationship(%Relationship{} = rel) do
+    Repo.delete(rel)
+  end
+
+  # === Relationship Updates ===
+
+  def record_interaction(avatar_a_id, avatar_b_id, interaction_type) do
+    with {:ok, rel} <- get_or_create_relationship(avatar_a_id, avatar_b_id) do
+      update_relationship(rel, %{
+        interaction_count: rel.interaction_count + 1,
+        last_interaction_at: DateTime.utc_now(),
+        last_interaction_type: interaction_type
+      })
+    end
+  end
+
+  def update_feelings(rel, avatar_id, feelings) do
+    {a_id, _b_id} = order_avatar_ids(rel.avatar_a_id, rel.avatar_b_id)
+
+    field = if avatar_id == a_id, do: :feelings_a_to_b, else: :feelings_b_to_a
+
+    update_relationship(rel, %{field => feelings})
+  end
+
+  def evolve_relationship(%Relationship{} = rel, deltas) do
+    new_familiarity = clamp(rel.familiarity + Map.get(deltas, :familiarity, 0), 0.0, 1.0)
+    new_trust = clamp(rel.trust + Map.get(deltas, :trust, 0), 0.0, 1.0)
+    new_affection = clamp(rel.affection + Map.get(deltas, :affection, 0), 0.0, 1.0)
+    new_attraction = clamp(rel.attraction + Map.get(deltas, :attraction, 0), 0.0, 1.0)
+    conflict_delta = Map.get(deltas, :conflict, 0)
+    new_conflicts = max(0, rel.unresolved_conflicts + conflict_delta)
+
+    new_status =
+      determine_status(new_familiarity, new_trust, new_affection, new_attraction, new_conflicts)
+
+    update_relationship(rel, %{
+      familiarity: new_familiarity,
+      trust: new_trust,
+      affection: new_affection,
+      attraction: new_attraction,
+      unresolved_conflicts: new_conflicts,
+      status: new_status
+    })
+  end
+
+  # === Matching ===
+
+  def list_potential_matches(avatar_id, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 20)
+    min_attraction = Keyword.get(opts, :min_attraction, 0.6)
+
+    Relationship
+    |> Relationship.involving(avatar_id)
+    |> where([r], r.attraction >= ^min_attraction)
+    |> where([r], r.status in [:acquaintances, :friends, :close_friends])
+    |> order_by([r], desc: r.attraction, desc: r.affection)
+    |> limit(^limit)
+    |> Repo.all()
+  end
+
+  def list_mutual_matches(avatar_id) do
+    Relationship
+    |> Relationship.involving(avatar_id)
+    |> where([r], r.status == :matched)
+    |> Repo.all()
+  end
+
+  def attempt_match(avatar_a_id, avatar_b_id) do
+    with {:ok, rel} <- get_or_create_relationship(avatar_a_id, avatar_b_id) do
+      {a_id, _b_id} = order_avatar_ids(rel.avatar_a_id, rel.avatar_b_id)
+
+      # Check if both avatars are interested
+      a_interested = get_in(rel.feelings_a_to_b, [:romantic_interest]) || false
+      b_interested = get_in(rel.feelings_b_to_a, [:romantic_interest]) || false
+
+      if a_interested && b_interested do
+        update_relationship(rel, %{
+          status: :matched,
+          matched_at: DateTime.utc_now()
+        })
+      else
+        # Update interest for the requesting avatar
+        field = if avatar_a_id == a_id, do: :feelings_a_to_b, else: :feelings_b_to_a
+
+        current_feelings =
+          if avatar_a_id == a_id, do: rel.feelings_a_to_b, else: rel.feelings_b_to_a
+
+        update_relationship(rel, %{
+          field => Map.put(current_feelings, :romantic_interest, true)
+        })
+      end
+    end
+  end
+
+  # === Statistics ===
+
+  def relationship_stats(avatar_id) do
+    relationships = list_relationships(avatar_id)
+
+    %{
+      total: length(relationships),
+      by_status: Enum.frequencies_by(relationships, & &1.status),
+      avg_familiarity: avg_field(relationships, :familiarity),
+      avg_trust: avg_field(relationships, :trust),
+      avg_affection: avg_field(relationships, :affection),
+      matches: Enum.count(relationships, &(&1.status == :matched))
+    }
+  end
+
+  # === Private Helpers ===
+
+  defp order_avatar_ids(id_a, id_b) do
+    if id_a < id_b, do: {id_a, id_b}, else: {id_b, id_a}
+  end
+
+  defp maybe_filter_status(query, nil), do: query
+  defp maybe_filter_status(query, status), do: where(query, [r], r.status == ^status)
+
+  defp clamp(value, min, max), do: value |> max(min) |> min(max)
+
+  defp determine_status(familiarity, trust, affection, attraction, conflicts) do
+    cond do
+      conflicts > 5 -> :complicated
+      familiarity < 0.1 -> :strangers
+      familiarity < 0.3 -> :acquaintances
+      trust > 0.7 && affection > 0.7 && attraction > 0.7 -> :dating
+      trust > 0.5 && affection > 0.6 -> :close_friends
+      familiarity > 0.4 -> :friends
+      true -> :acquaintances
+    end
+  end
+
+  defp avg_field([], _field), do: 0.0
+
+  defp avg_field(list, field) do
+    sum = Enum.reduce(list, 0, fn item, acc -> acc + Map.get(item, field, 0) end)
+    sum / length(list)
+  end
+
+  # === Additional Helpers ===
+
+  def count_close_relationships(avatar_id) do
+    Relationship
+    |> Relationship.involving(avatar_id)
+    |> where([r], r.status in [:close_friends, :best_friends, :dating, :partners])
+    |> Repo.aggregate(:count, :id)
+  end
+
+  def list_for_avatar(avatar_id) do
+    Relationship
+    |> Relationship.involving(avatar_id)
+    |> Repo.all()
+  end
+
+  def find_available_friend(avatar_id) do
+    Relationship
+    |> Relationship.involving(avatar_id)
+    |> where([r], r.status in [:friends, :close_friends, :best_friends])
+    |> order_by([r], desc: r.last_interaction_at)
+    |> limit(1)
+    |> Repo.one()
+    |> case do
+      nil ->
+        nil
+
+      rel ->
+        if rel.avatar_a_id == avatar_id, do: rel.avatar_b_id, else: rel.avatar_a_id
+    end
+  end
+
+  def get_crush(avatar_id) do
+    Relationship
+    |> Relationship.involving(avatar_id)
+    |> where([r], r.status in [:crush, :mutual_crush])
+    |> limit(1)
+    |> Repo.one()
+    |> case do
+      nil ->
+        nil
+
+      rel ->
+        if rel.avatar_a_id == avatar_id, do: rel.avatar_b_id, else: rel.avatar_a_id
+    end
+  end
+end
