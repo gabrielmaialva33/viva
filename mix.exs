@@ -96,8 +96,8 @@ defmodule Viva.MixProject do
       # Type checking (Dialyzer wrapper)
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
 
-      # Documentation generator
-      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      # Documentation generator (override: true to resolve conflict with qdrant)
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false, override: true},
 
       # Test coverage
       {:excoveralls, "~> 0.18", only: :test}
