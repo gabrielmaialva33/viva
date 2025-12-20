@@ -47,6 +47,32 @@ defmodule Viva.Avatars.Personality do
     field :voice_pitch, :float, default: 0.5
     field :voice_speed, :float, default: 0.5
     field :voice_warmth, :float, default: 0.5
+
+    # Language settings
+    field :native_language, :string, default: "pt-BR"
+    field :other_languages, {:array, :string}, default: []
+  end
+
+  @language_names %{
+    "pt-BR" => "Portuguese (Brazilian)",
+    "pt-PT" => "Portuguese (European)",
+    "en-US" => "English (American)",
+    "en-GB" => "English (British)",
+    "es-ES" => "Spanish (Spain)",
+    "es-MX" => "Spanish (Mexican)",
+    "es-AR" => "Spanish (Argentine)",
+    "fr-FR" => "French",
+    "de-DE" => "German",
+    "it-IT" => "Italian",
+    "ja-JP" => "Japanese",
+    "ko-KR" => "Korean",
+    "zh-CN" => "Chinese (Simplified)",
+    "ru-RU" => "Russian"
+  }
+
+  @doc "Get human-readable language name"
+  def language_name(code) do
+    Map.get(@language_names, code, code)
   end
 
   @doc """
@@ -91,7 +117,9 @@ defmodule Viva.Avatars.Personality do
       :values,
       :voice_pitch,
       :voice_speed,
-      :voice_warmth
+      :voice_warmth,
+      :native_language,
+      :other_languages
     ])
     |> validate_number(:openness, greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0)
     |> validate_number(:conscientiousness,
@@ -120,7 +148,9 @@ defmodule Viva.Avatars.Personality do
           {:anxious, 0.2},
           {:avoidant, 0.2},
           {:fearful, 0.1}
-        ])
+        ]),
+      native_language: "pt-BR",
+      other_languages: []
     }
   end
 

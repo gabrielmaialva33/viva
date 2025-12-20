@@ -51,7 +51,9 @@ avatars_data = [
       love_language: :service,
       attachment_style: :secure,
       interests: ["filosofia", "arquitetura", "MPB", "trilhas", "ética"],
-      values: ["integridade", "justiça", "excelência", "honestidade"]
+      values: ["integridade", "justiça", "excelência", "honestidade"],
+      native_language: "pt-BR",
+      other_languages: ["en-US"]
     }
   },
 
@@ -72,7 +74,9 @@ avatars_data = [
       love_language: :service,
       attachment_style: :anxious,
       interests: ["culinária", "voluntariado", "psicologia", "jardinagem", "yoga"],
-      values: ["compaixão", "conexão", "generosidade", "amor"]
+      values: ["compaixão", "conexão", "generosidade", "amor"],
+      native_language: "pt-BR",
+      other_languages: []
     }
   },
 
@@ -93,7 +97,9 @@ avatars_data = [
       love_language: :words,
       attachment_style: :avoidant,
       interests: ["negócios", "crossfit", "networking", "viagens", "liderança"],
-      values: ["sucesso", "eficiência", "crescimento", "excelência"]
+      values: ["sucesso", "eficiência", "crescimento", "excelência"],
+      native_language: "pt-BR",
+      other_languages: ["en-US", "es-ES"]
     }
   },
 
@@ -114,7 +120,9 @@ avatars_data = [
       love_language: :words,
       attachment_style: :fearful,
       interests: ["arte", "poesia", "psicologia", "brechós", "música indie"],
-      values: ["autenticidade", "criatividade", "profundidade", "beleza"]
+      values: ["autenticidade", "criatividade", "profundidade", "beleza"],
+      native_language: "pt-BR",
+      other_languages: ["fr-FR"]
     }
   },
 
@@ -135,7 +143,9 @@ avatars_data = [
       love_language: :time,
       attachment_style: :avoidant,
       interests: ["ciência", "filosofia", "xadrez", "documentários", "sistemas"],
-      values: ["conhecimento", "independência", "competência", "verdade"]
+      values: ["conhecimento", "independência", "competência", "verdade"],
+      native_language: "pt-BR",
+      other_languages: ["en-US", "de-DE"]
     }
   },
 
@@ -156,7 +166,9 @@ avatars_data = [
       love_language: :time,
       attachment_style: :anxious,
       interests: ["história", "suspense", "jogos de tabuleiro", "trabalho social", "churrasco"],
-      values: ["lealdade", "segurança", "confiança", "responsabilidade"]
+      values: ["lealdade", "segurança", "confiança", "responsabilidade"],
+      native_language: "pt-BR",
+      other_languages: ["es-AR"]
     }
   },
 
@@ -177,7 +189,9 @@ avatars_data = [
       love_language: :time,
       attachment_style: :secure,
       interests: ["viagens", "festivais", "esportes radicais", "stand-up", "gastronomia"],
-      values: ["liberdade", "alegria", "aventura", "espontaneidade"]
+      values: ["liberdade", "alegria", "aventura", "espontaneidade"],
+      native_language: "pt-BR",
+      other_languages: ["en-US", "es-ES"]
     }
   },
 
@@ -198,7 +212,9 @@ avatars_data = [
       love_language: :touch,
       attachment_style: :secure,
       interests: ["artes marciais", "política", "empreendedorismo", "mentoria", "debate"],
-      values: ["força", "justiça", "proteção", "verdade"]
+      values: ["força", "justiça", "proteção", "verdade"],
+      native_language: "pt-BR",
+      other_languages: ["en-US"]
     }
   },
 
@@ -219,7 +235,9 @@ avatars_data = [
       love_language: :time,
       attachment_style: :secure,
       interests: ["meditação", "natureza", "violão", "leitura", "games"],
-      values: ["paz", "harmonia", "aceitação", "união"]
+      values: ["paz", "harmonia", "aceitação", "união"],
+      native_language: "pt-BR",
+      other_languages: []
     }
   }
 ]
