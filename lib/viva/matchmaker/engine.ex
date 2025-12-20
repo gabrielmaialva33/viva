@@ -7,7 +7,7 @@ defmodule Viva.Matchmaker.Engine do
   use GenServer
   require Logger
 
-  alias Viva.Avatars.Avatar
+  alias Viva.Avatars.{Avatar, Enneagram, Personality}
   alias Viva.Repo
 
   import Ecto.Query
@@ -156,16 +156,23 @@ defmodule Viva.Matchmaker.Engine do
     interests = interest_overlap(avatar_a.personality.interests, avatar_b.personality.interests)
     values = value_alignment(avatar_a.personality.values, avatar_b.personality.values)
     style = communication_style_match(avatar_a.personality, avatar_b.personality)
+    enneagram = enneagram_compatibility(avatar_a.personality, avatar_b.personality)
+    temperament = temperament_compatibility(avatar_a.personality, avatar_b.personality)
 
+    # Weighted scoring with Enneagram and Temperament
     total =
-      personality * 0.35 +
-        interests * 0.25 +
-        values * 0.25 +
-        style * 0.15
+      personality * 0.25 +
+        enneagram * 0.20 +
+        interests * 0.15 +
+        values * 0.15 +
+        style * 0.10 +
+        temperament * 0.15
 
     %{
       total: total,
       personality: personality,
+      enneagram: enneagram,
+      temperament: temperament,
       interests: interests,
       values: values,
       communication: style
@@ -271,6 +278,41 @@ defmodule Viva.Matchmaker.Engine do
     end
   end
 
+  defp enneagram_compatibility(pa, pb) do
+    Enneagram.compatibility(pa.enneagram_type, pb.enneagram_type)
+  end
+
+  defp temperament_compatibility(pa, pb) do
+    temp_a = Personality.temperament(pa)
+    temp_b = Personality.temperament(pb)
+
+    # Temperament compatibility matrix
+    case {temp_a, temp_b} do
+      # Same temperament - good understanding but can amplify issues
+      {same, same} when is_atom(same) -> 0.7
+
+      # Complementary pairs
+      {:sanguine, :melancholic} -> 0.8
+      {:melancholic, :sanguine} -> 0.8
+      {:choleric, :phlegmatic} -> 0.85
+      {:phlegmatic, :choleric} -> 0.85
+
+      # Good pairings
+      {:sanguine, :choleric} -> 0.7
+      {:choleric, :sanguine} -> 0.7
+      {:phlegmatic, :melancholic} -> 0.75
+      {:melancholic, :phlegmatic} -> 0.75
+
+      # Can be challenging but workable
+      {:sanguine, :phlegmatic} -> 0.6
+      {:phlegmatic, :sanguine} -> 0.6
+      {:choleric, :melancholic} -> 0.5
+      {:melancholic, :choleric} -> 0.5
+
+      _ -> 0.6
+    end
+  end
+
   defp add_explanation(match) do
     explanation = generate_explanation(match)
     Map.put(match, :explanation, explanation)
@@ -299,6 +341,8 @@ defmodule Viva.Matchmaker.Engine do
 
   defp highlight_strength(score) do
     cond do
+      score.enneagram > 0.8 -> "Deep psychological compatibility."
+      score.temperament > 0.8 -> "Complementary temperaments that balance each other."
       score.personality > 0.7 -> "Very compatible personalities."
       score.interests > 0.6 -> "Lots of shared interests to explore."
       score.values > 0.7 -> "Strong alignment on what matters most."

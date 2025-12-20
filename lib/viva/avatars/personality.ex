@@ -1,10 +1,12 @@
 defmodule Viva.Avatars.Personality do
   @moduledoc """
   Embedded schema for avatar personality traits.
-  Based on Big Five personality model + additional traits.
+  Based on Big Five personality model + Enneagram + derived Temperament.
   """
   use Ecto.Schema
   import Ecto.Changeset
+
+  alias Viva.Avatars.Enneagram
 
   @primary_key false
   embedded_schema do
@@ -14,6 +16,11 @@ defmodule Viva.Avatars.Personality do
     field :extraversion, :float, default: 0.5
     field :agreeableness, :float, default: 0.5
     field :neuroticism, :float, default: 0.3
+
+    # Enneagram type (1-9) - deep motivations and growth path
+    field :enneagram_type, Ecto.Enum,
+      values: [:type_1, :type_2, :type_3, :type_4, :type_5, :type_6, :type_7, :type_8, :type_9],
+      default: :type_9
 
     # Communication style
     field :humor_style, Ecto.Enum,
@@ -42,6 +49,32 @@ defmodule Viva.Avatars.Personality do
     field :voice_warmth, :float, default: 0.5
   end
 
+  @doc """
+  Derives the classical temperament from Big Five traits.
+  Based on Extraversion and Neuroticism dimensions.
+
+  Returns one of: :sanguine, :choleric, :phlegmatic, :melancholic
+  """
+  def temperament(%__MODULE__{} = p) do
+    cond do
+      p.extraversion > 0.5 and p.neuroticism < 0.5 -> :sanguine
+      p.extraversion > 0.5 and p.neuroticism >= 0.5 -> :choleric
+      p.extraversion <= 0.5 and p.neuroticism < 0.5 -> :phlegmatic
+      true -> :melancholic
+    end
+  end
+
+  @doc "Get the Enneagram type data for this personality"
+  def enneagram_data(%__MODULE__{enneagram_type: type}) do
+    Enneagram.get_type(type)
+  end
+
+  @doc "Describe the temperament in human-readable terms"
+  def describe_temperament(:sanguine), do: "optimistic, sociable, enthusiastic, and expressive"
+  def describe_temperament(:choleric), do: "intense, passionate, driven, and assertive"
+  def describe_temperament(:phlegmatic), do: "calm, patient, reliable, and thoughtful"
+  def describe_temperament(:melancholic), do: "introspective, analytical, sensitive, and deep"
+
   def changeset(personality, attrs) do
     personality
     |> cast(attrs, [
@@ -50,6 +83,7 @@ defmodule Viva.Avatars.Personality do
       :extraversion,
       :agreeableness,
       :neuroticism,
+      :enneagram_type,
       :humor_style,
       :love_language,
       :attachment_style,
@@ -77,6 +111,7 @@ defmodule Viva.Avatars.Personality do
       extraversion: :rand.uniform(),
       agreeableness: :rand.uniform(),
       neuroticism: :rand.uniform() * 0.7,
+      enneagram_type: Enum.random([:type_1, :type_2, :type_3, :type_4, :type_5, :type_6, :type_7, :type_8, :type_9]),
       humor_style: Enum.random([:witty, :sarcastic, :wholesome, :dark, :absurd]),
       love_language: Enum.random([:words, :time, :gifts, :touch, :service]),
       attachment_style:
