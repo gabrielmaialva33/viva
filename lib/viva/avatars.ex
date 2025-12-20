@@ -6,7 +6,7 @@ defmodule Viva.Avatars do
 
   import Ecto.Query
   alias Viva.Repo
-  alias Viva.Avatars.{Avatar, Memory, Personality, InternalState}
+  alias Viva.Avatars.{Avatar, Memory, Personality, InternalState, Visuals}
 
   # === Avatar CRUD ===
 
@@ -126,6 +126,57 @@ defmodule Viva.Avatars do
 
   def generate_random_personality do
     Personality.random()
+  end
+
+  # === Visual Generation (NIM) ===
+
+  @doc """
+  Generate complete visual package for avatar.
+  Includes profile image and expression variations.
+
+  ## Options
+
+  - `:include_3d` - Also generate 3D model (expensive)
+  - `:style` - Art style: "realistic", "anime", "illustration"
+  """
+  def generate_visuals(avatar, opts \\ []) do
+    Visuals.generate_complete(avatar, opts)
+  end
+
+  @doc """
+  Generate profile image for avatar.
+  """
+  def generate_profile_image(avatar, opts \\ []) do
+    Visuals.generate_profile(avatar, opts)
+  end
+
+  @doc """
+  Generate 3D model for avatar.
+  """
+  def generate_3d_avatar(avatar, opts \\ []) do
+    Visuals.generate_3d_model(avatar, opts)
+  end
+
+  @doc """
+  Update avatar's expression based on current emotion.
+  Returns the avatar and appropriate image URL.
+  """
+  def update_expression(avatar, emotion) do
+    Visuals.update_expression(avatar, emotion)
+  end
+
+  @doc """
+  Get current expression image URL for avatar.
+  """
+  def get_expression_image(avatar) do
+    Visuals.get_expression_image(avatar, avatar.current_expression)
+  end
+
+  @doc """
+  Generate lipsync animation from audio.
+  """
+  def generate_lipsync(avatar, audio_data, opts \\ []) do
+    Visuals.generate_lipsync(avatar, audio_data, opts)
   end
 
   # === Private Helpers ===

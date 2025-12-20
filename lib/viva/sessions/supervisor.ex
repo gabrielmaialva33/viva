@@ -15,6 +15,9 @@ defmodule Viva.Sessions.Supervisor do
       # Registry for looking up avatar processes by ID
       {Registry, keys: :unique, name: Viva.Sessions.AvatarRegistry},
 
+      # Task supervisor for async LLM calls (thoughts, greetings)
+      {Task.Supervisor, name: Viva.Sessions.TaskSupervisor},
+
       # Dynamic supervisor for avatar life processes
       {DynamicSupervisor, strategy: :one_for_one, name: Viva.Sessions.AvatarSupervisor},
 

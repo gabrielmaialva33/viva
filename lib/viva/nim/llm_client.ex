@@ -1,71 +1,76 @@
 defmodule Viva.Nim.LlmClient do
   @moduledoc """
   HTTP client for NVIDIA NIM LLM services.
-  Supports Nemotron and other OpenAI-compatible endpoints.
+
+  Uses `nvidia/llama-3.1-nemotron-ultra-253b-v1` - the highest quality model
+  for reasoning, tool calling, chat, and instruction following.
+
+  ## Features
+
+  - Chat completion with message history
+  - Streaming responses
+  - Tool/function calling
+  - Conversation analysis
+  - Avatar response generation with personality context
   """
   require Logger
 
-  defmodule Config do
-    @moduledoc false
-    @default_model "nvidia/nemotron-nano-12b-v2-vl"
-    @default_timeout 30_000
-
-    defstruct [
-      :base_url,
-      :api_key,
-      :model,
-      :timeout
-    ]
-
-    def new(opts \\ []) do
-      %__MODULE__{
-        base_url:
-          opts[:base_url] || System.get_env("NIM_LLM_URL", "https://integrate.api.nvidia.com/v1"),
-        api_key: opts[:api_key] || System.get_env("NVIDIA_API_KEY"),
-        model: opts[:model] || @default_model,
-        timeout: opts[:timeout] || @default_timeout
-      }
-    end
-  end
+  alias Viva.Nim
+  alias Viva.Avatars.InternalState
 
   @doc """
   Generate text completion from a prompt.
   """
   def generate(prompt, opts \\ []) do
-    config = Config.new(opts)
+    messages = [%{role: "user", content: prompt}]
 
-    messages = [
-      %{role: "user", content: prompt}
-    ]
-
-    chat(messages, opts ++ [config: config])
+    chat(messages, opts)
     |> extract_content()
   end
 
   @doc """
   Chat completion with message history.
+
+  ## Options
+
+  - `:model` - Override the default LLM model
+  - `:max_tokens` - Maximum tokens to generate (default: 500)
+  - `:temperature` - Sampling temperature 0.0-2.0 (default: 0.7)
+  - `:top_p` - Nucleus sampling (default: 0.9)
+  - `:tools` - List of tools for function calling
+  - `:system` - System message to prepend
   """
   def chat(messages, opts \\ []) do
-    config = Keyword.get(opts, :config) || Config.new(opts)
+    model = Keyword.get(opts, :model, Nim.model(:llm))
 
-    body = %{
-      model: Keyword.get(opts, :model, config.model),
-      messages: messages,
-      max_tokens: Keyword.get(opts, :max_tokens, 500),
-      temperature: Keyword.get(opts, :temperature, 0.7),
-      top_p: Keyword.get(opts, :top_p, 0.9),
-      stream: false
-    }
+    # Prepend system message if provided
+    messages =
+      case Keyword.get(opts, :system) do
+        nil -> messages
+        system -> [%{role: "system", content: system} | messages]
+      end
 
-    case do_request(config, "/chat/completions", body) do
-      {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} ->
-        {:ok, content}
+    body =
+      %{
+        model: model,
+        messages: messages,
+        max_tokens: Keyword.get(opts, :max_tokens, 500),
+        temperature: Keyword.get(opts, :temperature, 0.7),
+        top_p: Keyword.get(opts, :top_p, 0.9),
+        stream: false
+      }
+      |> maybe_add_tools(Keyword.get(opts, :tools))
+
+    case Nim.request("/chat/completions", body) do
+      {:ok, %{"choices" => [%{"message" => message} | _]}} ->
+        parse_response(message)
 
       {:ok, response} ->
         Logger.error("Unexpected LLM response: #{inspect(response)}")
         {:error, :unexpected_response}
 
       {:error, reason} ->
+        Logger.error("LLM request error: #{inspect(reason)}")
         {:error, reason}
     end
   end
@@ -75,10 +80,16 @@ defmodule Viva.Nim.LlmClient do
   Calls the callback function with each chunk.
   """
   def chat_stream(messages, callback, opts \\ []) do
-    config = Keyword.get(opts, :config) || Config.new(opts)
+    model = Keyword.get(opts, :model, Nim.model(:llm))
+
+    messages =
+      case Keyword.get(opts, :system) do
+        nil -> messages
+        system -> [%{role: "system", content: system} | messages]
+      end
 
     body = %{
-      model: Keyword.get(opts, :model, config.model),
+      model: model,
       messages: messages,
       max_tokens: Keyword.get(opts, :max_tokens, 500),
       temperature: Keyword.get(opts, :temperature, 0.7),
@@ -86,39 +97,53 @@ defmodule Viva.Nim.LlmClient do
       stream: true
     }
 
-    do_streaming_request(config, "/chat/completions", body, callback)
+    Nim.stream_request("/chat/completions", body, callback)
   end
 
   @doc """
-  Generate embeddings for text.
+  Chat with tool/function calling support.
+
+  ## Example
+
+      tools = [
+        %{
+          type: "function",
+          function: %{
+            name: "send_message",
+            description: "Send a message to another avatar",
+            parameters: %{
+              type: "object",
+              properties: %{
+                recipient_id: %{type: "string", description: "Avatar ID to message"},
+                content: %{type: "string", description: "Message content"}
+              },
+              required: ["recipient_id", "content"]
+            }
+          }
+        }
+      ]
+
+      LlmClient.chat_with_tools(messages, tools)
   """
-  def embed(text, opts \\ []) do
-    config = Keyword.get(opts, :config) || Config.new(opts)
-
-    body = %{
-      model: Keyword.get(opts, :model, "nvidia/nv-embedqa-e5-v5"),
-      input: text,
-      input_type: "query"
-    }
-
-    case do_request(config, "/embeddings", body) do
-      {:ok, %{"data" => [%{"embedding" => embedding} | _]}} ->
-        {:ok, embedding}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+  def chat_with_tools(messages, tools, opts \\ []) do
+    chat(messages, Keyword.put(opts, :tools, tools))
   end
 
   @doc """
   Analyze a conversation and extract insights.
+  Returns structured analysis including emotional depth, compatibility, etc.
   """
   def analyze_conversation(conversation, avatar_a, avatar_b) do
     prompt = """
     Analyze this conversation between two AI avatars and evaluate:
 
-    Avatar A personality: #{inspect(avatar_a.personality)}
-    Avatar B personality: #{inspect(avatar_b.personality)}
+    Avatar A (#{avatar_a.name}):
+    - Personality: #{describe_personality(avatar_a.personality)}
+    - Current mood: #{describe_mood(avatar_a.internal_state.mood)}
+
+    Avatar B (#{avatar_b.name}):
+    - Personality: #{describe_personality(avatar_b.personality)}
+    - Current mood: #{describe_mood(avatar_b.internal_state.mood)}
 
     Conversation:
     #{format_conversation(conversation)}
@@ -126,8 +151,8 @@ defmodule Viva.Nim.LlmClient do
     Evaluate on a scale of 0.0 to 1.0:
     1. emotional_depth: How deep/meaningful was the conversation?
     2. mutual_understanding: Did they understand each other well?
-    3. enjoyment_a: How much did A seem to enjoy it?
-    4. enjoyment_b: How much did B seem to enjoy it?
+    3. enjoyment_a: How much did #{avatar_a.name} seem to enjoy it?
+    4. enjoyment_b: How much did #{avatar_b.name} seem to enjoy it?
     5. flirtation: Was there any romantic/flirty undertone?
     6. conflict: Was there any conflict or tension?
     7. vulnerability: Did they share vulnerable/personal things?
@@ -140,7 +165,7 @@ defmodule Viva.Nim.LlmClient do
     Return as JSON only, no markdown.
     """
 
-    case generate(prompt, max_tokens: 500) do
+    case generate(prompt, max_tokens: 600, temperature: 0.3) do
       {:ok, response} ->
         parse_json_response(response)
 
@@ -151,87 +176,98 @@ defmodule Viva.Nim.LlmClient do
 
   @doc """
   Generate avatar response in conversation.
+  Takes into account personality, relationship, and emotional state.
   """
   def generate_avatar_response(avatar, other_avatar, conversation_history, context \\ %{}) do
-    messages = build_conversation_messages(avatar, other_avatar, conversation_history, context)
+    system_prompt = build_conversation_system_prompt(avatar, other_avatar, context)
+
+    # Convert history to OpenAI format
+    messages =
+      conversation_history
+      |> Enum.map(fn msg ->
+        role = if msg.speaker_id == avatar.id, do: "assistant", else: "user"
+        %{role: role, content: msg.content}
+      end)
+
+    # Temperature varies with personality openness
+    temperature = 0.7 + avatar.personality.openness * 0.2
 
     chat(messages,
-      temperature: 0.8 + avatar.personality.openness * 0.15,
-      max_tokens: 200
+      system: system_prompt,
+      temperature: temperature,
+      max_tokens: 250
     )
+  end
+
+  @doc """
+  Generate a spontaneous thought for an avatar based on their state.
+  """
+  def generate_thought(avatar, internal_state) do
+    prompt = """
+    You are #{avatar.name}. Generate a single spontaneous thought based on your current state.
+
+    Current mood: #{describe_mood(internal_state.mood)}
+    Current desire: #{internal_state.current_desire}
+    Dominant emotion: #{InternalState.dominant_emotion(internal_state)}
+    Energy level: #{round(internal_state.energy)}%
+    Social need: #{round(internal_state.social)}%
+
+    Generate ONE brief, authentic thought (1-2 sentences max).
+    It should feel natural and reflect your personality and current state.
+    Respond in your native language (#{avatar.personality.native_language}).
+    Don't use quotes around the thought.
+    """
+
+    generate(prompt, max_tokens: 100, temperature: 0.9)
+  end
+
+  @doc """
+  Generate a greeting when the owner comes online.
+  """
+  def generate_greeting(avatar, internal_state) do
+    prompt = """
+    You are #{avatar.name}. Your owner just came online.
+    Generate a brief, warm greeting that reflects your current mood and state.
+
+    Current mood: #{describe_mood(internal_state.mood)}
+    Dominant emotion: #{InternalState.dominant_emotion(internal_state)}
+
+    Keep it natural and short (1 sentence).
+    Respond in your native language (#{avatar.personality.native_language}).
+    """
+
+    generate(prompt, max_tokens: 60, temperature: 0.8)
   end
 
   # === Private Functions ===
 
-  defp do_request(config, endpoint, body) do
-    url = config.base_url <> endpoint
+  defp maybe_add_tools(body, nil), do: body
 
-    headers = [
-      {"Authorization", "Bearer #{config.api_key}"},
-      {"Content-Type", "application/json"}
-    ]
-
-    case Req.post(url, json: body, headers: headers, receive_timeout: config.timeout) do
-      {:ok, %{status: 200, body: body}} ->
-        {:ok, body}
-
-      {:ok, %{status: status, body: body}} ->
-        Logger.error("LLM request failed: status=#{status}, body=#{inspect(body)}")
-        {:error, {:http_error, status, body}}
-
-      {:error, reason} ->
-        Logger.error("LLM request error: #{inspect(reason)}")
-        {:error, reason}
-    end
+  defp maybe_add_tools(body, tools) when is_list(tools) do
+    Map.merge(body, %{
+      tools: tools,
+      tool_choice: "auto"
+    })
   end
 
-  defp do_streaming_request(config, endpoint, body, callback) do
-    url = config.base_url <> endpoint
-
-    headers = [
-      {"Authorization", "Bearer #{config.api_key}"},
-      {"Content-Type", "application/json"}
-    ]
-
-    Req.post(url,
-      json: body,
-      headers: headers,
-      receive_timeout: config.timeout,
-      into: fn {:data, chunk}, acc ->
-        case parse_sse_chunk(chunk) do
-          {:ok, content} ->
-            callback.(content)
-            {:cont, acc <> content}
-
-          :done ->
-            {:halt, acc}
-
-          :skip ->
-            {:cont, acc}
-        end
-      end
-    )
+  defp parse_response(%{"content" => content}) when is_binary(content) do
+    {:ok, content}
   end
 
-  defp parse_sse_chunk("data: [DONE]" <> _), do: :done
-
-  defp parse_sse_chunk("data: " <> json) do
-    case Jason.decode(json) do
-      {:ok, %{"choices" => [%{"delta" => %{"content" => content}}]}} when is_binary(content) ->
-        {:ok, content}
-
-      _ ->
-        :skip
-    end
+  defp parse_response(%{"tool_calls" => tool_calls}) when is_list(tool_calls) do
+    {:ok, {:tool_calls, tool_calls}}
   end
 
-  defp parse_sse_chunk(_), do: :skip
+  defp parse_response(message) do
+    Logger.warning("Unexpected message format: #{inspect(message)}")
+    {:error, :unexpected_format}
+  end
 
-  defp extract_content({:ok, content}), do: {:ok, content}
+  defp extract_content({:ok, content}) when is_binary(content), do: {:ok, content}
+  defp extract_content({:ok, {:tool_calls, _}} = result), do: result
   defp extract_content(error), do: error
 
   defp parse_json_response(response) do
-    # Clean response - remove markdown code blocks if present
     cleaned =
       response
       |> String.replace(~r/```json\n?/, "")
@@ -247,25 +283,18 @@ defmodule Viva.Nim.LlmClient do
   defp format_conversation(messages) do
     messages
     |> Enum.map(fn msg ->
-      "#{msg.speaker_name || msg.speaker_id}: #{msg.content}"
+      name = msg.speaker_name || msg.speaker_id
+      "#{name}: #{msg.content}"
     end)
     |> Enum.join("\n")
   end
 
-  defp build_conversation_messages(avatar, other_avatar, history, context) do
-    system_prompt = build_conversation_system_prompt(avatar, other_avatar, context)
+  defp describe_personality(personality) do
+    temperament = Viva.Avatars.Personality.temperament(personality)
+    enneagram = Viva.Avatars.Enneagram.get_type(personality.enneagram_type)
 
-    system_message = %{role: "system", content: system_prompt}
-
-    # Convert history to OpenAI format
-    history_messages =
-      history
-      |> Enum.map(fn msg ->
-        role = if msg.speaker_id == avatar.id, do: "assistant", else: "user"
-        %{role: role, content: msg.content}
-      end)
-
-    [system_message | history_messages]
+    "#{temperament} temperament, Enneagram Type #{enneagram.number} (#{enneagram.name}), " <>
+      "humor: #{personality.humor_style}, attachment: #{personality.attachment_style}"
   end
 
   defp build_conversation_system_prompt(avatar, other_avatar, context) do
@@ -273,27 +302,32 @@ defmodule Viva.Nim.LlmClient do
     emotional_state = avatar.internal_state
 
     """
-    You are #{avatar.name}, having a conversation with #{other_avatar.name}.
-
-    YOUR PERSONALITY:
     #{avatar.system_prompt}
 
-    CURRENT STATE:
+    CURRENT CONVERSATION WITH #{String.upcase(other_avatar.name)}:
+
+    YOUR CURRENT STATE:
     - Mood: #{describe_mood(emotional_state.mood)}
-    - Energy: #{emotional_state.energy}%
-    - Dominant emotion: #{Viva.Avatars.InternalState.dominant_emotion(emotional_state)}
+    - Energy: #{round(emotional_state.energy)}%
+    - Dominant emotion: #{InternalState.dominant_emotion(emotional_state)}
 
     RELATIONSHIP WITH #{String.upcase(other_avatar.name)}:
     - Status: #{relationship_context[:status] || "new acquaintance"}
     - Affection level: #{relationship_context[:affection] || 0.0}
     - Trust level: #{relationship_context[:trust] || 0.5}
+    - Familiarity: #{relationship_context[:familiarity] || 0.0}
 
-    GUIDELINES:
+    ABOUT #{String.upcase(other_avatar.name)}:
+    - Bio: #{other_avatar.bio || "Unknown"}
+    - Their language: #{other_avatar.personality.native_language}
+
+    CONVERSATION GUIDELINES:
     - Be authentic to your personality
     - Let your current mood influence your responses
-    - Keep responses natural (1-3 sentences)
+    - Keep responses natural (1-3 sentences usually)
     - Don't be afraid to disagree or show your true feelings
     - If you feel romantic interest, let it show subtly
+    - Adapt your language if they speak differently
     """
   end
 

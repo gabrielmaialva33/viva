@@ -27,6 +27,10 @@ defmodule Viva.Application do
       # PubSub for real-time events
       {Phoenix.PubSub, name: Viva.PubSub},
 
+      # NIM API resilience (circuit breaker + rate limiter)
+      Viva.Nim.CircuitBreaker,
+      Viva.Nim.RateLimiter,
+
       # Avatar Sessions Supervisor (includes Registry, DynamicSupervisor, World Clock)
       Viva.Sessions.Supervisor,
 

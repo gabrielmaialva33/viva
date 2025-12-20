@@ -24,6 +24,16 @@ defmodule Viva.Avatars.Avatar do
     # Ready Player Me or similar
     field :avatar_model_id, :string
 
+    # AI-Generated Visuals (NIM)
+    field :profile_image_url, :string
+    field :avatar_3d_model_url, :string
+    field :current_expression, Ecto.Enum,
+      values: [:neutral, :happy, :sad, :angry, :surprised, :loving],
+      default: :neutral
+
+    # Expression image cache
+    field :expression_images, :map, default: %{}
+
     # Owner
     belongs_to :user, Viva.Accounts.User
 
@@ -68,6 +78,10 @@ defmodule Viva.Avatars.Avatar do
       :age,
       :avatar_url,
       :avatar_model_id,
+      :profile_image_url,
+      :avatar_3d_model_url,
+      :current_expression,
+      :expression_images,
       :user_id,
       :system_prompt,
       :voice_id,

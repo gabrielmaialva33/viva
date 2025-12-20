@@ -1,4 +1,7 @@
 defmodule VivaWeb.Endpoint do
+  @moduledoc """
+  The entry point for all HTTP requests to the application.
+  """
   use Phoenix.Endpoint, otp_app: :viva
 
   # The session will be stored in the cookie and signed,

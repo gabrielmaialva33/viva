@@ -1,4 +1,7 @@
 defmodule VivaWeb.Router do
+  @moduledoc """
+  Defines the application's router and pipelines.
+  """
   use VivaWeb, :router
 
   pipeline :browser do

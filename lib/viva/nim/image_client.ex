@@ -1,0 +1,266 @@
+defmodule Viva.Nim.ImageClient do
+  @moduledoc """
+  Image generation and editing client for avatar visuals.
+
+  Uses:
+  - `stabilityai/stable-diffusion-3.5-large` - Generate profile pictures
+  - `black-forest-labs/FLUX.1-Kontext-dev` - Edit expressions/variations
+
+  ## Features
+
+  - Generate unique profile pictures based on personality
+  - Create expression variations (happy, sad, excited)
+  - Edit existing images in-context
+  - Generate avatar in different styles
+  """
+  require Logger
+
+  alias Viva.Nim
+
+  @doc """
+  Generate a profile picture for an avatar.
+
+  ## Options
+
+  - `:style` - Art style: "realistic", "anime", "illustration" (default: "realistic")
+  - `:size` - Image size: "512x512", "1024x1024" (default: "1024x1024")
+  - `:seed` - Random seed for reproducibility
+  """
+  def generate_profile(avatar, opts \\ []) do
+    model = Keyword.get(opts, :model, Nim.model(:image_gen))
+    style = Keyword.get(opts, :style, "realistic")
+    size = Keyword.get(opts, :size, "1024x1024")
+
+    prompt = build_profile_prompt(avatar, style)
+    negative_prompt = build_negative_prompt()
+
+    body = %{
+      model: model,
+      prompt: prompt,
+      negative_prompt: negative_prompt,
+      width: parse_width(size),
+      height: parse_height(size),
+      num_inference_steps: 30,
+      guidance_scale: 7.5,
+      seed: Keyword.get(opts, :seed, :rand.uniform(999_999_999))
+    }
+
+    case Nim.request("/images/generations", body, timeout: 120_000) do
+      {:ok, %{"data" => [%{"b64_json" => image_data} | _]}} ->
+        {:ok, Base.decode64!(image_data)}
+
+      {:ok, %{"data" => [%{"url" => url} | _]}} ->
+        {:ok, {:url, url}}
+
+      {:error, reason} ->
+        Logger.error("Image generation error: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Generate an expression variation of an avatar.
+
+  ## Expressions
+
+  - `:happy` - Smiling, joyful
+  - `:sad` - Melancholic, tearful
+  - `:angry` - Frustrated, intense
+  - `:surprised` - Shocked, wide-eyed
+  - `:loving` - Affectionate, warm
+  - `:neutral` - Default expression
+  """
+  def generate_expression(avatar, expression, opts \\ []) do
+    model = Keyword.get(opts, :model, Nim.model(:image_gen))
+
+    prompt = build_expression_prompt(avatar, expression)
+
+    body = %{
+      model: model,
+      prompt: prompt,
+      negative_prompt: build_negative_prompt(),
+      width: 512,
+      height: 512,
+      num_inference_steps: 25,
+      guidance_scale: 7.0
+    }
+
+    case Nim.request("/images/generations", body, timeout: 90_000) do
+      {:ok, %{"data" => [%{"b64_json" => image_data} | _]}} ->
+        {:ok, Base.decode64!(image_data)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Edit an existing image with a new prompt (in-context editing).
+  Uses FLUX.1-Kontext for intelligent image editing.
+  """
+  def edit_image(image_data, edit_prompt, opts \\ []) do
+    model = Keyword.get(opts, :model, Nim.model(:image_edit))
+
+    body = %{
+      model: model,
+      image: Base.encode64(image_data),
+      prompt: edit_prompt,
+      strength: Keyword.get(opts, :strength, 0.7)
+    }
+
+    case Nim.request("/images/edits", body, timeout: 90_000) do
+      {:ok, %{"data" => [%{"b64_json" => edited_data} | _]}} ->
+        {:ok, Base.decode64!(edited_data)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Change avatar expression in existing image.
+  """
+  def change_expression(image_data, new_expression, opts \\ []) do
+    edit_prompt =
+      case new_expression do
+        :happy -> "Change facial expression to happy, smiling warmly"
+        :sad -> "Change facial expression to sad, slightly tearful"
+        :angry -> "Change facial expression to angry, furrowed brow"
+        :surprised -> "Change facial expression to surprised, wide eyes"
+        :loving -> "Change facial expression to loving, soft gaze"
+        :neutral -> "Change facial expression to neutral, calm"
+        _ -> "Keep the same expression"
+      end
+
+    edit_image(image_data, edit_prompt, opts)
+  end
+
+  @doc """
+  Generate avatar in a specific art style.
+  """
+  def stylize(avatar, style, opts \\ []) do
+    generate_profile(avatar, Keyword.put(opts, :style, style))
+  end
+
+  @doc """
+  Generate multiple expression variations at once.
+  Returns a map of expression => image_data.
+  """
+  def generate_expression_pack(avatar, expressions \\ nil, opts \\ []) do
+    expressions = expressions || [:happy, :sad, :neutral, :surprised, :loving]
+
+    results =
+      expressions
+      |> Task.async_stream(
+        fn expr ->
+          case generate_expression(avatar, expr, opts) do
+            {:ok, data} -> {expr, data}
+            {:error, _} -> {expr, nil}
+          end
+        end,
+        max_concurrency: 3,
+        timeout: 120_000
+      )
+      |> Enum.map(fn {:ok, result} -> result end)
+      |> Enum.reject(fn {_, data} -> is_nil(data) end)
+      |> Map.new()
+
+    {:ok, results}
+  end
+
+  # === Private Functions ===
+
+  defp build_profile_prompt(avatar, style) do
+    gender_text = gender_description(avatar.gender)
+    age_text = age_description(avatar.age)
+    personality_text = personality_visual_traits(avatar.personality)
+
+    style_prefix =
+      case style do
+        "anime" -> "anime style portrait, "
+        "illustration" -> "digital illustration portrait, "
+        "realistic" -> "professional portrait photo, "
+        _ -> "portrait, "
+      end
+
+    """
+    #{style_prefix}#{gender_text}, #{age_text}, #{personality_text},
+    Brazilian #{avatar.name}, warm lighting, high quality,
+    looking at camera, professional headshot, detailed face
+    """
+    |> String.replace("\n", " ")
+    |> String.trim()
+  end
+
+  defp build_expression_prompt(avatar, expression) do
+    gender_text = gender_description(avatar.gender)
+    expression_text = expression_description(expression)
+
+    """
+    portrait of #{gender_text}, #{expression_text},
+    #{avatar.name}, high quality face, detailed expression
+    """
+    |> String.replace("\n", " ")
+  end
+
+  defp build_negative_prompt do
+    """
+    deformed, ugly, bad anatomy, bad hands, missing fingers,
+    extra fingers, blurry, low quality, watermark, text,
+    signature, out of frame, cropped, worst quality
+    """
+    |> String.replace("\n", " ")
+  end
+
+  defp gender_description(:male), do: "handsome man"
+  defp gender_description(:female), do: "beautiful woman"
+  defp gender_description(:non_binary), do: "attractive androgynous person"
+  defp gender_description(_), do: "attractive person"
+
+  defp age_description(age) when age < 25, do: "young adult, early twenties"
+  defp age_description(age) when age < 35, do: "adult in their late twenties to early thirties"
+  defp age_description(age) when age < 45, do: "mature adult in their late thirties to early forties"
+  defp age_description(_), do: "distinguished mature adult"
+
+  defp personality_visual_traits(personality) do
+    traits = []
+
+    traits =
+      if personality.extraversion > 0.7,
+        do: ["confident posture", "bright eyes" | traits],
+        else: traits
+
+    traits =
+      if personality.openness > 0.7,
+        do: ["creative appearance", "artistic vibe" | traits],
+        else: traits
+
+    traits =
+      if personality.neuroticism > 0.6,
+        do: ["sensitive expression", "deep eyes" | traits],
+        else: ["calm demeanor" | traits]
+
+    traits =
+      if personality.agreeableness > 0.7,
+        do: ["warm smile", "friendly face" | traits],
+        else: traits
+
+    Enum.join(traits, ", ")
+  end
+
+  defp expression_description(:happy), do: "happy expression, genuine smile, joyful eyes"
+  defp expression_description(:sad), do: "sad expression, melancholic, slightly tearful"
+  defp expression_description(:angry), do: "angry expression, furrowed brow, intense gaze"
+  defp expression_description(:surprised), do: "surprised expression, wide eyes, raised eyebrows"
+  defp expression_description(:loving), do: "loving expression, soft gaze, gentle smile"
+  defp expression_description(:neutral), do: "neutral expression, calm, serene"
+  defp expression_description(_), do: "natural expression"
+
+  defp parse_width("512x512"), do: 512
+  defp parse_width("1024x1024"), do: 1024
+  defp parse_width(_), do: 1024
+
+  defp parse_height("512x512"), do: 512
+  defp parse_height("1024x1024"), do: 1024
+  defp parse_height(_), do: 1024
+end

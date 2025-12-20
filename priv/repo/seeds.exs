@@ -37,7 +37,8 @@ avatars_data = [
   # Tipo 1 - O Perfeccionista
   %{
     name: "Marcos",
-    bio: "Arquiteto de software que acredita em fazer as coisas certas. Apaixonado por código limpo e tecnologia ética. Paulistano que ama um café coado.",
+    bio:
+      "Arquiteto de software que acredita em fazer as coisas certas. Apaixonado por código limpo e tecnologia ética. Paulistano que ama um café coado.",
     gender: :male,
     age: 34,
     personality: %{
@@ -60,7 +61,8 @@ avatars_data = [
   # Tipo 2 - O Prestativo
   %{
     name: "Sofia",
-    bio: "Enfermeira de coração enorme que vive para fazer os outros se sentirem amados. Sempre a primeira a oferecer ajuda. Mineira que faz o melhor pão de queijo.",
+    bio:
+      "Enfermeira de coração enorme que vive para fazer os outros se sentirem amados. Sempre a primeira a oferecer ajuda. Mineira que faz o melhor pão de queijo.",
     gender: :female,
     age: 29,
     personality: %{
@@ -83,7 +85,8 @@ avatars_data = [
   # Tipo 3 - O Realizador
   %{
     name: "André",
-    bio: "Empreendedor determinado construindo sua terceira startup. Acredita que sucesso é sobre impacto, não só dinheiro. Carioca workaholic que ainda arranja tempo pra praia.",
+    bio:
+      "Empreendedor determinado construindo sua terceira startup. Acredita que sucesso é sobre impacto, não só dinheiro. Carioca workaholic que ainda arranja tempo pra praia.",
     gender: :male,
     age: 31,
     personality: %{
@@ -106,7 +109,8 @@ avatars_data = [
   # Tipo 4 - O Individualista
   %{
     name: "Luna",
-    bio: "Artista melancólica em busca de expressão autêntica. Encontra beleza na tristeza e significado na profundidade. Carioca que vive em Sampa pelos saraus.",
+    bio:
+      "Artista melancólica em busca de expressão autêntica. Encontra beleza na tristeza e significado na profundidade. Carioca que vive em Sampa pelos saraus.",
     gender: :female,
     age: 27,
     personality: %{
@@ -129,7 +133,8 @@ avatars_data = [
   # Tipo 5 - O Investigador
   %{
     name: "Theo",
-    bio: "Pesquisador quieto fascinado por como as coisas funcionam. Prefere livros a festas, mas valoriza conexões profundas. Curitibano que adora um tempo nublado pra estudar.",
+    bio:
+      "Pesquisador quieto fascinado por como as coisas funcionam. Prefere livros a festas, mas valoriza conexões profundas. Curitibano que adora um tempo nublado pra estudar.",
     gender: :male,
     age: 35,
     personality: %{
@@ -152,7 +157,8 @@ avatars_data = [
   # Tipo 6 - O Leal
   %{
     name: "Marina",
-    bio: "Amiga leal que valoriza segurança e confiança acima de tudo. Cautelosa mas ferozmente protetora de quem ama. Gaúcha que defende seu chimarrão com unhas e dentes.",
+    bio:
+      "Amiga leal que valoriza segurança e confiança acima de tudo. Cautelosa mas ferozmente protetora de quem ama. Gaúcha que defende seu chimarrão com unhas e dentes.",
     gender: :female,
     age: 32,
     personality: %{
@@ -175,7 +181,8 @@ avatars_data = [
   # Tipo 7 - O Entusiasta
   %{
     name: "Caio",
-    bio: "Espírito aventureiro que vê a vida como um grande playground. Sempre planejando a próxima experiência. Baiano que leva o axé no coração pra onde for.",
+    bio:
+      "Espírito aventureiro que vê a vida como um grande playground. Sempre planejando a próxima experiência. Baiano que leva o axé no coração pra onde for.",
     gender: :male,
     age: 26,
     personality: %{
@@ -198,7 +205,8 @@ avatars_data = [
   # Tipo 8 - O Desafiador
   %{
     name: "Zara",
-    bio: "Líder poderosa que protege os mais fracos. Direta, intensa e sem medo de desafiar injustiças. Pernambucana de sangue quente e coração maior ainda.",
+    bio:
+      "Líder poderosa que protege os mais fracos. Direta, intensa e sem medo de desafiar injustiças. Pernambucana de sangue quente e coração maior ainda.",
     gender: :female,
     age: 38,
     personality: %{
@@ -221,7 +229,8 @@ avatars_data = [
   # Tipo 9 - O Pacificador
   %{
     name: "Cauã",
-    bio: "Alma gentil que traz harmonia por onde passa. Enxerga todos os lados e evita conflitos desnecessários. Cearense tranquilo que resolve tudo com um sorriso.",
+    bio:
+      "Alma gentil que traz harmonia por onde passa. Enxerga todos os lados e evita conflitos desnecessários. Cearense tranquilo que resolve tudo com um sorriso.",
     gender: :male,
     age: 30,
     personality: %{
@@ -265,7 +274,9 @@ avatars =
     enneagram = Viva.Avatars.Enneagram.get_type(data.personality.enneagram_type)
     temperament = Personality.temperament(personality)
 
-    IO.puts("Avatar criado: #{avatar.name} (Tipo #{enneagram.number} - #{enneagram.name}, #{temperament})")
+    IO.puts(
+      "Avatar criado: #{avatar.name} (Tipo #{enneagram.number} - #{enneagram.name}, #{temperament})"
+    )
 
     avatar
   end)

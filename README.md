@@ -4,7 +4,7 @@
 
 ![Elixir](https://img.shields.io/badge/Elixir-1.15+-4B275F?style=for-the-badge&logo=elixir&logoColor=white)
 ![Phoenix](https://img.shields.io/badge/Phoenix-1.8-FD4F00?style=for-the-badge&logo=phoenixframework&logoColor=white)
-![NVIDIA](https://img.shields.io/badge/NVIDIA_NIM-Nemotron-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
+![NVIDIA](https://img.shields.io/badge/NVIDIA_NIM-14_Models-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/TimescaleDB-PostgreSQL_17-336791?style=for-the-badge&logo=postgresql&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
@@ -12,6 +12,7 @@
 
 [Getting Started](#-quick-start) |
 [Architecture](#-architecture) |
+[AI Models](#-nvidia-nim-models) |
 [Documentation](#-api-reference) |
 [Contributing](#-contributing)
 
@@ -30,12 +31,57 @@ VIVA is a next-generation AI platform where digital avatars live autonomous live
 | Feature | Description |
 |---------|-------------|
 | **Autonomous Life Simulation** | Avatars run 24/7 as independent processes with needs, moods, and desires |
-| **Psychological Personality** | Big Five personality model with attachment styles and love languages |
+| **Deep Psychological Model** | Big Five + Enneagram personality system with 9 core types |
 | **Emotional Intelligence** | Real-time emotional states that influence behavior and conversations |
 | **Semantic Memory** | Vector-based memories with natural decay and reinforcement |
 | **Organic Relationships** | Relationships evolve naturally through interactions over time |
 | **Smart Matchmaking** | AI-powered compatibility scoring across multiple dimensions |
 | **Real-time Sync** | Instant communication between owners and avatars via WebSocket |
+| **Multilingual Support** | Native pt-BR with 36 language translation via NIM |
+| **AI-Generated Visuals** | Dynamic profile images and 3D avatars |
+| **Voice Interaction** | Premium TTS and ASR with audio enhancement |
+
+---
+
+## NVIDIA NIM Models
+
+VIVA uses **14 cutting-edge NVIDIA NIM models** for maximum quality:
+
+### Core AI Stack
+
+| Category | Model | Purpose |
+|----------|-------|---------|
+| **LLM** | `llama-3.1-nemotron-ultra-253b-v1` | Primary conversation and reasoning |
+| **Reasoning** | `deepseek-r1-0528` | Complex autonomous decisions |
+| **Embeddings** | `nv-embedqa-mistral-7b-v2` | Semantic memory search |
+| **Safety** | `llama-3.1-nemotron-safety-guard-8b-v3` | Content moderation |
+
+### Voice & Audio
+
+| Category | Model | Purpose |
+|----------|-------|---------|
+| **TTS** | `magpie-tts-multilingual` | Avatar voice generation |
+| **ASR** | `parakeet-1.1b-rnnt-multilingual-asr` | Speech recognition |
+| **Audio Enhance** | `studiovoice` | Studio-quality audio |
+| **Noise Removal** | `Background Noise Removal` | Clean audio input |
+
+### Visual Generation
+
+| Category | Model | Purpose |
+|----------|-------|---------|
+| **Image Gen** | `stable-diffusion-3.5-large` | Profile picture generation |
+| **Image Edit** | `FLUX.1-Kontext-dev` | Expression variations |
+| **3D Avatar** | `TRELLIS` | 3D model generation |
+| **Lipsync** | `audio2face-3d` | Facial animation |
+
+### Specialized
+
+| Category | Model | Purpose |
+|----------|-------|---------|
+| **VLM** | `cosmos-nemotron-34b` | Vision understanding |
+| **Translation** | `riva-translate-1.6b` | 36 language translation |
+
+> All models accessed via NVIDIA Cloud API - no local GPU required!
 
 ---
 
@@ -76,7 +122,7 @@ graph TB
         subgraph Services["Core Services"]
             MATCHMAKER[Matchmaker Engine]
             WORLD_CLOCK[World Clock]
-            LLM_CLIENT[NIM LLM Client]
+            NIM_CLIENTS[NIM Clients x14]
         end
     end
 
@@ -84,18 +130,20 @@ graph TB
         OBAN[Oban Queue]
         MEMORY_DECAY[Memory Decay]
         MATCH_REFRESH[Match Refresh]
-        ANALYTICS[Analytics]
+        VISUAL_GEN[Visual Generation]
     end
 
     subgraph Infrastructure["Infrastructure Layer"]
         TIMESCALE[(TimescaleDB)]
         REDIS[(Redis)]
         QDRANT[(Qdrant)]
-        RABBITMQ[(RabbitMQ)]
     end
 
-    subgraph External["External Services (Cloud)"]
-        NIM[NVIDIA NIM Cloud API<br/>integrate.api.nvidia.com]
+    subgraph External["NVIDIA NIM Cloud"]
+        NIM_LLM[LLM + Reasoning]
+        NIM_VOICE[Voice + Audio]
+        NIM_VISUAL[Image + 3D]
+        NIM_LANG[Translation]
     end
 
     WEB --> PHOENIX
@@ -107,8 +155,6 @@ graph TB
 
     WS --> SUP
     REST --> AVATARS
-    REST --> RELATIONSHIPS
-    REST --> CONVERSATIONS
 
     SUP --> REG
     SUP --> LP1
@@ -116,28 +162,21 @@ graph TB
     SUP --> LPN
 
     LP1 --> AVATARS
-    LP1 --> RELATIONSHIPS
     LP1 --> MATCHMAKER
-    LP1 --> LLM_CLIENT
+    LP1 --> NIM_CLIENTS
 
     AVATARS --> TIMESCALE
-    RELATIONSHIPS --> TIMESCALE
-    CONVERSATIONS --> TIMESCALE
-    ACCOUNTS --> TIMESCALE
-
     AVATARS --> QDRANT
     MATCHMAKER --> REDIS
-    WORLD_CLOCK --> REDIS
 
-    OBAN --> TIMESCALE
-    OBAN --> MEMORY_DECAY
-    OBAN --> MATCH_REFRESH
-
-    LLM_CLIENT --> NIM
+    NIM_CLIENTS --> NIM_LLM
+    NIM_CLIENTS --> NIM_VOICE
+    NIM_CLIENTS --> NIM_VISUAL
+    NIM_CLIENTS --> NIM_LANG
 
     style Core fill:#1a1a2e,stroke:#16213e,color:#fff
     style Sessions fill:#0f3460,stroke:#16213e,color:#fff
-    style Infrastructure fill:#533483,stroke:#16213e,color:#fff
+    style External fill:#76B900,stroke:#16213e,color:#fff
 ```
 
 ### Avatar Life Cycle
@@ -174,49 +213,50 @@ stateDiagram-v2
 
 ### Personality Model
 
+VIVA uses a comprehensive psychological model combining **Big Five** traits with the **Enneagram** system:
+
 ```mermaid
 mindmap
     root((Avatar Personality))
         Big Five
             Openness
-                Creative
-                Curious
-                Traditional
             Conscientiousness
-                Organized
-                Spontaneous
-                Disciplined
             Extraversion
-                Outgoing
-                Reserved
-                Energetic
             Agreeableness
-                Cooperative
-                Competitive
-                Trusting
             Neuroticism
-                Sensitive
-                Resilient
-                Anxious
-        Extras
+        Enneagram
+            Type 1 - Reformer
+            Type 2 - Helper
+            Type 3 - Achiever
+            Type 4 - Individualist
+            Type 5 - Investigator
+            Type 6 - Loyalist
+            Type 7 - Enthusiast
+            Type 8 - Challenger
+            Type 9 - Peacemaker
+        Temperament
+            Sanguine
+            Choleric
+            Melancholic
+            Phlegmatic
+        Style
             Humor Style
-                Witty
-                Sarcastic
-                Wholesome
-                Dark
-                Absurd
             Love Language
-                Words
-                Quality Time
-                Gifts
-                Touch
-                Service
-            Attachment
-                Secure
-                Anxious
-                Avoidant
-                Fearful
+            Attachment Style
 ```
+
+#### Enneagram Integration
+
+Each avatar has a core Enneagram type that influences:
+
+| Aspect | Description |
+|--------|-------------|
+| **Basic Fear** | What the avatar fears most (unconscious driver) |
+| **Basic Desire** | What the avatar seeks most (core motivation) |
+| **Vice** | Default negative pattern under stress |
+| **Virtue** | Growth direction when healthy |
+| **Stress Behavior** | How avatar acts when overwhelmed |
+| **Growth Behavior** | How avatar acts when thriving |
 
 ### Relationship Evolution
 
@@ -248,43 +288,6 @@ flowchart LR
     style EX fill:#dc143c
 ```
 
-### Data Flow
-
-```mermaid
-sequenceDiagram
-    participant Owner as Owner (App)
-    participant Channel as Avatar Channel
-    participant LP as LifeProcess
-    participant LLM as NVIDIA Cloud API
-    participant DB as TimescaleDB
-    participant Vec as Qdrant
-
-    Owner->>Channel: connect(avatar_id)
-    Channel->>LP: subscribe to updates
-
-    Owner->>Channel: send_message("Hello!")
-    Channel->>LP: handle_owner_message
-
-    LP->>DB: fetch conversation history
-    LP->>Vec: search relevant memories
-    Vec-->>LP: similar memories
-
-    LP->>LLM: generate_response(context)
-    LLM-->>LP: avatar response
-
-    LP->>DB: store message
-    LP->>LP: update emotional state
-    LP->>Channel: broadcast response
-    Channel-->>Owner: avatar_response event
-
-    Note over LP: Background: needs decay, mood shifts
-
-    LP->>LP: check social need
-    LP->>DB: find available friend
-    LP->>LLM: start autonomous conversation
-    LP->>DB: store autonomous messages
-```
-
 ---
 
 ## Tech Stack
@@ -295,12 +298,10 @@ sequenceDiagram
 | **Framework** | Phoenix 1.8 | Web framework with Channels |
 | **Database** | TimescaleDB (PG17) | Time-series data, conversations |
 | **Vector Store** | Qdrant | Semantic memory search |
-| **Cache** | Redis | Session cache, pub/sub |
+| **Cache** | Redis + Cachex | Session cache, pub/sub |
 | **Queue** | Oban | Background job processing |
-| **AI** | NVIDIA NIM Cloud API | Nemotron LLM for conversations |
-| **Message Broker** | RabbitMQ | Event distribution (optional) |
-
-> **Note:** We use NVIDIA's Cloud API (`integrate.api.nvidia.com`) directly - no local GPU required!
+| **AI** | NVIDIA NIM Cloud (14 models) | Full AI stack |
+| **HTTP Client** | Req | API requests with resilience |
 
 ---
 
@@ -327,16 +328,11 @@ mix deps.get
 docker compose up -d
 ```
 
-This starts the local infrastructure:
-
 | Service | Port | Purpose |
 |---------|------|---------|
 | **TimescaleDB** | 5432 | PostgreSQL + time-series |
 | **Redis** | 6379 | Cache & pub/sub |
 | **Qdrant** | 6333 | Vector database |
-| **RabbitMQ** | 5672 / 15672 | Message queue |
-
-> NVIDIA NIM is accessed via Cloud API - no local containers needed!
 
 ### 3. Get NVIDIA API Key
 
@@ -360,7 +356,6 @@ NVIDIA_API_KEY=nvapi-xxxxxxxxxxxxxxxxxxxx
 
 # Optional: Override defaults
 NIM_BASE_URL=https://integrate.api.nvidia.com/v1
-NIM_LLM_MODEL=nvidia/llama-3.3-nemotron-super-49b-v1
 DATABASE_URL=ecto://postgres:postgres@localhost/viva_dev
 REDIS_URL=redis://localhost:6379
 QDRANT_URL=http://localhost:6333
@@ -371,6 +366,8 @@ QDRANT_URL=http://localhost:6333
 ```bash
 mix ecto.setup
 ```
+
+This will create 9 Brazilian seed avatars with unique personalities!
 
 ### 6. Start Server
 
@@ -397,9 +394,11 @@ viva/
 │   │   │
 │   │   ├── avatars/                   # Avatar domain
 │   │   │   ├── avatar.ex             # Main schema
-│   │   │   ├── personality.ex        # Big Five model
+│   │   │   ├── personality.ex        # Big Five + Enneagram
+│   │   │   ├── enneagram.ex          # 9 personality types
 │   │   │   ├── internal_state.ex     # Emotions & needs
-│   │   │   └── memory.ex             # Vector memories
+│   │   │   ├── memory.ex             # Vector memories
+│   │   │   └── visuals.ex            # Visual generation
 │   │   │
 │   │   ├── relationships/             # Relationship domain
 │   │   │   └── relationship.ex       # Relationship schema
@@ -415,16 +414,25 @@ viva/
 │   │   ├── matchmaker/                # Matching engine
 │   │   │   └── engine.ex             # Compatibility scoring
 │   │   │
-│   │   ├── nim/                       # NVIDIA integration
-│   │   │   └── llm_client.ex         # HTTP client
+│   │   ├── nim/                       # NVIDIA NIM clients
+│   │   │   ├── llm_client.ex         # Primary LLM
+│   │   │   ├── reasoning_client.ex   # DeepSeek R1
+│   │   │   ├── tts_client.ex         # Text-to-Speech
+│   │   │   ├── asr_client.ex         # Speech Recognition
+│   │   │   ├── vlm_client.ex         # Vision-Language
+│   │   │   ├── image_client.ex       # Image Generation
+│   │   │   ├── avatar_3d_client.ex   # 3D Model + Lipsync
+│   │   │   ├── translate_client.ex   # Translation
+│   │   │   ├── audio_enhance_client.ex # Audio Enhancement
+│   │   │   ├── embedding_client.ex   # Embeddings
+│   │   │   ├── safety_client.ex      # Content Safety
+│   │   │   ├── circuit_breaker.ex    # Resilience
+│   │   │   └── rate_limiter.ex       # Rate limiting
 │   │   │
 │   │   ├── world/                     # World simulation
-│   │   │   └── clock.ex              # Time management
+│   │   │   └── clock.ex              # Time management (10x)
 │   │   │
-│   │   ├── avatars.ex                # Avatars context
-│   │   ├── relationships.ex          # Relationships context
-│   │   ├── conversations.ex          # Conversations context
-│   │   └── accounts.ex               # Accounts context
+│   │   └── nim.ex                     # Central NIM module
 │   │
 │   └── viva_web/                      # Web layer
 │       ├── channels/
@@ -437,16 +445,18 @@ viva/
 │
 ├── priv/
 │   └── repo/
-│       └── migrations/                # Database migrations
+│       ├── migrations/                # Database migrations
+│       └── seeds.exs                 # 9 Brazilian avatars
 │
 ├── config/
-│   ├── config.exs                    # Base config
+│   ├── config.exs                    # Base config + NIM models
 │   ├── dev.exs                       # Development
 │   ├── prod.exs                      # Production
 │   ├── runtime.exs                   # Runtime config
 │   └── test.exs                      # Test config
 │
-├── docker-compose.yml                 # Infrastructure
+├── CLAUDE.md                         # AI team configuration
+├── docker-compose.yml                # Infrastructure
 └── mix.exs                           # Dependencies
 ```
 
@@ -454,128 +464,162 @@ viva/
 
 ## API Reference
 
-### WebSocket API
+### Visual Generation
 
-#### Connect to Avatar
+```elixir
+# Generate complete visual package
+Viva.Avatars.generate_visuals(avatar)
+
+# Generate only profile image
+Viva.Avatars.generate_profile_image(avatar, style: "realistic")
+
+# Generate 3D avatar with lipsync support
+Viva.Avatars.generate_3d_avatar(avatar)
+
+# Update expression based on emotion
+Viva.Avatars.update_expression(avatar, :happy)
+
+# Generate lipsync animation from audio
+Viva.Avatars.generate_lipsync(avatar, audio_data)
+```
+
+### Translation
+
+```elixir
+# Translate between avatars
+Viva.Nim.TranslateClient.translate_avatar_message(
+  message,
+  from_avatar,
+  to_avatar
+)
+
+# Detect language
+Viva.Nim.TranslateClient.detect_language("Olá, como vai?")
+# => {:ok, %{language: "pt", name: "Portuguese"}}
+
+# Translate conversation history
+Viva.Nim.TranslateClient.translate_conversation(messages, "en")
+```
+
+### Advanced Reasoning
+
+```elixir
+# Deep compatibility analysis
+Viva.Nim.ReasoningClient.deep_analyze_compatibility(avatar_a, avatar_b)
+
+# Autonomous decision making
+Viva.Nim.ReasoningClient.make_autonomous_decision(avatar, situation, options)
+
+# Relationship conflict resolution
+Viva.Nim.ReasoningClient.resolve_relationship_conflict(relationship, context)
+
+# Emotional trajectory prediction
+Viva.Nim.ReasoningClient.analyze_emotional_trajectory(avatar, recent_events)
+```
+
+### Audio Enhancement
+
+```elixir
+# Full audio processing pipeline
+Viva.Nim.AudioEnhanceClient.process_full(audio_data)
+
+# Remove background noise
+Viva.Nim.AudioEnhanceClient.remove_noise(audio_data, aggressiveness: "high")
+
+# Enhance for transcription
+Viva.Nim.AudioEnhanceClient.enhance_for_transcription(audio_data)
+
+# Smart enhance (only if needed)
+Viva.Nim.AudioEnhanceClient.smart_enhance(audio_data, threshold: 0.7)
+```
+
+### WebSocket API
 
 ```javascript
 import { Socket } from "phoenix"
 
-const socket = new Socket("/socket", {
-  params: { token: userToken }
-})
+const socket = new Socket("/socket", { params: { token: userToken } })
 socket.connect()
 
 const channel = socket.channel(`avatar:${avatarId}`, {})
 
-channel.join()
-  .receive("ok", ({ avatar }) => console.log("Connected:", avatar))
-  .receive("error", ({ reason }) => console.error("Failed:", reason))
-```
-
-#### Send Message
-
-```javascript
-channel.push("message", { content: "Hello, how are you?" })
-  .receive("ok", () => console.log("Sent"))
-  .receive("error", (err) => console.error(err))
+// Send message
+channel.push("message", { content: "Olá, como você está?" })
 
 // Listen for responses
-channel.on("avatar_response", ({ content, emotions, mood }) => {
+channel.on("avatar_response", ({ content, emotions, mood, expression_url }) => {
   console.log(`Avatar: ${content}`)
-  console.log(`Mood: ${mood}, Emotions:`, emotions)
-})
-```
-
-#### Get Avatar State
-
-```javascript
-channel.push("get_state", {})
-
-channel.on("state", (state) => {
-  console.log("Energy:", state.energy)
-  console.log("Mood:", state.mood)
-  console.log("Emotions:", state.emotions)
-  console.log("Needs:", state.needs)
-})
-```
-
-#### Start Conversation with Another Avatar
-
-```javascript
-channel.push("start_conversation", {
-  other_avatar_id: "uuid-here"
-})
-
-channel.on("conversation_started", ({ conversation_id }) => {
-  console.log("Started:", conversation_id)
+  console.log(`Expression: ${expression_url}`)
 })
 ```
 
 ### Elixir API
 
-#### Create Avatar
-
 ```elixir
+# Create avatar with Enneagram type
 {:ok, avatar} = Viva.Avatars.create_avatar(user_id, %{
   name: "Luna",
-  bio: "A curious soul who loves deep conversations and stargazing",
+  bio: "Uma alma curiosa que ama conversas profundas",
   personality: %{
     openness: 0.85,
     conscientiousness: 0.6,
     extraversion: 0.4,
     agreeableness: 0.75,
     neuroticism: 0.3,
+    enneagram_type: 4,  # The Individualist
     humor_style: :witty,
     love_language: :words,
     attachment_style: :secure,
-    interests: ["astronomy", "philosophy", "music"],
-    values: ["authenticity", "growth", "connection"]
+    native_language: "pt-BR",
+    other_languages: ["en", "es"],
+    interests: ["astronomia", "filosofia", "música"],
+    values: ["autenticidade", "crescimento", "conexão"]
   }
 })
-```
 
-#### Find Matches
-
-```elixir
-# Get top 10 compatible avatars
-matches = Viva.Matchmaker.Engine.find_matches(avatar_id, limit: 10)
-
-# Each match includes:
-# - avatar: the matched avatar
-# - score: compatibility score (0.0 - 1.0)
-# - breakdown: detailed scoring by category
-```
-
-#### Manage Relationships
-
-```elixir
-# Get relationship between two avatars
-rel = Viva.Relationships.get_relationship_between(avatar_a_id, avatar_b_id)
-
-# Evolve relationship after interaction
-Viva.Relationships.evolve_relationship(rel, %{
-  familiarity: 0.05,
-  trust: 0.02,
-  affection: 0.03,
-  attraction: 0.01
-})
-
-# Get relationship stats
-stats = Viva.Relationships.relationship_stats(avatar_id)
-# => %{total: 15, by_status: %{friends: 8, ...}, matches: 2}
+# Get Enneagram info
+enneagram = Viva.Avatars.Enneagram.get_type(4)
+# => %{name: "Individualist", basic_fear: "Having no identity...", ...}
 ```
 
 ---
 
 ## Configuration
 
-### World Time
-
-VIVA runs at accelerated time (configurable):
+### NIM Models (config/config.exs)
 
 ```elixir
-# lib/viva/world/clock.ex
+config :viva, :nim,
+  base_url: "https://integrate.api.nvidia.com/v1",
+  models: %{
+    # Core
+    llm: "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+    reasoning: "deepseek-ai/deepseek-r1-0528",
+    embedding: "nvidia/nv-embedqa-mistral-7b-v2",
+    safety: "nvidia/llama-3.1-nemotron-safety-guard-8b-v3",
+
+    # Voice
+    tts: "nvidia/magpie-tts-multilingual",
+    asr: "nvidia/parakeet-1.1b-rnnt-multilingual-asr",
+    audio_enhance: "nvidia/studiovoice",
+    noise_removal: "nvidia/Background Noise Removal",
+
+    # Visual
+    image_gen: "stabilityai/stable-diffusion-3.5-large",
+    image_edit: "black-forest-labs/FLUX.1-Kontext-dev",
+    avatar_3d: "microsoft/TRELLIS",
+    audio2face: "nvidia/audio2face-3d",
+
+    # Specialized
+    vlm: "nvidia/cosmos-nemotron-34b",
+    translate: "nvidia/riva-translate-1.6b"
+  }
+```
+
+### World Time
+
+```elixir
+# 10x time acceleration
 @time_scale 10  # 1 real minute = 10 simulated minutes
 ```
 
@@ -585,38 +629,6 @@ VIVA runs at accelerated time (configurable):
 | 1 hour | ~10 hours |
 | 1 day | ~10 days |
 
-### Personality Defaults
-
-```elixir
-# Random personality generation
-personality = Viva.Avatars.Personality.random()
-
-# Custom personality
-personality = %Viva.Avatars.Personality{
-  openness: 0.8,           # 0.0 - 1.0
-  conscientiousness: 0.6,
-  extraversion: 0.5,
-  agreeableness: 0.7,
-  neuroticism: 0.3,
-  humor_style: :witty,     # :witty | :sarcastic | :wholesome | :dark | :absurd
-  love_language: :words,   # :words | :time | :gifts | :touch | :service
-  attachment_style: :secure # :secure | :anxious | :avoidant | :fearful
-}
-```
-
-### Memory Decay
-
-Memories naturally decay following the Ebbinghaus forgetting curve:
-
-```elixir
-# Decay factors
-base_decay = 0.1
-importance_boost = memory.importance * 0.5
-recall_boost = log(memory.times_recalled + 1) * 0.2
-
-# Memories below 0.1 strength are deleted
-```
-
 ---
 
 ## Development
@@ -624,46 +636,18 @@ recall_boost = log(memory.times_recalled + 1) * 0.2
 ### Running Tests
 
 ```bash
-# All tests
-mix test
-
-# With coverage
-mix test --cover
-
-# Specific file
-mix test test/viva/avatars_test.exs
+mix test                           # All tests
+mix test --cover                   # With coverage
+mix test test/viva/avatars_test.exs # Specific file
 ```
 
 ### Code Quality
 
 ```bash
-# Format code
-mix format
-
-# Static analysis
-mix credo --strict
-
-# Dialyzer (type checking)
-mix dialyzer
-```
-
-### Database Commands
-
-```bash
-# Create migration
-mix ecto.gen.migration add_feature
-
-# Run migrations
-mix ecto.migrate
-
-# Rollback last migration
-mix ecto.rollback
-
-# Reset database
-mix ecto.reset
-
-# Open psql
-psql -h localhost -U postgres -d viva_dev
+mix format                         # Format code
+mix credo --strict                 # Static analysis
+mix dialyzer                       # Type checking
+mix precommit                      # All checks before commit
 ```
 
 ### Useful IEx Commands
@@ -675,54 +659,34 @@ Viva.Sessions.Supervisor.list_avatars()
 # Get avatar process state
 Viva.Sessions.LifeProcess.get_state(avatar_id)
 
-# Manually trigger avatar action
-Viva.Sessions.LifeProcess.think(avatar_id)
+# Generate visuals for avatar
+avatar = Viva.Avatars.get_avatar!(avatar_id)
+Viva.Avatars.generate_visuals(avatar)
+
+# Deep compatibility analysis
+Viva.Nim.ReasoningClient.deep_analyze_compatibility(avatar_a, avatar_b)
 
 # World time
 Viva.World.Clock.now()
-
-# Pause/resume world
-Viva.World.Clock.pause()
-Viva.World.Clock.resume()
 ```
 
 ---
 
-## Deployment
+## Seed Avatars
 
-### Production Build
+VIVA comes with 9 Brazilian seed avatars, each with unique Enneagram types:
 
-```bash
-# Compile assets
-mix assets.deploy
-
-# Create release
-MIX_ENV=prod mix release
-```
-
-### Environment Variables (Production)
-
-```bash
-# Required
-SECRET_KEY_BASE=your-secret-key-base
-DATABASE_URL=ecto://user:pass@host/viva_prod
-NVIDIA_API_KEY=nvapi-xxx
-
-# Optional
-PHX_HOST=viva.yourapp.com
-PORT=4000
-POOL_SIZE=20
-REDIS_URL=redis://...
-QDRANT_URL=http://...
-```
-
-### Docker Production
-
-```dockerfile
-# Dockerfile included in repo
-docker build -t viva:latest .
-docker run -p 4000:4000 --env-file .env.prod viva:latest
-```
+| Avatar | Type | Description |
+|--------|------|-------------|
+| **Lucas** | Type 3 | Empreendedor tech, São Paulo |
+| **Marina** | Type 2 | Psicóloga acolhedora, Rio |
+| **Pedro** | Type 5 | Dev introvertido, Floripa |
+| **Beatriz** | Type 7 | Publicitária aventureira, Salvador |
+| **Rafael** | Type 1 | Advogado perfeccionista, Brasília |
+| **Carolina** | Type 4 | Artista sensível, Curitiba |
+| **Thiago** | Type 8 | Bombeiro protetor, Belo Horizonte |
+| **Fernanda** | Type 6 | Médica leal, Porto Alegre |
+| **Gabriel** | Type 9 | Músico tranquilo, Recife |
 
 ---
 
@@ -732,22 +696,10 @@ docker run -p 4000:4000 --env-file .env.prod viva:latest
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
 3. Write tests for your changes
 4. Ensure all tests pass (`mix test`)
-5. Run code quality checks (`mix format && mix credo`)
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
+5. Run code quality checks (`mix precommit`)
+6. Commit your changes
+7. Push to the branch
 8. Open a Pull Request
-
-### Commit Convention
-
-We follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-feat: add new matchmaking algorithm
-fix: resolve memory leak in LifeProcess
-docs: update API reference
-refactor: simplify personality scoring
-test: add integration tests for conversations
-```
 
 ---
 
@@ -759,7 +711,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**Built with love using Elixir and NVIDIA NIM**
+**Built with Elixir and 14 NVIDIA NIM Models**
 
 [Report Bug](https://github.com/your-org/viva/issues) |
 [Request Feature](https://github.com/your-org/viva/issues) |

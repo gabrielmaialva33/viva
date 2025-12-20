@@ -139,7 +139,18 @@ defmodule Viva.Avatars.Personality do
       extraversion: :rand.uniform(),
       agreeableness: :rand.uniform(),
       neuroticism: :rand.uniform() * 0.7,
-      enneagram_type: Enum.random([:type_1, :type_2, :type_3, :type_4, :type_5, :type_6, :type_7, :type_8, :type_9]),
+      enneagram_type:
+        Enum.random([
+          :type_1,
+          :type_2,
+          :type_3,
+          :type_4,
+          :type_5,
+          :type_6,
+          :type_7,
+          :type_8,
+          :type_9
+        ]),
       humor_style: Enum.random([:witty, :sarcastic, :wholesome, :dark, :absurd]),
       love_language: Enum.random([:words, :time, :gifts, :touch, :service]),
       attachment_style:

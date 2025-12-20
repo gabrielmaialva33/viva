@@ -1,4 +1,8 @@
 defmodule VivaWeb.UserSocket do
+  @moduledoc """
+  Socket handler for user connections.
+  Manages authentication and channel definitions.
+  """
   use Phoenix.Socket
 
   # Channels

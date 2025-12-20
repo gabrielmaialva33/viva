@@ -17,13 +17,18 @@ defmodule Viva.Sessions.LifeProcess do
   # 1 real minute = 10 simulated minutes
   @time_scale 10
 
+  # Persist every 5 ticks (5 minutes with 60s tick interval)
+  @persist_every_n_ticks 5
+
   defstruct [
     :avatar_id,
     :avatar,
     :state,
     :last_tick_at,
     :owner_online?,
-    :current_conversation
+    :current_conversation,
+    :last_thought,
+    tick_count: 0
   ]
 
   # === Client API ===
@@ -135,9 +140,18 @@ defmodule Viva.Sessions.LifeProcess do
   end
 
   @impl true
+  def handle_cast({:set_thought, thought}, state) do
+    new_internal = %{state.state | current_thought: thought}
+    {:noreply, %{state | state: new_internal, last_thought: thought}}
+  end
+
+  @impl true
   def handle_info(:tick, state) do
+    tick_count = state.tick_count + 1
+
     new_state =
       state
+      |> Map.put(:tick_count, tick_count)
       |> decay_needs()
       |> process_emotions()
       |> maybe_develop_desire()
@@ -145,7 +159,7 @@ defmodule Viva.Sessions.LifeProcess do
       |> maybe_act_autonomously()
       |> update_timestamp()
 
-    persist_state(new_state)
+    maybe_persist_state(new_state, tick_count)
     schedule_tick()
 
     {:noreply, new_state}
@@ -280,16 +294,16 @@ defmodule Viva.Sessions.LifeProcess do
   end
 
   defp generate_thought(process_state) do
-    Task.start(fn ->
+    avatar_id = process_state.avatar_id
+
+    Task.Supervisor.start_child(Viva.Sessions.TaskSupervisor, fn ->
       case generate_thought_content(process_state) do
         {:ok, thought} ->
-          broadcast_thought(process_state.avatar_id, thought)
+          broadcast_thought(avatar_id, thought)
+          GenServer.cast(via(avatar_id), {:set_thought, thought})
 
-          # Update internal state
-          GenServer.cast(via(process_state.avatar_id), {:set_thought, thought})
-
-        {:error, _reason} ->
-          :ok
+        {:error, reason} ->
+          Logger.warning("Failed to generate thought for avatar #{avatar_id}: #{inspect(reason)}")
       end
     end)
 
@@ -373,14 +387,15 @@ defmodule Viva.Sessions.LifeProcess do
   end
 
   defp maybe_generate_greeting(process_state) do
-    # Generate a greeting for the owner when they come online
-    Task.start(fn ->
+    avatar_id = process_state.avatar_id
+
+    Task.Supervisor.start_child(Viva.Sessions.TaskSupervisor, fn ->
       case generate_greeting(process_state) do
         {:ok, greeting} ->
-          broadcast_to_owner(process_state.avatar_id, {:greeting, greeting})
+          broadcast_to_owner(avatar_id, {:greeting, greeting})
 
-        _ ->
-          :ok
+        {:error, reason} ->
+          Logger.warning("Failed to generate greeting for avatar #{avatar_id}: #{inspect(reason)}")
       end
     end)
 
@@ -417,13 +432,19 @@ defmodule Viva.Sessions.LifeProcess do
     %{process_state | state: new_internal, last_tick_at: DateTime.utc_now()}
   end
 
-  defp persist_state(process_state) do
-    # Persist to database periodically (every 5 minutes)
-    if rem(System.system_time(:second), 300) < 60 do
-      Viva.Avatars.update_internal_state(
-        process_state.avatar_id,
-        process_state.state
-      )
+  defp maybe_persist_state(process_state, tick_count) do
+    if rem(tick_count, @persist_every_n_ticks) == 0 do
+      Logger.debug("Persisting state for avatar #{process_state.avatar_id} at tick #{tick_count}")
+
+      case Viva.Avatars.update_internal_state(process_state.avatar_id, process_state.state) do
+        {:ok, _} ->
+          :ok
+
+        {:error, reason} ->
+          Logger.error(
+            "Failed to persist state for avatar #{process_state.avatar_id}: #{inspect(reason)}"
+          )
+      end
     end
   end
 
