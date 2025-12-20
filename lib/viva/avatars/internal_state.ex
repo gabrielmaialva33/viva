@@ -15,7 +15,7 @@ defmodule Viva.Avatars.InternalState do
     field :comfort, :float, default: 80.0
 
     # Current emotions (0.0 to 1.0)
-    embeds_one :emotions, Emotions, on_replace: :update
+    embeds_one :emotions, __MODULE__.Emotions, on_replace: :update
 
     # Overall mood (-1.0 to 1.0)
     field :mood, :float, default: 0.3
@@ -103,8 +103,8 @@ defmodule Viva.Avatars.InternalState do
 
   def new do
     %__MODULE__{
-      emotions: %Emotions{},
-      updated_at: DateTime.utc_now()
+      emotions: %__MODULE__.Emotions{},
+      updated_at: DateTime.utc_now() |> DateTime.truncate(:second)
     }
   end
 

@@ -40,8 +40,8 @@ defmodule Viva.Relationships.Relationship do
       default: :strangers
 
     # Individual feelings (each avatar's perspective)
-    embeds_one :a_feelings, Feelings, on_replace: :update
-    embeds_one :b_feelings, Feelings, on_replace: :update
+    embeds_one :a_feelings, __MODULE__.Feelings, on_replace: :update
+    embeds_one :b_feelings, __MODULE__.Feelings, on_replace: :update
 
     # Interaction history
     field :first_interaction_at, :utc_datetime

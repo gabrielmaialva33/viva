@@ -87,10 +87,12 @@ defmodule Viva.Avatars.Avatar do
   end
 
   def create_changeset(avatar, attrs) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
     avatar
     |> changeset(attrs)
-    |> put_change(:created_at, DateTime.utc_now())
-    |> put_change(:last_active_at, DateTime.utc_now())
+    |> put_change(:created_at, now)
+    |> put_change(:last_active_at, now)
   end
 
   defp put_default_internal_state(changeset) do
