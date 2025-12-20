@@ -15,18 +15,28 @@ defmodule Viva.Nim.CircuitBreaker do
   use GenServer
   require Logger
 
+  @type circuit_state :: :closed | :open | :half_open
+  @type call_result :: {:ok, any()} | {:error, any()}
+  @type stats :: %{
+          state: circuit_state(),
+          failure_count: non_neg_integer(),
+          success_count: non_neg_integer(),
+          failure_threshold: pos_integer(),
+          reset_timeout_ms: pos_integer()
+        }
+
   @table :nim_circuit_breaker
   @default_failure_threshold 5
   @default_reset_timeout_ms 30_000
   @default_success_threshold 2
 
-  # Client API
-
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @doc "Check if requests are allowed"
+  @spec allow_request?() :: boolean()
   def allow_request? do
     case get_state() do
       :closed -> true
@@ -36,6 +46,7 @@ defmodule Viva.Nim.CircuitBreaker do
   end
 
   @doc "Get current circuit state"
+  @spec get_state() :: circuit_state()
   def get_state do
     case :ets.lookup(@table, :state) do
       [{:state, state, opened_at}] ->
@@ -47,16 +58,19 @@ defmodule Viva.Nim.CircuitBreaker do
   end
 
   @doc "Record a successful request"
+  @spec record_success() :: :ok
   def record_success do
     GenServer.cast(__MODULE__, :success)
   end
 
   @doc "Record a failed request"
+  @spec record_failure() :: :ok
   def record_failure do
     GenServer.cast(__MODULE__, :failure)
   end
 
   @doc "Execute a function with circuit breaker protection"
+  @spec call((-> call_result())) :: call_result()
   def call(fun) when is_function(fun, 0) do
     if allow_request?() do
       try do
@@ -83,16 +97,16 @@ defmodule Viva.Nim.CircuitBreaker do
   end
 
   @doc "Reset circuit breaker to closed state"
+  @spec reset() :: :ok
   def reset do
     GenServer.call(__MODULE__, :reset)
   end
 
   @doc "Get circuit breaker stats"
+  @spec stats() :: stats()
   def stats do
     GenServer.call(__MODULE__, :stats)
   end
-
-  # Server Callbacks
 
   @impl true
   def init(opts) do
@@ -192,8 +206,6 @@ defmodule Viva.Nim.CircuitBreaker do
 
     {:reply, stats, state}
   end
-
-  # Private Functions
 
   defp maybe_transition_to_half_open(:open, opened_at) do
     config = Application.get_env(:viva, :nim, [])

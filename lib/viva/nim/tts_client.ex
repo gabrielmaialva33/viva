@@ -133,7 +133,6 @@ defmodule Viva.Nim.TtsClient do
     )
   end
 
-  # === Private Functions ===
 
   defp default_voice("pt-BR"), do: "magpie-pt-br-female-1"
   defp default_voice("en-US"), do: "magpie-en-us-female-1"

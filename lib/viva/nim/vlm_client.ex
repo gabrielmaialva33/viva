@@ -222,7 +222,6 @@ defmodule Viva.Nim.VlmClient do
     analyze_image(image_data, prompt, Keyword.merge([temperature: 0.8], opts))
   end
 
-  # === Private Functions ===
 
   defp encode_image_url(image_data) when is_binary(image_data) do
     # Detect image format from magic bytes

@@ -10,13 +10,10 @@ defmodule Viva.Avatars.Visuals do
 
   ## Usage
 
-      # Generate complete visual package
       Visuals.generate_complete(avatar)
 
-      # Generate just profile
       Visuals.generate_profile(avatar)
 
-      # Update expression based on emotion
       Visuals.update_expression(avatar, :happy)
   """
   require Logger
@@ -61,7 +58,6 @@ defmodule Viva.Avatars.Visuals do
 
     case ImageClient.generate_profile(avatar, opts) do
       {:ok, {:url, url}} ->
-        # Image returned as URL, download and save
         download_and_save_profile(avatar, url)
 
       {:ok, image_data} when is_binary(image_data) ->
@@ -80,10 +76,8 @@ defmodule Viva.Avatars.Visuals do
     expressions = expressions || [:happy, :sad, :neutral, :surprised, :loving]
     Logger.info("Generating #{length(expressions)} expressions for avatar #{avatar.id}")
 
-    # generate_expression_pack always returns {:ok, map} (handles errors internally)
     {:ok, expression_map} = ImageClient.generate_expression_pack(avatar, expressions, opts)
 
-    # Save each expression image
     saved_expressions =
       Enum.reduce(expression_map, %{}, fn {expr, data}, acc ->
         case save_expression_image(avatar, expr, data) do
@@ -177,7 +171,6 @@ defmodule Viva.Avatars.Visuals do
     not is_nil(avatar.avatar_3d_model_url)
   end
 
-  # === Private Functions ===
 
   defp save_and_update_profile(avatar, image_data) do
     filename = "#{avatar.id}_profile.png"

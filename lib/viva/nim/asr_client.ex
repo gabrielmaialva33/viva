@@ -65,7 +65,6 @@ defmodule Viva.Nim.AsrClient do
     model = Keyword.get(opts, :model, Nim.model(:asr))
     language = Keyword.get(opts, :language, "pt-BR")
 
-    # Return a stream handler that can receive audio chunks
     {:ok,
      %{
        model: model,
@@ -129,7 +128,6 @@ defmodule Viva.Nim.AsrClient do
     end
   end
 
-  # === Private Functions ===
 
   defp encode_audio(audio_data) when is_binary(audio_data) do
     Base.encode64(audio_data)

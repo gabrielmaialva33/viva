@@ -16,11 +16,18 @@ defmodule Viva.Nim.LlmClient do
   require Logger
 
   alias Viva.Nim
-  alias Viva.Avatars.InternalState
+  alias Viva.Avatars.{Avatar, InternalState}
+
+
+  @type message :: %{role: String.t(), content: String.t()}
+  @type tool_call :: map()
+  @type chat_response :: {:ok, String.t()} | {:ok, {:tool_calls, [tool_call()]}} | {:error, term()}
+  @type generate_response :: {:ok, String.t()} | {:error, term()}
 
   @doc """
   Generate text completion from a prompt.
   """
+  @spec generate(String.t(), keyword()) :: generate_response()
   def generate(prompt, opts \\ []) do
     messages = [%{role: "user", content: prompt}]
 
@@ -40,10 +47,10 @@ defmodule Viva.Nim.LlmClient do
   - `:tools` - List of tools for function calling
   - `:system` - System message to prepend
   """
+  @spec chat([message()], keyword()) :: chat_response()
   def chat(messages, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:llm))
 
-    # Prepend system message if provided
     messages =
       case Keyword.get(opts, :system) do
         nil -> messages
@@ -79,6 +86,8 @@ defmodule Viva.Nim.LlmClient do
   Chat completion with streaming.
   Calls the callback function with each chunk.
   """
+  @spec chat_stream([message()], (String.t() -> any()), keyword()) ::
+          {:ok, Req.Response.t()} | {:error, term()}
   def chat_stream(messages, callback, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:llm))
 
@@ -125,6 +134,7 @@ defmodule Viva.Nim.LlmClient do
 
       LlmClient.chat_with_tools(messages, tools)
   """
+  @spec chat_with_tools([message()], [map()], keyword()) :: chat_response()
   def chat_with_tools(messages, tools, opts \\ []) do
     chat(messages, Keyword.put(opts, :tools, tools))
   end
@@ -133,6 +143,7 @@ defmodule Viva.Nim.LlmClient do
   Analyze a conversation and extract insights.
   Returns structured analysis including emotional depth, compatibility, etc.
   """
+  @spec analyze_conversation([map()], Avatar.t(), Avatar.t()) :: {:ok, map()} | {:error, term()}
   def analyze_conversation(conversation, avatar_a, avatar_b) do
     prompt = """
     Analyze this conversation between two AI avatars and evaluate:
@@ -178,10 +189,10 @@ defmodule Viva.Nim.LlmClient do
   Generate avatar response in conversation.
   Takes into account personality, relationship, and emotional state.
   """
+  @spec generate_avatar_response(Avatar.t(), Avatar.t(), [map()], map()) :: chat_response()
   def generate_avatar_response(avatar, other_avatar, conversation_history, context \\ %{}) do
     system_prompt = build_conversation_system_prompt(avatar, other_avatar, context)
 
-    # Convert history to OpenAI format
     messages =
       conversation_history
       |> Enum.map(fn msg ->
@@ -202,6 +213,7 @@ defmodule Viva.Nim.LlmClient do
   @doc """
   Generate a spontaneous thought for an avatar based on their state.
   """
+  @spec generate_thought(Avatar.t(), InternalState.t()) :: generate_response()
   def generate_thought(avatar, internal_state) do
     prompt = """
     You are #{avatar.name}. Generate a single spontaneous thought based on your current state.
@@ -224,6 +236,7 @@ defmodule Viva.Nim.LlmClient do
   @doc """
   Generate a greeting when the owner comes online.
   """
+  @spec generate_greeting(Avatar.t(), InternalState.t()) :: generate_response()
   def generate_greeting(avatar, internal_state) do
     prompt = """
     You are #{avatar.name}. Your owner just came online.
@@ -239,7 +252,6 @@ defmodule Viva.Nim.LlmClient do
     generate(prompt, max_tokens: 60, temperature: 0.8)
   end
 
-  # === Private Functions ===
 
   defp maybe_add_tools(body, nil), do: body
 

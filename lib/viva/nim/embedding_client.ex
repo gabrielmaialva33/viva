@@ -108,7 +108,6 @@ defmodule Viva.Nim.EmbeddingClient do
   Embed an avatar memory for storage.
   """
   def embed_memory(memory_content, context \\ %{}) do
-    # Enhance memory with context for better retrieval
     enhanced_content =
       case context do
         %{avatar_name: name, emotion: emotion} ->
@@ -131,7 +130,6 @@ defmodule Viva.Nim.EmbeddingClient do
     top_k = Keyword.get(opts, :top_k, 10)
     threshold = Keyword.get(opts, :threshold, 0.5)
 
-    # Extract texts and IDs from memories
     {texts, memory_data} =
       Enum.map(memories, fn memory ->
         {memory.content, memory}

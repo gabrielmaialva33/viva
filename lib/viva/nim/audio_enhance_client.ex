@@ -134,13 +134,11 @@ defmodule Viva.Nim.AudioEnhanceClient do
   Optimized for ASR accuracy.
   """
   def enhance_for_transcription(audio_data, opts \\ []) do
-    # First remove noise aggressively
     with {:ok, denoised} <-
            remove_noise(audio_data,
              aggressiveness: "high",
              preserve_speech: true
            ) do
-      # Then light enhancement to normalize levels
       enhance(denoised, Keyword.merge(opts, enhance_vocals: true))
     end
   end

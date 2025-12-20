@@ -12,6 +12,11 @@ defmodule Viva.Sessions.LifeProcess do
   alias Viva.Nim.LlmClient
   alias Phoenix.PubSub
 
+  # === Types ===
+
+  @type avatar_id :: Ecto.UUID.t()
+  @type process_state :: %__MODULE__{}
+
   # 1 minute per tick
   @tick_interval :timer.seconds(60)
   # 1 real minute = 10 simulated minutes
@@ -33,30 +38,37 @@ defmodule Viva.Sessions.LifeProcess do
 
   # === Client API ===
 
+  @spec start_link(avatar_id()) :: GenServer.on_start()
   def start_link(avatar_id) do
     GenServer.start_link(__MODULE__, avatar_id, name: via(avatar_id))
   end
 
+  @spec get_state(avatar_id()) :: process_state()
   def get_state(avatar_id) do
     GenServer.call(via(avatar_id), :get_state)
   end
 
+  @spec owner_connected(avatar_id()) :: :ok
   def owner_connected(avatar_id) do
     GenServer.cast(via(avatar_id), :owner_connected)
   end
 
+  @spec owner_disconnected(avatar_id()) :: :ok
   def owner_disconnected(avatar_id) do
     GenServer.cast(via(avatar_id), :owner_disconnected)
   end
 
+  @spec trigger_thought(avatar_id()) :: :ok
   def trigger_thought(avatar_id) do
     GenServer.cast(via(avatar_id), :trigger_thought)
   end
 
+  @spec start_interaction(avatar_id(), avatar_id()) :: :ok
   def start_interaction(avatar_id, other_avatar_id) do
     GenServer.call(via(avatar_id), {:start_interaction, other_avatar_id})
   end
 
+  @spec end_interaction(avatar_id()) :: :ok
   def end_interaction(avatar_id) do
     GenServer.cast(via(avatar_id), :end_interaction)
   end

@@ -105,11 +105,9 @@ defmodule Viva.Nim.TranslateClient do
     preserve_tone = Keyword.get(opts, :preserve_tone, true)
     formality = Keyword.get(opts, :formality, "auto")
 
-    # Normalize language codes
     from_lang = normalize_lang(from_lang)
     to_lang = normalize_lang(to_lang)
 
-    # Skip if same language
     if from_lang == to_lang do
       {:ok, text}
     else
@@ -271,7 +269,6 @@ defmodule Viva.Nim.TranslateClient do
     end
   end
 
-  # === Private Functions ===
 
   defp normalize_lang(lang) when is_binary(lang) do
     # Convert "pt-BR" to "pt", "en-US" to "en", etc.

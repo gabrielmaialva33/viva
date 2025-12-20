@@ -151,14 +151,12 @@ defmodule Viva.Nim.SafetyClient do
   def sanitize_input(content, opts \\ []) do
     max_length = Keyword.get(opts, :max_length, 10_000)
 
-    # Basic sanitization
     sanitized =
       content
       |> String.slice(0, max_length)
       |> String.replace(~r/<script.*?>.*?<\/script>/is, "")
       |> String.replace(~r/<!--.*?-->/s, "")
 
-    # Check safety
     case check_content(sanitized, opts) do
       {:ok, :safe} ->
         {:ok, sanitized}
@@ -200,7 +198,6 @@ defmodule Viva.Nim.SafetyClient do
   @doc "List all safety categories"
   def categories, do: @safety_categories
 
-  # === Private Functions ===
 
   defp safety_system_prompt do
     """

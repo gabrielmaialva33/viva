@@ -29,6 +29,28 @@ defmodule Viva.Matchmaker.Engine do
 
   import Ecto.Query
 
+  # === Types ===
+
+  @type avatar_id :: Ecto.UUID.t()
+  @type score :: %{
+          total: float(),
+          personality: float(),
+          enneagram: float(),
+          temperament: float(),
+          interests: float(),
+          values: float(),
+          communication: float()
+        }
+  @type match_result :: %{avatar: Avatar.t(), score: score(), explanation: String.t()}
+  @type stats :: %{
+          hits: non_neg_integer(),
+          misses: non_neg_integer(),
+          evictions: non_neg_integer(),
+          expirations: non_neg_integer(),
+          size: non_neg_integer(),
+          hit_rate: float()
+        }
+
   @cache_name :matchmaker_cache
   @default_cache_ttl_hours 24
   @default_refresh_interval_hours 1
@@ -37,6 +59,7 @@ defmodule Viva.Matchmaker.Engine do
 
   # === Client API ===
 
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end

@@ -304,7 +304,6 @@ defmodule Viva.Nim.ReasoningClient do
     reason(prompt, structured: true)
   end
 
-  # === Private Functions ===
 
   defp parse_json_response(response) do
     cleaned =

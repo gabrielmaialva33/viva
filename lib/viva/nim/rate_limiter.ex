@@ -12,13 +12,21 @@ defmodule Viva.Nim.RateLimiter do
   use GenServer
   require Logger
 
+  @type rate_check_result :: :ok | {:error, {:rate_limited, pos_integer()}}
+  @type acquire_result :: :ok | {:error, :rate_limit_timeout}
+  @type stats :: %{
+          tokens_available: float(),
+          burst_size: pos_integer(),
+          requests_per_minute: pos_integer(),
+          refill_rate_per_second: float()
+        }
+
   @table :nim_rate_limiter
   @default_requests_per_minute 60
   @default_burst_size 10
   @refill_interval_ms 1_000
 
-  # Client API
-
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -27,19 +35,18 @@ defmodule Viva.Nim.RateLimiter do
   Check if a request is allowed and consume a token.
   Returns :ok if allowed, {:error, :rate_limited} if not.
   """
+  @spec check_rate() :: rate_check_result()
   def check_rate do
     case :ets.lookup(@table, :bucket) do
       [{:bucket, tokens, last_refill}] ->
         now = System.monotonic_time(:millisecond)
         config = get_config()
 
-        # Calculate new tokens from refill
         elapsed_ms = now - last_refill
         refill_rate = config.requests_per_minute / 60_000
         new_tokens = min(config.burst_size, tokens + elapsed_ms * refill_rate)
 
         if new_tokens >= 1.0 do
-          # Consume one token
           :ets.insert(@table, {:bucket, new_tokens - 1.0, now})
           :ok
         else
@@ -56,11 +63,13 @@ defmodule Viva.Nim.RateLimiter do
   Acquire a token, waiting if necessary.
   Returns :ok when token acquired, or {:error, :timeout} after max_wait_ms.
   """
+  @spec acquire(pos_integer()) :: acquire_result()
   def acquire(max_wait_ms \\ 5_000) do
     acquire_loop(max_wait_ms, System.monotonic_time(:millisecond))
   end
 
   @doc "Get current rate limiter stats"
+  @spec stats() :: stats() | %{tokens_available: 0, error: :not_initialized}
   def stats do
     case :ets.lookup(@table, :bucket) do
       [{:bucket, tokens, last_refill}] ->
@@ -83,11 +92,10 @@ defmodule Viva.Nim.RateLimiter do
   end
 
   @doc "Reset rate limiter to full capacity"
+  @spec reset() :: :ok
   def reset do
     GenServer.call(__MODULE__, :reset)
   end
-
-  # Server Callbacks
 
   @impl true
   def init(opts) do
@@ -103,11 +111,8 @@ defmodule Viva.Nim.RateLimiter do
       burst_size: burst_size
     }
 
-    # Initialize bucket with full capacity
     :ets.insert(@table, {:bucket, burst_size * 1.0, System.monotonic_time(:millisecond)})
     :ets.insert(@table, {:config, requests_per_minute, burst_size})
-
-    # Schedule periodic cleanup/maintenance
     schedule_maintenance()
 
     {:ok, state}
@@ -121,7 +126,6 @@ defmodule Viva.Nim.RateLimiter do
 
   @impl true
   def handle_info(:maintenance, state) do
-    # Periodic maintenance - ensure bucket doesn't exceed burst size
     case :ets.lookup(@table, :bucket) do
       [{:bucket, tokens, _}] when tokens > state.burst_size ->
         :ets.insert(@table, {:bucket, state.burst_size * 1.0, System.monotonic_time(:millisecond)})
@@ -133,8 +137,6 @@ defmodule Viva.Nim.RateLimiter do
     schedule_maintenance()
     {:noreply, state}
   end
-
-  # Private Functions
 
   defp schedule_maintenance do
     Process.send_after(self(), :maintenance, @refill_interval_ms * 60)

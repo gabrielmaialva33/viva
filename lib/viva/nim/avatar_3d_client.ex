@@ -238,7 +238,6 @@ defmodule Viva.Nim.Avatar3DClient do
     ]
   end
 
-  # === Private Functions ===
 
   defp build_avatar_description(avatar) do
     gender = gender_text(avatar.gender)

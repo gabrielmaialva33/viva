@@ -168,8 +168,6 @@ defmodule Viva.Nim.ImageClient do
     {:ok, results}
   end
 
-  # === Private Functions ===
-
   defp build_profile_prompt(avatar, style) do
     gender_text = gender_description(avatar.gender)
     age_text = age_description(avatar.age)
