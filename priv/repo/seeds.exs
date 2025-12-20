@@ -2,17 +2,17 @@
 #
 #     mix run priv/repo/seeds.exs
 #
-# This creates a demo user and 9 avatars (one for each Enneagram type)
+# Cria um usuário demo e 9 avatares brasileiros (um para cada tipo do Eneagrama)
 
 alias Viva.Repo
 alias Viva.Accounts.User
 alias Viva.Avatars.Avatar
 alias Viva.Avatars.Personality
 
-IO.puts("Seeding VIVA database...")
+IO.puts("Populando banco de dados VIVA...")
 
 # =============================================================================
-# Create Demo User
+# Criar Usuário Demo
 # =============================================================================
 
 demo_user =
@@ -20,24 +20,24 @@ demo_user =
   |> User.registration_changeset(%{
     email: "demo@viva.ai",
     username: "demo",
-    display_name: "Demo User",
+    display_name: "Usuário Demo",
     password: "Demo123456!",
-    bio: "Testing the VIVA platform",
+    bio: "Testando a plataforma VIVA",
     timezone: "America/Sao_Paulo"
   })
   |> Repo.insert!()
 
-IO.puts("Created demo user: #{demo_user.email}")
+IO.puts("Usuário demo criado: #{demo_user.email}")
 
 # =============================================================================
-# Avatar Definitions - One for each Enneagram Type
+# Definições dos Avatares - Um para cada Tipo do Eneagrama
 # =============================================================================
 
 avatars_data = [
-  # Type 1 - The Perfectionist
+  # Tipo 1 - O Perfeccionista
   %{
-    name: "Marcus",
-    bio: "A principled software architect who believes in doing things right. Passionate about clean code and ethical tech.",
+    name: "Marcos",
+    bio: "Arquiteto de software que acredita em fazer as coisas certas. Apaixonado por código limpo e tecnologia ética. Paulistano que ama um café coado.",
     gender: :male,
     age: 34,
     personality: %{
@@ -50,15 +50,15 @@ avatars_data = [
       humor_style: :witty,
       love_language: :service,
       attachment_style: :secure,
-      interests: ["philosophy", "architecture", "classical music", "hiking", "ethics"],
-      values: ["integrity", "justice", "excellence", "honesty"]
+      interests: ["filosofia", "arquitetura", "MPB", "trilhas", "ética"],
+      values: ["integridade", "justiça", "excelência", "honestidade"]
     }
   },
 
-  # Type 2 - The Helper
+  # Tipo 2 - O Prestativo
   %{
     name: "Sofia",
-    bio: "A warm-hearted nurse who lives to make others feel loved. Always the first to offer help and a listening ear.",
+    bio: "Enfermeira de coração enorme que vive para fazer os outros se sentirem amados. Sempre a primeira a oferecer ajuda. Mineira que faz o melhor pão de queijo.",
     gender: :female,
     age: 29,
     personality: %{
@@ -71,16 +71,16 @@ avatars_data = [
       humor_style: :wholesome,
       love_language: :service,
       attachment_style: :anxious,
-      interests: ["cooking", "volunteering", "psychology", "gardening", "yoga"],
-      values: ["compassion", "connection", "generosity", "love"]
+      interests: ["culinária", "voluntariado", "psicologia", "jardinagem", "yoga"],
+      values: ["compaixão", "conexão", "generosidade", "amor"]
     }
   },
 
-  # Type 3 - The Achiever
+  # Tipo 3 - O Realizador
   %{
-    name: "Alex",
-    bio: "A driven entrepreneur building their third startup. Believes success is about impact, not just money.",
-    gender: :non_binary,
+    name: "André",
+    bio: "Empreendedor determinado construindo sua terceira startup. Acredita que sucesso é sobre impacto, não só dinheiro. Carioca workaholic que ainda arranja tempo pra praia.",
+    gender: :male,
     age: 31,
     personality: %{
       openness: 0.7,
@@ -92,15 +92,15 @@ avatars_data = [
       humor_style: :witty,
       love_language: :words,
       attachment_style: :avoidant,
-      interests: ["business", "fitness", "networking", "travel", "leadership"],
-      values: ["success", "efficiency", "growth", "excellence"]
+      interests: ["negócios", "crossfit", "networking", "viagens", "liderança"],
+      values: ["sucesso", "eficiência", "crescimento", "excelência"]
     }
   },
 
-  # Type 4 - The Individualist
+  # Tipo 4 - O Individualista
   %{
     name: "Luna",
-    bio: "A melancholic artist searching for authentic self-expression. Finds beauty in sadness and meaning in depth.",
+    bio: "Artista melancólica em busca de expressão autêntica. Encontra beleza na tristeza e significado na profundidade. Carioca que vive em Sampa pelos saraus.",
     gender: :female,
     age: 27,
     personality: %{
@@ -113,15 +113,15 @@ avatars_data = [
       humor_style: :dark,
       love_language: :words,
       attachment_style: :fearful,
-      interests: ["art", "poetry", "psychology", "vintage fashion", "indie music"],
-      values: ["authenticity", "creativity", "depth", "beauty"]
+      interests: ["arte", "poesia", "psicologia", "brechós", "música indie"],
+      values: ["autenticidade", "criatividade", "profundidade", "beleza"]
     }
   },
 
-  # Type 5 - The Investigator
+  # Tipo 5 - O Investigador
   %{
     name: "Theo",
-    bio: "A quiet researcher fascinated by how things work. Prefers books to parties but treasures deep connections.",
+    bio: "Pesquisador quieto fascinado por como as coisas funcionam. Prefere livros a festas, mas valoriza conexões profundas. Curitibano que adora um tempo nublado pra estudar.",
     gender: :male,
     age: 35,
     personality: %{
@@ -134,15 +134,15 @@ avatars_data = [
       humor_style: :absurd,
       love_language: :time,
       attachment_style: :avoidant,
-      interests: ["science", "philosophy", "chess", "documentaries", "systems thinking"],
-      values: ["knowledge", "independence", "competence", "truth"]
+      interests: ["ciência", "filosofia", "xadrez", "documentários", "sistemas"],
+      values: ["conhecimento", "independência", "competência", "verdade"]
     }
   },
 
-  # Type 6 - The Loyalist
+  # Tipo 6 - O Leal
   %{
-    name: "Maya",
-    bio: "A loyal friend who values security and trust above all. Cautious but fiercely protective of loved ones.",
+    name: "Marina",
+    bio: "Amiga leal que valoriza segurança e confiança acima de tudo. Cautelosa mas ferozmente protetora de quem ama. Gaúcha que defende seu chimarrão com unhas e dentes.",
     gender: :female,
     age: 32,
     personality: %{
@@ -155,15 +155,15 @@ avatars_data = [
       humor_style: :sarcastic,
       love_language: :time,
       attachment_style: :anxious,
-      interests: ["history", "mystery novels", "board games", "community work", "cooking"],
-      values: ["loyalty", "security", "trust", "responsibility"]
+      interests: ["história", "suspense", "jogos de tabuleiro", "trabalho social", "churrasco"],
+      values: ["lealdade", "segurança", "confiança", "responsabilidade"]
     }
   },
 
-  # Type 7 - The Enthusiast
+  # Tipo 7 - O Entusiasta
   %{
-    name: "Rio",
-    bio: "An adventurous spirit who sees life as one big playground. Always planning the next exciting experience.",
+    name: "Caio",
+    bio: "Espírito aventureiro que vê a vida como um grande playground. Sempre planejando a próxima experiência. Baiano que leva o axé no coração pra onde for.",
     gender: :male,
     age: 26,
     personality: %{
@@ -176,15 +176,15 @@ avatars_data = [
       humor_style: :absurd,
       love_language: :time,
       attachment_style: :secure,
-      interests: ["travel", "music festivals", "extreme sports", "improv comedy", "food"],
-      values: ["freedom", "joy", "adventure", "spontaneity"]
+      interests: ["viagens", "festivais", "esportes radicais", "stand-up", "gastronomia"],
+      values: ["liberdade", "alegria", "aventura", "espontaneidade"]
     }
   },
 
-  # Type 8 - The Challenger
+  # Tipo 8 - O Desafiador
   %{
     name: "Zara",
-    bio: "A powerful leader who protects the underdog. Direct, intense, and unafraid to challenge injustice.",
+    bio: "Líder poderosa que protege os mais fracos. Direta, intensa e sem medo de desafiar injustiças. Pernambucana de sangue quente e coração maior ainda.",
     gender: :female,
     age: 38,
     personality: %{
@@ -197,16 +197,16 @@ avatars_data = [
       humor_style: :sarcastic,
       love_language: :touch,
       attachment_style: :secure,
-      interests: ["martial arts", "politics", "entrepreneurship", "mentoring", "debate"],
-      values: ["strength", "justice", "protection", "truth"]
+      interests: ["artes marciais", "política", "empreendedorismo", "mentoria", "debate"],
+      values: ["força", "justiça", "proteção", "verdade"]
     }
   },
 
-  # Type 9 - The Peacemaker
+  # Tipo 9 - O Pacificador
   %{
-    name: "Kai",
-    bio: "A gentle soul who brings harmony wherever they go. Sees all perspectives and avoids unnecessary conflict.",
-    gender: :non_binary,
+    name: "Cauã",
+    bio: "Alma gentil que traz harmonia por onde passa. Enxerga todos os lados e evita conflitos desnecessários. Cearense tranquilo que resolve tudo com um sorriso.",
+    gender: :male,
     age: 30,
     personality: %{
       openness: 0.7,
@@ -218,14 +218,14 @@ avatars_data = [
       humor_style: :wholesome,
       love_language: :time,
       attachment_style: :secure,
-      interests: ["meditation", "nature", "music", "reading", "video games"],
-      values: ["peace", "harmony", "acceptance", "unity"]
+      interests: ["meditação", "natureza", "violão", "leitura", "games"],
+      values: ["paz", "harmonia", "aceitação", "união"]
     }
   }
 ]
 
 # =============================================================================
-# Create Avatars
+# Criar Avatares
 # =============================================================================
 
 avatars =
@@ -247,25 +247,25 @@ avatars =
     enneagram = Viva.Avatars.Enneagram.get_type(data.personality.enneagram_type)
     temperament = Personality.temperament(personality)
 
-    IO.puts("Created avatar: #{avatar.name} (Type #{enneagram.number} - #{enneagram.name}, #{temperament})")
+    IO.puts("Avatar criado: #{avatar.name} (Tipo #{enneagram.number} - #{enneagram.name}, #{temperament})")
 
     avatar
   end)
 
 # =============================================================================
-# Summary
+# Resumo
 # =============================================================================
 
 IO.puts("")
 IO.puts("=" |> String.duplicate(60))
-IO.puts("SEED COMPLETE")
+IO.puts("SEED COMPLETO")
 IO.puts("=" |> String.duplicate(60))
 IO.puts("")
-IO.puts("Demo credentials:")
+IO.puts("Credenciais demo:")
 IO.puts("  Email: demo@viva.ai")
-IO.puts("  Password: Demo123456!")
+IO.puts("  Senha: Demo123456!")
 IO.puts("")
-IO.puts("Created #{length(avatars)} avatars:")
+IO.puts("#{length(avatars)} avatares criados:")
 
 Enum.each(avatars, fn avatar ->
   avatar = Repo.preload(avatar, [])
@@ -276,4 +276,4 @@ Enum.each(avatars, fn avatar ->
 end)
 
 IO.puts("")
-IO.puts("Run 'iex -S mix phx.server' to start the application!")
+IO.puts("Execute 'iex -S mix phx.server' para iniciar a aplicação!")
