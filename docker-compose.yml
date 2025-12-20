@@ -1,0 +1,115 @@
+---
+
+services:
+  # =============================================================================
+  # VIVA Elixir Application
+  # =============================================================================
+  viva:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=ecto://postgres:postgres@timescaledb:5432/viva_dev
+      - REDIS_URL=redis://redis:6379
+      - QDRANT_URL=http://qdrant:6333
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - NIM_BASE_URL=https://integrate.api.nvidia.com/v1
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - PHX_HOST=localhost
+    depends_on:
+      - timescaledb
+      - redis
+      - qdrant
+      - rabbitmq
+    volumes:
+      - .:/app
+      - deps:/app/deps
+      - build:/app/_build
+    networks:
+      - viva-network
+
+  # =============================================================================
+  # DATABASES & STORAGE
+  # =============================================================================
+
+  # TimescaleDB - Time-series optimized PostgreSQL
+  timescaledb:
+    image: timescale/timescaledb-ha:pg17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: viva_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/home/postgres/pgdata/data
+    networks:
+      - viva-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Caching and PubSub
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - viva-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Qdrant - Vector Database for embeddings/memories
+  qdrant:
+    image: qdrant/qdrant:v1.12.3
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - viva-network
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+
+  # RabbitMQ - Message Queue for async processing
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - viva-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  viva-network:
+    driver: bridge
+
+volumes:
+  timescaledb_data:
+  redis_data:
+  qdrant_data:
+  rabbitmq_data:
+  deps:
+  build:
