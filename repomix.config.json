@@ -1,0 +1,52 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "output": {
+    "filePath": "repomix-output.md",
+    "style": "markdown",
+    "showLineNumbers": true,
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "topFilesLength": 10,
+    "copyToClipboard": false
+  },
+  "include": [
+    "lib/**/*.ex",
+    "lib/**/*.eex",
+    "lib/**/*.heex",
+    "config/**/*.exs",
+    "test/**/*.exs",
+    "priv/repo/migrations/**/*.exs",
+    "priv/repo/seeds.exs",
+    "assets/js/**/*.js",
+    "assets/js/**/*.ts",
+    "assets/css/**/*.css",
+    "mix.exs",
+    "README.md",
+    "CLAUDE.md"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "_build/**",
+      "deps/**",
+      ".elixir_ls/**",
+      ".git/**",
+      "node_modules/**",
+      "*.beam",
+      "*.ez",
+      ".env",
+      ".env.*",
+      "erl_crash.dump",
+      "repomix-output.md",
+      "priv/static/**",
+      "assets/vendor/**",
+      "cover/**",
+      "doc/**",
+      "*.dump"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  }
+}
