@@ -50,3 +50,5 @@ npm-debug.log
 # Repomix output
 repomix-output.md
 
+.playwright-mcp/viva-home-final.png
+.playwright-mcp/viva-home.png
