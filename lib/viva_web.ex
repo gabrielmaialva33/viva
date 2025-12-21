@@ -17,8 +17,17 @@ defmodule VivaWeb do
   those modules here.
   """
 
+  @doc """
+  When used, dispatch to the appropriate controller/live_view/etc.
+  """
+  defmacro __using__(which) when is_atom(which) do
+    apply(__MODULE__, which, [])
+  end
+
+  @spec static_paths() :: [String.t()]
   def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
 
+  @spec router() :: Macro.t()
   def router do
     quote do
       use Phoenix.Router, helpers: false
@@ -30,12 +39,14 @@ defmodule VivaWeb do
     end
   end
 
+  @spec channel() :: Macro.t()
   def channel do
     quote do
       use Phoenix.Channel
     end
   end
 
+  @spec controller() :: Macro.t()
   def controller do
     quote do
       use Phoenix.Controller, formats: [:html, :json]
@@ -48,6 +59,7 @@ defmodule VivaWeb do
     end
   end
 
+  @spec live_view() :: Macro.t()
   def live_view do
     quote do
       use Phoenix.LiveView
@@ -56,6 +68,7 @@ defmodule VivaWeb do
     end
   end
 
+  @spec live_component() :: Macro.t()
   def live_component do
     quote do
       use Phoenix.LiveComponent
@@ -64,6 +77,7 @@ defmodule VivaWeb do
     end
   end
 
+  @spec html() :: Macro.t()
   def html do
     quote do
       use Phoenix.Component
@@ -74,6 +88,16 @@ defmodule VivaWeb do
 
       # Include general helpers for rendering HTML
       unquote(html_helpers())
+    end
+  end
+
+  @spec verified_routes() :: Macro.t()
+  def verified_routes do
+    quote do
+      use Phoenix.VerifiedRoutes,
+        endpoint: VivaWeb.Endpoint,
+        router: VivaWeb.Router,
+        statics: VivaWeb.static_paths()
     end
   end
 
@@ -94,21 +118,5 @@ defmodule VivaWeb do
       # Routes generation with the ~p sigil
       unquote(verified_routes())
     end
-  end
-
-  def verified_routes do
-    quote do
-      use Phoenix.VerifiedRoutes,
-        endpoint: VivaWeb.Endpoint,
-        router: VivaWeb.Router,
-        statics: VivaWeb.static_paths()
-    end
-  end
-
-  @doc """
-  When used, dispatch to the appropriate controller/live_view/etc.
-  """
-  defmacro __using__(which) when is_atom(which) do
-    apply(__MODULE__, which, [])
   end
 end

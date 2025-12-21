@@ -4,12 +4,19 @@ defmodule Viva.Avatars.Avatar do
   Represents a living AI entity with personality, memories, and relationships.
   """
   use Ecto.Schema
+
   import Ecto.Changeset
   import Ecto.Query
 
-  alias Viva.Avatars.{Personality, InternalState, Enneagram}
-  alias Viva.Relationships.Relationship
+  alias Viva.Avatars.Enneagram
+  alias Viva.Avatars.InternalState
   alias Viva.Avatars.Memory
+  alias Viva.Avatars.Personality
+  alias Viva.Relationships.Relationship
+
+  # === Types ===
+
+  @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -27,6 +34,7 @@ defmodule Viva.Avatars.Avatar do
     # AI-Generated Visuals (NIM)
     field :profile_image_url, :string
     field :avatar_3d_model_url, :string
+
     field :current_expression, Ecto.Enum,
       values: [:neutral, :happy, :sad, :angry, :surprised, :loving],
       default: :neutral
@@ -69,6 +77,7 @@ defmodule Viva.Avatars.Avatar do
     timestamps(type: :utc_datetime)
   end
 
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(avatar, attrs) do
     avatar
     |> cast(attrs, [
@@ -100,14 +109,30 @@ defmodule Viva.Avatars.Avatar do
     |> generate_system_prompt()
   end
 
+  @spec create_changeset(t(), map()) :: Ecto.Changeset.t()
   def create_changeset(avatar, attrs) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    now = DateTime.utc_now(:second)
 
     avatar
     |> changeset(attrs)
     |> put_change(:created_at, now)
     |> put_change(:last_active_at, now)
   end
+
+  # Queries
+
+  @spec active() :: Ecto.Query.t()
+  def active, do: from(a in __MODULE__, where: a.is_active == true)
+
+  @spec by_user(Ecto.UUID.t()) :: Ecto.Query.t()
+  def by_user(user_id), do: from(a in __MODULE__, where: a.user_id == ^user_id)
+
+  @spec with_preloads(Ecto.Queryable.t()) :: Ecto.Query.t()
+  def with_preloads(query \\ __MODULE__) do
+    from(a in query, preload: [:memories, :relationships_as_a, :relationships_as_b])
+  end
+
+  # Private Helpers
 
   defp put_default_internal_state(changeset) do
     case get_field(changeset, :internal_state) do
@@ -154,7 +179,7 @@ defmodule Viva.Avatars.Avatar do
     - Agreeableness: #{describe_trait(:agreeableness, personality.agreeableness)}
     - Emotional sensitivity: #{describe_trait(:neuroticism, personality.neuroticism)}
 
-    YOUR TEMPERAMENT: #{temperament |> Atom.to_string() |> String.capitalize()}
+    YOUR TEMPERAMENT: #{temperament_display(temperament)}
     You are #{Personality.describe_temperament(temperament)}.
 
     YOUR CORE PSYCHOLOGY (Enneagram Type #{enneagram.number} - #{enneagram.name}):
@@ -189,7 +214,7 @@ defmodule Viva.Avatars.Avatar do
   defp format_other_languages([]), do: ""
 
   defp format_other_languages(languages) do
-    names = Enum.map(languages, &Personality.language_name/1) |> Enum.join(", ")
+    names = Enum.map_join(languages, ", ", &Personality.language_name/1)
     "\n    - Also speaks: #{names}"
   end
 
@@ -225,12 +250,9 @@ defmodule Viva.Avatars.Avatar do
   defp describe_trait(:neuroticism, value) when value > 0.3, do: "emotionally balanced"
   defp describe_trait(:neuroticism, _), do: "emotionally stable and calm"
 
-  # Queries
-  def active, do: from(a in __MODULE__, where: a.is_active == true)
-
-  def by_user(user_id), do: from(a in __MODULE__, where: a.user_id == ^user_id)
-
-  def with_preloads(query \\ __MODULE__) do
-    from(a in query, preload: [:memories, :relationships_as_a, :relationships_as_b])
+  defp temperament_display(temperament) do
+    temperament
+    |> Atom.to_string()
+    |> String.capitalize()
   end
 end

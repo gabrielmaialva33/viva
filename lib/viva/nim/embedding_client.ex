@@ -16,6 +16,12 @@ defmodule Viva.Nim.EmbeddingClient do
 
   alias Viva.Nim
 
+  # === Types ===
+
+  @type embedding :: [float()]
+  @type similarity_result :: %{text: String.t(), similarity: float()}
+  @type memory_result :: %{memory: map(), relevance: float()}
+
   @doc """
   Generate embeddings for text.
 
@@ -24,9 +30,9 @@ defmodule Viva.Nim.EmbeddingClient do
   - `:input_type` - "query" for questions, "passage" for documents (default: "query")
   - `:truncate` - Truncation strategy: "NONE", "START", "END" (default: "END")
   """
+  @spec embed(String.t(), keyword()) :: {:ok, embedding()} | {:error, term()}
   def embed(text, opts \\ []) when is_binary(text) do
-    embed_batch([text], opts)
-    |> case do
+    case embed_batch([text], opts) do
       {:ok, [embedding]} -> {:ok, embedding}
       {:ok, []} -> {:error, :empty_result}
       error -> error
@@ -37,6 +43,7 @@ defmodule Viva.Nim.EmbeddingClient do
   Generate embeddings for multiple texts in batch.
   More efficient than calling embed/2 multiple times.
   """
+  @spec embed_batch([String.t()], keyword()) :: {:ok, [embedding()]} | {:error, term()}
   def embed_batch(texts, opts \\ []) when is_list(texts) do
     model = Keyword.get(opts, :model, Nim.model(:embedding))
     input_type = Keyword.get(opts, :input_type, "query")
@@ -62,12 +69,17 @@ defmodule Viva.Nim.EmbeddingClient do
   @doc """
   Calculate cosine similarity between two embeddings.
   """
+  @spec similarity(embedding(), embedding()) :: float()
   def similarity(embedding_a, embedding_b) do
     dot_product =
-      Enum.zip(embedding_a, embedding_b) |> Enum.reduce(0.0, fn {a, b}, acc -> acc + a * b end)
+      embedding_a
+      |> Enum.zip(embedding_b)
+      |> Enum.reduce(0.0, fn {a, b}, acc -> acc + a * b end)
 
-    norm_a = :math.sqrt(Enum.reduce(embedding_a, 0.0, fn x, acc -> acc + x * x end))
-    norm_b = :math.sqrt(Enum.reduce(embedding_b, 0.0, fn x, acc -> acc + x * x end))
+    sum_a = Enum.reduce(embedding_a, 0.0, fn x, acc -> acc + x * x end)
+    sum_b = Enum.reduce(embedding_b, 0.0, fn x, acc -> acc + x * x end)
+    norm_a = :math.sqrt(sum_a)
+    norm_b = :math.sqrt(sum_b)
 
     if norm_a > 0 and norm_b > 0 do
       dot_product / (norm_a * norm_b)
@@ -84,6 +96,8 @@ defmodule Viva.Nim.EmbeddingClient do
   - `:top_k` - Number of results to return (default: 5)
   - `:threshold` - Minimum similarity threshold (default: 0.0)
   """
+  @spec find_similar(String.t(), [String.t()], keyword()) ::
+          {:ok, [similarity_result()]} | {:error, term()}
   def find_similar(query, texts, opts \\ []) do
     top_k = Keyword.get(opts, :top_k, 5)
     threshold = Keyword.get(opts, :threshold, 0.0)
@@ -107,6 +121,7 @@ defmodule Viva.Nim.EmbeddingClient do
   @doc """
   Embed an avatar memory for storage.
   """
+  @spec embed_memory(String.t(), map()) :: {:ok, embedding()} | {:error, term()}
   def embed_memory(memory_content, context \\ %{}) do
     enhanced_content =
       case context do
@@ -126,14 +141,15 @@ defmodule Viva.Nim.EmbeddingClient do
   @doc """
   Search avatar memories by semantic similarity.
   """
+  @spec search_memories(String.t(), [map()], keyword()) ::
+          {:ok, [memory_result()]} | {:error, term()}
   def search_memories(query, memories, opts \\ []) do
     top_k = Keyword.get(opts, :top_k, 10)
     threshold = Keyword.get(opts, :threshold, 0.5)
 
     {texts, memory_data} =
-      Enum.map(memories, fn memory ->
-        {memory.content, memory}
-      end)
+      memories
+      |> Enum.map(fn memory -> {memory.content, memory} end)
       |> Enum.unzip()
 
     case find_similar(query, texts, top_k: top_k, threshold: threshold) do
@@ -155,6 +171,7 @@ defmodule Viva.Nim.EmbeddingClient do
   @doc """
   Get embedding dimension for the current model.
   """
+  @spec dimension() :: pos_integer()
   def dimension do
     # nv-embedqa-mistral-7b-v2 produces 4096-dimensional embeddings
     4096

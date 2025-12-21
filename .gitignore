@@ -47,3 +47,6 @@ npm-debug.log
 *.swo
 .DS_Store
 
+# Repomix output
+repomix-output.md
+

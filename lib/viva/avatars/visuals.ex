@@ -18,9 +18,15 @@ defmodule Viva.Avatars.Visuals do
   """
   require Logger
 
-  alias Viva.Repo
   alias Viva.Avatars.Avatar
-  alias Viva.Nim.{ImageClient, Avatar3DClient}
+  alias Viva.Nim.Avatar3DClient
+  alias Viva.Nim.ImageClient
+  alias Viva.Repo
+
+  # === Types ===
+
+  @type expression :: :neutral | :happy | :sad | :angry | :surprised | :loving
+  @type emotion :: atom()
 
   @storage_base "priv/static/uploads/avatars"
   @public_base "/uploads/avatars"
@@ -35,6 +41,7 @@ defmodule Viva.Avatars.Visuals do
   - `:style` - Art style: "realistic", "anime", "illustration"
   - `:expressions` - List of expressions to generate
   """
+  @spec generate_complete(Avatar.t(), keyword()) :: {:ok, Avatar.t()} | {:error, term()}
   def generate_complete(avatar, opts \\ []) do
     include_3d = Keyword.get(opts, :include_3d, false)
     expressions = Keyword.get(opts, :expressions, [:happy, :sad, :neutral])
@@ -53,6 +60,7 @@ defmodule Viva.Avatars.Visuals do
   Generate profile image for an avatar.
   Saves to disk and updates avatar record.
   """
+  @spec generate_profile(Avatar.t(), keyword()) :: {:ok, Avatar.t()} | {:error, term()}
   def generate_profile(avatar, opts \\ []) do
     Logger.info("Generating profile image for avatar #{avatar.id}")
 
@@ -72,6 +80,8 @@ defmodule Viva.Avatars.Visuals do
   @doc """
   Generate expression variations for an avatar.
   """
+  @spec generate_expressions(Avatar.t(), [expression()] | nil, keyword()) ::
+          {:ok, Avatar.t()} | {:error, term()}
   def generate_expressions(avatar, expressions \\ nil, opts \\ []) do
     expressions = expressions || [:happy, :sad, :neutral, :surprised, :loving]
     Logger.info("Generating #{length(expressions)} expressions for avatar #{avatar.id}")
@@ -92,6 +102,7 @@ defmodule Viva.Avatars.Visuals do
   @doc """
   Generate 3D model for an avatar.
   """
+  @spec generate_3d_model(Avatar.t(), keyword()) :: {:ok, Avatar.t()} | {:error, term()}
   def generate_3d_model(avatar, opts \\ []) do
     Logger.info("Generating 3D model for avatar #{avatar.id}")
 
@@ -112,6 +123,8 @@ defmodule Viva.Avatars.Visuals do
   Update avatar's current expression based on emotion.
   Returns the appropriate image URL for display.
   """
+  @spec update_expression(Avatar.t(), emotion()) ::
+          {:ok, Avatar.t(), String.t() | nil} | {:error, term()}
   def update_expression(avatar, emotion) do
     expression = emotion_to_expression(emotion)
 
@@ -129,6 +142,7 @@ defmodule Viva.Avatars.Visuals do
   Get the appropriate expression image URL.
   Falls back to profile image if expression not available.
   """
+  @spec get_expression_image(Avatar.t(), expression()) :: String.t() | nil
   def get_expression_image(avatar, expression) do
     expr_key = Atom.to_string(expression)
 
@@ -142,6 +156,7 @@ defmodule Viva.Avatars.Visuals do
   Generate lipsync animation from audio.
   Returns blendshape data for 3D avatar animation.
   """
+  @spec generate_lipsync(Avatar.t(), binary(), keyword()) :: {:ok, map()} | {:error, term()}
   def generate_lipsync(avatar, audio_data, opts \\ []) do
     emotion = Keyword.get(opts, :emotion, avatar.current_expression)
 
@@ -151,6 +166,7 @@ defmodule Viva.Avatars.Visuals do
   @doc """
   Stream lipsync in real-time.
   """
+  @spec stream_lipsync(Avatar.t(), (map() -> any()), keyword()) :: {:ok, term()} | {:error, term()}
   def stream_lipsync(avatar, callback, opts \\ []) do
     emotion = Keyword.get(opts, :emotion, avatar.current_expression)
 
@@ -160,6 +176,7 @@ defmodule Viva.Avatars.Visuals do
   @doc """
   Check if avatar needs visual generation.
   """
+  @spec needs_generation?(Avatar.t()) :: boolean()
   def needs_generation?(avatar) do
     is_nil(avatar.profile_image_url)
   end
@@ -167,10 +184,10 @@ defmodule Viva.Avatars.Visuals do
   @doc """
   Check if avatar has 3D model.
   """
+  @spec has_3d_model?(Avatar.t()) :: boolean()
   def has_3d_model?(avatar) do
     not is_nil(avatar.avatar_3d_model_url)
   end
-
 
   defp save_and_update_profile(avatar, image_data) do
     filename = "#{avatar.id}_profile.png"

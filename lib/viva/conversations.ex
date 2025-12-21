@@ -5,11 +5,19 @@ defmodule Viva.Conversations do
   """
 
   import Ecto.Query
+
+  alias Viva.Conversations.Conversation
+  alias Viva.Conversations.Message
   alias Viva.Repo
-  alias Viva.Conversations.{Conversation, Message}
+
+  # === Types ===
+
+  @type avatar_id :: Ecto.UUID.t()
+  @type conversation_id :: Ecto.UUID.t()
 
   # === Conversation CRUD ===
 
+  @spec list_conversations(avatar_id(), keyword()) :: [Conversation.t()]
   def list_conversations(avatar_id, opts \\ []) do
     status = Keyword.get(opts, :status)
     type = Keyword.get(opts, :type)
@@ -24,10 +32,13 @@ defmodule Viva.Conversations do
     |> Repo.all()
   end
 
+  @spec get_conversation(conversation_id()) :: Conversation.t() | nil
   def get_conversation(id), do: Repo.get(Conversation, id)
 
+  @spec get_conversation!(conversation_id()) :: Conversation.t()
   def get_conversation!(id), do: Repo.get!(Conversation, id)
 
+  @spec get_active_conversation(avatar_id(), avatar_id()) :: Conversation.t() | nil
   def get_active_conversation(avatar_a_id, avatar_b_id) do
     Conversation
     |> Conversation.between(avatar_a_id, avatar_b_id)
@@ -35,6 +46,8 @@ defmodule Viva.Conversations do
     |> Repo.one()
   end
 
+  @spec start_conversation(avatar_id(), avatar_id(), keyword()) ::
+          {:ok, Conversation.t()} | {:error, Ecto.Changeset.t()}
   def start_conversation(avatar_a_id, avatar_b_id, opts \\ []) do
     type = Keyword.get(opts, :type, "interactive")
     topic = Keyword.get(opts, :topic)
@@ -53,42 +66,61 @@ defmodule Viva.Conversations do
     |> Repo.insert()
   end
 
+  @spec end_conversation(conversation_id(), keyword()) ::
+          {:ok, Conversation.t()} | {:error, term()} | nil
   def end_conversation(conversation_id, opts \\ []) do
     analysis = Keyword.get(opts, :analysis)
 
-    with conversation when not is_nil(conversation) <- get_conversation(conversation_id) do
-      ended_at = DateTime.utc_now()
-      duration = DateTime.diff(ended_at, conversation.started_at, :minute)
+    case get_conversation(conversation_id) do
+      nil ->
+        nil
 
-      conversation
-      |> Conversation.changeset(%{
-        status: "ended",
-        ended_at: ended_at,
-        duration_minutes: duration,
-        analysis: analysis
-      })
-      |> Repo.update()
+      conversation ->
+        ended_at = DateTime.utc_now()
+        duration = DateTime.diff(ended_at, conversation.started_at, :minute)
+
+        conversation
+        |> Conversation.changeset(%{
+          status: "ended",
+          ended_at: ended_at,
+          duration_minutes: duration,
+          analysis: analysis
+        })
+        |> Repo.update()
     end
   end
 
+  @spec pause_conversation(conversation_id()) ::
+          {:ok, Conversation.t()} | {:error, Ecto.Changeset.t()} | nil
   def pause_conversation(conversation_id) do
-    with conversation when not is_nil(conversation) <- get_conversation(conversation_id) do
-      conversation
-      |> Conversation.changeset(%{status: "paused"})
-      |> Repo.update()
+    case get_conversation(conversation_id) do
+      nil ->
+        nil
+
+      conversation ->
+        conversation
+        |> Conversation.changeset(%{status: "paused"})
+        |> Repo.update()
     end
   end
 
+  @spec resume_conversation(conversation_id()) ::
+          {:ok, Conversation.t()} | {:error, Ecto.Changeset.t()} | nil
   def resume_conversation(conversation_id) do
-    with conversation when not is_nil(conversation) <- get_conversation(conversation_id) do
-      conversation
-      |> Conversation.changeset(%{status: "active"})
-      |> Repo.update()
+    case get_conversation(conversation_id) do
+      nil ->
+        nil
+
+      conversation ->
+        conversation
+        |> Conversation.changeset(%{status: "active"})
+        |> Repo.update()
     end
   end
 
   # === Messages ===
 
+  @spec list_messages(conversation_id(), keyword()) :: [Message.t()]
   def list_messages(conversation_id, opts \\ []) do
     limit = Keyword.get(opts, :limit, 100)
     after_timestamp = Keyword.get(opts, :after)
@@ -101,6 +133,7 @@ defmodule Viva.Conversations do
     |> Repo.all()
   end
 
+  @spec get_recent_messages(conversation_id(), pos_integer()) :: [Message.t()]
   def get_recent_messages(conversation_id, limit \\ 20) do
     Message
     |> where([m], m.conversation_id == ^conversation_id)
@@ -110,6 +143,8 @@ defmodule Viva.Conversations do
     |> Enum.reverse()
   end
 
+  @spec add_message(conversation_id(), avatar_id(), String.t(), keyword()) ::
+          {:ok, Message.t()} | {:error, Ecto.Changeset.t()}
   def add_message(conversation_id, speaker_id, content, opts \\ []) do
     emotional_tone = Keyword.get(opts, :emotional_tone)
     emotions = Keyword.get(opts, :emotions, %{})
@@ -146,6 +181,7 @@ defmodule Viva.Conversations do
 
   # === Autonomous Conversations ===
 
+  @spec list_autonomous_conversations(keyword()) :: [Conversation.t()]
   def list_autonomous_conversations(opts \\ []) do
     status = Keyword.get(opts, :status, "active")
     limit = Keyword.get(opts, :limit, 50)
@@ -158,6 +194,8 @@ defmodule Viva.Conversations do
     |> Repo.all()
   end
 
+  @spec start_autonomous_conversation(avatar_id(), avatar_id(), map()) ::
+          {:ok, Conversation.t()} | {:error, Ecto.Changeset.t()}
   def start_autonomous_conversation(avatar_a_id, avatar_b_id, context \\ %{}) do
     start_conversation(avatar_a_id, avatar_b_id,
       type: "autonomous",
@@ -166,25 +204,34 @@ defmodule Viva.Conversations do
   end
 
   # Aliases for compatibility
+
+  @spec start_interactive(avatar_id(), avatar_id()) ::
+          {:ok, Conversation.t()} | {:error, Ecto.Changeset.t()}
   def start_interactive(avatar_a_id, avatar_b_id) do
     start_conversation(avatar_a_id, avatar_b_id, type: "interactive")
   end
 
+  @spec start_autonomous(avatar_id(), avatar_id()) ::
+          {:ok, Conversation.t()} | {:error, Ecto.Changeset.t()}
   def start_autonomous(avatar_a_id, avatar_b_id) do
     start_autonomous_conversation(avatar_a_id, avatar_b_id)
   end
 
+  @spec send_message(conversation_id(), avatar_id(), String.t()) ::
+          {:ok, Message.t()} | {:error, Ecto.Changeset.t()}
   def send_message(conversation_id, speaker_id, content) do
     add_message(conversation_id, speaker_id, content)
   end
 
   # === Analytics ===
 
+  @spec conversation_stats(avatar_id()) :: map()
   def conversation_stats(avatar_id) do
     conversations = list_conversations(avatar_id)
+    count = Enum.count(conversations)
 
     %{
-      total: length(conversations),
+      total: count,
       by_status: Enum.frequencies_by(conversations, & &1.status),
       by_type: Enum.frequencies_by(conversations, & &1.type),
       total_messages: Enum.reduce(conversations, 0, &(&1.message_count + &2)),
@@ -192,6 +239,7 @@ defmodule Viva.Conversations do
     }
   end
 
+  @spec conversation_history(avatar_id(), avatar_id(), keyword()) :: [Conversation.t()]
   def conversation_history(avatar_a_id, avatar_b_id, opts \\ []) do
     limit = Keyword.get(opts, :limit, 10)
 
@@ -217,10 +265,11 @@ defmodule Viva.Conversations do
 
   defp avg_duration(conversations) do
     with_duration = Enum.filter(conversations, & &1.duration_minutes)
+    count = Enum.count(with_duration)
 
-    if length(with_duration) > 0 do
+    if count > 0 do
       sum = Enum.reduce(with_duration, 0, &(&1.duration_minutes + &2))
-      sum / length(with_duration)
+      sum / count
     else
       0
     end

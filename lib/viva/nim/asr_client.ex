@@ -16,6 +16,24 @@ defmodule Viva.Nim.AsrClient do
 
   alias Viva.Nim
 
+  # === Types ===
+
+  @type transcription_result :: %{
+          text: String.t(),
+          language: String.t(),
+          duration: float() | nil,
+          words: [map()],
+          segments: [map()]
+        }
+  @type stream_state :: %{
+          model: String.t(),
+          language: String.t(),
+          callback: (term() -> any()),
+          buffer: binary(),
+          partial_text: String.t()
+        }
+  @type language_detection :: %{language: String.t(), confidence: float()}
+
   @doc """
   Transcribe audio to text.
 
@@ -26,6 +44,7 @@ defmodule Viva.Nim.AsrClient do
   - `:timestamps` - Include word timestamps (default: false)
   - `:diarization` - Enable speaker diarization (default: false)
   """
+  @spec transcribe(binary(), keyword()) :: {:ok, transcription_result()} | {:error, term()}
   def transcribe(audio_data, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:asr))
     language = Keyword.get(opts, :language, "pt-BR")
@@ -61,6 +80,7 @@ defmodule Viva.Nim.AsrClient do
   Stream audio for real-time transcription.
   Calls the callback with partial transcripts as they're generated.
   """
+  @spec transcribe_stream((term() -> any()), keyword()) :: {:ok, stream_state()}
   def transcribe_stream(callback, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:asr))
     language = Keyword.get(opts, :language, "pt-BR")
@@ -78,6 +98,7 @@ defmodule Viva.Nim.AsrClient do
   @doc """
   Send audio chunk to streaming transcription.
   """
+  @spec stream_audio_chunk(stream_state(), binary()) :: {:ok, stream_state()} | {:error, term()}
   def stream_audio_chunk(stream_state, audio_chunk) do
     body = %{
       model: stream_state.model,
@@ -99,6 +120,8 @@ defmodule Viva.Nim.AsrClient do
   @doc """
   Transcribe audio file from path.
   """
+  @spec transcribe_file(String.t(), keyword()) ::
+          {:ok, transcription_result()} | {:error, term()}
   def transcribe_file(file_path, opts \\ []) do
     case File.read(file_path) do
       {:ok, audio_data} ->
@@ -112,6 +135,7 @@ defmodule Viva.Nim.AsrClient do
   @doc """
   Detect the language of spoken audio.
   """
+  @spec detect_language(binary()) :: {:ok, language_detection()} | {:error, term()}
   def detect_language(audio_data) do
     body = %{
       model: Nim.model(:asr),
@@ -127,7 +151,6 @@ defmodule Viva.Nim.AsrClient do
         {:error, reason}
     end
   end
-
 
   defp encode_audio(audio_data) when is_binary(audio_data) do
     Base.encode64(audio_data)

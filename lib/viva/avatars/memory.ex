@@ -4,8 +4,13 @@ defmodule Viva.Avatars.Memory do
   Uses vector embeddings for semantic search and recall.
   """
   use Ecto.Schema
+
   import Ecto.Changeset
   import Ecto.Query
+
+  # === Types ===
+
+  @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -44,6 +49,7 @@ defmodule Viva.Avatars.Memory do
     timestamps(type: :utc_datetime)
   end
 
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(memory, attrs) do
     memory
     |> cast(attrs, [
@@ -67,6 +73,7 @@ defmodule Viva.Avatars.Memory do
   end
 
   @doc "Apply memory decay based on time passed"
+  @spec decay_strength(t(), number()) :: t()
   def decay_strength(memory, hours_passed) do
     # Ebbinghaus forgetting curve approximation
     decay_rate = 0.1
@@ -88,6 +95,7 @@ defmodule Viva.Avatars.Memory do
   end
 
   @doc "Record that this memory was recalled"
+  @spec record_recall(t()) :: t()
   def record_recall(memory) do
     %{
       memory
@@ -98,10 +106,13 @@ defmodule Viva.Avatars.Memory do
   end
 
   # Queries
+
+  @spec for_avatar(Ecto.UUID.t()) :: Ecto.Query.t()
   def for_avatar(avatar_id) do
     from(m in __MODULE__, where: m.avatar_id == ^avatar_id)
   end
 
+  @spec recent(Ecto.Queryable.t(), pos_integer()) :: Ecto.Query.t()
   def recent(query \\ __MODULE__, limit \\ 20) do
     from(m in query,
       order_by: [desc: m.inserted_at],
@@ -109,23 +120,27 @@ defmodule Viva.Avatars.Memory do
     )
   end
 
+  @spec by_importance(Ecto.Queryable.t()) :: Ecto.Query.t()
   def by_importance(query \\ __MODULE__) do
     from(m in query,
       order_by: [desc: m.importance, desc: m.strength]
     )
   end
 
+  @spec with_participant(Ecto.Queryable.t(), Ecto.UUID.t()) :: Ecto.Query.t()
   def with_participant(query \\ __MODULE__, participant_id) do
     from(m in query,
       where: ^participant_id in m.participant_ids
     )
   end
 
+  @spec of_type(Ecto.Queryable.t(), atom()) :: Ecto.Query.t()
   def of_type(query \\ __MODULE__, type) do
     from(m in query, where: m.type == ^type)
   end
 
   @doc "Semantic search using vector similarity"
+  @spec similar_to(Ecto.Queryable.t(), Pgvector.Ecto.Vector.t(), pos_integer()) :: Ecto.Query.t()
   def similar_to(query \\ __MODULE__, embedding, limit \\ 10) do
     from(m in query,
       order_by: fragment("embedding <-> ?", ^embedding),

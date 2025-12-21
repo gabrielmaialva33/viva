@@ -1,5 +1,5 @@
 defmodule VivaWeb.PageControllerTest do
-  use VivaWeb.ConnCase
+  use VivaWeb.ConnCase, async: true
 
   test "GET /", %{conn: conn} do
     conn = get(conn, ~p"/")

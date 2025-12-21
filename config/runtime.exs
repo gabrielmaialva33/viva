@@ -20,7 +20,12 @@ if System.get_env("PHX_SERVER") do
   config :viva, VivaWeb.Endpoint, server: true
 end
 
-config :viva, VivaWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+port =
+  "PORT"
+  |> System.get_env("4000")
+  |> String.to_integer()
+
+config :viva, VivaWeb.Endpoint, http: [port: port]
 
 if config_env() == :prod do
   database_url =

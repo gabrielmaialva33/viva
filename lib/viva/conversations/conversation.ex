@@ -3,11 +3,14 @@ defmodule Viva.Conversations.Conversation do
   Conversation schema for tracking conversations between avatars.
   """
   use Ecto.Schema
+
   import Ecto.Changeset
   import Ecto.Query
 
   alias Viva.Avatars.Avatar
   alias Viva.Conversations.Message
+
+  @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -41,6 +44,7 @@ defmodule Viva.Conversations.Conversation do
     timestamps(type: :utc_datetime)
   end
 
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(conversation, attrs) do
     conversation
     |> cast(attrs, [
@@ -65,10 +69,12 @@ defmodule Viva.Conversations.Conversation do
 
   # === Query Helpers ===
 
+  @spec involving(Ecto.Queryable.t(), Ecto.UUID.t()) :: Ecto.Query.t()
   def involving(query, avatar_id) do
     where(query, [c], c.avatar_a_id == ^avatar_id or c.avatar_b_id == ^avatar_id)
   end
 
+  @spec between(Ecto.Queryable.t(), Ecto.UUID.t(), Ecto.UUID.t()) :: Ecto.Query.t()
   def between(query, avatar_a_id, avatar_b_id) do
     where(
       query,
@@ -78,10 +84,12 @@ defmodule Viva.Conversations.Conversation do
     )
   end
 
+  @spec active(Ecto.Queryable.t()) :: Ecto.Query.t()
   def active(query) do
     where(query, [c], c.status == "active")
   end
 
+  @spec autonomous(Ecto.Queryable.t()) :: Ecto.Query.t()
   def autonomous(query) do
     where(query, [c], c.type == "autonomous")
   end

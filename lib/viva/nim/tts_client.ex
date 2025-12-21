@@ -14,7 +14,17 @@ defmodule Viva.Nim.TtsClient do
   """
   require Logger
 
+  alias Viva.Avatars.Avatar
   alias Viva.Nim
+
+  # === Types ===
+
+  @type voice_settings :: %{
+          voice_id: String.t(),
+          speed: float(),
+          pitch: float(),
+          language: String.t()
+        }
 
   @doc """
   Synthesize speech from text.
@@ -27,6 +37,7 @@ defmodule Viva.Nim.TtsClient do
   - `:pitch` - Pitch adjustment (default: 0.0)
   - `:format` - Audio format: "wav", "mp3", "ogg" (default: "wav")
   """
+  @spec synthesize(String.t(), keyword()) :: {:ok, binary()} | {:error, term()}
   def synthesize(text, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:tts))
     language = Keyword.get(opts, :language, "pt-BR")
@@ -56,6 +67,8 @@ defmodule Viva.Nim.TtsClient do
   Synthesize speech with streaming output.
   Calls the callback with audio chunks as they're generated.
   """
+  @spec synthesize_stream(String.t(), (binary() -> any()), keyword()) ::
+          {:ok, Req.Response.t()} | {:error, term()}
   def synthesize_stream(text, callback, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:tts))
     language = Keyword.get(opts, :language, "pt-BR")
@@ -78,6 +91,7 @@ defmodule Viva.Nim.TtsClient do
   Clone a voice from an audio sample.
   Returns a voice_id that can be used for synthesis.
   """
+  @spec clone_voice(binary(), keyword()) :: {:ok, String.t()} | {:error, term()}
   def clone_voice(audio_sample, opts \\ []) do
     model = Keyword.get(opts, :model, "nvidia/magpie-tts-zeroshot")
     name = Keyword.get(opts, :name, "custom_voice")
@@ -101,6 +115,7 @@ defmodule Viva.Nim.TtsClient do
   @doc """
   Get avatar voice settings based on personality.
   """
+  @spec voice_for_avatar(Avatar.t()) :: voice_settings()
   def voice_for_avatar(avatar) do
     personality = avatar.personality
     gender = avatar.gender
@@ -116,6 +131,7 @@ defmodule Viva.Nim.TtsClient do
   @doc """
   Synthesize avatar speech with personality-based voice.
   """
+  @spec avatar_speak(Avatar.t(), String.t(), keyword()) :: {:ok, binary()} | {:error, term()}
   def avatar_speak(avatar, text, opts \\ []) do
     voice_settings = voice_for_avatar(avatar)
 
@@ -132,7 +148,6 @@ defmodule Viva.Nim.TtsClient do
       )
     )
   end
-
 
   defp default_voice("pt-BR"), do: "magpie-pt-br-female-1"
   defp default_voice("en-US"), do: "magpie-en-us-female-1"

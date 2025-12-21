@@ -6,17 +6,18 @@ defmodule VivaWeb.AvatarChannel do
   use Phoenix.Channel
   require Logger
 
-  alias Viva.Sessions.{LifeProcess, Supervisor}
-  alias Viva.Conversations
   alias Phoenix.PubSub
+  alias Viva.Conversations
+  alias Viva.Sessions.LifeProcess
+  alias Viva.Sessions.Supervisor
 
-  @impl true
-  def join("avatar:" <> avatar_id, _params, socket) do
+  @impl Phoenix.Channel
+  def join("avatar:" <> avatar_id, _, socket) do
     # Verify ownership
     case verify_ownership(socket, avatar_id) do
       :ok ->
         # Ensure avatar life process is running
-        {:ok, _pid} = Supervisor.start_avatar(avatar_id)
+        {:ok, _} = Supervisor.start_avatar(avatar_id)
 
         # Notify avatar that owner connected
         LifeProcess.owner_connected(avatar_id)
@@ -44,8 +45,8 @@ defmodule VivaWeb.AvatarChannel do
     end
   end
 
-  @impl true
-  def join("conversation:" <> conversation_id, _params, socket) do
+  @impl Phoenix.Channel
+  def join("conversation:" <> conversation_id, _, socket) do
     avatar_id = socket.assigns[:avatar_id]
 
     if avatar_id do
@@ -59,19 +60,19 @@ defmodule VivaWeb.AvatarChannel do
 
   # === Incoming Messages ===
 
-  @impl true
-  def handle_in("get_state", _payload, socket) do
+  @impl Phoenix.Channel
+  def handle_in("get_state", _, socket) do
     state = LifeProcess.get_state(socket.assigns.avatar_id)
     {:reply, {:ok, serialize_state(state)}, socket}
   end
 
-  @impl true
-  def handle_in("trigger_thought", _payload, socket) do
+  @impl Phoenix.Channel
+  def handle_in("trigger_thought", _, socket) do
     LifeProcess.trigger_thought(socket.assigns.avatar_id)
     {:noreply, socket}
   end
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_in("get_matches", payload, socket) do
     limit = Map.get(payload, "limit", 10)
 
@@ -84,7 +85,7 @@ defmodule VivaWeb.AvatarChannel do
     end
   end
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_in("start_conversation", %{"with" => other_avatar_id}, socket) do
     avatar_id = socket.assigns.avatar_id
 
@@ -98,7 +99,7 @@ defmodule VivaWeb.AvatarChannel do
     end
   end
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_in("send_message", %{"content" => content}, socket) do
     case socket.assigns.current_conversation do
       nil ->
@@ -111,8 +112,8 @@ defmodule VivaWeb.AvatarChannel do
     end
   end
 
-  @impl true
-  def handle_in("end_conversation", _payload, socket) do
+  @impl Phoenix.Channel
+  def handle_in("end_conversation", _, socket) do
     case socket.assigns.current_conversation do
       nil ->
         {:reply, {:ok, %{}}, socket}
@@ -124,13 +125,13 @@ defmodule VivaWeb.AvatarChannel do
     end
   end
 
-  @impl true
-  def handle_in("get_relationships", _payload, socket) do
+  @impl Phoenix.Channel
+  def handle_in("get_relationships", _, socket) do
     relationships = Viva.Relationships.list_for_avatar(socket.assigns.avatar_id)
     {:reply, {:ok, %{relationships: serialize_relationships(relationships)}}, socket}
   end
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_in("get_memories", payload, socket) do
     limit = Map.get(payload, "limit", 20)
     type = Map.get(payload, "type")
@@ -141,43 +142,43 @@ defmodule VivaWeb.AvatarChannel do
 
   # === PubSub Messages ===
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_info({:thought, thought}, socket) do
     push(socket, "thought", %{content: thought, timestamp: DateTime.utc_now()})
     {:noreply, socket}
   end
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_info({:greeting, greeting}, socket) do
     push(socket, "greeting", %{content: greeting})
     {:noreply, socket}
   end
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_info({:status, status}, socket) do
     push(socket, "status", %{status: status})
     {:noreply, socket}
   end
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_info({:state_update, state}, socket) do
     push(socket, "state_update", serialize_state(state))
     {:noreply, socket}
   end
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_info({:conversation_started, conv_info}, socket) do
     push(socket, "conversation_started", conv_info)
     {:noreply, socket}
   end
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_info({:new_message, message}, socket) do
     push(socket, "new_message", serialize_message(message))
     {:noreply, socket}
   end
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_info({:conversation_ended, conv_id}, socket) do
     push(socket, "conversation_ended", %{conversation_id: conv_id})
 
@@ -191,20 +192,20 @@ defmodule VivaWeb.AvatarChannel do
     {:noreply, socket}
   end
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_info({:relationship_update, relationship}, socket) do
     push(socket, "relationship_update", serialize_relationship(relationship))
     {:noreply, socket}
   end
 
-  @impl true
+  @impl Phoenix.Channel
   def handle_info({:match_found, match}, socket) do
     push(socket, "match_found", serialize_match(match))
     {:noreply, socket}
   end
 
-  @impl true
-  def terminate(_reason, socket) do
+  @impl Phoenix.Channel
+  def terminate(_, socket) do
     if avatar_id = socket.assigns[:avatar_id] do
       LifeProcess.owner_disconnected(avatar_id)
     end

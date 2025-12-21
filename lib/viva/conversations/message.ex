@@ -8,6 +8,8 @@ defmodule Viva.Conversations.Message do
   alias Viva.Avatars.Avatar
   alias Viva.Conversations.Conversation
 
+  @type t :: %__MODULE__{}
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   schema "messages" do
@@ -37,6 +39,7 @@ defmodule Viva.Conversations.Message do
     timestamps(type: :utc_datetime)
   end
 
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(message, attrs) do
     message
     |> cast(attrs, [

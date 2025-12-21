@@ -17,8 +17,36 @@ defmodule Viva.Nim.ReasoningClient do
   """
   require Logger
 
+  alias Viva.Avatars.Avatar
+  alias Viva.Avatars.Enneagram
+  alias Viva.Avatars.InternalState
+  alias Viva.Avatars.Personality
   alias Viva.Nim
-  alias Viva.Avatars.{Personality, InternalState, Enneagram}
+  alias Viva.Relationships.Relationship
+
+  # === Types ===
+
+  @type reasoning_result :: {:ok, String.t() | map()} | {:error, term()}
+  @type compatibility_analysis :: %{
+          overall_score: float(),
+          romantic_potential: float(),
+          friendship_potential: float(),
+          conflict_risk: float(),
+          growth_potential: float(),
+          dimensions: map(),
+          strengths: [String.t()],
+          challenges: [String.t()],
+          advice: String.t(),
+          predicted_dynamics: String.t()
+        }
+  @type decision_result :: %{
+          chosen_option: pos_integer(),
+          reasoning: String.t(),
+          emotional_reasoning: String.t(),
+          confidence: float(),
+          predicted_outcome: String.t(),
+          alternative_consideration: String.t()
+        }
 
   @doc """
   Perform deep reasoning with chain-of-thought.
@@ -29,6 +57,7 @@ defmodule Viva.Nim.ReasoningClient do
   - `:temperature` - Sampling temperature (default: 0.3)
   - `:structured` - Return structured JSON (default: false)
   """
+  @spec reason(String.t(), keyword()) :: reasoning_result()
   def reason(prompt, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:reasoning))
     structured = Keyword.get(opts, :structured, false)
@@ -75,6 +104,8 @@ defmodule Viva.Nim.ReasoningClient do
   Deep analysis of compatibility between two avatars.
   Returns detailed breakdown with reasoning.
   """
+  @spec deep_analyze_compatibility(Avatar.t(), Avatar.t()) ::
+          {:ok, compatibility_analysis()} | {:error, term()}
   def deep_analyze_compatibility(avatar_a, avatar_b) do
     enneagram_a = Enneagram.get_type(avatar_a.personality.enneagram_type)
     enneagram_b = Enneagram.get_type(avatar_b.personality.enneagram_type)
@@ -147,6 +178,8 @@ defmodule Viva.Nim.ReasoningClient do
   @doc """
   Resolve a relationship conflict between avatars.
   """
+  @spec resolve_relationship_conflict(Relationship.t(), String.t()) ::
+          {:ok, map()} | {:error, term()}
   def resolve_relationship_conflict(relationship, conflict_context) do
     prompt = """
     Two individuals are experiencing conflict in their relationship.
@@ -187,6 +220,8 @@ defmodule Viva.Nim.ReasoningClient do
   @doc """
   Make an autonomous decision for an avatar.
   """
+  @spec make_autonomous_decision(Avatar.t(), String.t(), [String.t()]) ::
+          {:ok, decision_result()} | {:error, term()}
   def make_autonomous_decision(avatar, situation, options) do
     enneagram = Enneagram.get_type(avatar.personality.enneagram_type)
     internal = avatar.internal_state
@@ -231,6 +266,8 @@ defmodule Viva.Nim.ReasoningClient do
   @doc """
   Analyze emotional state and predict behavior.
   """
+  @spec analyze_emotional_trajectory(Avatar.t(), [map()] | term()) ::
+          {:ok, map()} | {:error, term()}
   def analyze_emotional_trajectory(avatar, recent_events) do
     internal = avatar.internal_state
     enneagram = Enneagram.get_type(avatar.personality.enneagram_type)
@@ -277,6 +314,7 @@ defmodule Viva.Nim.ReasoningClient do
   Generate a life decision for the avatar.
   Used for major autonomous choices.
   """
+  @spec life_decision(Avatar.t(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
   def life_decision(avatar, decision_type, context) do
     prompt = """
     #{avatar.name} needs to make an important life decision.
@@ -304,7 +342,6 @@ defmodule Viva.Nim.ReasoningClient do
     reason(prompt, structured: true)
   end
 
-
   defp parse_json_response(response) do
     cleaned =
       response
@@ -321,16 +358,13 @@ defmodule Viva.Nim.ReasoningClient do
   defp format_options(options) when is_list(options) do
     options
     |> Enum.with_index(1)
-    |> Enum.map(fn {option, idx} -> "#{idx}. #{option}" end)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", fn {option, idx} -> "#{idx}. #{option}" end)
   end
 
   defp format_events(events) when is_list(events) do
-    events
-    |> Enum.map(fn event ->
+    Enum.map_join(events, "\n", fn event ->
       "- #{event[:description] || event}"
     end)
-    |> Enum.join("\n")
   end
 
   defp format_events(_), do: "No recent events"

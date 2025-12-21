@@ -4,7 +4,14 @@ defmodule Viva.Avatars.InternalState do
   Represents needs, emotions, and current mental state.
   """
   use Ecto.Schema
+
   import Ecto.Changeset
+
+  alias Viva.Avatars.Emotions
+
+  # === Types ===
+
+  @type t :: %__MODULE__{}
 
   @primary_key false
   embedded_schema do
@@ -15,7 +22,7 @@ defmodule Viva.Avatars.InternalState do
     field :comfort, :float, default: 80.0
 
     # Current emotions (0.0 to 1.0)
-    embeds_one :emotions, __MODULE__.Emotions, on_replace: :update
+    embeds_one :emotions, Emotions, on_replace: :update
 
     # Overall mood (-1.0 to 1.0)
     field :mood, :float, default: 0.3
@@ -47,40 +54,7 @@ defmodule Viva.Avatars.InternalState do
     field :updated_at, :utc_datetime
   end
 
-  defmodule Emotions do
-    use Ecto.Schema
-
-    @primary_key false
-    embedded_schema do
-      field :joy, :float, default: 0.5
-      field :sadness, :float, default: 0.0
-      field :anger, :float, default: 0.0
-      field :fear, :float, default: 0.0
-      field :surprise, :float, default: 0.0
-      field :disgust, :float, default: 0.0
-      field :love, :float, default: 0.0
-      field :loneliness, :float, default: 0.3
-      field :curiosity, :float, default: 0.4
-      field :excitement, :float, default: 0.2
-    end
-
-    def changeset(emotions, attrs) do
-      emotions
-      |> Ecto.Changeset.cast(attrs, [
-        :joy,
-        :sadness,
-        :anger,
-        :fear,
-        :surprise,
-        :disgust,
-        :love,
-        :loneliness,
-        :curiosity,
-        :excitement
-      ])
-    end
-  end
-
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(state, attrs) do
     state
     |> cast(attrs, [
@@ -101,22 +75,25 @@ defmodule Viva.Avatars.InternalState do
     |> validate_number(:mood, greater_than_or_equal_to: -1.0, less_than_or_equal_to: 1.0)
   end
 
+  @spec new() :: t()
   def new do
     %__MODULE__{
-      emotions: %__MODULE__.Emotions{},
-      updated_at: DateTime.utc_now() |> DateTime.truncate(:second)
+      emotions: %Emotions{},
+      updated_at: DateTime.utc_now(:second)
     }
   end
 
   @doc "Get the dominant emotion"
+  @spec dominant_emotion(t()) :: atom()
   def dominant_emotion(%__MODULE__{emotions: emotions}) do
     emotions
     |> Map.from_struct()
-    |> Enum.max_by(fn {_k, v} -> v end)
+    |> Enum.max_by(fn {_, v} -> v end)
     |> elem(0)
   end
 
   @doc "Calculate overall wellbeing (0.0 to 1.0)"
+  @spec wellbeing(t()) :: float()
   def wellbeing(%__MODULE__{} = state) do
     needs_score = (state.energy + state.social + state.stimulation + state.comfort) / 400.0
 

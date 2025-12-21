@@ -4,7 +4,8 @@ defmodule VivaWeb.PageController do
   """
   use VivaWeb, :controller
 
-  def home(conn, _params) do
+  @spec home(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def home(conn, _) do
     render(conn, :home)
   end
 end

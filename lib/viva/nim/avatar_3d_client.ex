@@ -15,7 +15,25 @@ defmodule Viva.Nim.Avatar3DClient do
   """
   require Logger
 
+  alias Viva.Avatars.Avatar
   alias Viva.Nim
+
+  # === Types ===
+
+  @type model_result :: {:ok, binary()} | {:ok, {:url, String.t()}} | {:error, term()}
+  @type animation_data :: %{
+          blendshapes: [map()],
+          timestamps: [float()] | nil,
+          fps: pos_integer(),
+          duration: float() | non_neg_integer(),
+          expression: atom() | nil
+        }
+  @type stream_state :: %{
+          model: String.t(),
+          fps: pos_integer(),
+          callback: (term() -> any()),
+          buffer: binary()
+        }
 
   @doc """
   Generate a 3D avatar model from text description.
@@ -25,6 +43,7 @@ defmodule Viva.Nim.Avatar3DClient do
   - `:format` - Output format: "glb", "gltf", "fbx" (default: "glb")
   - `:quality` - Model quality: "low", "medium", "high" (default: "high")
   """
+  @spec generate_from_text(String.t(), keyword()) :: model_result()
   def generate_from_text(description, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:avatar_3d))
     format = Keyword.get(opts, :format, "glb")
@@ -54,6 +73,7 @@ defmodule Viva.Nim.Avatar3DClient do
   @doc """
   Generate a 3D avatar from a 2D profile image.
   """
+  @spec generate_from_image(binary(), keyword()) :: model_result()
   def generate_from_image(image_data, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:avatar_3d))
     format = Keyword.get(opts, :format, "glb")
@@ -81,6 +101,7 @@ defmodule Viva.Nim.Avatar3DClient do
   Generate 3D avatar for a VIVA avatar entity.
   Uses personality and appearance to create appropriate model.
   """
+  @spec generate_for_avatar(Avatar.t(), keyword()) :: model_result()
   def generate_for_avatar(avatar, opts \\ []) do
     description = build_avatar_description(avatar)
     generate_from_text(description, opts)
@@ -95,6 +116,7 @@ defmodule Viva.Nim.Avatar3DClient do
   - `:fps` - Frames per second (default: 30)
   - `:emotion` - Emotional overlay: "neutral", "happy", "sad" (default: "neutral")
   """
+  @spec audio_to_face(binary(), keyword()) :: {:ok, animation_data()} | {:error, term()}
   def audio_to_face(audio_data, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:audio2face))
     fps = Keyword.get(opts, :fps, 30)
@@ -127,6 +149,7 @@ defmodule Viva.Nim.Avatar3DClient do
   Stream audio to facial animation in real-time.
   Calls callback with blendshape data as it's generated.
   """
+  @spec audio_to_face_stream((term() -> any()), keyword()) :: {:ok, stream_state()}
   def audio_to_face_stream(callback, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:audio2face))
     fps = Keyword.get(opts, :fps, 30)
@@ -143,6 +166,7 @@ defmodule Viva.Nim.Avatar3DClient do
   @doc """
   Send audio chunk to streaming face animation.
   """
+  @spec stream_audio_chunk(stream_state(), binary()) :: {:ok, stream_state()} | {:error, term()}
   def stream_audio_chunk(stream_state, audio_chunk) do
     body = %{
       model: stream_state.model,
@@ -164,6 +188,7 @@ defmodule Viva.Nim.Avatar3DClient do
   @doc """
   Generate expression-specific facial animation.
   """
+  @spec generate_expression_animation(atom(), pos_integer(), keyword()) :: {:ok, animation_data()}
   def generate_expression_animation(expression, duration_ms \\ 1000, opts \\ []) do
     fps = Keyword.get(opts, :fps, 30)
     frames = round(duration_ms / 1000 * fps)
@@ -182,6 +207,7 @@ defmodule Viva.Nim.Avatar3DClient do
   @doc """
   Get supported blendshape names (ARKit compatible).
   """
+  @spec blendshape_names() :: [String.t()]
   def blendshape_names do
     [
       "eyeBlinkLeft",
@@ -238,18 +264,20 @@ defmodule Viva.Nim.Avatar3DClient do
     ]
   end
 
-
   defp build_avatar_description(avatar) do
     gender = gender_text(avatar.gender)
     age = age_text(avatar.age)
     personality = personality_style(avatar.personality)
 
-    """
-    3D character model of a #{gender}, #{age} years old, #{personality},
-    Brazilian appearance, realistic proportions,
-    suitable for real-time rendering, game-ready mesh
-    """
-    |> String.replace("\n", " ")
+    String.replace(
+      """
+      3D character model of a #{gender}, #{age} years old, #{personality},
+      Brazilian appearance, realistic proportions,
+      suitable for real-time rendering, game-ready mesh
+      """,
+      "\n",
+      " "
+    )
   end
 
   defp gender_text(:male), do: "male character"

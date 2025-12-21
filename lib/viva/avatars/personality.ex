@@ -8,6 +8,11 @@ defmodule Viva.Avatars.Personality do
 
   alias Viva.Avatars.Enneagram
 
+  # === Types ===
+
+  @type t :: %__MODULE__{}
+  @type temperament :: :sanguine | :choleric | :phlegmatic | :melancholic
+
   @primary_key false
   embedded_schema do
     # Big Five personality traits (0.0 to 1.0)
@@ -71,6 +76,7 @@ defmodule Viva.Avatars.Personality do
   }
 
   @doc "Get human-readable language name"
+  @spec language_name(String.t()) :: String.t()
   def language_name(code) do
     Map.get(@language_names, code, code)
   end
@@ -81,6 +87,7 @@ defmodule Viva.Avatars.Personality do
 
   Returns one of: :sanguine, :choleric, :phlegmatic, :melancholic
   """
+  @spec temperament(t()) :: temperament()
   def temperament(%__MODULE__{} = p) do
     cond do
       p.extraversion > 0.5 and p.neuroticism < 0.5 -> :sanguine
@@ -91,16 +98,19 @@ defmodule Viva.Avatars.Personality do
   end
 
   @doc "Get the Enneagram type data for this personality"
+  @spec enneagram_data(t()) :: Enneagram.enneagram_type()
   def enneagram_data(%__MODULE__{enneagram_type: type}) do
     Enneagram.get_type(type)
   end
 
   @doc "Describe the temperament in human-readable terms"
+  @spec describe_temperament(temperament()) :: String.t()
   def describe_temperament(:sanguine), do: "optimistic, sociable, enthusiastic, and expressive"
   def describe_temperament(:choleric), do: "intense, passionate, driven, and assertive"
   def describe_temperament(:phlegmatic), do: "calm, patient, reliable, and thoughtful"
   def describe_temperament(:melancholic), do: "introspective, analytical, sensitive, and deep"
 
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(personality, attrs) do
     personality
     |> cast(attrs, [
@@ -132,6 +142,7 @@ defmodule Viva.Avatars.Personality do
   end
 
   @doc "Generate a random personality"
+  @spec random() :: t()
   def random do
     %__MODULE__{
       openness: :rand.uniform(),

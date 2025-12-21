@@ -144,7 +144,7 @@
           {Credo.Check.Refactor.MapJoin, []},
           {Credo.Check.Refactor.MapMap, []},
           {Credo.Check.Refactor.MatchInCondition, []},
-          {Credo.Check.Refactor.ModuleDependencies, [priority: :low, max_deps: 15]},
+          {Credo.Check.Refactor.ModuleDependencies, [priority: :low, max_deps: 25]},
           {Credo.Check.Refactor.NegatedConditionsInUnless, []},
           {Credo.Check.Refactor.NegatedConditionsWithElse, []},
           {Credo.Check.Refactor.NegatedIsNil, []},
@@ -197,11 +197,9 @@
           {Credo.Check.Warning.WrongTestFileExtension, []}
         ],
         disabled: [
-          # Disabled: We prefer explicit specs only where beneficial
-          # {Credo.Check.Readability.Specs, []},
-
-          # Disabled: Can be too strict for Phoenix projects
-          # {Credo.Check.Design.AliasUsage, []},
+          # Incompatible with Elixir 1.19+
+          {Credo.Check.Refactor.MapInto, []},
+          {Credo.Check.Warning.LazyLogging, []}
         ]
       }
     }

@@ -16,7 +16,22 @@ defmodule Viva.Nim.SafetyClient do
   """
   require Logger
 
+  alias Viva.Avatars.Avatar
   alias Viva.Nim
+
+  # === Types ===
+
+  @type safety_category ::
+          :violence
+          | :hate_speech
+          | :sexual_content
+          | :harassment
+          | :self_harm
+          | :dangerous_activities
+          | :misinformation
+          | :personal_info
+  @type safety_result :: {:ok, :safe} | {:ok, {:unsafe, [safety_category()]}} | {:error, term()}
+  @type jailbreak_result :: %{is_jailbreak: boolean(), confidence: float()}
 
   @safety_categories [
     :violence,
@@ -33,6 +48,7 @@ defmodule Viva.Nim.SafetyClient do
   Check if content is safe.
   Returns {:ok, :safe} or {:ok, {:unsafe, categories}}.
   """
+  @spec check_content(String.t(), keyword()) :: safety_result()
   def check_content(content, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:safety))
 
@@ -61,6 +77,7 @@ defmodule Viva.Nim.SafetyClient do
   @doc """
   Check if content contains a jailbreak attempt.
   """
+  @spec detect_jailbreak(String.t(), keyword()) :: {:ok, jailbreak_result()} | {:error, term()}
   def detect_jailbreak(content, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:jailbreak_detect))
 
@@ -85,6 +102,7 @@ defmodule Viva.Nim.SafetyClient do
   @doc """
   Check if content stays within allowed topics.
   """
+  @spec check_topic(String.t(), [String.t()], keyword()) :: {:ok, map()} | {:error, term()}
   def check_topic(content, allowed_topics, opts \\ []) do
     prompt = """
     Analyze if the following content stays within these allowed topics: #{Enum.join(allowed_topics, ", ")}.
@@ -110,6 +128,7 @@ defmodule Viva.Nim.SafetyClient do
   @doc """
   Check both text and image for safety (multimodal).
   """
+  @spec check_multimodal(String.t(), binary(), keyword()) :: safety_result()
   def check_multimodal(text, image_data, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:safety_multimodal))
 
@@ -148,6 +167,8 @@ defmodule Viva.Nim.SafetyClient do
   Filter and sanitize content before processing.
   Returns sanitized content or error if too unsafe.
   """
+  @spec sanitize_input(String.t(), keyword()) ::
+          {:ok, String.t()} | {:error, {:unsafe_content, [safety_category()]}} | {:error, term()}
   def sanitize_input(content, opts \\ []) do
     max_length = Keyword.get(opts, :max_length, 10_000)
 
@@ -177,6 +198,8 @@ defmodule Viva.Nim.SafetyClient do
   @doc """
   Apply safety checks to avatar conversation.
   """
+  @spec check_avatar_message(String.t(), Avatar.t(), keyword()) ::
+          {:ok, :safe} | {:unsafe, [safety_category() | :jailbreak_attempt]} | {:error, term()}
   def check_avatar_message(message, avatar, opts \\ []) do
     with {:ok, :safe} <- check_content(message, opts),
          {:ok, %{is_jailbreak: false}} <- detect_jailbreak(message, opts) do
@@ -196,8 +219,8 @@ defmodule Viva.Nim.SafetyClient do
   end
 
   @doc "List all safety categories"
+  @spec categories() :: [safety_category()]
   def categories, do: @safety_categories
-
 
   defp safety_system_prompt do
     """
@@ -233,7 +256,9 @@ defmodule Viva.Nim.SafetyClient do
 
       {:error, _} ->
         # If we can't parse, check for keywords
-        if String.contains?(String.downcase(response), ["unsafe", "violation", "flagged"]) do
+        lower_response = String.downcase(response)
+
+        if String.contains?(lower_response, ["unsafe", "violation", "flagged"]) do
           {:ok, {:unsafe, [:unknown]}}
         else
           {:ok, :safe}

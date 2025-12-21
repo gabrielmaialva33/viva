@@ -17,6 +17,23 @@ defmodule Viva.Nim.AudioEnhanceClient do
 
   alias Viva.Nim
 
+  # === Types ===
+
+  @type audio_result :: {:ok, binary()} | {:ok, {:url, String.t()}} | {:error, term()}
+  @type quality_metrics :: %{
+          noise_level: float(),
+          clarity: float(),
+          loudness_db: float(),
+          speech_ratio: float(),
+          quality_score: float()
+        }
+  @type stream_state :: %{
+          model: String.t(),
+          callback: (term() -> any()),
+          buffer: binary(),
+          sample_rate: pos_integer()
+        }
+
   @doc """
   Enhance audio to studio quality.
   Improves clarity, removes noise, and balances levels.
@@ -26,9 +43,10 @@ defmodule Viva.Nim.AudioEnhanceClient do
   - `:sample_rate` - Output sample rate (default: 48000)
   - `:enhance_vocals` - Focus on voice enhancement (default: true)
   """
+  @spec enhance(binary(), keyword()) :: audio_result()
   def enhance(audio_data, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:audio_enhance))
-    sample_rate = Keyword.get(opts, :sample_rate, 48000)
+    sample_rate = Keyword.get(opts, :sample_rate, 48_000)
     enhance_vocals = Keyword.get(opts, :enhance_vocals, true)
 
     body = %{
@@ -60,6 +78,7 @@ defmodule Viva.Nim.AudioEnhanceClient do
   - `:aggressiveness` - Noise removal level: "low", "medium", "high" (default: "medium")
   - `:preserve_speech` - Prioritize speech preservation (default: true)
   """
+  @spec remove_noise(binary(), keyword()) :: {:ok, binary()} | {:error, term()}
   def remove_noise(audio_data, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:noise_removal))
     aggressiveness = Keyword.get(opts, :aggressiveness, "medium")
@@ -85,10 +104,10 @@ defmodule Viva.Nim.AudioEnhanceClient do
   @doc """
   Full audio processing pipeline: denoise then enhance.
   """
+  @spec process_full(binary(), keyword()) :: {:ok, binary()} | {:error, term()}
   def process_full(audio_data, opts \\ []) do
-    with {:ok, denoised} <- remove_noise(audio_data, opts),
-         {:ok, enhanced} <- enhance(denoised, opts) do
-      {:ok, enhanced}
+    with {:ok, denoised} <- remove_noise(audio_data, opts) do
+      enhance(denoised, opts)
     end
   end
 
@@ -96,6 +115,7 @@ defmodule Viva.Nim.AudioEnhanceClient do
   Stream audio enhancement in real-time.
   Returns a stream handler for sending audio chunks.
   """
+  @spec stream_enhance((term() -> any()), keyword()) :: {:ok, stream_state()}
   def stream_enhance(callback, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:audio_enhance))
 
@@ -104,13 +124,14 @@ defmodule Viva.Nim.AudioEnhanceClient do
        model: model,
        callback: callback,
        buffer: <<>>,
-       sample_rate: Keyword.get(opts, :sample_rate, 48000)
+       sample_rate: Keyword.get(opts, :sample_rate, 48_000)
      }}
   end
 
   @doc """
   Send audio chunk to streaming enhancement.
   """
+  @spec stream_chunk(stream_state(), binary()) :: {:ok, stream_state()} | {:error, term()}
   def stream_chunk(stream_state, audio_chunk) do
     body = %{
       model: stream_state.model,
@@ -133,6 +154,7 @@ defmodule Viva.Nim.AudioEnhanceClient do
   Enhance audio before transcription.
   Optimized for ASR accuracy.
   """
+  @spec enhance_for_transcription(binary(), keyword()) :: {:ok, binary()} | {:error, term()}
   def enhance_for_transcription(audio_data, opts \\ []) do
     with {:ok, denoised} <-
            remove_noise(audio_data,
@@ -146,6 +168,7 @@ defmodule Viva.Nim.AudioEnhanceClient do
   @doc """
   Normalize audio levels for consistent volume.
   """
+  @spec normalize_levels(binary(), keyword()) :: {:ok, binary()} | {:error, term()}
   def normalize_levels(audio_data, opts \\ []) do
     target_db = Keyword.get(opts, :target_db, -14.0)
 
@@ -168,6 +191,7 @@ defmodule Viva.Nim.AudioEnhanceClient do
   @doc """
   Analyze audio quality metrics.
   """
+  @spec analyze_quality(binary()) :: {:ok, quality_metrics()} | {:error, term()}
   def analyze_quality(audio_data) do
     body = %{
       model: Nim.model(:audio_enhance),
@@ -195,6 +219,7 @@ defmodule Viva.Nim.AudioEnhanceClient do
   Check if audio needs enhancement.
   Returns true if quality is below threshold.
   """
+  @spec needs_enhancement?(binary(), float()) :: boolean()
   def needs_enhancement?(audio_data, threshold \\ 0.7) do
     case analyze_quality(audio_data) do
       {:ok, %{quality_score: score}} -> score < threshold
@@ -205,6 +230,7 @@ defmodule Viva.Nim.AudioEnhanceClient do
   @doc """
   Conditionally enhance audio only if needed.
   """
+  @spec smart_enhance(binary(), keyword()) :: {:ok, binary()} | {:error, term()}
   def smart_enhance(audio_data, opts \\ []) do
     threshold = Keyword.get(opts, :threshold, 0.7)
 

@@ -15,7 +15,15 @@ defmodule Viva.Nim.ImageClient do
   """
   require Logger
 
+  alias Viva.Avatars.Avatar
   alias Viva.Nim
+
+  # === Types ===
+
+  @type expression :: :happy | :sad | :angry | :surprised | :loving | :neutral
+  @type style :: String.t()
+  @type image_result :: {:ok, binary()} | {:ok, {:url, String.t()}} | {:error, term()}
+  @type expression_pack :: %{optional(expression()) => binary()}
 
   @doc """
   Generate a profile picture for an avatar.
@@ -26,6 +34,7 @@ defmodule Viva.Nim.ImageClient do
   - `:size` - Image size: "512x512", "1024x1024" (default: "1024x1024")
   - `:seed` - Random seed for reproducibility
   """
+  @spec generate_profile(Avatar.t(), keyword()) :: image_result()
   def generate_profile(avatar, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:image_gen))
     style = Keyword.get(opts, :style, "realistic")
@@ -70,6 +79,7 @@ defmodule Viva.Nim.ImageClient do
   - `:loving` - Affectionate, warm
   - `:neutral` - Default expression
   """
+  @spec generate_expression(Avatar.t(), expression(), keyword()) :: image_result()
   def generate_expression(avatar, expression, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:image_gen))
 
@@ -98,6 +108,7 @@ defmodule Viva.Nim.ImageClient do
   Edit an existing image with a new prompt (in-context editing).
   Uses FLUX.1-Kontext for intelligent image editing.
   """
+  @spec edit_image(binary(), String.t(), keyword()) :: image_result()
   def edit_image(image_data, edit_prompt, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:image_edit))
 
@@ -120,6 +131,7 @@ defmodule Viva.Nim.ImageClient do
   @doc """
   Change avatar expression in existing image.
   """
+  @spec change_expression(binary(), expression(), keyword()) :: image_result()
   def change_expression(image_data, new_expression, opts \\ []) do
     edit_prompt =
       case new_expression do
@@ -138,6 +150,7 @@ defmodule Viva.Nim.ImageClient do
   @doc """
   Generate avatar in a specific art style.
   """
+  @spec stylize(Avatar.t(), style(), keyword()) :: image_result()
   def stylize(avatar, style, opts \\ []) do
     generate_profile(avatar, Keyword.put(opts, :style, style))
   end
@@ -146,6 +159,8 @@ defmodule Viva.Nim.ImageClient do
   Generate multiple expression variations at once.
   Returns a map of expression => image_data.
   """
+  @spec generate_expression_pack(Avatar.t(), [expression()] | nil, keyword()) ::
+          {:ok, expression_pack()}
   def generate_expression_pack(avatar, expressions \\ nil, opts \\ []) do
     expressions = expressions || [:happy, :sad, :neutral, :surprised, :loving]
 
@@ -194,20 +209,26 @@ defmodule Viva.Nim.ImageClient do
     gender_text = gender_description(avatar.gender)
     expression_text = expression_description(expression)
 
-    """
-    portrait of #{gender_text}, #{expression_text},
-    #{avatar.name}, high quality face, detailed expression
-    """
-    |> String.replace("\n", " ")
+    String.replace(
+      """
+      portrait of #{gender_text}, #{expression_text},
+      #{avatar.name}, high quality face, detailed expression
+      """,
+      "\n",
+      " "
+    )
   end
 
   defp build_negative_prompt do
-    """
-    deformed, ugly, bad anatomy, bad hands, missing fingers,
-    extra fingers, blurry, low quality, watermark, text,
-    signature, out of frame, cropped, worst quality
-    """
-    |> String.replace("\n", " ")
+    String.replace(
+      """
+      deformed, ugly, bad anatomy, bad hands, missing fingers,
+      extra fingers, blurry, low quality, watermark, text,
+      signature, out of frame, cropped, worst quality
+      """,
+      "\n",
+      " "
+    )
   end
 
   defp gender_description(:male), do: "handsome man"
@@ -217,33 +238,28 @@ defmodule Viva.Nim.ImageClient do
 
   defp age_description(age) when age < 25, do: "young adult, early twenties"
   defp age_description(age) when age < 35, do: "adult in their late twenties to early thirties"
-  defp age_description(age) when age < 45, do: "mature adult in their late thirties to early forties"
+
+  defp age_description(age) when age < 45,
+    do: "mature adult in their late thirties to early forties"
+
   defp age_description(_), do: "distinguished mature adult"
 
   defp personality_visual_traits(personality) do
-    traits = []
-
-    traits =
-      if personality.extraversion > 0.7,
-        do: ["confident posture", "bright eyes" | traits],
-        else: traits
-
-    traits =
-      if personality.openness > 0.7,
-        do: ["creative appearance", "artistic vibe" | traits],
-        else: traits
-
-    traits =
+    base_traits =
       if personality.neuroticism > 0.6,
-        do: ["sensitive expression", "deep eyes" | traits],
-        else: ["calm demeanor" | traits]
+        do: ["sensitive expression", "deep eyes"],
+        else: ["calm demeanor"]
 
-    traits =
-      if personality.agreeableness > 0.7,
-        do: ["warm smile", "friendly face" | traits],
-        else: traits
+    optional_traits =
+      [
+        {personality.extraversion > 0.7, ["confident posture", "bright eyes"]},
+        {personality.openness > 0.7, ["creative appearance", "artistic vibe"]},
+        {personality.agreeableness > 0.7, ["warm smile", "friendly face"]}
+      ]
+      |> Enum.filter(&elem(&1, 0))
+      |> Enum.flat_map(&elem(&1, 1))
 
-    Enum.join(traits, ", ")
+    Enum.join(base_traits ++ optional_traits, ", ")
   end
 
   defp expression_description(:happy), do: "happy expression, genuine smile, joyful eyes"

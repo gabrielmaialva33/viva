@@ -6,8 +6,8 @@ defmodule Viva.Application do
 
   use Application
 
-  @impl true
-  def start(_type, _args) do
+  @impl Application
+  def start(_, _) do
     children = [
       # Telemetry
       VivaWeb.Telemetry,
@@ -50,19 +50,19 @@ defmodule Viva.Application do
     result
   end
 
+  # Tell Phoenix to update the endpoint configuration
+  # whenever the application is updated.
+  @impl Application
+  def config_change(changed, _, removed) do
+    VivaWeb.Endpoint.config_change(changed, removed)
+    :ok
+  end
+
   defp start_active_avatars do
     # Delay startup to ensure everything is ready
     Task.start(fn ->
       Process.sleep(2000)
       Viva.Sessions.Supervisor.start_all_active_avatars()
     end)
-  end
-
-  # Tell Phoenix to update the endpoint configuration
-  # whenever the application is updated.
-  @impl true
-  def config_change(changed, _new, removed) do
-    VivaWeb.Endpoint.config_change(changed, removed)
-    :ok
   end
 end

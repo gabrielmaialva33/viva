@@ -5,12 +5,77 @@ defmodule Viva.Sessions.Supervisor do
   """
   use Supervisor
 
+  # === Client API ===
+
+  @spec start_link(term()) :: Supervisor.on_start()
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
 
-  @impl true
-  def init(_init_arg) do
+  @doc "Start a life process for an avatar"
+  @spec start_avatar(Ecto.UUID.t()) :: {:ok, pid()} | {:error, term()}
+  def start_avatar(avatar_id) do
+    spec = {Viva.Sessions.LifeProcess, avatar_id}
+
+    case DynamicSupervisor.start_child(Viva.Sessions.AvatarSupervisor, spec) do
+      {:ok, pid} -> {:ok, pid}
+      {:error, {:already_started, pid}} -> {:ok, pid}
+      error -> error
+    end
+  end
+
+  @doc "Stop a life process for an avatar"
+  @spec stop_avatar(Ecto.UUID.t()) :: :ok | {:error, :not_found}
+  def stop_avatar(avatar_id) do
+    case Registry.lookup(Viva.Sessions.AvatarRegistry, avatar_id) do
+      [{pid, _}] ->
+        DynamicSupervisor.terminate_child(Viva.Sessions.AvatarSupervisor, pid)
+
+      [] ->
+        {:error, :not_found}
+    end
+  end
+
+  @doc "Check if an avatar's life process is running"
+  @spec avatar_alive?(Ecto.UUID.t()) :: boolean()
+  def avatar_alive?(avatar_id) do
+    case Registry.lookup(Viva.Sessions.AvatarRegistry, avatar_id) do
+      [{_, _}] -> true
+      [] -> false
+    end
+  end
+
+  @doc "Get the PID of an avatar's life process"
+  @spec get_avatar_pid(Ecto.UUID.t()) :: {:ok, pid()} | {:error, :not_found}
+  def get_avatar_pid(avatar_id) do
+    case Registry.lookup(Viva.Sessions.AvatarRegistry, avatar_id) do
+      [{pid, _}] -> {:ok, pid}
+      [] -> {:error, :not_found}
+    end
+  end
+
+  @doc "List all running avatar IDs"
+  @spec list_running_avatars() :: [Ecto.UUID.t()]
+  def list_running_avatars do
+    Registry.select(Viva.Sessions.AvatarRegistry, [{{:"$1", :_, :_}, [], [:"$1"]}])
+  end
+
+  @doc "Count running avatars"
+  @spec count_running_avatars() :: non_neg_integer()
+  def count_running_avatars do
+    Registry.count(Viva.Sessions.AvatarRegistry)
+  end
+
+  @doc "Start all active avatars from database"
+  @spec start_all_active_avatars() :: :ok
+  def start_all_active_avatars do
+    Enum.each(Viva.Avatars.list_active_avatar_ids(), &start_avatar/1)
+  end
+
+  # === Callbacks ===
+
+  @impl Supervisor
+  def init(_) do
     children = [
       # Registry for looking up avatar processes by ID
       {Registry, keys: :unique, name: Viva.Sessions.AvatarRegistry},
@@ -29,59 +94,5 @@ defmodule Viva.Sessions.Supervisor do
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
-  end
-
-  @doc "Start a life process for an avatar"
-  def start_avatar(avatar_id) do
-    spec = {Viva.Sessions.LifeProcess, avatar_id}
-
-    case DynamicSupervisor.start_child(Viva.Sessions.AvatarSupervisor, spec) do
-      {:ok, pid} -> {:ok, pid}
-      {:error, {:already_started, pid}} -> {:ok, pid}
-      error -> error
-    end
-  end
-
-  @doc "Stop a life process for an avatar"
-  def stop_avatar(avatar_id) do
-    case Registry.lookup(Viva.Sessions.AvatarRegistry, avatar_id) do
-      [{pid, _}] ->
-        DynamicSupervisor.terminate_child(Viva.Sessions.AvatarSupervisor, pid)
-
-      [] ->
-        {:error, :not_found}
-    end
-  end
-
-  @doc "Check if an avatar's life process is running"
-  def avatar_alive?(avatar_id) do
-    case Registry.lookup(Viva.Sessions.AvatarRegistry, avatar_id) do
-      [{_pid, _}] -> true
-      [] -> false
-    end
-  end
-
-  @doc "Get the PID of an avatar's life process"
-  def get_avatar_pid(avatar_id) do
-    case Registry.lookup(Viva.Sessions.AvatarRegistry, avatar_id) do
-      [{pid, _}] -> {:ok, pid}
-      [] -> {:error, :not_found}
-    end
-  end
-
-  @doc "List all running avatar IDs"
-  def list_running_avatars do
-    Registry.select(Viva.Sessions.AvatarRegistry, [{{:"$1", :_, :_}, [], [:"$1"]}])
-  end
-
-  @doc "Count running avatars"
-  def count_running_avatars do
-    Registry.count(Viva.Sessions.AvatarRegistry)
-  end
-
-  @doc "Start all active avatars from database"
-  def start_all_active_avatars do
-    Viva.Avatars.list_active_avatar_ids()
-    |> Enum.each(&start_avatar/1)
   end
 end

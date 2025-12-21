@@ -97,18 +97,6 @@ defmodule Viva.Nim do
     Keyword.get(config(), :models, %{})
   end
 
-  # Default models (maximum quality)
-  defp default_model(:llm), do: "nvidia/llama-3.1-nemotron-ultra-253b-v1"
-  defp default_model(:embedding), do: "nvidia/nv-embedqa-mistral-7b-v2"
-  defp default_model(:rerank), do: "nvidia/llama-3.2-nemoretriever-500m-rerank-v2"
-  defp default_model(:tts), do: "nvidia/magpie-tts-multilingual"
-  defp default_model(:asr), do: "nvidia/parakeet-1.1b-rnnt-multilingual-asr"
-  defp default_model(:vlm), do: "nvidia/cosmos-nemotron-34b"
-  defp default_model(:safety), do: "nvidia/llama-3.1-nemotron-safety-guard-8b-v3"
-  defp default_model(:safety_multimodal), do: "meta/llama-guard-4-12b"
-  defp default_model(:jailbreak_detect), do: "nvidia/nemoguard-jailbreak-detect"
-  defp default_model(_), do: nil
-
   @doc "Build authorization headers"
   @spec auth_headers() :: [header()]
   def auth_headers do
@@ -263,7 +251,8 @@ defmodule Viva.Nim do
   defp calculate_backoff(attempt, base_delay, reason) do
     # Exponential backoff with jitter
     base = base_delay * :math.pow(2, attempt)
-    jitter = :rand.uniform(round(base * 0.3))
+    jitter_max = round(base * 0.3)
+    jitter = :rand.uniform(jitter_max)
 
     # Respect Retry-After header for 429s
     retry_after = extract_retry_after(reason)
@@ -353,4 +342,17 @@ defmodule Viva.Nim do
   end
 
   defp parse_sse_chunk(_), do: :skip
+
+  # === Private: Default Models (maximum quality) ===
+
+  defp default_model(:llm), do: "nvidia/llama-3.1-nemotron-ultra-253b-v1"
+  defp default_model(:embedding), do: "nvidia/nv-embedqa-mistral-7b-v2"
+  defp default_model(:rerank), do: "nvidia/llama-3.2-nemoretriever-500m-rerank-v2"
+  defp default_model(:tts), do: "nvidia/magpie-tts-multilingual"
+  defp default_model(:asr), do: "nvidia/parakeet-1.1b-rnnt-multilingual-asr"
+  defp default_model(:vlm), do: "nvidia/cosmos-nemotron-34b"
+  defp default_model(:safety), do: "nvidia/llama-3.1-nemotron-safety-guard-8b-v3"
+  defp default_model(:safety_multimodal), do: "meta/llama-guard-4-12b"
+  defp default_model(:jailbreak_detect), do: "nvidia/nemoguard-jailbreak-detect"
+  defp default_model(_), do: nil
 end

@@ -14,7 +14,14 @@ defmodule Viva.Nim.TranslateClient do
   """
   require Logger
 
+  alias Viva.Avatars.Avatar
   alias Viva.Nim
+
+  # === Types ===
+
+  @type language_code :: String.t()
+  @type translation_result :: {:ok, String.t()} | {:error, term()}
+  @type language_detection :: %{language: String.t(), confidence: float(), name: String.t()}
 
   @supported_languages [
     "ar",
@@ -100,6 +107,7 @@ defmodule Viva.Nim.TranslateClient do
   - `:preserve_tone` - Try to preserve emotional tone (default: true)
   - `:formality` - "formal", "informal", "auto" (default: "auto")
   """
+  @spec translate(String.t(), language_code(), language_code(), keyword()) :: translation_result()
   def translate(text, from_lang, to_lang, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:translate))
     preserve_tone = Keyword.get(opts, :preserve_tone, true)
@@ -138,6 +146,8 @@ defmodule Viva.Nim.TranslateClient do
   Translate multiple texts in batch.
   More efficient than individual calls.
   """
+  @spec translate_batch([String.t()], language_code(), language_code(), keyword()) ::
+          {:ok, [String.t()]} | {:error, term()}
   def translate_batch(texts, from_lang, to_lang, opts \\ []) when is_list(texts) do
     model = Keyword.get(opts, :model, Nim.model(:translate))
 
@@ -167,6 +177,7 @@ defmodule Viva.Nim.TranslateClient do
   @doc """
   Detect the language of a text.
   """
+  @spec detect_language(String.t()) :: {:ok, language_detection()} | {:error, term()}
   def detect_language(text) do
     body = %{
       model: Nim.model(:translate),
@@ -187,6 +198,8 @@ defmodule Viva.Nim.TranslateClient do
   Translate a message between two avatars.
   Automatically detects languages from avatar settings.
   """
+  @spec translate_avatar_message(String.t(), Avatar.t(), Avatar.t(), keyword()) ::
+          translation_result()
   def translate_avatar_message(message, from_avatar, to_avatar, opts \\ []) do
     from_lang = from_avatar.personality.native_language
     to_lang = to_avatar.personality.native_language
@@ -198,11 +211,11 @@ defmodule Viva.Nim.TranslateClient do
   Translate conversation history for an avatar.
   Preserves speaker attribution.
   """
+  @spec translate_conversation([map()], language_code(), keyword()) :: {:ok, [map()]}
   def translate_conversation(messages, to_lang, opts \\ []) do
     # Group messages by language to batch translate
     grouped =
-      messages
-      |> Enum.group_by(fn msg ->
+      Enum.group_by(messages, fn msg ->
         msg.language || detect_message_language(msg.content)
       end)
 
@@ -212,7 +225,8 @@ defmodule Viva.Nim.TranslateClient do
 
         case translate_batch(texts, from_lang, to_lang, opts) do
           {:ok, translations} ->
-            Enum.zip(msgs, translations)
+            msgs
+            |> Enum.zip(translations)
             |> Enum.map(fn {msg, translation} ->
               Map.put(msg, :translated_content, translation)
             end)
@@ -229,14 +243,17 @@ defmodule Viva.Nim.TranslateClient do
   @doc """
   Check if a language is supported.
   """
+  @spec supported?(language_code() | atom()) :: boolean()
   def supported?(lang) do
     normalize_lang(lang) in @supported_languages
   end
 
   @doc "List all supported languages"
+  @spec supported_languages() :: [String.t()]
   def supported_languages, do: @supported_languages
 
   @doc "Get language name from code"
+  @spec language_name(language_code() | atom()) :: String.t()
   def language_name(code) do
     @language_names[normalize_lang(code)] || code
   end
@@ -245,12 +262,21 @@ defmodule Viva.Nim.TranslateClient do
   Get common language between two avatars.
   Returns the language both speak, or nil if none.
   """
+  @spec common_language(Avatar.t(), Avatar.t()) ::
+          {:ok, String.t()} | {:none, {String.t(), String.t()}}
   def common_language(avatar_a, avatar_b) do
     a_languages = [avatar_a.personality.native_language | avatar_a.personality.other_languages]
     b_languages = [avatar_b.personality.native_language | avatar_b.personality.other_languages]
 
-    a_set = MapSet.new(Enum.map(a_languages, &normalize_lang/1))
-    b_set = MapSet.new(Enum.map(b_languages, &normalize_lang/1))
+    a_set =
+      a_languages
+      |> Enum.map(&normalize_lang/1)
+      |> MapSet.new()
+
+    b_set =
+      b_languages
+      |> Enum.map(&normalize_lang/1)
+      |> MapSet.new()
 
     common = MapSet.intersection(a_set, b_set)
 
@@ -260,15 +286,24 @@ defmodule Viva.Nim.TranslateClient do
       native_b = normalize_lang(avatar_b.personality.native_language)
 
       cond do
-        native_a in common -> {:ok, native_a}
-        native_b in common -> {:ok, native_b}
-        true -> {:ok, Enum.at(MapSet.to_list(common), 0)}
+        native_a in common ->
+          {:ok, native_a}
+
+        native_b in common ->
+          {:ok, native_b}
+
+        true ->
+          first_common =
+            common
+            |> MapSet.to_list()
+            |> List.first()
+
+          {:ok, first_common}
       end
     else
       {:none, {avatar_a.personality.native_language, avatar_b.personality.native_language}}
     end
   end
-
 
   defp normalize_lang(lang) when is_binary(lang) do
     # Convert "pt-BR" to "pt", "en-US" to "en", etc.

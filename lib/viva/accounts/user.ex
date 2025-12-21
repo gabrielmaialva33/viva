@@ -3,10 +3,15 @@ defmodule Viva.Accounts.User do
   User schema for avatar owners.
   """
   use Ecto.Schema
+
   import Ecto.Changeset
   import Ecto.Query
 
   alias Viva.Avatars.Avatar
+
+  # === Types ===
+
+  @type t :: %__MODULE__{}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -38,6 +43,7 @@ defmodule Viva.Accounts.User do
     timestamps(type: :utc_datetime)
   end
 
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(user, attrs) do
     user
     |> cast(attrs, [
@@ -58,6 +64,7 @@ defmodule Viva.Accounts.User do
     |> validate_username()
   end
 
+  @spec registration_changeset(t(), map()) :: Ecto.Changeset.t()
   def registration_changeset(user, attrs) do
     user
     |> changeset(attrs)
@@ -66,6 +73,33 @@ defmodule Viva.Accounts.User do
     |> validate_password()
     |> hash_password()
   end
+
+  @spec verify_password(t() | nil, String.t()) :: boolean()
+  def verify_password(%__MODULE__{hashed_password: hashed}, password) do
+    Bcrypt.verify_pass(password, hashed)
+  end
+
+  def verify_password(nil, _) do
+    Bcrypt.no_user_verify()
+    false
+  end
+
+  # Queries
+
+  @spec active() :: Ecto.Query.t()
+  def active, do: from(u in __MODULE__, where: u.is_active == true)
+
+  @spec by_email(String.t()) :: Ecto.Query.t()
+  def by_email(email) do
+    from(u in __MODULE__, where: u.email == ^String.downcase(email))
+  end
+
+  @spec by_username(String.t()) :: Ecto.Query.t()
+  def by_username(username) do
+    from(u in __MODULE__, where: u.username == ^String.downcase(username))
+  end
+
+  # Private Helpers
 
   defp validate_email(changeset) do
     changeset
@@ -107,25 +141,5 @@ defmodule Viva.Accounts.User do
         hashed = Bcrypt.hash_pwd_salt(password)
         put_change(changeset, :hashed_password, hashed)
     end
-  end
-
-  def verify_password(%__MODULE__{hashed_password: hashed}, password) do
-    Bcrypt.verify_pass(password, hashed)
-  end
-
-  def verify_password(nil, _password) do
-    Bcrypt.no_user_verify()
-    false
-  end
-
-  # Queries
-  def active, do: from(u in __MODULE__, where: u.is_active == true)
-
-  def by_email(email) do
-    from(u in __MODULE__, where: u.email == ^String.downcase(email))
-  end
-
-  def by_username(username) do
-    from(u in __MODULE__, where: u.username == ^String.downcase(username))
   end
 end

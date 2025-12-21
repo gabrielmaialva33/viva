@@ -9,27 +9,28 @@ defmodule VivaWeb.UserSocket do
   channel "avatar:*", VivaWeb.AvatarChannel
   channel "world:*", VivaWeb.WorldChannel
 
-  @impl true
-  def connect(%{"token" => token}, socket, _connect_info) do
+  @impl Phoenix.Socket
+  def connect(%{"token" => token}, socket, _) do
     case verify_token(token) do
       {:ok, user_id} ->
         {:ok, assign(socket, :user_id, user_id)}
 
-      {:error, _reason} ->
+      {:error, _} ->
         :error
     end
   end
 
-  def connect(_params, _socket, _connect_info) do
+  @impl Phoenix.Socket
+  def connect(_, _, _) do
     :error
   end
 
-  @impl true
+  @impl Phoenix.Socket
   def id(socket), do: "user_socket:#{socket.assigns.user_id}"
 
   # Token verification
   defp verify_token(token) do
-    case Phoenix.Token.verify(VivaWeb.Endpoint, "user socket", token, max_age: 86400) do
+    case Phoenix.Token.verify(VivaWeb.Endpoint, "user socket", token, max_age: 86_400) do
       {:ok, user_id} -> {:ok, user_id}
       {:error, reason} -> {:error, reason}
     end

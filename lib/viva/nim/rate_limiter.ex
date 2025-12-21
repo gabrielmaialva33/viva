@@ -97,7 +97,7 @@ defmodule Viva.Nim.RateLimiter do
     GenServer.call(__MODULE__, :reset)
   end
 
-  @impl true
+  @impl GenServer
   def init(opts) do
     table =
       :ets.new(@table, [:named_table, :public, read_concurrency: true, write_concurrency: true])
@@ -118,13 +118,13 @@ defmodule Viva.Nim.RateLimiter do
     {:ok, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call(:reset, _, state) do
     :ets.insert(@table, {:bucket, state.burst_size * 1.0, System.monotonic_time(:millisecond)})
     {:reply, :ok, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_info(:maintenance, state) do
     case :ets.lookup(@table, :bucket) do
       [{:bucket, tokens, _}] when tokens > state.burst_size ->
@@ -163,7 +163,8 @@ defmodule Viva.Nim.RateLimiter do
         if elapsed + wait_time > max_wait_ms do
           {:error, :rate_limit_timeout}
         else
-          Process.sleep(min(wait_time, 100))
+          sleep_time = min(wait_time, 100)
+          Process.sleep(sleep_time)
           acquire_loop(max_wait_ms, start_time)
         end
     end

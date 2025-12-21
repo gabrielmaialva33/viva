@@ -108,7 +108,7 @@ defmodule Viva.Nim.CircuitBreaker do
     GenServer.call(__MODULE__, :stats)
   end
 
-  @impl true
+  @impl GenServer
   def init(opts) do
     table = :ets.new(@table, [:named_table, :public, read_concurrency: true])
 
@@ -126,7 +126,7 @@ defmodule Viva.Nim.CircuitBreaker do
     {:ok, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:success, state) do
     current_state = get_state()
 
@@ -153,7 +153,7 @@ defmodule Viva.Nim.CircuitBreaker do
     {:noreply, new_state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:failure, state) do
     current_state = get_state()
 
@@ -186,7 +186,7 @@ defmodule Viva.Nim.CircuitBreaker do
     {:noreply, new_state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call(:reset, _, state) do
     :ets.insert(@table, {:state, :closed, nil})
     new_state = %{state | failure_count: 0, success_count: 0}
@@ -194,7 +194,7 @@ defmodule Viva.Nim.CircuitBreaker do
     {:reply, :ok, new_state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call(:stats, _, state) do
     stats = %{
       state: get_state(),

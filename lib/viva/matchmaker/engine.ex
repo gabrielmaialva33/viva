@@ -19,15 +19,16 @@ defmodule Viva.Matchmaker.Engine do
         max_cache_size: 10_000
   """
   use GenServer
-  require Logger
+
+  import Ecto.Query
+
   require Cachex.Spec
+  require Logger
 
   alias Viva.Avatars.Avatar
   alias Viva.Avatars.Enneagram
   alias Viva.Avatars.Personality
   alias Viva.Repo
-
-  import Ecto.Query
 
   # === Types ===
 
@@ -65,40 +66,48 @@ defmodule Viva.Matchmaker.Engine do
   end
 
   @doc "Find top matches for an avatar"
+  @spec find_matches(avatar_id(), keyword()) :: {:ok, [match_result()]}
   def find_matches(avatar_id, opts \\ []) do
     GenServer.call(__MODULE__, {:find_matches, avatar_id, opts}, 30_000)
   end
 
   @doc "Calculate compatibility between two avatars"
+  @spec calculate_compatibility(avatar_id(), avatar_id()) :: {:ok, score()} | {:error, term()}
   def calculate_compatibility(avatar_a_id, avatar_b_id) do
     GenServer.call(__MODULE__, {:calculate_compatibility, avatar_a_id, avatar_b_id})
   end
 
   @doc "Force refresh matches for an avatar"
+  @spec refresh_matches(avatar_id()) :: :ok
   def refresh_matches(avatar_id) do
     GenServer.cast(__MODULE__, {:refresh_matches, avatar_id})
   end
 
   @doc "Invalidate cache for an avatar (e.g., when personality changes)"
+  @spec invalidate(avatar_id()) :: {:ok, boolean()}
   def invalidate(avatar_id) do
     Cachex.del(@cache_name, avatar_id)
   end
 
   @doc "Clear all cached matches"
+  @spec clear_cache() :: {:ok, non_neg_integer()}
   def clear_cache do
     Cachex.clear(@cache_name)
   end
 
   @doc "Get cache statistics"
+  @spec stats() :: stats() | %{error: :stats_unavailable}
   def stats do
     case Cachex.stats(@cache_name) do
       {:ok, stats} ->
+        {:ok, size} = Cachex.size(@cache_name)
+
         %{
           hits: stats.hits,
           misses: stats.misses,
           evictions: stats.evictions,
           expirations: stats.expirations,
-          size: Cachex.size(@cache_name) |> elem(1),
+          size: size,
           hit_rate: calculate_hit_rate(stats)
         }
 
@@ -109,19 +118,19 @@ defmodule Viva.Matchmaker.Engine do
 
   # === Server Callbacks ===
 
-  @impl true
+  @impl GenServer
   def init(opts) do
     # Start Cachex for match caching
     cache_opts = [
       stats: true,
       expiration:
-        expiration(
+        Cachex.Spec.expiration(
           default: :timer.hours(cache_ttl_hours()),
           interval: :timer.minutes(5),
           lazy: true
         ),
       limit:
-        limit(
+        Cachex.Spec.limit(
           size: max_cache_size(),
           policy: Cachex.Policy.LRW,
           reclaim: 0.1
@@ -129,10 +138,10 @@ defmodule Viva.Matchmaker.Engine do
     ]
 
     case Cachex.start_link(@cache_name, cache_opts) do
-      {:ok, _pid} ->
+      {:ok, _} ->
         Logger.info("Matchmaker cache started")
 
-      {:error, {:already_started, _pid}} ->
+      {:error, {:already_started, _}} ->
         Logger.debug("Matchmaker cache already running")
     end
 
@@ -148,7 +157,7 @@ defmodule Viva.Matchmaker.Engine do
     {:ok, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call({:find_matches, avatar_id, opts}, _, state) do
     limit = Keyword.get(opts, :limit, 10)
     exclude_ids = Keyword.get(opts, :exclude, [])
@@ -174,13 +183,13 @@ defmodule Viva.Matchmaker.Engine do
     {:reply, {:ok, result}, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call({:calculate_compatibility, avatar_a_id, avatar_b_id}, _, state) do
     result = do_calculate_compatibility(avatar_a_id, avatar_b_id)
     {:reply, result, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast({:refresh_matches, avatar_id}, state) do
     # Run calculation in supervised task to avoid blocking
     Task.Supervisor.start_child(Viva.Sessions.TaskSupervisor, fn ->
@@ -192,7 +201,7 @@ defmodule Viva.Matchmaker.Engine do
     {:noreply, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_info(:refresh_all, state) do
     Logger.debug("Starting periodic match refresh for active avatars")
 
@@ -214,7 +223,7 @@ defmodule Viva.Matchmaker.Engine do
     {:noreply, %{state | last_refresh_at: DateTime.utc_now()}}
   end
 
-  @impl true
+  @impl GenServer
   def handle_info(:cleanup_inactive, state) do
     Logger.debug("Starting matchmaker cache cleanup")
 
@@ -265,23 +274,19 @@ defmodule Viva.Matchmaker.Engine do
 
   # Configuration helpers
   defp cache_ttl_hours do
-    Application.get_env(:viva, __MODULE__, [])
-    |> Keyword.get(:cache_ttl_hours, @default_cache_ttl_hours)
+    config = Application.get_env(:viva, __MODULE__, [])
+    Keyword.get(config, :cache_ttl_hours, @default_cache_ttl_hours)
   end
 
   defp refresh_interval_hours do
-    Application.get_env(:viva, __MODULE__, [])
-    |> Keyword.get(:refresh_interval_hours, @default_refresh_interval_hours)
+    config = Application.get_env(:viva, __MODULE__, [])
+    Keyword.get(config, :refresh_interval_hours, @default_refresh_interval_hours)
   end
 
   defp max_cache_size do
-    Application.get_env(:viva, __MODULE__, [])
-    |> Keyword.get(:max_cache_size, @default_max_cache_size)
+    config = Application.get_env(:viva, __MODULE__, [])
+    Keyword.get(config, :max_cache_size, @default_max_cache_size)
   end
-
-  # Cachex option helpers
-  defp expiration(opts), do: Cachex.Spec.expiration(opts)
-  defp limit(opts), do: Cachex.Spec.limit(opts)
 
   # === Match Calculation ===
 
@@ -310,7 +315,7 @@ defmodule Viva.Matchmaker.Engine do
         )
         |> Enum.flat_map(fn
           {:ok, result} -> [result]
-          {:exit, _reason} -> []
+          {:exit, _} -> []
         end)
         |> Enum.sort_by(& &1.score.total, :desc)
         |> Enum.take(limit)
@@ -395,16 +400,34 @@ defmodule Viva.Matchmaker.Engine do
   defp interest_overlap(interests_a, interests_b) do
     set_a = MapSet.new(interests_a || [])
     set_b = MapSet.new(interests_b || [])
-    intersection = MapSet.intersection(set_a, set_b) |> MapSet.size()
-    union = MapSet.union(set_a, set_b) |> MapSet.size()
+
+    intersection =
+      set_a
+      |> MapSet.intersection(set_b)
+      |> MapSet.size()
+
+    union =
+      set_a
+      |> MapSet.union(set_b)
+      |> MapSet.size()
+
     if union == 0, do: 0.5, else: intersection / union
   end
 
   defp value_alignment(values_a, values_b) do
     set_a = MapSet.new(values_a || [])
     set_b = MapSet.new(values_b || [])
-    intersection = MapSet.intersection(set_a, set_b) |> MapSet.size()
-    union = MapSet.union(set_a, set_b) |> MapSet.size()
+
+    intersection =
+      set_a
+      |> MapSet.intersection(set_b)
+      |> MapSet.size()
+
+    union =
+      set_a
+      |> MapSet.union(set_b)
+      |> MapSet.size()
+
     if union == 0, do: 0.5, else: intersection / union
   end
 
@@ -436,26 +459,31 @@ defmodule Viva.Matchmaker.Engine do
     Enneagram.compatibility(pa.enneagram_type, pb.enneagram_type)
   end
 
+  # Temperament compatibility lookup (symmetric pairs)
+  @temperament_scores %{
+    {:sanguine, :melancholic} => 0.8,
+    {:choleric, :phlegmatic} => 0.85,
+    {:sanguine, :choleric} => 0.7,
+    {:phlegmatic, :melancholic} => 0.75,
+    {:sanguine, :phlegmatic} => 0.6,
+    {:choleric, :melancholic} => 0.5
+  }
+
   defp temperament_compatibility(pa, pb) do
     temp_a = Personality.temperament(pa)
     temp_b = Personality.temperament(pb)
 
-    case {temp_a, temp_b} do
-      {same, same} when is_atom(same) -> 0.7
-      {:sanguine, :melancholic} -> 0.8
-      {:melancholic, :sanguine} -> 0.8
-      {:choleric, :phlegmatic} -> 0.85
-      {:phlegmatic, :choleric} -> 0.85
-      {:sanguine, :choleric} -> 0.7
-      {:choleric, :sanguine} -> 0.7
-      {:phlegmatic, :melancholic} -> 0.75
-      {:melancholic, :phlegmatic} -> 0.75
-      {:sanguine, :phlegmatic} -> 0.6
-      {:phlegmatic, :sanguine} -> 0.6
-      {:choleric, :melancholic} -> 0.5
-      {:melancholic, :choleric} -> 0.5
-      _ -> 0.6
+    if temp_a == temp_b do
+      0.7
+    else
+      lookup_temperament_score(temp_a, temp_b)
     end
+  end
+
+  defp lookup_temperament_score(temp_a, temp_b) do
+    Map.get(@temperament_scores, {temp_a, temp_b}) ||
+      Map.get(@temperament_scores, {temp_b, temp_a}) ||
+      0.6
   end
 
   defp add_explanation(match) do

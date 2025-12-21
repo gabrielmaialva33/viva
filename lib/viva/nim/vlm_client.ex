@@ -15,7 +15,14 @@ defmodule Viva.Nim.VlmClient do
   """
   require Logger
 
+  alias Viva.Avatars.Avatar
   alias Viva.Nim
+
+  # === Types ===
+
+  @type image_input :: binary() | String.t()
+  @type analysis_result :: {:ok, String.t()} | {:error, term()}
+  @type images_and_prompts :: [{:text, String.t()} | {:image, binary()}]
 
   @doc """
   Analyze an image with a text prompt.
@@ -26,6 +33,7 @@ defmodule Viva.Nim.VlmClient do
   - `:temperature` - Sampling temperature (default: 0.7)
   - `:detail` - Image detail level: "low", "high", "auto" (default: "auto")
   """
+  @spec analyze_image(image_input(), String.t(), keyword()) :: analysis_result()
   def analyze_image(image_data, prompt, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:vlm))
 
@@ -65,6 +73,7 @@ defmodule Viva.Nim.VlmClient do
   @doc """
   Analyze multiple images together.
   """
+  @spec analyze_images(images_and_prompts(), keyword()) :: analysis_result()
   def analyze_images(images_and_prompts, opts \\ []) do
     model = Keyword.get(opts, :model, Nim.model(:vlm))
 
@@ -106,6 +115,7 @@ defmodule Viva.Nim.VlmClient do
   @doc """
   Describe an image for accessibility or context.
   """
+  @spec describe_image(image_input(), keyword()) :: analysis_result()
   def describe_image(image_data, opts \\ []) do
     language = Keyword.get(opts, :language, "pt-BR")
 
@@ -124,6 +134,7 @@ defmodule Viva.Nim.VlmClient do
   @doc """
   Extract text from an image (OCR-like functionality).
   """
+  @spec extract_text(image_input(), keyword()) :: analysis_result()
   def extract_text(image_data, opts \\ []) do
     prompt = """
     Extract all visible text from this image.
@@ -138,6 +149,7 @@ defmodule Viva.Nim.VlmClient do
   Analyze a video with a text prompt.
   Video is provided as a list of frame images.
   """
+  @spec analyze_video([binary()], String.t(), keyword()) :: analysis_result()
   def analyze_video(frames, prompt, opts \\ []) do
     # Sample frames evenly if too many
     sampled_frames =
@@ -157,6 +169,7 @@ defmodule Viva.Nim.VlmClient do
   @doc """
   Answer a visual question about an image.
   """
+  @spec visual_qa(image_input(), String.t(), keyword()) :: analysis_result()
   def visual_qa(image_data, question, opts \\ []) do
     analyze_image(image_data, question, opts)
   end
@@ -164,6 +177,7 @@ defmodule Viva.Nim.VlmClient do
   @doc """
   Analyze a document image (form, chart, etc.).
   """
+  @spec analyze_document(image_input(), keyword()) :: analysis_result()
   def analyze_document(image_data, opts \\ []) do
     language = Keyword.get(opts, :language, "pt-BR")
 
@@ -199,6 +213,7 @@ defmodule Viva.Nim.VlmClient do
   Understand and describe a shared image in avatar conversation.
   Used when users or avatars share images.
   """
+  @spec avatar_see_image(Avatar.t(), image_input(), keyword()) :: analysis_result()
   def avatar_see_image(avatar, image_data, opts \\ []) do
     language = avatar.personality.native_language
 
@@ -221,7 +236,6 @@ defmodule Viva.Nim.VlmClient do
 
     analyze_image(image_data, prompt, Keyword.merge([temperature: 0.8], opts))
   end
-
 
   defp encode_image_url(image_data) when is_binary(image_data) do
     # Detect image format from magic bytes

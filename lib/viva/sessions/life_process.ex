@@ -5,12 +5,27 @@ defmodule Viva.Sessions.LifeProcess do
   Manages needs decay, emotions, desires, and autonomous actions.
   """
   use GenServer
+
   require Logger
 
-  alias Viva.Avatars.{Avatar, InternalState}
-  alias Viva.Relationships
-  alias Viva.Nim.LlmClient
   alias Phoenix.PubSub
+  alias Viva.Avatars.Avatar
+  alias Viva.Avatars.InternalState
+  alias Viva.Nim.LlmClient
+  alias Viva.Relationships
+
+  # === Struct ===
+
+  defstruct [
+    :avatar_id,
+    :avatar,
+    :state,
+    :last_tick_at,
+    :owner_online?,
+    :current_conversation,
+    :last_thought,
+    tick_count: 0
+  ]
 
   # === Types ===
 
@@ -25,17 +40,6 @@ defmodule Viva.Sessions.LifeProcess do
   # Persist every 5 ticks (5 minutes with 60s tick interval)
   @persist_every_n_ticks 5
 
-  defstruct [
-    :avatar_id,
-    :avatar,
-    :state,
-    :last_tick_at,
-    :owner_online?,
-    :current_conversation,
-    :last_thought,
-    tick_count: 0
-  ]
-
   # === Client API ===
 
   @spec start_link(avatar_id()) :: GenServer.on_start()
@@ -45,37 +49,49 @@ defmodule Viva.Sessions.LifeProcess do
 
   @spec get_state(avatar_id()) :: process_state()
   def get_state(avatar_id) do
-    GenServer.call(via(avatar_id), :get_state)
+    avatar_id
+    |> via()
+    |> GenServer.call(:get_state)
   end
 
   @spec owner_connected(avatar_id()) :: :ok
   def owner_connected(avatar_id) do
-    GenServer.cast(via(avatar_id), :owner_connected)
+    avatar_id
+    |> via()
+    |> GenServer.cast(:owner_connected)
   end
 
   @spec owner_disconnected(avatar_id()) :: :ok
   def owner_disconnected(avatar_id) do
-    GenServer.cast(via(avatar_id), :owner_disconnected)
+    avatar_id
+    |> via()
+    |> GenServer.cast(:owner_disconnected)
   end
 
   @spec trigger_thought(avatar_id()) :: :ok
   def trigger_thought(avatar_id) do
-    GenServer.cast(via(avatar_id), :trigger_thought)
+    avatar_id
+    |> via()
+    |> GenServer.cast(:trigger_thought)
   end
 
   @spec start_interaction(avatar_id(), avatar_id()) :: :ok
   def start_interaction(avatar_id, other_avatar_id) do
-    GenServer.call(via(avatar_id), {:start_interaction, other_avatar_id})
+    avatar_id
+    |> via()
+    |> GenServer.call({:start_interaction, other_avatar_id})
   end
 
   @spec end_interaction(avatar_id()) :: :ok
   def end_interaction(avatar_id) do
-    GenServer.cast(via(avatar_id), :end_interaction)
+    avatar_id
+    |> via()
+    |> GenServer.cast(:end_interaction)
   end
 
   # === Server Callbacks ===
 
-  @impl true
+  @impl GenServer
   def init(avatar_id) do
     Logger.info("Starting LifeProcess for avatar #{avatar_id}")
 
@@ -100,47 +116,48 @@ defmodule Viva.Sessions.LifeProcess do
     end
   end
 
-  @impl true
-  def handle_call(:get_state, _from, state) do
+  @impl GenServer
+  def handle_call(:get_state, _, state) do
     {:reply, state, state}
   end
 
-  @impl true
-  def handle_call({:start_interaction, other_avatar_id}, _from, state) do
-    new_state = %{
+  @impl GenServer
+  def handle_call({:start_interaction, other_avatar_id}, _, state) do
+    # Update state and boost social need when interacting
+    updated_state = %{
       state
       | current_conversation: other_avatar_id,
         state: %{state.state | current_activity: :talking, interacting_with: other_avatar_id}
     }
 
-    # Boost social need when interacting
-    new_state = update_need(new_state, :social, 5.0)
+    new_state = update_need(updated_state, :social, 5.0)
 
     {:reply, :ok, new_state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:owner_connected, state) do
     Logger.debug("Owner connected for avatar #{state.avatar_id}")
 
     new_state =
-      %{state | owner_online?: true}
+      state
+      |> Map.put(:owner_online?, true)
       |> maybe_generate_greeting()
 
     {:noreply, new_state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:owner_disconnected, state) do
     {:noreply, %{state | owner_online?: false}}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:trigger_thought, state) do
     {:noreply, generate_thought(state)}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:end_interaction, state) do
     new_state = %{
       state
@@ -151,13 +168,13 @@ defmodule Viva.Sessions.LifeProcess do
     {:noreply, new_state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast({:set_thought, thought}, state) do
     new_internal = %{state.state | current_thought: thought}
     {:noreply, %{state | state: new_internal, last_thought: thought}}
   end
 
-  @impl true
+  @impl GenServer
   def handle_info(:tick, state) do
     tick_count = state.tick_count + 1
 

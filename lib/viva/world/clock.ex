@@ -18,32 +18,37 @@ defmodule Viva.World.Clock do
 
   # === Client API ===
 
-  def start_link(_opts) do
+  @spec start_link(keyword()) :: GenServer.on_start()
+  def start_link(_) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
   @doc "Get current world time"
+  @spec now() :: DateTime.t()
   def now do
     GenServer.call(__MODULE__, :now)
   end
 
   @doc "Get time scale (how many simulated minutes per real minute)"
+  @spec time_scale() :: pos_integer()
   def time_scale, do: @time_scale
 
   @doc "Pause the world clock"
+  @spec pause() :: :ok
   def pause do
     GenServer.cast(__MODULE__, :pause)
   end
 
   @doc "Resume the world clock"
+  @spec resume() :: :ok
   def resume do
     GenServer.cast(__MODULE__, :resume)
   end
 
   # === Server Callbacks ===
 
-  @impl true
-  def init(_opts) do
+  @impl GenServer
+  def init(_) do
     state = %__MODULE__{
       world_time: DateTime.utc_now(),
       real_start_time: DateTime.utc_now(),
@@ -56,22 +61,22 @@ defmodule Viva.World.Clock do
     {:ok, state}
   end
 
-  @impl true
-  def handle_call(:now, _from, state) do
+  @impl GenServer
+  def handle_call(:now, _, state) do
     {:reply, state.world_time, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:pause, state) do
     {:noreply, %{state | is_running: false}}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:resume, state) do
     {:noreply, %{state | is_running: true}}
   end
 
-  @impl true
+  @impl GenServer
   def handle_info(:tick, state) do
     new_state =
       if state.is_running do

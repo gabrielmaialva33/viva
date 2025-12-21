@@ -15,9 +15,9 @@ defmodule Viva.Nim.LlmClient do
   """
   require Logger
 
+  alias Viva.Avatars.Avatar
+  alias Viva.Avatars.InternalState
   alias Viva.Nim
-  alias Viva.Avatars.{Avatar, InternalState}
-
 
   @type message :: %{role: String.t(), content: String.t()}
   @type tool_call :: map()
@@ -31,7 +31,8 @@ defmodule Viva.Nim.LlmClient do
   def generate(prompt, opts \\ []) do
     messages = [%{role: "user", content: prompt}]
 
-    chat(messages, opts)
+    messages
+    |> chat(opts)
     |> extract_content()
   end
 
@@ -58,15 +59,17 @@ defmodule Viva.Nim.LlmClient do
       end
 
     body =
-      %{
-        model: model,
-        messages: messages,
-        max_tokens: Keyword.get(opts, :max_tokens, 500),
-        temperature: Keyword.get(opts, :temperature, 0.7),
-        top_p: Keyword.get(opts, :top_p, 0.9),
-        stream: false
-      }
-      |> maybe_add_tools(Keyword.get(opts, :tools))
+      maybe_add_tools(
+        %{
+          model: model,
+          messages: messages,
+          max_tokens: Keyword.get(opts, :max_tokens, 500),
+          temperature: Keyword.get(opts, :temperature, 0.7),
+          top_p: Keyword.get(opts, :top_p, 0.9),
+          stream: false
+        },
+        Keyword.get(opts, :tools)
+      )
 
     case Nim.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => message} | _]}} ->
@@ -194,8 +197,7 @@ defmodule Viva.Nim.LlmClient do
     system_prompt = build_conversation_system_prompt(avatar, other_avatar, context)
 
     messages =
-      conversation_history
-      |> Enum.map(fn msg ->
+      Enum.map(conversation_history, fn msg ->
         role = if msg.speaker_id == avatar.id, do: "assistant", else: "user"
         %{role: role, content: msg.content}
       end)
@@ -252,7 +254,6 @@ defmodule Viva.Nim.LlmClient do
     generate(prompt, max_tokens: 60, temperature: 0.8)
   end
 
-
   defp maybe_add_tools(body, nil), do: body
 
   defp maybe_add_tools(body, tools) when is_list(tools) do
@@ -293,12 +294,10 @@ defmodule Viva.Nim.LlmClient do
   end
 
   defp format_conversation(messages) do
-    messages
-    |> Enum.map(fn msg ->
+    Enum.map_join(messages, "\n", fn msg ->
       name = msg.speaker_name || msg.speaker_id
       "#{name}: #{msg.content}"
     end)
-    |> Enum.join("\n")
   end
 
   defp describe_personality(personality) do
