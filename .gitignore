@@ -50,4 +50,5 @@ npm-debug.log
 # Repomix output
 repomix-output.md
 
-.playwright-mcp.claude/settings.local.json
+.playwright-mcp
+.claude
