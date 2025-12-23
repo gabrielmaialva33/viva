@@ -1,77 +1,302 @@
 # GEMINI.md
 
-This file provides context and guidance for Gemini when working with the VIVA project.
+This file provides context and guidance for Gemini CLI and Google Antigravity when working with the VIVA project.
 
 ## Project Overview
 
 **VIVA (Virtual Intelligent Vida Autonoma)** is an AI platform where digital avatars live autonomous lives 24/7.
-*   **Core Concept:** Avatars have unique personalities (Big Five + Enneagram), emotions, and memories. They form relationships and interact even when their owners are offline.
-*   **Tech Stack:**
-    *   **Backend:** Elixir 1.15+ / Phoenix 1.8.2
-    *   **Database:** TimescaleDB (PostgreSQL 17 + time-series extensions)
-    *   **Vector DB:** Qdrant (for semantic memory)
-    *   **Caching:** Redis + Cachex
-    *   **AI:** NVIDIA NIM Cloud (14 models for LLM, reasoning, voice, and visuals)
-    *   **Background Jobs:** Oban
+
+- **Core Concept:** Avatars have unique personalities (Big Five + Enneagram), emotions, and memories. They form relationships and interact even when their owners are offline.
+- **Language:** Brazilian Portuguese (pt-BR) is the primary language for avatar interactions and UI.
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Elixir 1.15+ / Phoenix 1.8.2 |
+| **Database** | TimescaleDB (PostgreSQL 17 + time-series) |
+| **Vector DB** | Qdrant (semantic memory) + pgvector |
+| **Caching** | Redis + Cachex |
+| **AI/LLM** | NVIDIA NIM Cloud (14 models) |
+| **Background Jobs** | Oban 2.18 |
+| **Real-time** | Phoenix LiveView 1.1 + Channels |
+| **Frontend** | LiveView + Tailwind CSS v4 |
+| **HTTP Client** | Req |
 
 ## Architecture
 
-The system is built around the concept of "Life Processes":
+### Life Simulation Engine
 
-*   **Sessions (`lib/viva/sessions/`):**
-    *   `Viva.Sessions.LifeProcess`: A GenServer that runs for each active avatar. It ticks every 60 seconds (scaled time), decaying needs and triggering autonomous actions.
-    *   `Viva.Sessions.Supervisor`: DynamicSupervisor managing avatar processes.
-    *   `Viva.World.Clock`: Manages simulation time (1 real minute = 10 simulated minutes).
+Each avatar runs as a `Viva.Sessions.LifeProcess` GenServer:
 
-*   **Domain Contexts (`lib/viva/`):**
-    *   **Avatars:** Personality, internal state (emotions), memory management.
-    *   **Relationships:** Tracks affection, trust, and relationship status.
-    *   **Matchmaker:** Engine for calculating and caching compatibility scores.
-    *   **Nim:** Client modules for interacting with NVIDIA NIM APIs (LLM, TTS, ASR, etc.) using `Req`.
+```
+LifeProcess (GenServer per avatar)
+├── Tick every 60s (10x time scale)
+├── Decay needs (energy, social, stimulation, comfort)
+├── Process emotions → calculate mood
+├── Generate thoughts via LLM
+├── Take autonomous actions
+└── Persist state every 5 minutes
+```
 
-## Development & Usage
+### Domain Contexts (`lib/viva/`)
 
-### Prerequisites
-*   Elixir 1.15+ & Erlang/OTP 26+
-*   Docker & Docker Compose
-*   NVIDIA NIM API Key (in `.env`)
+| Context | Purpose | Key Files |
+|---------|---------|-----------|
+| **Avatars** | Personality, emotions, memories | `avatar.ex`, `personality.ex`, `internal_state.ex` |
+| **Sessions** | Life processes, registry | `life_process.ex`, `supervisor.ex` |
+| **Relationships** | Trust, affection, status | `relationship.ex`, `feelings.ex` |
+| **Matchmaker** | Compatibility scoring (cached) | `engine.ex` |
+| **Conversations** | Messages between avatars | `conversation.ex`, `message.ex` |
+| **Nim** | NVIDIA NIM client with resilience | `nim.ex`, `llm_client.ex` |
+| **World** | Simulation clock (1 min = 10 sim min) | `clock.ex` |
 
-### Key Commands
+### Supervision Tree
 
-| Action | Command |
-| :--- | :--- |
-| **Install Deps** | `mix deps.get` |
-| **Start Infra** | `docker compose up -d` |
-| **Setup DB** | `mix ecto.setup` (Creates, migrates, and seeds) |
-| **Start Server** | `mix phx.server` or `iex -S mix phx.server` |
-| **Run Tests** | `mix test` |
-| **Lint/Format** | `mix precommit` (Runs format, credo, and tests) |
-| **Migrations** | `mix ecto.gen.migration <name>` |
+```
+Viva.Application
+├── Viva.Repo (Ecto)
+├── Oban (Background Jobs)
+├── Cachex (In-Memory Cache)
+├── Phoenix.PubSub
+├── Viva.Nim.CircuitBreaker
+├── Viva.Nim.RateLimiter
+├── Viva.Sessions.Supervisor
+│   ├── Registry (AvatarRegistry)
+│   ├── Task.Supervisor
+│   ├── DynamicSupervisor (AvatarSupervisor)
+│   ├── Viva.World.Clock
+│   └── Viva.Matchmaker.Engine
+└── VivaWeb.Endpoint
+```
 
-### Testing
-*   **Process Cleanup:** Always use `start_supervised!/1` in tests.
-*   **Async Assertions:** Avoid `Process.sleep/1`. Use `Process.monitor/1` and `assert_receive` or `:sys.get_state/1` for synchronization.
+## Development Commands
+
+```bash
+# Setup
+mix deps.get                    # Install dependencies
+docker compose up -d            # Start infra (TimescaleDB, Redis, Qdrant)
+mix ecto.setup                  # Create DB, migrate, seed
+
+# Development
+iex -S mix phx.server           # Start server with IEx (recommended)
+mix phx.server                  # Start server
+
+# Testing
+mix test                        # Run all tests
+mix test test/path/file.exs     # Run specific file
+mix test --failed               # Re-run failed tests
+
+# Code Quality
+mix precommit                   # ALWAYS run before commits
+mix format                      # Format code
+mix credo --strict              # Static analysis
+mix dialyzer                    # Type checking
+
+# Database
+mix ecto.gen.migration name     # Generate migration
+mix ecto.migrate                # Run migrations
+mix ecto.reset                  # Drop, create, migrate, seed
+```
 
 ## Coding Conventions
 
-### Phoenix 1.8 & LiveView
-*   **Layouts:** LiveView templates must start with `<Layouts.app flash={@flash} ...>`.
-*   **Components:** Use `<.icon>` (not Heroicons modules) and `<.input>` (from core_components).
-*   **Streams:** Use `stream(socket, :items, items)` for collections.
-    *   Template: `<div id="items" phx-update="stream">`.
-    *   **Reset:** Streams are not enumerable. To filter, refetch and use `reset: true`.
-*   **Hooks:** Colocated JS hooks must start with `.` (e.g., `.PhoneNumber`).
-*   **Tailwind:** V4 syntax (`@import "tailwindcss"` in `app.css`). No `tailwind.config.js`.
-
 ### Elixir Patterns
-*   **List Access:** Use `Enum.at/2`, never `list[index]`.
-*   **Struct Access:** Access fields directly (`struct.field`), never `struct[:field]`.
-*   **Changesets:** Use `Ecto.Changeset.get_field/2`.
-*   **HTTP Client:** Use `Req` (already included). Avoid adding `HTTPoison` or `Tesla`.
-*   **Rebinding:** Rebind results of control structures: `socket = if connected?(socket), do: ...`.
 
-## Sub-Agents
+```elixir
+# List access - use Enum.at/2, never list[index]
+Enum.at(list, 0)
 
-When faced with complex tasks requiring deep analysis or architectural understanding, delegate to the `codebase_investigator`.
+# Struct access - direct field access, never struct[:field]
+avatar.personality.openness
 
-*   **Codebase Investigator:** Use for "Code Archaeology" (understanding legacy/complex code), architectural mapping, and root cause analysis of bugs.
+# Changeset field access
+Ecto.Changeset.get_field(changeset, :name)
+
+# Rebind control structure results
+socket = if connected?(socket), do: assign(socket, :user, user), else: socket
+
+# HTTP client - always use Req
+Req.post(url, json: body, headers: headers)
+```
+
+### Phoenix 1.8 & LiveView 1.1
+
+```elixir
+# Layouts - templates must start with
+<Layouts.app flash={@flash}>
+  ...
+</Layouts.app>
+
+# Icons - use core component
+<.icon name="hero-heart" class="w-5 h-5" />
+
+# Form inputs - use core component
+<.input field={@form[:name]} type="text" label="Name" />
+
+# Streams for collections
+socket = stream(socket, :avatars, avatars)
+# In template:
+<div id="avatars" phx-update="stream">
+  <div :for={{dom_id, avatar} <- @streams.avatars} id={dom_id}>
+    ...
+  </div>
+</div>
+
+# Navigation
+push_navigate(socket, to: ~p"/avatars")
+push_patch(socket, to: ~p"/avatars/#{id}")
+
+# Colocated JS hooks must start with "."
+<div phx-hook=".AvatarMood">
+```
+
+### Tailwind v4
+
+- No `tailwind.config.js` file
+- Use `@import "tailwindcss"` in `app.css`
+- CSS-first configuration
+
+### Testing
+
+```elixir
+# Process cleanup
+start_supervised!(MyGenServer)
+
+# Async assertions - avoid Process.sleep/1
+ref = Process.monitor(pid)
+assert_receive {:DOWN, ^ref, :process, ^pid, _}, 1000
+
+# Synchronize before assertions
+:sys.get_state(pid)
+```
+
+## Database Schema
+
+### Key Tables
+
+| Table | Purpose |
+|-------|---------|
+| `users` | Account management |
+| `avatars` | Entities with JSONB personality/internal_state |
+| `relationships` | Bidirectional social graph |
+| `memories` | Vector embeddings (1024-dim HNSW) |
+| `conversations` | Interaction sessions |
+| `messages` | Conversation history |
+
+### Important Patterns
+
+- All primary keys are binary UUIDs
+- `ON DELETE CASCADE` for referential integrity
+- 16 composite indexes for query optimization
+- pgvector HNSW index for semantic search
+
+## NIM Client Patterns
+
+The `Viva.Nim` module provides resilient HTTP access:
+
+```elixir
+# Direct request with retry/circuit breaker
+Nim.request("/chat/completions", body)
+
+# Streaming
+Nim.stream_request("/chat/completions", body, fn chunk ->
+  IO.write(chunk)
+end)
+
+# LLM Client convenience functions
+Nim.LlmClient.generate(prompt, max_tokens: 500)
+Nim.LlmClient.chat(messages, system: "You are helpful")
+```
+
+### Resilience Features
+
+- **Circuit Breaker**: Opens after consecutive failures
+- **Rate Limiter**: Token bucket (60 req/min default)
+- **Retry with Backoff**: Exponential backoff for transient errors
+
+## Common Tasks
+
+### Add a New Avatar Capability
+
+1. Add function to `Viva.Avatars` context
+2. Update `LifeProcess` if autonomous behavior needed
+3. Add Oban job if async processing required
+4. Update `Nim.LlmClient` if new LLM interaction
+
+### Add a New Relationship Feature
+
+1. Add field to `Viva.Relationships.Relationship` schema
+2. Create migration: `mix ecto.gen.migration add_feature_to_relationships`
+3. Update `Viva.Relationships` context functions
+4. Update `Matchmaker.Engine` if affects compatibility
+
+### Create a New LiveView
+
+1. Create `lib/viva_web/live/feature_live.ex`
+2. Create template in same directory or use `~H` sigil
+3. Add route in `lib/viva_web/router.ex`
+4. Use streams for collections, PubSub for real-time
+
+## Environment Variables
+
+Required in `.env`:
+
+```bash
+# NVIDIA NIM (Required)
+NVIDIA_API_KEY=nvapi-xxx
+NIM_BASE_URL=https://integrate.api.nvidia.com/v1
+
+# Database
+DATABASE_URL=ecto://postgres:postgres@localhost:5432/viva_dev
+
+# Redis & Qdrant
+REDIS_URL=redis://localhost:6379
+QDRANT_URL=http://localhost:6333
+```
+
+## Known Issues & Workarounds
+
+1. **Oban migrations**: Run `mix ecto.migrate` if `oban_peers` table missing
+2. **Test coverage**: Currently at 4.42% - focus on `LifeProcess` and `Nim` clients
+3. **Streams not enumerable**: Always refetch and use `stream(socket, :items, items, reset: true)` when filtering
+
+## File Structure Reference
+
+```
+lib/
+├── viva/
+│   ├── accounts/          # User management
+│   ├── avatars/           # Avatar domain
+│   │   ├── avatar.ex
+│   │   ├── personality.ex
+│   │   ├── internal_state.ex
+│   │   ├── enneagram.ex
+│   │   └── memory.ex
+│   ├── conversations/     # Messaging
+│   ├── matchmaker/        # Compatibility engine
+│   ├── nim/               # NVIDIA NIM clients
+│   │   ├── llm_client.ex
+│   │   ├── circuit_breaker.ex
+│   │   └── rate_limiter.ex
+│   ├── relationships/     # Social graph
+│   ├── sessions/          # Life processes
+│   │   ├── life_process.ex
+│   │   └── supervisor.ex
+│   └── world/             # Simulation clock
+├── viva_web/
+│   ├── channels/
+│   ├── components/
+│   ├── controllers/
+│   └── live/
+└── viva.ex
+```
+
+## Tips for Gemini/Antigravity
+
+1. **Always run `mix precommit`** before suggesting commits
+2. **Read files before editing** - understand context first
+3. **Use Elixir conventions** - pattern matching, pipelines, with statements
+4. **Check existing patterns** - follow established code style in the project
+5. **Test GenServers properly** - use `start_supervised!/1` and avoid `Process.sleep/1`
+6. **Portuguese for avatar content** - all avatar-facing text should be in pt-BR
