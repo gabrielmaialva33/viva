@@ -216,6 +216,22 @@ defmodule Viva.Relationships do
     |> Repo.all()
   end
 
+  @doc """
+  Lists all relationships in the system.
+  Used for the relationship graph visualization.
+  """
+  @spec list_all(keyword()) :: [Relationship.t()]
+  def list_all(opts \\ []) do
+    limit = Keyword.get(opts, :limit, 100)
+    preload = Keyword.get(opts, :preload, [:avatar_a, :avatar_b])
+
+    Relationship
+    |> order_by([r], desc: r.last_interaction_at)
+    |> limit(^limit)
+    |> Repo.all()
+    |> Repo.preload(preload)
+  end
+
   @spec find_available_friend(avatar_id()) :: avatar_id() | nil
   def find_available_friend(avatar_id) do
     relationship =
