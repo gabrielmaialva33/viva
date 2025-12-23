@@ -52,3 +52,5 @@ repomix-output.md
 
 .playwright-mcp
 .claude
+.gemini/
+gha-creds-*.json
