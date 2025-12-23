@@ -109,36 +109,14 @@ defmodule Viva.Nim.TranslateClient do
   """
   @spec translate(String.t(), language_code(), language_code(), keyword()) :: translation_result()
   def translate(text, from_lang, to_lang, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:translate))
-    preserve_tone = Keyword.get(opts, :preserve_tone, true)
-    formality = Keyword.get(opts, :formality, "auto")
-
     from_lang = normalize_lang(from_lang)
     to_lang = normalize_lang(to_lang)
 
     if from_lang == to_lang do
       {:ok, text}
     else
-      body = %{
-        model: model,
-        text: text,
-        source_language: from_lang,
-        target_language: to_lang,
-        preserve_tone: preserve_tone,
-        formality: formality
-      }
-
-      case Nim.request("/translate", body) do
-        {:ok, %{"translation" => translation}} ->
-          {:ok, translation}
-
-        {:ok, %{"translations" => [%{"text" => translation} | _]}} ->
-          {:ok, translation}
-
-        {:error, reason} ->
-          Logger.error("Translation error: #{inspect(reason)}")
-          {:error, reason}
-      end
+      # Use LLM for translation since NVIDIA NIM Translation API requires self-hosting
+      translate_via_llm(text, from_lang, to_lang, opts)
     end
   end
 
@@ -302,6 +280,37 @@ defmodule Viva.Nim.TranslateClient do
       end
     else
       {:none, {avatar_a.personality.native_language, avatar_b.personality.native_language}}
+    end
+  end
+
+  # Use the LLM to perform translation
+  defp translate_via_llm(text, from_lang, to_lang, _) do
+    from_name = @language_names[from_lang] || from_lang
+    to_name = @language_names[to_lang] || to_lang
+
+    prompt = """
+    Translate the following text from #{from_name} to #{to_name}.
+    Only respond with the translation, nothing else.
+
+    Text: #{text}
+    """
+
+    body = %{
+      model: Nim.model(:llm),
+      messages: [
+        %{role: "user", content: prompt}
+      ],
+      max_tokens: 500,
+      temperature: 0.3
+    }
+
+    case Nim.request("/chat/completions", body) do
+      {:ok, %{"choices" => [%{"message" => %{"content" => translation}} | _]}} ->
+        {:ok, String.trim(translation)}
+
+      {:error, reason} ->
+        Logger.error("Translation error: #{inspect(reason)}")
+        {:error, reason}
     end
   end
 

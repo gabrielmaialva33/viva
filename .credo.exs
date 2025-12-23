@@ -117,7 +117,9 @@
                callback_impl
                private_fun
              ]a,
-             ignore: [:module_attribute]
+             ignore: [:module_attribute],
+             # Phoenix components are organized by component sections, not public/private
+             files: %{excluded: [~r"_components\.ex$"]}
            ]},
           {Credo.Check.Readability.StringSigils, []},
           {Credo.Check.Readability.TrailingBlankLine, []},

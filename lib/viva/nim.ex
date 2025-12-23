@@ -66,10 +66,16 @@ defmodule Viva.Nim do
     Application.get_env(:viva, :nim, [])
   end
 
-  @doc "Get base URL for NIM API"
+  @doc "Get base URL for NIM API (LLM)"
   @spec base_url() :: String.t()
   def base_url do
     Keyword.get(config(), :base_url, "https://integrate.api.nvidia.com/v1")
+  end
+
+  @doc "Get base URL for image generation API"
+  @spec image_base_url() :: String.t()
+  def image_base_url do
+    Keyword.get(config(), :image_base_url, "https://ai.api.nvidia.com/v1/genai")
   end
 
   @doc "Get API key"
@@ -168,6 +174,21 @@ defmodule Viva.Nim do
   end
 
   @doc """
+  Make HTTP request to NVIDIA Image Generation API.
+  Uses the ai.api.nvidia.com endpoint instead of integrate.api.nvidia.com.
+  """
+  @spec image_request(String.t(), map(), keyword()) :: api_response()
+  def image_request(model_path, body, opts \\ []) do
+    skip_circuit = Keyword.get(opts, :skip_circuit_breaker, false)
+    skip_rate_limit = Keyword.get(opts, :skip_rate_limit, false)
+
+    with :ok <- check_circuit_breaker(skip_circuit),
+         :ok <- check_rate_limit(skip_rate_limit) do
+      execute_image_request(model_path, body, opts)
+    end
+  end
+
+  @doc """
   Make streaming HTTP request to NIM API.
   Streaming requests bypass retry logic but respect circuit breaker and rate limits.
   """
@@ -216,6 +237,34 @@ defmodule Viva.Nim do
       {:error, :rate_limit_timeout} ->
         Logger.warning("NIM request blocked: rate limit exceeded")
         {:error, :rate_limited}
+    end
+  end
+
+  # === Private: Image Request ===
+
+  defp execute_image_request(model_path, body, opts) do
+    # Image API uses full model path in URL: /stabilityai/stable-diffusion-3-medium
+    url = image_base_url() <> "/" <> model_path
+    req_timeout = Keyword.get(opts, :timeout, timeout())
+
+    headers = [
+      {"Authorization", "Bearer #{api_key()}"},
+      {"Content-Type", "application/json"},
+      {"Accept", "application/json"}
+    ]
+
+    case Req.post(url, json: body, headers: headers, receive_timeout: req_timeout) do
+      {:ok, %{status: 200, body: response_body}} ->
+        CircuitBreaker.record_success()
+        {:ok, response_body}
+
+      {:ok, %{status: status, body: response_body}} ->
+        CircuitBreaker.record_failure()
+        {:error, {:http_error, status, response_body}}
+
+      {:error, reason} ->
+        CircuitBreaker.record_failure()
+        {:error, reason}
     end
   end
 
