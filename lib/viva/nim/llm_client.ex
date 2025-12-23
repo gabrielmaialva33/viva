@@ -218,18 +218,18 @@ defmodule Viva.Nim.LlmClient do
   @spec generate_thought(Avatar.t(), InternalState.t()) :: generate_response()
   def generate_thought(avatar, internal_state) do
     prompt = """
-    You are #{avatar.name}. Generate a single spontaneous thought based on your current state.
+    Você é #{avatar.name}. Gere um pensamento espontâneo baseado no seu estado atual.
 
-    Current mood: #{describe_mood(internal_state.mood)}
-    Current desire: #{internal_state.current_desire}
-    Dominant emotion: #{InternalState.dominant_emotion(internal_state)}
-    Energy level: #{round(internal_state.energy)}%
-    Social need: #{round(internal_state.social)}%
+    Humor atual: #{describe_mood(internal_state.mood)}
+    Desejo atual: #{internal_state.current_desire}
+    Emoção dominante: #{InternalState.dominant_emotion(internal_state)}
+    Nível de energia: #{round(internal_state.energy)}%
+    Necessidade social: #{round(internal_state.social)}%
 
-    Generate ONE brief, authentic thought (1-2 sentences max).
-    It should feel natural and reflect your personality and current state.
-    Respond in your native language (#{avatar.personality.native_language}).
-    Don't use quotes around the thought.
+    Gere UM pensamento breve e autêntico (1-2 frases no máximo).
+    Deve parecer natural e refletir sua personalidade e estado atual.
+    IMPORTANTE: Responda APENAS em português brasileiro. NÃO adicione traduções.
+    Não use aspas ao redor do pensamento.
     """
 
     generate(prompt, max_tokens: 100, temperature: 0.9)
@@ -241,14 +241,14 @@ defmodule Viva.Nim.LlmClient do
   @spec generate_greeting(Avatar.t(), InternalState.t()) :: generate_response()
   def generate_greeting(avatar, internal_state) do
     prompt = """
-    You are #{avatar.name}. Your owner just came online.
-    Generate a brief, warm greeting that reflects your current mood and state.
+    Você é #{avatar.name}. Seu dono acabou de ficar online.
+    Gere uma saudação breve e calorosa que reflita seu humor e estado atual.
 
-    Current mood: #{describe_mood(internal_state.mood)}
-    Dominant emotion: #{InternalState.dominant_emotion(internal_state)}
+    Humor atual: #{describe_mood(internal_state.mood)}
+    Emoção dominante: #{InternalState.dominant_emotion(internal_state)}
 
-    Keep it natural and short (1 sentence).
-    Respond in your native language (#{avatar.personality.native_language}).
+    IMPORTANTE: Responda APENAS em português brasileiro. NÃO adicione traduções ou texto em inglês.
+    Mantenha natural e curto (1 frase apenas).
     """
 
     generate(prompt, max_tokens: 60, temperature: 0.8)

@@ -65,9 +65,6 @@ defmodule Viva.Avatars.Visuals do
     Logger.info("Generating profile image for avatar #{avatar.id}")
 
     case ImageClient.generate_profile(avatar, opts) do
-      {:ok, {:url, url}} ->
-        download_and_save_profile(avatar, url)
-
       {:ok, image_data} when is_binary(image_data) ->
         save_and_update_profile(avatar, image_data)
 
@@ -201,17 +198,6 @@ defmodule Viva.Avatars.Visuals do
       {:error, reason} ->
         Logger.error("Failed to save profile image: #{inspect(reason)}")
         {:error, :storage_failed}
-    end
-  end
-
-  defp download_and_save_profile(avatar, url) do
-    case Req.get(url) do
-      {:ok, %{status: 200, body: image_data}} ->
-        save_and_update_profile(avatar, image_data)
-
-      {:error, reason} ->
-        Logger.error("Failed to download image from #{url}: #{inspect(reason)}")
-        {:error, :download_failed}
     end
   end
 

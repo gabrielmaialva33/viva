@@ -36,30 +36,33 @@ defmodule Viva.Nim.ImageClient do
   """
   @spec generate_profile(Avatar.t(), keyword()) :: image_result()
   def generate_profile(avatar, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:image_gen))
     style = Keyword.get(opts, :style, "realistic")
-    size = Keyword.get(opts, :size, "1024x1024")
 
     prompt = build_profile_prompt(avatar, style)
     negative_prompt = build_negative_prompt()
 
+    # NVIDIA Image API uses a different endpoint and format
+    # Endpoint: ai.api.nvidia.com/v1/genai/stabilityai/stable-diffusion-3-medium
+    # Note: NVIDIA NIM API does NOT support 'sampler' parameter
     body = %{
-      model: model,
       prompt: prompt,
       negative_prompt: negative_prompt,
-      width: parse_width(size),
-      height: parse_height(size),
-      num_inference_steps: 30,
-      guidance_scale: 7.5,
-      seed: Keyword.get(opts, :seed, :rand.uniform(999_999_999))
+      cfg_scale: 7.5,
+      seed: Keyword.get(opts, :seed, :rand.uniform(999_999_999)),
+      steps: 30,
+      aspect_ratio: "1:1"
     }
 
-    case Nim.request("/images/generations", body, timeout: 120_000) do
-      {:ok, %{"data" => [%{"b64_json" => image_data} | _]}} ->
+    case Nim.image_request("stabilityai/stable-diffusion-3-medium", body, timeout: 120_000) do
+      {:ok, %{"artifacts" => [%{"base64" => image_data} | _]}} ->
         {:ok, Base.decode64!(image_data)}
 
-      {:ok, %{"data" => [%{"url" => url} | _]}} ->
-        {:ok, {:url, url}}
+      {:ok, %{"image" => image_data}} when is_binary(image_data) ->
+        {:ok, Base.decode64!(image_data)}
+
+      {:ok, response} ->
+        Logger.warning("Unexpected image response format: #{inspect(Map.keys(response))}")
+        {:error, :unexpected_response_format}
 
       {:error, reason} ->
         Logger.error("Image generation error: #{inspect(reason)}")
@@ -81,22 +84,23 @@ defmodule Viva.Nim.ImageClient do
   """
   @spec generate_expression(Avatar.t(), expression(), keyword()) :: image_result()
   def generate_expression(avatar, expression, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:image_gen))
-
     prompt = build_expression_prompt(avatar, expression)
 
+    # Note: NVIDIA NIM API does NOT support 'sampler' parameter
     body = %{
-      model: model,
       prompt: prompt,
       negative_prompt: build_negative_prompt(),
-      width: 512,
-      height: 512,
-      num_inference_steps: 25,
-      guidance_scale: 7.0
+      cfg_scale: 7.0,
+      seed: Keyword.get(opts, :seed, :rand.uniform(999_999_999)),
+      steps: 25,
+      aspect_ratio: "1:1"
     }
 
-    case Nim.request("/images/generations", body, timeout: 90_000) do
-      {:ok, %{"data" => [%{"b64_json" => image_data} | _]}} ->
+    case Nim.image_request("stabilityai/stable-diffusion-3-medium", body, timeout: 90_000) do
+      {:ok, %{"artifacts" => [%{"base64" => image_data} | _]}} ->
+        {:ok, Base.decode64!(image_data)}
+
+      {:ok, %{"image" => image_data}} when is_binary(image_data) ->
         {:ok, Base.decode64!(image_data)}
 
       {:error, reason} ->
@@ -110,17 +114,20 @@ defmodule Viva.Nim.ImageClient do
   """
   @spec edit_image(binary(), String.t(), keyword()) :: image_result()
   def edit_image(image_data, edit_prompt, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:image_edit))
-
+    # FLUX.1-Kontext for image editing
     body = %{
-      model: model,
       image: Base.encode64(image_data),
       prompt: edit_prompt,
-      strength: Keyword.get(opts, :strength, 0.7)
+      strength: Keyword.get(opts, :strength, 0.7),
+      cfg_scale: 7.0,
+      steps: 25
     }
 
-    case Nim.request("/images/edits", body, timeout: 90_000) do
-      {:ok, %{"data" => [%{"b64_json" => edited_data} | _]}} ->
+    case Nim.image_request("black-forest-labs/flux-1-kontext-dev", body, timeout: 90_000) do
+      {:ok, %{"artifacts" => [%{"base64" => edited_data} | _]}} ->
+        {:ok, Base.decode64!(edited_data)}
+
+      {:ok, %{"image" => edited_data}} when is_binary(edited_data) ->
         {:ok, Base.decode64!(edited_data)}
 
       {:error, reason} ->
@@ -269,12 +276,4 @@ defmodule Viva.Nim.ImageClient do
   defp expression_description(:loving), do: "loving expression, soft gaze, gentle smile"
   defp expression_description(:neutral), do: "neutral expression, calm, serene"
   defp expression_description(_), do: "natural expression"
-
-  defp parse_width("512x512"), do: 512
-  defp parse_width("1024x1024"), do: 1024
-  defp parse_width(_), do: 1024
-
-  defp parse_height("512x512"), do: 512
-  defp parse_height("1024x1024"), do: 1024
-  defp parse_height(_), do: 1024
 end
