@@ -27,6 +27,23 @@ port =
 
 config :viva, VivaWeb.Endpoint, http: [port: port]
 
+# NVIDIA NIM configuration (all environments)
+# In dev, falls back to defaults if not set
+nim_base_url = System.get_env("NIM_BASE_URL")
+nim_api_key = System.get_env("NIM_API_KEY")
+
+if nim_base_url && nim_api_key do
+  config :viva, :nim,
+    base_url: nim_base_url,
+    api_key: nim_api_key,
+    image_base_url: System.get_env("NIM_IMAGE_BASE_URL") || "https://ai.api.nvidia.com/v1/genai",
+    timeout: String.to_integer(System.get_env("NIM_TIMEOUT") || "60000"),
+    models: %{
+      llm: System.get_env("NIM_LLM_MODEL") || "nvidia/llama-3.3-nemotron-super-49b-v1",
+      embedding: System.get_env("NIM_EMBEDDING_MODEL") || "nvidia/nv-embedqa-e5-v5"
+    }
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
@@ -56,6 +73,7 @@ if config_env() == :prod do
   config :viva, :nim,
     base_url: System.get_env("NIM_BASE_URL") || raise("NIM_BASE_URL is required"),
     api_key: System.get_env("NIM_API_KEY"),
+    image_base_url: System.get_env("NIM_IMAGE_BASE_URL") || "https://ai.api.nvidia.com/v1/genai",
     timeout: String.to_integer(System.get_env("NIM_TIMEOUT") || "60000"),
     models: %{
       llm: System.get_env("NIM_LLM_MODEL") || "nvidia/llama-3.3-nemotron-super-49b-v1",
