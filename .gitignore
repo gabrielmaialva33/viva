@@ -52,5 +52,10 @@ repomix-output.md
 
 .playwright-mcp
 .claude
-.gemini/
+
+# Gemini CLI - keep settings.json versioned, ignore temp files
+.gemini/shell_history
+.gemini/tmp/
+.gemini/*.log
+
 gha-creds-*.json
