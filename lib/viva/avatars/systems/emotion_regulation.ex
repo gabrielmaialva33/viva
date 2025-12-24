@@ -138,9 +138,9 @@ defmodule Viva.Avatars.Systems.EmotionRegulation do
     {new_emotional, new_bio} = apply_strategy_effects(strategy, emotional, bio, regulation)
 
     # Increment usage count
-    increment_strategy_count(new_regulation, strategy)
+    updated_regulation = increment_strategy_count(new_regulation, strategy)
 
-    {new_regulation, new_emotional, new_bio}
+    {updated_regulation, new_emotional, new_bio}
   end
 
   defp continue_regulation(regulation, emotional, bio) do
