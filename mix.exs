@@ -86,6 +86,13 @@ defmodule Viva.MixProject do
       # Qdrant vector database client
       {:qdrant, "~> 0.0.8"},
 
+      # Message Broker pipeline
+      {:broadway_rabbitmq, "~> 0.7"},
+      {:amqp, "~> 4.0"},
+
+      # Redis Client
+      {:redix, "~> 1.1"},
+
       # Environment variables from .env file
       {:dotenvy, "~> 0.8"},
 

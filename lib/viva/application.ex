@@ -31,6 +31,15 @@ defmodule Viva.Application do
       Viva.Nim.CircuitBreaker,
       Viva.Nim.RateLimiter,
 
+      # Infrastructure (Redis & RabbitMQ Pipeline)
+      # Redis Wrapper (manual spec since it's a simple wrapper around Redix)
+      %{
+        id: Viva.Infrastructure.Redis,
+        start: {Viva.Infrastructure.Redis, :start_link, []}
+      },
+      # Brain Pipeline (Broadway)
+      Viva.Brain.Pipeline,
+
       # Avatar Sessions Supervisor (includes Registry, DynamicSupervisor, World Clock)
       Viva.Sessions.Supervisor,
 

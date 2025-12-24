@@ -98,6 +98,13 @@ defmodule Viva.Sessions.LifeProcess do
     |> GenServer.cast(:end_interaction)
   end
 
+  @spec set_thought(avatar_id(), String.t()) :: :ok
+  def set_thought(avatar_id, thought) do
+    avatar_id
+    |> via()
+    |> GenServer.cast({:set_thought, thought})
+  end
+
   # === Server Callbacks ===
 
   @impl GenServer
@@ -199,6 +206,7 @@ defmodule Viva.Sessions.LifeProcess do
         bio: new_bio
     }
 
+    broadcast_thought(state.avatar_id, thought)
     {:noreply, %{state | state: new_internal, last_thought: thought}}
   end
 
@@ -363,22 +371,32 @@ defmodule Viva.Sessions.LifeProcess do
 
   defp generate_thought(process_state) do
     avatar_id = process_state.avatar_id
+    prompt = build_thought_prompt(process_state)
 
-    Task.Supervisor.start_child(Viva.Sessions.TaskSupervisor, fn ->
-      case generate_thought_content(process_state) do
-        {:ok, thought} ->
-          broadcast_thought(avatar_id, thought)
-          GenServer.cast(via(avatar_id), {:set_thought, thought})
+    payload = %{
+      type: :spontaneous_thought,
+      avatar_id: avatar_id,
+      prompt: prompt,
+      timestamp: DateTime.utc_now()
+    }
 
-        {:error, reason} ->
-          Logger.warning("Failed to generate thought for avatar #{avatar_id}: #{inspect(reason)}")
-      end
-    end)
+    # Fire and forget to RabbitMQ
+    # In a real app, we would use a dedicated publisher module to reuse connections
+    case AMQP.Connection.open(host: System.get_env("RABBITMQ_HOST", "localhost")) do
+      {:ok, conn} ->
+        {:ok, chan} = AMQP.Channel.open(conn)
+        AMQP.Queue.declare(chan, "viva.brain.thoughts", durable: true)
+        AMQP.Basic.publish(chan, "", "viva.brain.thoughts", :erlang.term_to_binary(payload))
+        AMQP.Connection.close(conn)
+
+      {:error, reason} ->
+        Logger.error("Failed to publish thought to RabbitMQ: #{inspect(reason)}")
+    end
 
     process_state
   end
 
-  defp generate_thought_content(process_state) do
+  defp build_thought_prompt(process_state) do
     avatar = process_state.avatar
     internal = process_state.state
 
@@ -386,7 +404,7 @@ defmodule Viva.Sessions.LifeProcess do
     energy_desc = if internal.bio.adenosine > 0.7, do: "tired", else: "energetic"
     social_desc = if internal.bio.oxytocin > 0.7, do: "loved", else: "lonely"
 
-    prompt = """
+    """
     You are #{avatar.name}. Generate a single spontaneous thought.
 
     Context:
@@ -398,8 +416,6 @@ defmodule Viva.Sessions.LifeProcess do
     Generate ONE brief, authentic thought (max 2 sentences).
     Reflect your personality. No quotes.
     """
-
-    LlmClient.generate(prompt, max_tokens: 100)
   end
 
   defp describe_mood(mood_label), do: mood_label || "neutral"
