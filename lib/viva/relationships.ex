@@ -49,19 +49,21 @@ defmodule Viva.Relationships do
     # Ensure consistent ordering (lower ID is always avatar_a)
     {a_id, b_id} = order_avatar_ids(avatar_a_id, avatar_b_id)
 
-    %Relationship{}
-    |> Relationship.changeset(%{
-      avatar_a_id: a_id,
-      avatar_b_id: b_id,
-      status: :strangers,
-      first_interaction_at: DateTime.utc_now()
-    })
-    |> Repo.insert(
-      on_conflict: :nothing,
-      conflict_target: [:avatar_a_id, :avatar_b_id],
-      returning: true
-    )
-    |> case do
+    insert_result =
+      %Relationship{}
+      |> Relationship.changeset(%{
+        avatar_a_id: a_id,
+        avatar_b_id: b_id,
+        status: :strangers,
+        first_interaction_at: DateTime.utc_now()
+      })
+      |> Repo.insert(
+        on_conflict: :nothing,
+        conflict_target: [:avatar_a_id, :avatar_b_id],
+        returning: true
+      )
+
+    case insert_result do
       {:ok, %{id: nil}} ->
         # Conflict happened, fetch the existing one
         {:ok, get_relationship_between(a_id, b_id)}

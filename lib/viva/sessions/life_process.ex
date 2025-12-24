@@ -27,6 +27,11 @@ defmodule Viva.Sessions.LifeProcess do
     tick_count: 0
   ]
 
+  # === Types ===
+
+  @type avatar_id :: Ecto.UUID.t()
+  @type process_state :: %__MODULE__{}
+
   # === Constants ===
 
   # 1 minute per tick

@@ -269,12 +269,6 @@ defmodule Viva.Conversations do
     }
   end
 
-  defp stats_to_map(list) do
-    list
-    |> Enum.map(fn {k, v} -> {k, v} end)
-    |> Map.new()
-  end
-
   @spec conversation_history(avatar_id(), avatar_id(), keyword()) :: [Conversation.t()]
   def conversation_history(avatar_a_id, avatar_b_id, opts \\ []) do
     limit = Keyword.get(opts, :limit, 10)
@@ -296,4 +290,10 @@ defmodule Viva.Conversations do
 
   defp maybe_filter_after(query, nil), do: query
   defp maybe_filter_after(query, timestamp), do: where(query, [m], m.timestamp > ^timestamp)
+
+  defp stats_to_map(list) do
+    list
+    |> Enum.map(fn {k, v} -> {k, v} end)
+    |> Map.new()
+  end
 end
