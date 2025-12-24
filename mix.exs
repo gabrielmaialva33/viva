@@ -78,7 +78,6 @@ defmodule Viva.MixProject do
       {:cachex, "~> 3.6"},
 
       # UUID generation
-      {:elixir_uuid, "~> 1.2"},
 
       # Password hashing
       {:bcrypt_elixir, "~> 3.1"},
@@ -92,6 +91,7 @@ defmodule Viva.MixProject do
 
       # Redis Client
       {:redix, "~> 1.1"},
+      {:castore, ">= 0.0.0"},
 
       # Environment variables from .env file
       {:dotenvy, "~> 0.8"},
