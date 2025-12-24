@@ -126,7 +126,7 @@ defmodule Viva.Avatars.Systems.Metacognition do
   Returns alignment scores and dominant direction.
   """
   @spec check_alignment(EmotionalState.t(), SelfModel.t() | nil) :: alignment()
-  def check_alignment(_emotional, nil) do
+  def check_alignment(_, nil) do
     %{ideal_alignment: 0.0, feared_alignment: 0.0, dominant_direction: :neutral}
   end
 
@@ -164,7 +164,7 @@ defmodule Viva.Avatars.Systems.Metacognition do
     # 2. There are patterns to reflect on OR alignment is significant
     should_generate =
       consciousness.meta_awareness >= @insight_threshold and
-        (length(patterns) > 0 or alignment.dominant_direction != :neutral)
+        (patterns != [] or alignment.dominant_direction != :neutral)
 
     if should_generate do
       generate_insight(consciousness, patterns, alignment, personality)
@@ -288,36 +288,37 @@ defmodule Viva.Avatars.Systems.Metacognition do
     {updated_consciousness, result}
   end
 
-  defp calculate_ideal_alignment(_emotional, %SelfModel{ideal_self: nil}), do: 0.0
+  defp calculate_ideal_alignment(_, %SelfModel{ideal_self: nil}), do: 0.0
 
-  defp calculate_ideal_alignment(emotional, %SelfModel{ideal_self: _ideal_self}) do
+  defp calculate_ideal_alignment(emotional, %SelfModel{ideal_self: _}) do
     # Higher pleasure + higher self-esteem indicators = closer to ideal
     # This is a simplified heuristic - ideal_self is a string description
     positive_emotional_state = (emotional.pleasure + 1) / 2
     dominance_factor = (emotional.dominance + 1) / 2
 
-    (positive_emotional_state * 0.6 + dominance_factor * 0.4)
-    |> min(1.0)
+    min(positive_emotional_state * 0.6 + dominance_factor * 0.4, 1.0)
   end
 
-  defp calculate_feared_alignment(_emotional, %SelfModel{feared_self: nil}), do: 0.0
+  defp calculate_feared_alignment(_, %SelfModel{feared_self: nil}), do: 0.0
 
-  defp calculate_feared_alignment(emotional, %SelfModel{feared_self: _feared_self}) do
+  defp calculate_feared_alignment(emotional, %SelfModel{feared_self: _}) do
     # High negative emotion + low dominance = closer to feared self
     negative_emotional_state = (1 - emotional.pleasure) / 2
     low_dominance_factor = (1 - emotional.dominance) / 2
     high_arousal_factor = (emotional.arousal + 1) / 2
 
     # Stressed, anxious state is often feared
-    (negative_emotional_state * 0.4 + low_dominance_factor * 0.3 + high_arousal_factor * 0.3)
-    |> min(1.0)
+    min(
+      negative_emotional_state * 0.4 + low_dominance_factor * 0.3 + high_arousal_factor * 0.3,
+      1.0
+    )
   end
 
   defp generate_insight(consciousness, patterns, alignment, personality) do
     # Generate insight based on detected patterns and alignment
     cond do
       # Pattern-based insight
-      length(patterns) > 0 ->
+      patterns != [] ->
         pattern = hd(patterns)
         generate_pattern_insight(pattern, personality)
 
@@ -387,7 +388,7 @@ defmodule Viva.Avatars.Systems.Metacognition do
           # New pattern, add it
           [convert_to_stored_pattern(new_pattern) | acc]
 
-        _index ->
+        _ ->
           # Existing pattern already exists, skip duplicate
           acc
       end

@@ -109,7 +109,7 @@ defmodule Viva.Avatars.Systems.SomaticMarkersTest do
 
       stimulus = %{type: :social, source: "friend", social_context: :conversation}
 
-      {_updated_somatic, bias} = SomaticMarkers.recall(somatic, stimulus)
+      {_, bias} = SomaticMarkers.recall(somatic, stimulus)
 
       assert bias.markers_activated == 2
       assert bias.bias > 0
@@ -118,10 +118,12 @@ defmodule Viva.Avatars.Systems.SomaticMarkersTest do
     test "reinforces activated markers" do
       original_strength = 0.5
 
+      last_activated = DateTime.add(DateTime.utc_now(:second), -3600, :second)
+
       marker = %{
         valence: 0.7,
         strength: original_strength,
-        last_activated: DateTime.add(DateTime.utc_now(:second), -3600, :second),
+        last_activated: last_activated,
         context: nil
       }
 
@@ -132,7 +134,7 @@ defmodule Viva.Avatars.Systems.SomaticMarkersTest do
 
       stimulus = %{type: :social, source: "crush"}
 
-      {updated_somatic, _bias} = SomaticMarkers.recall(somatic, stimulus)
+      {updated_somatic, _} = SomaticMarkers.recall(somatic, stimulus)
 
       reinforced_marker = Map.get(updated_somatic.social_markers, "crush")
       assert reinforced_marker.strength > original_strength
@@ -406,12 +408,12 @@ defmodule Viva.Avatars.Systems.SomaticMarkersTest do
       bio = %BioState{}
       emotional = %EmotionalState{pleasure: 0.8, arousal: 0.8}
 
-      somatic =
+      learned_somatic =
         Enum.reduce(1..3, somatic, fn _, acc ->
           SomaticMarkers.maybe_learn(acc, stimulus, bio, emotional)
         end)
 
-      marker = Map.get(somatic.social_markers, "friend")
+      marker = Map.get(learned_somatic.social_markers, "friend")
       assert marker != nil
       assert marker.strength > 0.5
     end
@@ -422,9 +424,9 @@ defmodule Viva.Avatars.Systems.SomaticMarkersTest do
       bio = %BioState{}
       emotional = %EmotionalState{pleasure: -0.9, arousal: 0.9}
 
-      somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
+      learned_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
 
-      {updated_somatic, bias} = SomaticMarkers.recall(somatic, stimulus)
+      {updated_somatic, bias} = SomaticMarkers.recall(learned_somatic, stimulus)
 
       assert bias.bias < 0
       assert SomaticMarkers.body_warning?(updated_somatic)
@@ -436,9 +438,9 @@ defmodule Viva.Avatars.Systems.SomaticMarkersTest do
       bio = %BioState{}
       emotional = %EmotionalState{pleasure: 0.9, arousal: 0.9}
 
-      somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
+      learned_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
 
-      {updated_somatic, bias} = SomaticMarkers.recall(somatic, stimulus)
+      {updated_somatic, bias} = SomaticMarkers.recall(learned_somatic, stimulus)
 
       assert bias.bias > 0
       assert SomaticMarkers.body_attraction?(updated_somatic)
@@ -450,12 +452,13 @@ defmodule Viva.Avatars.Systems.SomaticMarkersTest do
       bio = %BioState{}
 
       positive_emotional = %EmotionalState{pleasure: 0.8, arousal: 0.8}
-      somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, positive_emotional)
+      # Use intermediate variables to avoid shadowing 'somatic'
+      somatic_step1 = SomaticMarkers.maybe_learn(somatic, stimulus, bio, positive_emotional)
 
       negative_emotional = %EmotionalState{pleasure: -0.6, arousal: 0.8}
-      somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, negative_emotional)
+      final_somatic = SomaticMarkers.maybe_learn(somatic_step1, stimulus, bio, negative_emotional)
 
-      marker = Map.get(somatic.social_markers, "friend")
+      marker = Map.get(final_somatic.social_markers, "friend")
       assert marker.valence > -0.6
       assert marker.valence < 0.8
     end

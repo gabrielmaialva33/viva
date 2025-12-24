@@ -14,7 +14,7 @@ defmodule Viva.Avatars.Systems.EmotionRegulationTest do
       bio = %BioState{cortisol: 0.5}
       personality = %Personality{neuroticism: 0.5, openness: 0.5}
 
-      {new_reg, _new_emotional, _new_bio} =
+      {new_reg, _, _} =
         EmotionRegulation.regulate(regulation, emotional, bio, personality)
 
       assert new_reg.active_strategy != nil
@@ -48,7 +48,7 @@ defmodule Viva.Avatars.Systems.EmotionRegulationTest do
       bio = %BioState{cortisol: 0.4}
       personality = %Personality{openness: 0.8}
 
-      {new_reg, _new_emotional, _new_bio} =
+      {new_reg, _, _} =
         EmotionRegulation.regulate(regulation, emotional, bio, personality)
 
       assert new_reg.active_strategy == :reappraise
@@ -68,7 +68,7 @@ defmodule Viva.Avatars.Systems.EmotionRegulationTest do
       bio = %BioState{cortisol: 0.3}
       personality = %Personality{}
 
-      {new_reg, _new_emotional, _new_bio} =
+      {new_reg, _, _} =
         EmotionRegulation.regulate(regulation, emotional, bio, personality)
 
       assert new_reg.active_strategy == nil
@@ -81,7 +81,7 @@ defmodule Viva.Avatars.Systems.EmotionRegulationTest do
       bio = %BioState{cortisol: 0.6}
       personality = %Personality{neuroticism: 0.7}
 
-      {new_reg, _new_emotional, _new_bio} =
+      {new_reg, _, _} =
         EmotionRegulation.regulate(regulation, emotional, bio, personality)
 
       # Should not start new regulation when exhausted
@@ -94,7 +94,7 @@ defmodule Viva.Avatars.Systems.EmotionRegulationTest do
       bio = %BioState{cortisol: 0.1}
       personality = %Personality{}
 
-      {new_reg, _new_emotional, _new_bio} =
+      {new_reg, _, _} =
         EmotionRegulation.regulate(regulation, emotional, bio, personality)
 
       assert new_reg.regulation_exhaustion < regulation.regulation_exhaustion
@@ -266,7 +266,7 @@ defmodule Viva.Avatars.Systems.EmotionRegulationTest do
       bio = %BioState{cortisol: 0.5}
       personality = %Personality{openness: 0.8, conscientiousness: 0.8}
 
-      {_new_reg, new_emotional, new_bio} =
+      {_, new_emotional, new_bio} =
         EmotionRegulation.regulate(regulation, emotional, bio, personality)
 
       # Reappraisal should improve pleasure and reduce cortisol
@@ -287,7 +287,7 @@ defmodule Viva.Avatars.Systems.EmotionRegulationTest do
       bio = %BioState{cortisol: 0.3, oxytocin: 0.2}
       personality = %Personality{extraversion: 0.8, attachment_style: :secure}
 
-      {_new_reg, _new_emotional, new_bio} =
+      {_, _, new_bio} =
         EmotionRegulation.regulate(regulation, emotional, bio, personality)
 
       # Seeking support should boost oxytocin
@@ -307,7 +307,7 @@ defmodule Viva.Avatars.Systems.EmotionRegulationTest do
       bio = %BioState{cortisol: 0.3}
       personality = %Personality{agreeableness: 0.2}
 
-      {_new_reg, new_emotional, new_bio} =
+      {_, new_emotional, new_bio} =
         EmotionRegulation.regulate(regulation, emotional, bio, personality)
 
       # Suppression should reduce arousal but increase cortisol
@@ -433,7 +433,7 @@ defmodule Viva.Avatars.Systems.EmotionRegulationTest do
           emotional = %EmotionalState{pleasure: -0.7, arousal: 0.7, mood_label: "anxious"}
           bio = %BioState{cortisol: 0.6}
 
-          {new_reg, _emo, _bio} =
+          {new_reg, _, _} =
             EmotionRegulation.regulate(reg, emotional, bio, personality)
 
           # Reset active strategy to simulate time passing
@@ -465,7 +465,7 @@ defmodule Viva.Avatars.Systems.EmotionRegulationTest do
           emotional = %EmotionalState{pleasure: -0.7, arousal: 0.6, mood_label: "stressed"}
           bio = %BioState{cortisol: 0.5}
 
-          {new_reg, _emo, _bio} =
+          {new_reg, _, _} =
             EmotionRegulation.regulate(reg, emotional, bio, personality)
 
           %{new_reg | active_strategy: nil, strategy_duration: 0}

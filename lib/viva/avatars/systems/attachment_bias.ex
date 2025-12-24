@@ -157,16 +157,13 @@ defmodule Viva.Avatars.Systems.AttachmentBias do
 
     # Apply biases based on attachment style
     new_valence =
-      (original_valence + Map.get(@valence_bias, style, 0.0))
-      |> clamp(-1.0, 1.0)
+      clamp(original_valence + Map.get(@valence_bias, style, 0.0), -1.0, 1.0)
 
     new_intensity =
-      (original_intensity + Map.get(@intensity_bias, style, 0.0))
-      |> clamp(0.0, 1.0)
+      clamp(original_intensity + Map.get(@intensity_bias, style, 0.0), 0.0, 1.0)
 
     new_threat =
-      (original_threat + Map.get(@threat_bias, style, 0.0))
-      |> clamp(0.0, 1.0)
+      clamp(original_threat + Map.get(@threat_bias, style, 0.0), 0.0, 1.0)
 
     # Add interpretation based on context
     situation = infer_situation(stimulus)
@@ -223,5 +220,9 @@ defmodule Viva.Avatars.Systems.AttachmentBias do
   defp default_interpretation(:avoidant), do: "Whatever happens, happens"
   defp default_interpretation(:fearful), do: "I should be careful"
 
-  defp clamp(value, min_val, max_val), do: value |> max(min_val) |> min(max_val)
+  defp clamp(value, min_val, max_val) do
+    value
+    |> max(min_val)
+    |> min(max_val)
+  end
 end

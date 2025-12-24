@@ -26,9 +26,11 @@ defmodule Viva.Avatars.SomaticMarkersStateTest do
       refute changeset.valid?
       assert %{current_bias: ["must be less than or equal to 1.0"]} = errors_on(changeset)
 
-      changeset = SomaticMarkersState.changeset(state, %{current_bias: -1.5})
-      refute changeset.valid?
-      assert %{current_bias: ["must be greater than or equal to -1.0"]} = errors_on(changeset)
+      invalid_negative_changeset = SomaticMarkersState.changeset(state, %{current_bias: -1.5})
+      refute invalid_negative_changeset.valid?
+
+      assert %{current_bias: ["must be greater than or equal to -1.0"]} =
+               errors_on(invalid_negative_changeset)
     end
 
     test "validates learning_threshold range" do
@@ -38,9 +40,11 @@ defmodule Viva.Avatars.SomaticMarkersStateTest do
       refute changeset.valid?
       assert %{learning_threshold: ["must be less than or equal to 1.0"]} = errors_on(changeset)
 
-      changeset = SomaticMarkersState.changeset(state, %{learning_threshold: -0.1})
-      refute changeset.valid?
-      assert %{learning_threshold: ["must be greater than or equal to 0.0"]} = errors_on(changeset)
+      invalid_negative_changeset = SomaticMarkersState.changeset(state, %{learning_threshold: -0.1})
+      refute invalid_negative_changeset.valid?
+
+      assert %{learning_threshold: ["must be greater than or equal to 0.0"]} =
+               errors_on(invalid_negative_changeset)
     end
 
     test "accepts valid changes" do
@@ -85,8 +89,8 @@ defmodule Viva.Avatars.SomaticMarkersStateTest do
       state = %SomaticMarkersState{SomaticMarkersState.new() | markers_formed: 3}
       assert SomaticMarkersState.has_body_memory?(state)
 
-      state = %SomaticMarkersState{SomaticMarkersState.new() | markers_formed: 10}
-      assert SomaticMarkersState.has_body_memory?(state)
+      state_with_many = %SomaticMarkersState{SomaticMarkersState.new() | markers_formed: 10}
+      assert SomaticMarkersState.has_body_memory?(state_with_many)
     end
   end
 
@@ -121,7 +125,7 @@ defmodule Viva.Avatars.SomaticMarkersStateTest do
           activity_markers: %{social: negative_marker}
       }
 
-      {category, _key, marker} = SomaticMarkersState.strongest_marker(state)
+      {category, _, marker} = SomaticMarkersState.strongest_marker(state)
       assert category == :activity
       assert marker == negative_marker
     end
@@ -138,7 +142,7 @@ defmodule Viva.Avatars.SomaticMarkersStateTest do
           context_markers: %{"conversation" => context_marker}
       }
 
-      {category, key, _marker} = SomaticMarkersState.strongest_marker(state)
+      {category, key, _} = SomaticMarkersState.strongest_marker(state)
       assert category == :context
       assert key == "conversation"
     end
@@ -147,7 +151,10 @@ defmodule Viva.Avatars.SomaticMarkersStateTest do
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
       Regex.replace(~r"%{(\w+)}", message, fn _, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+        key
+        |> String.to_existing_atom()
+        |> then(&Keyword.get(opts, &1, key))
+        |> to_string()
       end)
     end)
   end

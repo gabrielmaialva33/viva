@@ -237,14 +237,14 @@ defmodule Viva.Sessions.LifeProcess do
     raw_stimulus = StimulusGathering.gather(state)
 
     # 2. ATTACHMENT BIAS: Filter stimulus through attachment style lens
-    {stimulus, _interpretation} = AttachmentBias.interpret(raw_stimulus, avatar.personality)
+    {stimulus, _} = AttachmentBias.interpret(raw_stimulus, avatar.personality)
 
     # 3. SENSES: Process perception through subjective filter
     {new_sensory, neuro_effects} =
       Senses.perceive(internal.sensory, stimulus, avatar.personality, internal.emotional)
 
     # 3.5. SOMATIC MARKERS: Recall body memories for this stimulus
-    {updated_somatic, _somatic_bias} = SomaticMarkers.recall(internal.somatic, stimulus)
+    {updated_somatic, _} = SomaticMarkers.recall(internal.somatic, stimulus)
 
     # 4. Apply neurochemical effects from surprise/perception
     bio_with_perception = apply_neuro_effects(internal.bio, neuro_effects)
@@ -290,7 +290,7 @@ defmodule Viva.Sessions.LifeProcess do
       )
 
     # 10.5. METACOGNITION: Process self-reflection and pattern detection
-    {metacog_consciousness, _metacog_result} =
+    {metacog_consciousness, _} =
       Metacognition.process(
         new_consciousness,
         new_emotional,

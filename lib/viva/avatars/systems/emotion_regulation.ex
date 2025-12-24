@@ -138,7 +138,7 @@ defmodule Viva.Avatars.Systems.EmotionRegulation do
     {new_emotional, new_bio} = apply_strategy_effects(strategy, emotional, bio, regulation)
 
     # Increment usage count
-    new_regulation = increment_strategy_count(new_regulation, strategy)
+    increment_strategy_count(new_regulation, strategy)
 
     {new_regulation, new_emotional, new_bio}
   end
@@ -162,7 +162,8 @@ defmodule Viva.Avatars.Systems.EmotionRegulation do
     new_regulation =
       if duration > 5 or intensity < @regulation_threshold * 0.7 do
         # Stop regulating and update effectiveness
-        update_effectiveness(regulation, new_emotional, strategy)
+        regulation
+        |> update_effectiveness(new_emotional, strategy)
         |> Map.put(:active_strategy, nil)
         |> Map.put(:strategy_duration, 0)
         |> Map.put(:regulation_exhaustion, new_exhaustion)
@@ -189,12 +190,10 @@ defmodule Viva.Avatars.Systems.EmotionRegulation do
     effectiveness = max(0.1, 1.0 - decay - exhaustion_penalty * 0.5)
 
     new_pleasure =
-      (emotional.pleasure + effects.pleasure_mod * effectiveness)
-      |> clamp(-1.0, 1.0)
+      clamp(emotional.pleasure + effects.pleasure_mod * effectiveness, -1.0, 1.0)
 
     new_arousal =
-      (emotional.arousal + effects.arousal_mod * effectiveness)
-      |> clamp(-1.0, 1.0)
+      clamp(emotional.arousal + effects.arousal_mod * effectiveness, -1.0, 1.0)
 
     new_emotional = %{emotional | pleasure: new_pleasure, arousal: new_arousal}
 
@@ -208,14 +207,14 @@ defmodule Viva.Avatars.Systems.EmotionRegulation do
   end
 
   defp maybe_apply_cortisol_mod(bio, %{cortisol_mod: mod}, effectiveness) do
-    new_cortisol = (bio.cortisol + mod * effectiveness) |> clamp(0.0, 1.0)
+    new_cortisol = clamp(bio.cortisol + mod * effectiveness, 0.0, 1.0)
     %{bio | cortisol: new_cortisol}
   end
 
   defp maybe_apply_cortisol_mod(bio, _, _), do: bio
 
   defp maybe_apply_oxytocin_boost(bio, %{oxytocin_boost: boost}, effectiveness) do
-    new_oxytocin = (bio.oxytocin + boost * effectiveness) |> clamp(0.0, 1.0)
+    new_oxytocin = clamp(bio.oxytocin + boost * effectiveness, 0.0, 1.0)
     %{bio | oxytocin: new_oxytocin}
   end
 
@@ -283,7 +282,7 @@ defmodule Viva.Avatars.Systems.EmotionRegulation do
       )
 
     post_intensity = emotional_intensity(new_emotional)
-    improvement = (pre_intensity - post_intensity) |> clamp(0.0, 1.0)
+    improvement = clamp(pre_intensity - post_intensity, 0.0, 1.0)
 
     # Update running average (exponential moving average)
     alpha = 0.2
@@ -319,5 +318,9 @@ defmodule Viva.Avatars.Systems.EmotionRegulation do
     %{regulation | distract_effectiveness: value}
   end
 
-  defp clamp(value, min_val, max_val), do: value |> max(min_val) |> min(max_val)
+  defp clamp(value, min_val, max_val) do
+    value
+    |> max(min_val)
+    |> min(max_val)
+  end
 end

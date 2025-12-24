@@ -81,7 +81,7 @@ defmodule Viva.Avatars.Systems.AttachmentBiasTest do
 
       personality = %Personality{attachment_style: :anxious}
 
-      {biased_stimulus, _interpretation} = AttachmentBias.interpret(stimulus, personality)
+      {biased_stimulus, _} = AttachmentBias.interpret(stimulus, personality)
 
       # Anxious style should amplify intensity
       assert biased_stimulus.intensity > stimulus.intensity
@@ -100,7 +100,7 @@ defmodule Viva.Avatars.Systems.AttachmentBiasTest do
 
       personality = %Personality{attachment_style: :avoidant}
 
-      {biased_stimulus, _interpretation} = AttachmentBias.interpret(stimulus, personality)
+      {biased_stimulus, _} = AttachmentBias.interpret(stimulus, personality)
 
       # Avoidant style should dampen intensity
       assert biased_stimulus.intensity < stimulus.intensity
@@ -119,7 +119,7 @@ defmodule Viva.Avatars.Systems.AttachmentBiasTest do
 
       personality = %Personality{attachment_style: :fearful}
 
-      {biased_stimulus, _interpretation} = AttachmentBias.interpret(stimulus, personality)
+      {biased_stimulus, _} = AttachmentBias.interpret(stimulus, personality)
 
       # Fearful style should increase threat and decrease valence
       assert biased_stimulus.threat_level > stimulus.threat_level
@@ -138,7 +138,7 @@ defmodule Viva.Avatars.Systems.AttachmentBiasTest do
 
       personality = %Personality{attachment_style: :anxious}
 
-      {biased_stimulus, _interpretation} = AttachmentBias.interpret(stimulus, personality)
+      {biased_stimulus, _} = AttachmentBias.interpret(stimulus, personality)
 
       assert biased_stimulus.attachment_interpretation != nil
       assert biased_stimulus.attachment_style == :anxious

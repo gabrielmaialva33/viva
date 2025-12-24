@@ -54,7 +54,7 @@ defmodule Viva.Avatars.Systems.SomaticMarkers do
   @spec recall(SomaticMarkersState.t(), stimulus()) :: {SomaticMarkersState.t(), somatic_bias()}
   def recall(somatic, stimulus) do
     # Find matching markers for this stimulus
-    {matching_markers, _total_bias} = find_matching_markers(somatic, stimulus)
+    {matching_markers, _} = find_matching_markers(somatic, stimulus)
 
     if Enum.empty?(matching_markers) do
       {somatic, %{bias: 0.0, signal: nil, markers_activated: 0}}
@@ -138,7 +138,7 @@ defmodule Viva.Avatars.Systems.SomaticMarkers do
     # Intensity based on arousal and absolute pleasure
     arousal_component = abs(a)
     pleasure_component = abs(p)
-    (arousal_component * 0.6 + pleasure_component * 0.4) |> min(1.0)
+    min(arousal_component * 0.6 + pleasure_component * 0.4, 1.0)
   end
 
   defp find_matching_markers(somatic, stimulus) do
@@ -147,7 +147,7 @@ defmodule Viva.Avatars.Systems.SomaticMarkers do
     # Check social markers
     source = Map.get(stimulus, :source, "")
 
-    matching =
+    matching_social =
       case Map.get(somatic.social_markers, source) do
         nil -> matching
         marker -> [{:social, source, marker} | matching]
@@ -156,31 +156,31 @@ defmodule Viva.Avatars.Systems.SomaticMarkers do
     # Check activity markers
     activity = Map.get(stimulus, :type)
 
-    matching =
+    matching_activity =
       case Map.get(somatic.activity_markers, activity) do
-        nil -> matching
-        marker -> [{:activity, activity, marker} | matching]
+        nil -> matching_social
+        marker -> [{:activity, activity, marker} | matching_social]
       end
 
     # Check context markers (social context)
     context = Map.get(stimulus, :social_context)
 
-    matching =
+    matching_context =
       if context do
         case Map.get(somatic.context_markers, to_string(context)) do
-          nil -> matching
-          marker -> [{:context, context, marker} | matching]
+          nil -> matching_activity
+          marker -> [{:context, context, marker} | matching_activity]
         end
       else
-        matching
+        matching_activity
       end
 
     total_bias =
-      Enum.reduce(matching, 0.0, fn {_, _, marker}, acc ->
+      Enum.reduce(matching_context, 0.0, fn {_, _, marker}, acc ->
         acc + marker.valence * marker.strength
       end)
 
-    {matching, total_bias}
+    {matching_context, total_bias}
   end
 
   defp calculate_combined_bias(markers) do
@@ -193,7 +193,10 @@ defmodule Viva.Avatars.Systems.SomaticMarkers do
         end)
 
       # Normalize by number of markers, but not too much
-      (total / :math.sqrt(length(markers)))
+      markers
+      |> length()
+      |> :math.sqrt()
+      |> then(&(total / &1))
       |> clamp(-1.0, 1.0)
     end
   end
@@ -237,7 +240,7 @@ defmodule Viva.Avatars.Systems.SomaticMarkers do
     end)
   end
 
-  defp learn_marker(somatic, stimulus, _bio, emotional, intensity) do
+  defp learn_marker(somatic, stimulus, _, emotional, intensity) do
     # Determine valence of marker (positive or negative experience)
     valence = calculate_marker_valence(emotional)
 
@@ -271,14 +274,13 @@ defmodule Viva.Avatars.Systems.SomaticMarkers do
     base_valence = p
     arousal_direction = if a > 0, do: 1.0, else: -0.5
 
-    (base_valence * (0.7 + abs(a) * 0.3 * arousal_direction))
-    |> clamp(-1.0, 1.0)
+    clamp(base_valence * (0.7 + abs(a) * 0.3 * arousal_direction), -1.0, 1.0)
   end
 
   defp store_social_marker(somatic, stimulus, marker) do
     source = Map.get(stimulus, :source)
 
-    if source && is_social_source?(source) do
+    if source && social_source?(source) do
       existing = Map.get(somatic.social_markers, source)
 
       updated_marker =
@@ -333,11 +335,11 @@ defmodule Viva.Avatars.Systems.SomaticMarkers do
     end
   end
 
-  defp is_social_source?(source) when is_binary(source) do
+  defp social_source?(source) when is_binary(source) do
     source in ["conversation_partner", "owner_presence", "friend", "crush"]
   end
 
-  defp is_social_source?(_), do: false
+  defp social_source?(_), do: false
 
   defp merge_markers(existing, new) do
     # Blend valences weighted by strength
@@ -373,5 +375,9 @@ defmodule Viva.Avatars.Systems.SomaticMarkers do
     |> Map.new()
   end
 
-  defp clamp(value, min_val, max_val), do: value |> max(min_val) |> min(max_val)
+  defp clamp(value, min_val, max_val) do
+    value
+    |> max(min_val)
+    |> min(max_val)
+  end
 end

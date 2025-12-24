@@ -32,7 +32,7 @@ defmodule Viva.Avatars.Systems.MetacognitionTest do
       personality = %Personality{openness: 0.7, neuroticism: 0.4}
 
       # Tick 10 should process (interval is 10)
-      {_updated, result} = Metacognition.process(consciousness, emotional, personality, 10)
+      {_, result} = Metacognition.process(consciousness, emotional, personality, 10)
 
       # Should have run and potentially detected patterns
       assert is_list(result.patterns_detected)
@@ -51,7 +51,7 @@ defmodule Viva.Avatars.Systems.MetacognitionTest do
 
       # With high meta_awareness (0.9 > 0.6), interval is reduced to 7
       # So tick 7 should process
-      {_updated, result} = Metacognition.process(consciousness, emotional, personality, 7)
+      {_, result} = Metacognition.process(consciousness, emotional, personality, 7)
 
       # Should have processed (not skipped)
       assert is_map(result.alignment)
@@ -78,7 +78,7 @@ defmodule Viva.Avatars.Systems.MetacognitionTest do
 
       patterns = Metacognition.detect_emotional_patterns(stream)
 
-      assert length(patterns) >= 1
+      assert patterns != []
       assert Enum.any?(patterns, fn p -> p.response == "sad" end)
     end
 
@@ -357,7 +357,7 @@ defmodule Viva.Avatars.Systems.MetacognitionTest do
       patterns = Metacognition.detect_emotional_patterns(experience_stream)
 
       # Should detect the anxious pattern (100% of experiences)
-      assert length(patterns) > 0
+      assert patterns != []
       assert Enum.any?(patterns, fn p -> p.response == "anxious" end)
     end
 
