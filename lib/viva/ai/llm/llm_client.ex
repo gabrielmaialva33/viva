@@ -14,6 +14,7 @@ defmodule Viva.AI.LLM.LlmClient do
   - Avatar response generation with personality context
   """
   @behaviour Viva.AI.Pipeline.Stage
+  @behaviour Viva.AI.LLM.ClientBehaviour
 
   require Logger
 
@@ -21,7 +22,6 @@ defmodule Viva.AI.LLM.LlmClient do
   alias Viva.AI.LLM.LlmClient, as: Client
   alias Viva.Avatars.Avatar
   alias Viva.Avatars.InternalState
-  alias Viva.Nim
 
   @type message :: %{role: String.t(), content: String.t()}
   @type tool_call :: map()

@@ -82,10 +82,13 @@ defmodule Viva.AI.Pipeline do
   defp process_thought(%{type: :spontaneous_thought, avatar_id: avatar_id, prompt: prompt}) do
     Logger.debug("🧠 Broadway processing thought for Avatar #{avatar_id}")
 
-    case LlmClient.generate(prompt, max_tokens: 100) do
+    client = Application.get_env(:viva, :llm_client, LlmClient)
+    life_process = Application.get_env(:viva, :life_process_module, LifeProcess)
+
+    case client.generate(prompt, max_tokens: 100) do
       {:ok, content} ->
         # Send result back to the avatar
-        LifeProcess.set_thought(avatar_id, content)
+        life_process.set_thought(avatar_id, content)
 
       {:error, reason} ->
         Logger.warning("LLM generation failed: #{inspect(reason)}")

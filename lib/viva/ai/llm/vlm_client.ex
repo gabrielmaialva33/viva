@@ -20,7 +20,6 @@ defmodule Viva.AI.LLM.VlmClient do
   alias Viva.AI.LLM
   alias Viva.AI.LLM.VlmClient, as: Client
   alias Viva.Avatars.Avatar
-  alias Viva.Nim
 
   # === Types ===
 

@@ -17,8 +17,6 @@ defmodule Viva.AI.LLM.EmbeddingClient do
   require Logger
 
   alias Viva.AI.LLM
-  alias Viva.AI.LLM.EmbeddingClient, as: Client
-  alias Viva.Nim
 
   # === Types ===
 

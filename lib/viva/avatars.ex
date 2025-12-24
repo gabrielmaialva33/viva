@@ -125,25 +125,68 @@ defmodule Viva.Avatars do
   @spec decay_old_memories(avatar_id()) :: :ok
   def decay_old_memories(avatar_id) do
     now = DateTime.utc_now()
+    # Only process memories older than 24h
+    cutoff = DateTime.add(now, -24, :hour)
 
-    avatar_id
-    |> Memory.for_avatar()
-    |> Repo.all()
-    |> Enum.each(fn memory ->
-      hours_passed = DateTime.diff(now, memory.inserted_at, :hour)
+    query =
+      from m in Memory,
+        where: m.avatar_id == ^avatar_id and m.inserted_at < ^cutoff,
+        # Select all fields required for potential re-insertion (upsert)
+        # or just enough for calculation if we used individual updates.
+        # For bulk upsert, we need all non-nullable fields: avatar_id, content.
+        select: %{
+          id: m.id,
+          avatar_id: m.avatar_id,
+          content: m.content,
+          inserted_at: m.inserted_at,
+          strength: m.strength,
+          importance: m.importance,
+          times_recalled: m.times_recalled
+        }
 
-      if hours_passed > 24 do
-        decayed = Memory.decay_strength(memory, hours_passed)
+    Repo.transaction(fn ->
+      query
+      |> Repo.stream()
+      |> Stream.chunk_every(500)
+      |> Enum.each(fn batch ->
+        {to_delete_ids, to_update} =
+          Enum.reduce(batch, {[], []}, fn data, {del_acc, upd_acc} ->
+            # Reconstruct a lightweight struct for the logic function
+            memory = struct(Memory, data)
+            hours_passed = DateTime.diff(now, memory.inserted_at, :hour)
+            decayed = Memory.decay_strength(memory, hours_passed)
 
-        if decayed.strength < 0.1 do
-          Repo.delete(memory)
-        else
-          memory
-          |> Ecto.Changeset.change(strength: decayed.strength)
-          |> Repo.update()
+            if decayed.strength < 0.1 do
+              {[memory.id | del_acc], upd_acc}
+            else
+              # Prepare map for insert_all
+              update_map = %{
+                id: memory.id,
+                avatar_id: memory.avatar_id,
+                content: memory.content,
+                strength: decayed.strength,
+                updated_at: now
+              }
+
+              {del_acc, [update_map | upd_acc]}
+            end
+          end)
+
+        if to_delete_ids != [] do
+          Repo.delete_all(from m in Memory, where: m.id in ^to_delete_ids)
         end
-      end
+
+        if to_update != [] do
+          # Use upsert to update strength efficiently in one query
+          Repo.insert_all(Memory, to_update,
+            on_conflict: {:replace, [:strength, :updated_at]},
+            conflict_target: [:id]
+          )
+        end
+      end)
     end)
+
+    :ok
   end
 
   # === Personality Generation ===

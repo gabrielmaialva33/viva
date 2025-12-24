@@ -15,10 +15,8 @@ defmodule Viva.AI.LLM.AsrClient do
   @behaviour Viva.AI.Pipeline.Stage
 
   require Logger
-
+  
   alias Viva.AI.LLM
-  alias Viva.AI.LLM.AsrClient, as: Client
-  alias Viva.Nim
 
   # === Types ===
 

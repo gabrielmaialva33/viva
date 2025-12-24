@@ -17,9 +17,7 @@ defmodule Viva.AI.LLM.TtsClient do
   require Logger
 
   alias Viva.AI.LLM
-  alias Viva.AI.LLM.TtsClient, as: Client
   alias Viva.Avatars.Avatar
-  alias Viva.Nim
 
   # === Types ===
 

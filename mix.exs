@@ -110,7 +110,10 @@ defmodule Viva.MixProject do
       {:ex_doc, "~> 0.34", only: [:dev, :test], runtime: false, override: true},
 
       # Test coverage
-      {:excoveralls, "~> 0.18", only: :test}
+      {:excoveralls, "~> 0.18", only: :test},
+
+      # Mocks for testing
+      {:mox, "~> 1.0"}
     ]
   end
 

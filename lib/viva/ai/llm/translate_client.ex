@@ -18,7 +18,6 @@ defmodule Viva.AI.LLM.TranslateClient do
 
   alias Viva.AI.LLM
   alias Viva.AI.LLM.TranslateClient, as: Client
-  alias Viva.Nim
 
   # === Types ===
 
@@ -119,7 +118,7 @@ defmodule Viva.AI.LLM.TranslateClient do
       {:ok, text}
     else
       # Use LLM for translation since NVIDIA NIM Translation API requires self-hosting
-      Client.translate_via_llm(text, from_lang, to_lang, opts)
+      translate_via_llm(text, from_lang, to_lang, opts)
     end
   end
 
@@ -197,7 +196,7 @@ defmodule Viva.AI.LLM.TranslateClient do
     # Group messages by language to batch translate
     grouped =
       Enum.group_by(messages, fn msg ->
-        msg.language || Client.detect_message_language(msg.content)
+        msg.language || detect_message_language(msg.content)
       end)
 
     results =

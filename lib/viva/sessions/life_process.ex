@@ -5,6 +5,7 @@ defmodule Viva.Sessions.LifeProcess do
   Manages needs decay, emotions, desires, and autonomous actions.
   """
   use GenServer
+  @behaviour Viva.Sessions.LifeProcessBehaviour
 
   require Logger
 
@@ -98,7 +99,7 @@ defmodule Viva.Sessions.LifeProcess do
     |> GenServer.cast(:end_interaction)
   end
 
-  @spec set_thought(avatar_id(), String.t()) :: :ok
+  @impl Viva.Sessions.LifeProcessBehaviour
   def set_thought(avatar_id, thought) do
     avatar_id
     |> via()

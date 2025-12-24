@@ -21,7 +21,6 @@ defmodule Viva.AI.LLM.SafetyClient do
   alias Viva.AI.LLM
   alias Viva.AI.LLM.SafetyClient, as: Client
   alias Viva.Avatars.Avatar
-  alias Viva.Nim
 
   # === Types ===
 
