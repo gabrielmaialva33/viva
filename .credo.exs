@@ -146,7 +146,13 @@
           {Credo.Check.Refactor.MapJoin, []},
           {Credo.Check.Refactor.MapMap, []},
           {Credo.Check.Refactor.MatchInCondition, []},
-          {Credo.Check.Refactor.ModuleDependencies, [priority: :low, max_deps: 25]},
+          # LifeProcess is an orchestrator that legitimately coordinates many systems
+          {Credo.Check.Refactor.ModuleDependencies,
+           [
+             priority: :low,
+             max_deps: 25,
+             files: %{excluded: [~r"life_process\.ex$"]}
+           ]},
           {Credo.Check.Refactor.NegatedConditionsInUnless, []},
           {Credo.Check.Refactor.NegatedConditionsWithElse, []},
           {Credo.Check.Refactor.NegatedIsNil, []},
