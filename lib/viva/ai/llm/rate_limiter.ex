@@ -44,7 +44,7 @@ defmodule Viva.AI.LLM.RateLimiter do
 
         elapsed_ms = now - last_refill
         refill_rate = config.requests_per_minute / 60_000
-        new_tokens = min(config.burst_size, tokens + elapsed_ms * refill_rate)
+        new_tokens = min(config.burst_size * 1.0, tokens + elapsed_ms * refill_rate)
 
         if new_tokens >= 1.0 do
           :ets.insert(@table, {:bucket, new_tokens - 1.0, now})
@@ -77,7 +77,7 @@ defmodule Viva.AI.LLM.RateLimiter do
         now = System.monotonic_time(:millisecond)
         elapsed_ms = now - last_refill
         refill_rate = config.requests_per_minute / 60_000
-        current_tokens = min(config.burst_size, tokens + elapsed_ms * refill_rate)
+        current_tokens = min(config.burst_size * 1.0, tokens + elapsed_ms * refill_rate)
 
         %{
           tokens_available: Float.round(current_tokens, 2),
