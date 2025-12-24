@@ -1,4 +1,4 @@
-defmodule Viva.Nim.TtsClient do
+defmodule Viva.AI.LLM.TtsClient do
   @moduledoc """
   Text-to-Speech client using NVIDIA Magpie TTS.
 
@@ -15,7 +15,6 @@ defmodule Viva.Nim.TtsClient do
   require Logger
 
   alias Viva.Avatars.Avatar
-  alias Viva.Nim
 
   # === Types ===
 
@@ -39,7 +38,7 @@ defmodule Viva.Nim.TtsClient do
   """
   @spec synthesize(String.t(), keyword()) :: {:ok, binary()} | {:error, term()}
   def synthesize(text, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:tts))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:tts))
     language = Keyword.get(opts, :language, "pt-BR")
     voice_id = Keyword.get(opts, :voice_id, default_voice(language))
 
@@ -53,7 +52,7 @@ defmodule Viva.Nim.TtsClient do
       response_format: Keyword.get(opts, :format, "wav")
     }
 
-    case Nim.request("/audio/speech", body) do
+    case Viva.AI.LLM.request("/audio/speech", body) do
       {:ok, audio_data} ->
         {:ok, audio_data}
 
@@ -70,7 +69,7 @@ defmodule Viva.Nim.TtsClient do
   @spec synthesize_stream(String.t(), (binary() -> any()), keyword()) ::
           {:ok, Req.Response.t()} | {:error, term()}
   def synthesize_stream(text, callback, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:tts))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:tts))
     language = Keyword.get(opts, :language, "pt-BR")
     voice_id = Keyword.get(opts, :voice_id, default_voice(language))
 
@@ -84,7 +83,7 @@ defmodule Viva.Nim.TtsClient do
       stream: true
     }
 
-    Nim.stream_request("/audio/speech", body, callback)
+    Viva.AI.LLM.stream_request("/audio/speech", body, callback)
   end
 
   @doc """
@@ -102,7 +101,7 @@ defmodule Viva.Nim.TtsClient do
       name: name
     }
 
-    case Nim.request("/audio/voice/clone", body) do
+    case Viva.AI.LLM.request("/audio/voice/clone", body) do
       {:ok, %{"voice_id" => voice_id}} ->
         {:ok, voice_id}
 

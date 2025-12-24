@@ -1,4 +1,4 @@
-defmodule Viva.Nim.AsrClient do
+defmodule Viva.AI.LLM.AsrClient do
   @moduledoc """
   Automatic Speech Recognition client using NVIDIA Parakeet.
 
@@ -14,7 +14,6 @@ defmodule Viva.Nim.AsrClient do
   """
   require Logger
 
-  alias Viva.Nim
 
   # === Types ===
 
@@ -46,7 +45,7 @@ defmodule Viva.Nim.AsrClient do
   """
   @spec transcribe(binary(), keyword()) :: {:ok, transcription_result()} | {:error, term()}
   def transcribe(audio_data, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:asr))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:asr))
     language = Keyword.get(opts, :language, "pt-BR")
 
     body = %{
@@ -58,7 +57,7 @@ defmodule Viva.Nim.AsrClient do
       diarization: Keyword.get(opts, :diarization, false)
     }
 
-    case Nim.request("/audio/transcriptions", body) do
+    case Viva.AI.LLM.request("/audio/transcriptions", body) do
       {:ok, %{"text" => text} = response} ->
         result = %{
           text: text,
@@ -82,7 +81,7 @@ defmodule Viva.Nim.AsrClient do
   """
   @spec transcribe_stream((term() -> any()), keyword()) :: {:ok, stream_state()}
   def transcribe_stream(callback, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:asr))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:asr))
     language = Keyword.get(opts, :language, "pt-BR")
 
     {:ok,
@@ -107,7 +106,7 @@ defmodule Viva.Nim.AsrClient do
       stream: true
     }
 
-    case Nim.request("/audio/transcriptions", body) do
+    case Viva.AI.LLM.request("/audio/transcriptions", body) do
       {:ok, %{"text" => text, "is_final" => is_final}} ->
         stream_state.callback.({:transcript, text, is_final})
         {:ok, %{stream_state | partial_text: text}}
@@ -138,12 +137,12 @@ defmodule Viva.Nim.AsrClient do
   @spec detect_language(binary()) :: {:ok, language_detection()} | {:error, term()}
   def detect_language(audio_data) do
     body = %{
-      model: Nim.model(:asr),
+      model: Viva.AI.LLM.model(:asr),
       audio: encode_audio(audio_data),
       task: "language_detection"
     }
 
-    case Nim.request("/audio/transcriptions", body) do
+    case Viva.AI.LLM.request("/audio/transcriptions", body) do
       {:ok, %{"language" => language, "confidence" => confidence}} ->
         {:ok, %{language: language, confidence: confidence}}
 

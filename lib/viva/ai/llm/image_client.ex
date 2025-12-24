@@ -1,4 +1,4 @@
-defmodule Viva.Nim.ImageClient do
+defmodule Viva.AI.LLM.ImageClient do
   @moduledoc """
   Image generation and editing client for avatar visuals.
 
@@ -16,7 +16,6 @@ defmodule Viva.Nim.ImageClient do
   require Logger
 
   alias Viva.Avatars.Avatar
-  alias Viva.Nim
 
   # === Types ===
 
@@ -53,7 +52,7 @@ defmodule Viva.Nim.ImageClient do
       aspect_ratio: "1:1"
     }
 
-    case Nim.image_request("stabilityai/stable-diffusion-3-medium", body, timeout: 120_000) do
+    case Viva.AI.LLM.image_request("stabilityai/stable-diffusion-3-medium", body, timeout: 120_000) do
       {:ok, %{"artifacts" => [%{"base64" => image_data} | _]}} ->
         {:ok, Base.decode64!(image_data)}
 
@@ -96,7 +95,7 @@ defmodule Viva.Nim.ImageClient do
       aspect_ratio: "1:1"
     }
 
-    case Nim.image_request("stabilityai/stable-diffusion-3-medium", body, timeout: 90_000) do
+    case Viva.AI.LLM.image_request("stabilityai/stable-diffusion-3-medium", body, timeout: 90_000) do
       {:ok, %{"artifacts" => [%{"base64" => image_data} | _]}} ->
         {:ok, Base.decode64!(image_data)}
 
@@ -123,7 +122,7 @@ defmodule Viva.Nim.ImageClient do
       steps: 25
     }
 
-    case Nim.image_request("black-forest-labs/flux-1-kontext-dev", body, timeout: 90_000) do
+    case Viva.AI.LLM.image_request("black-forest-labs/flux-1-kontext-dev", body, timeout: 90_000) do
       {:ok, %{"artifacts" => [%{"base64" => edited_data} | _]}} ->
         {:ok, Base.decode64!(edited_data)}
 

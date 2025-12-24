@@ -1,4 +1,4 @@
-defmodule Viva.Nim.SafetyClient do
+defmodule Viva.AI.LLM.SafetyClient do
   @moduledoc """
   Content safety and moderation client using NVIDIA NeMo Guardrails.
 
@@ -17,7 +17,6 @@ defmodule Viva.Nim.SafetyClient do
   require Logger
 
   alias Viva.Avatars.Avatar
-  alias Viva.Nim
 
   # === Types ===
 
@@ -50,7 +49,7 @@ defmodule Viva.Nim.SafetyClient do
   """
   @spec check_content(String.t(), keyword()) :: safety_result()
   def check_content(content, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:safety))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:safety))
 
     messages = [
       %{role: "system", content: safety_system_prompt()},
@@ -64,7 +63,7 @@ defmodule Viva.Nim.SafetyClient do
       temperature: 0.0
     }
 
-    case Nim.request("/chat/completions", body) do
+    case Viva.AI.LLM.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => %{"content" => response}} | _]}} ->
         parse_safety_response(response)
 
@@ -79,14 +78,14 @@ defmodule Viva.Nim.SafetyClient do
   """
   @spec detect_jailbreak(String.t(), keyword()) :: {:ok, jailbreak_result()} | {:error, term()}
   def detect_jailbreak(content, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:jailbreak_detect))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:jailbreak_detect))
 
     body = %{
       model: model,
       input: content
     }
 
-    case Nim.request("/classify", body) do
+    case Viva.AI.LLM.request("/classify", body) do
       {:ok, %{"is_jailbreak" => is_jailbreak, "confidence" => confidence}} ->
         {:ok, %{is_jailbreak: is_jailbreak, confidence: confidence}}
 
@@ -113,7 +112,7 @@ defmodule Viva.Nim.SafetyClient do
     {"on_topic": true/false, "detected_topics": ["topic1", "topic2"], "reason": "explanation"}
     """
 
-    case Viva.Nim.LlmClient.generate(
+    case Viva.AI.LLM.LlmClient.generate(
            prompt,
            Keyword.merge([max_tokens: 150, temperature: 0.0], opts)
          ) do
@@ -130,7 +129,7 @@ defmodule Viva.Nim.SafetyClient do
   """
   @spec check_multimodal(String.t(), binary(), keyword()) :: safety_result()
   def check_multimodal(text, image_data, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:safety_multimodal))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:safety_multimodal))
 
     messages = [
       %{
@@ -154,7 +153,7 @@ defmodule Viva.Nim.SafetyClient do
       temperature: 0.0
     }
 
-    case Nim.request("/chat/completions", body) do
+    case Viva.AI.LLM.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => %{"content" => response}} | _]}} ->
         parse_safety_response(response)
 

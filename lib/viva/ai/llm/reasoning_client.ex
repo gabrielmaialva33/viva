@@ -1,9 +1,9 @@
-defmodule Viva.Nim.ReasoningClient do
+defmodule Viva.AI.LLM.ReasoningClient do
   @moduledoc """
   Client for higher-order cognitive tasks: Reflection, Planning, and Insight Generation.
   Uses Chain-of-Thought prompting patterns via NIM.
   """
-  alias Viva.Nim.LlmClient
+  alias Viva.AI.LLM.LlmClient
 
   @doc """
   The 'Dreaming' process. Takes a list of raw memories and synthesizes high-level insights.

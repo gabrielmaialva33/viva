@@ -1,4 +1,4 @@
-defmodule Viva.Avatars.Biology do
+defmodule Viva.Avatars.Systems.Biology do
   @moduledoc """
   Governs the physiological rules of the avatar.
   Handles hormone decay, circadian rhythm, and homeostatic interactions.

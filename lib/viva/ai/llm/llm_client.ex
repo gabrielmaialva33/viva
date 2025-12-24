@@ -1,4 +1,4 @@
-defmodule Viva.Nim.LlmClient do
+defmodule Viva.AI.LLM.LlmClient do
   @moduledoc """
   HTTP client for NVIDIA NIM LLM services.
 
@@ -17,7 +17,6 @@ defmodule Viva.Nim.LlmClient do
 
   alias Viva.Avatars.Avatar
   alias Viva.Avatars.InternalState
-  alias Viva.Nim
 
   @type message :: %{role: String.t(), content: String.t()}
   @type tool_call :: map()
@@ -50,7 +49,7 @@ defmodule Viva.Nim.LlmClient do
   """
   @spec chat([message()], keyword()) :: chat_response()
   def chat(messages, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:llm))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:llm))
 
     messages =
       case Keyword.get(opts, :system) do
@@ -71,7 +70,7 @@ defmodule Viva.Nim.LlmClient do
         Keyword.get(opts, :tools)
       )
 
-    case Nim.request("/chat/completions", body) do
+    case Viva.AI.LLM.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => message} | _]}} ->
         parse_response(message)
 
@@ -92,7 +91,7 @@ defmodule Viva.Nim.LlmClient do
   @spec chat_stream([message()], (String.t() -> any()), keyword()) ::
           {:ok, Req.Response.t()} | {:error, term()}
   def chat_stream(messages, callback, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:llm))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:llm))
 
     messages =
       case Keyword.get(opts, :system) do
@@ -109,7 +108,7 @@ defmodule Viva.Nim.LlmClient do
       stream: true
     }
 
-    Nim.stream_request("/chat/completions", body, callback)
+    Viva.AI.LLM.stream_request("/chat/completions", body, callback)
   end
 
   @doc """

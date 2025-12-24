@@ -1,4 +1,4 @@
-defmodule Viva.Nim.TranslateClient do
+defmodule Viva.AI.LLM.TranslateClient do
   @moduledoc """
   Translation client for global avatar communication.
 
@@ -15,7 +15,6 @@ defmodule Viva.Nim.TranslateClient do
   require Logger
 
   alias Viva.Avatars.Avatar
-  alias Viva.Nim
 
   # === Types ===
 
@@ -127,7 +126,7 @@ defmodule Viva.Nim.TranslateClient do
   @spec translate_batch([String.t()], language_code(), language_code(), keyword()) ::
           {:ok, [String.t()]} | {:error, term()}
   def translate_batch(texts, from_lang, to_lang, opts \\ []) when is_list(texts) do
-    model = Keyword.get(opts, :model, Nim.model(:translate))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:translate))
 
     from_lang = normalize_lang(from_lang)
     to_lang = normalize_lang(to_lang)
@@ -142,7 +141,7 @@ defmodule Viva.Nim.TranslateClient do
         target_language: to_lang
       }
 
-      case Nim.request("/translate/batch", body) do
+      case Viva.AI.LLM.request("/translate/batch", body) do
         {:ok, %{"translations" => translations}} ->
           {:ok, Enum.map(translations, & &1["text"])}
 
@@ -158,12 +157,12 @@ defmodule Viva.Nim.TranslateClient do
   @spec detect_language(String.t()) :: {:ok, language_detection()} | {:error, term()}
   def detect_language(text) do
     body = %{
-      model: Nim.model(:translate),
+      model: Viva.AI.LLM.model(:translate),
       text: text,
       task: "detect"
     }
 
-    case Nim.request("/translate/detect", body) do
+    case Viva.AI.LLM.request("/translate/detect", body) do
       {:ok, %{"language" => lang, "confidence" => conf}} ->
         {:ok, %{language: lang, confidence: conf, name: @language_names[lang] || lang}}
 
@@ -296,7 +295,7 @@ defmodule Viva.Nim.TranslateClient do
     """
 
     body = %{
-      model: Nim.model(:llm),
+      model: Viva.AI.LLM.model(:llm),
       messages: [
         %{role: "user", content: prompt}
       ],
@@ -304,7 +303,7 @@ defmodule Viva.Nim.TranslateClient do
       temperature: 0.3
     }
 
-    case Nim.request("/chat/completions", body) do
+    case Viva.AI.LLM.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => %{"content" => translation}} | _]}} ->
         {:ok, String.trim(translation)}
 

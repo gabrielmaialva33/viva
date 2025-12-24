@@ -1,4 +1,4 @@
-defmodule Viva.Avatars.Neurochemistry do
+defmodule Viva.Avatars.Systems.Neurochemistry do
   @moduledoc """
   Manages the neurochemical reactions to events, interactions, and stimuli.
   Instead of simple "+10 social", we simulate hormonal bursts.

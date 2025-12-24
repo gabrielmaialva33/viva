@@ -28,8 +28,8 @@ defmodule Viva.Application do
       {Phoenix.PubSub, name: Viva.PubSub},
 
       # NIM API resilience (circuit breaker + rate limiter)
-      Viva.Nim.CircuitBreaker,
-      Viva.Nim.RateLimiter,
+      Viva.AI.LLM.CircuitBreaker,
+      Viva.AI.LLM.RateLimiter,
 
       # Infrastructure (Redis & RabbitMQ Pipeline)
       # Redis Wrapper (manual spec since it's a simple wrapper around Redix)
@@ -38,7 +38,7 @@ defmodule Viva.Application do
         start: {Viva.Infrastructure.Redis, :start_link, []}
       },
       # Brain Pipeline (Broadway)
-      Viva.Brain.Pipeline,
+      Viva.AI.Pipeline,
 
       # Avatar Sessions Supervisor (includes Registry, DynamicSupervisor, World Clock)
       Viva.Sessions.Supervisor,

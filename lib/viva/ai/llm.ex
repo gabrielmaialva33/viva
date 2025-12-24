@@ -1,4 +1,4 @@
-defmodule Viva.Nim do
+defmodule Viva.AI.LLM do
   @moduledoc """
   NVIDIA NIM API integration with resilience patterns.
   Central configuration and utilities for all NIM services.
@@ -34,8 +34,8 @@ defmodule Viva.Nim do
   """
   require Logger
 
-  alias Viva.Nim.CircuitBreaker
-  alias Viva.Nim.RateLimiter
+  alias Viva.AI.LLM.CircuitBreaker
+  alias Viva.AI.LLM.RateLimiter
 
   @default_max_retries 3
   @default_retry_base_delay_ms 1_000

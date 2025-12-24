@@ -1,4 +1,4 @@
-defmodule Viva.Nim.Avatar3DClient do
+defmodule Viva.AI.LLM.Avatar3DClient do
   @moduledoc """
   3D Avatar generation and animation client.
 
@@ -16,7 +16,6 @@ defmodule Viva.Nim.Avatar3DClient do
   require Logger
 
   alias Viva.Avatars.Avatar
-  alias Viva.Nim
 
   # === Types ===
 
@@ -45,7 +44,7 @@ defmodule Viva.Nim.Avatar3DClient do
   """
   @spec generate_from_text(String.t(), keyword()) :: model_result()
   def generate_from_text(description, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:avatar_3d))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:avatar_3d))
     format = Keyword.get(opts, :format, "glb")
     quality = Keyword.get(opts, :quality, "high")
 
@@ -57,7 +56,7 @@ defmodule Viva.Nim.Avatar3DClient do
       num_inference_steps: quality_steps(quality)
     }
 
-    case Nim.request("/3d/generate", body, timeout: 180_000) do
+    case Viva.AI.LLM.request("/3d/generate", body, timeout: 180_000) do
       {:ok, %{"model_data" => model_data}} ->
         {:ok, Base.decode64!(model_data)}
 
@@ -75,7 +74,7 @@ defmodule Viva.Nim.Avatar3DClient do
   """
   @spec generate_from_image(binary(), keyword()) :: model_result()
   def generate_from_image(image_data, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:avatar_3d))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:avatar_3d))
     format = Keyword.get(opts, :format, "glb")
 
     body = %{
@@ -85,7 +84,7 @@ defmodule Viva.Nim.Avatar3DClient do
       quality: Keyword.get(opts, :quality, "high")
     }
 
-    case Nim.request("/3d/image-to-3d", body, timeout: 180_000) do
+    case Viva.AI.LLM.request("/3d/image-to-3d", body, timeout: 180_000) do
       {:ok, %{"model_data" => model_data}} ->
         {:ok, Base.decode64!(model_data)}
 
@@ -118,7 +117,7 @@ defmodule Viva.Nim.Avatar3DClient do
   """
   @spec audio_to_face(binary(), keyword()) :: {:ok, animation_data()} | {:error, term()}
   def audio_to_face(audio_data, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:audio2face))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:audio2face))
     fps = Keyword.get(opts, :fps, 30)
     emotion = Keyword.get(opts, :emotion, "neutral")
 
@@ -129,7 +128,7 @@ defmodule Viva.Nim.Avatar3DClient do
       emotion_overlay: emotion
     }
 
-    case Nim.request("/audio/face", body, timeout: 60_000) do
+    case Viva.AI.LLM.request("/audio/face", body, timeout: 60_000) do
       {:ok, %{"blendshapes" => blendshapes, "timestamps" => timestamps}} ->
         {:ok,
          %{
@@ -151,7 +150,7 @@ defmodule Viva.Nim.Avatar3DClient do
   """
   @spec audio_to_face_stream((term() -> any()), keyword()) :: {:ok, stream_state()}
   def audio_to_face_stream(callback, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:audio2face))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:audio2face))
     fps = Keyword.get(opts, :fps, 30)
 
     {:ok,
@@ -175,7 +174,7 @@ defmodule Viva.Nim.Avatar3DClient do
       stream: true
     }
 
-    case Nim.request("/audio/face", body) do
+    case Viva.AI.LLM.request("/audio/face", body) do
       {:ok, %{"blendshapes" => shapes, "is_final" => is_final}} ->
         stream_state.callback.({:blendshapes, shapes, is_final})
         {:ok, stream_state}

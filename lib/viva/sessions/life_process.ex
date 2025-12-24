@@ -10,11 +10,11 @@ defmodule Viva.Sessions.LifeProcess do
 
   alias Phoenix.PubSub
   alias Viva.Avatars.Avatar
-  alias Viva.Avatars.Biology
+  alias Viva.Avatars.Systems.Biology
   alias Viva.Avatars.InternalState
-  alias Viva.Avatars.Neurochemistry
-  alias Viva.Avatars.Psychology
-  alias Viva.Nim.LlmClient
+  alias Viva.Avatars.Systems.Neurochemistry
+  alias Viva.Avatars.Systems.Psychology
+  alias Viva.AI.LLM.LlmClient
   alias Viva.Relationships
 
   # === Struct ===

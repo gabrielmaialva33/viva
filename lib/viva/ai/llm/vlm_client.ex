@@ -1,4 +1,4 @@
-defmodule Viva.Nim.VlmClient do
+defmodule Viva.AI.LLM.VlmClient do
   @moduledoc """
   Vision-Language Model client using NVIDIA Cosmos Nemotron.
 
@@ -16,7 +16,6 @@ defmodule Viva.Nim.VlmClient do
   require Logger
 
   alias Viva.Avatars.Avatar
-  alias Viva.Nim
 
   # === Types ===
 
@@ -35,7 +34,7 @@ defmodule Viva.Nim.VlmClient do
   """
   @spec analyze_image(image_input(), String.t(), keyword()) :: analysis_result()
   def analyze_image(image_data, prompt, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:vlm))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:vlm))
 
     messages = [
       %{
@@ -60,7 +59,7 @@ defmodule Viva.Nim.VlmClient do
       temperature: Keyword.get(opts, :temperature, 0.7)
     }
 
-    case Nim.request("/chat/completions", body) do
+    case Viva.AI.LLM.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} ->
         {:ok, content}
 
@@ -75,7 +74,7 @@ defmodule Viva.Nim.VlmClient do
   """
   @spec analyze_images(images_and_prompts(), keyword()) :: analysis_result()
   def analyze_images(images_and_prompts, opts \\ []) do
-    model = Keyword.get(opts, :model, Nim.model(:vlm))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:vlm))
 
     content =
       Enum.flat_map(images_and_prompts, fn
@@ -103,7 +102,7 @@ defmodule Viva.Nim.VlmClient do
       temperature: Keyword.get(opts, :temperature, 0.7)
     }
 
-    case Nim.request("/chat/completions", body) do
+    case Viva.AI.LLM.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} ->
         {:ok, content}
 

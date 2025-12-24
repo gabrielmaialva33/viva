@@ -19,8 +19,8 @@ defmodule Viva.Avatars.Visuals do
   require Logger
 
   alias Viva.Avatars.Avatar
-  alias Viva.Nim.Avatar3DClient
-  alias Viva.Nim.ImageClient
+  alias Viva.AI.LLM.Avatar3DClient
+  alias Viva.AI.LLM.ImageClient
   alias Viva.Repo
 
   # === Types ===

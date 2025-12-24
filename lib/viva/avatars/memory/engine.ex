@@ -7,7 +7,7 @@ defmodule Viva.Avatars.Memory.Engine do
   import Ecto.Query
   import Pgvector.Ecto.Query
   alias Viva.Avatars.Memory
-  alias Viva.Nim.EmbeddingClient
+  alias Viva.AI.LLM.EmbeddingClient
   alias Viva.Repo
 
   # Weights for the Retrieval Function (Tuned for balanced recall)

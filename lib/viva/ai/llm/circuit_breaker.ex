@@ -1,4 +1,4 @@
-defmodule Viva.Nim.CircuitBreaker do
+defmodule Viva.AI.LLM.CircuitBreaker do
   @moduledoc """
   Circuit breaker for NIM API calls.
 

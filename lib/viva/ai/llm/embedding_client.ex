@@ -1,4 +1,4 @@
-defmodule Viva.Nim.EmbeddingClient do
+defmodule Viva.AI.LLM.EmbeddingClient do
   @moduledoc """
   Embedding client using NVIDIA NV-EmbedQA.
 
@@ -14,7 +14,6 @@ defmodule Viva.Nim.EmbeddingClient do
   """
   require Logger
 
-  alias Viva.Nim
 
   # === Types ===
 
@@ -45,7 +44,7 @@ defmodule Viva.Nim.EmbeddingClient do
   """
   @spec embed_batch([String.t()], keyword()) :: {:ok, [embedding()]} | {:error, term()}
   def embed_batch(texts, opts \\ []) when is_list(texts) do
-    model = Keyword.get(opts, :model, Nim.model(:embedding))
+    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:embedding))
     input_type = Keyword.get(opts, :input_type, "query")
 
     body = %{
@@ -55,7 +54,7 @@ defmodule Viva.Nim.EmbeddingClient do
       truncate: Keyword.get(opts, :truncate, "END")
     }
 
-    case Nim.request("/embeddings", body) do
+    case Viva.AI.LLM.request("/embeddings", body) do
       {:ok, %{"data" => data}} ->
         embeddings = Enum.map(data, fn %{"embedding" => emb} -> emb end)
         {:ok, embeddings}

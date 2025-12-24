@@ -1,4 +1,4 @@
-defmodule Viva.Brain.Pipeline do
+defmodule Viva.AI.Pipeline do
   @moduledoc """
   Broadway pipeline that processes heavy cognitive tasks (LLM generation)
   asynchronously using RabbitMQ.
@@ -10,7 +10,7 @@ defmodule Viva.Brain.Pipeline do
 
   require Logger
 
-  alias Viva.Nim.LlmClient
+  alias Viva.AI.LLM.LlmClient
   alias Viva.Sessions.LifeProcess
 
   def start_link(_opts) do

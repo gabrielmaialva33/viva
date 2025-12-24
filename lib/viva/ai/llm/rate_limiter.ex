@@ -1,4 +1,4 @@
-defmodule Viva.Nim.RateLimiter do
+defmodule Viva.AI.LLM.RateLimiter do
   @moduledoc """
   Token bucket rate limiter for NIM API calls.
 

@@ -1,4 +1,4 @@
-defmodule Viva.Avatars.Psychology do
+defmodule Viva.Avatars.Systems.Psychology do
   @moduledoc """
   Translates biological state into psychological/emotional state using the PAD model.
   PAD: Pleasure, Arousal, Dominance.
