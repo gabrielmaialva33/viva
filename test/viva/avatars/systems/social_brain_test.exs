@@ -6,7 +6,7 @@ defmodule Viva.Avatars.Systems.SocialBrainTest do
   alias Viva.Avatars.SocialPersona
   alias Viva.Avatars.Systems.SocialBrain
 
-  defp build_avatar(opts \\ []) do
+  defp build_avatar(opts) do
     personality = %Personality{
       openness: Keyword.get(opts, :openness, 0.5),
       conscientiousness: Keyword.get(opts, :conscientiousness, 0.5),

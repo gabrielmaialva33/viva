@@ -5,7 +5,7 @@ defmodule Viva.AI.LLM.TtsClientTest do
   alias Viva.Avatars.Avatar
   alias Viva.Avatars.Personality
 
-  defp build_personality(opts \\ []) do
+  defp build_personality(opts) do
     %Personality{
       openness: Keyword.get(opts, :openness, 0.5),
       conscientiousness: Keyword.get(opts, :conscientiousness, 0.5),
@@ -19,7 +19,7 @@ defmodule Viva.AI.LLM.TtsClientTest do
     }
   end
 
-  defp build_avatar(opts \\ []) do
+  defp build_avatar(opts) do
     %Avatar{
       id: Ecto.UUID.generate(),
       name: Keyword.get(opts, :name, "Test Avatar"),
@@ -31,7 +31,7 @@ defmodule Viva.AI.LLM.TtsClientTest do
 
   describe "voice_for_avatar/1" do
     test "returns voice settings map with required keys" do
-      avatar = build_avatar()
+      avatar = build_avatar([])
       settings = TtsClient.voice_for_avatar(avatar)
 
       assert is_map(settings)

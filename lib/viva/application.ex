@@ -50,7 +50,9 @@ defmodule Viva.Application do
     result = Supervisor.start_link(children, opts)
 
     # Start all active avatars after supervision tree is up
-    start_active_avatars()
+    if Application.get_env(:viva, :start_active_avatars, true) do
+      start_active_avatars()
+    end
 
     result
   end

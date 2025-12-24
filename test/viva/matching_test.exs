@@ -3,7 +3,6 @@ defmodule Viva.MatchingTest do
 
   alias Viva.Accounts.User
   alias Viva.Avatars.Avatar
-  alias Viva.Avatars.Personality
   alias Viva.Matching
   alias Viva.Relationships
 

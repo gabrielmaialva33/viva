@@ -32,3 +32,6 @@ config :phoenix_live_view,
 
 # Disable Oban queues and plugins in test to avoid DB connection errors
 config :viva, Oban, queues: false, plugins: false
+
+# Disable starting active avatars automatically in tests
+config :viva, start_active_avatars: false
