@@ -1,4 +1,7 @@
 defmodule Viva.TestMocks do
+  @moduledoc """
+  Defines Mox mocks for testing.
+  """
   import Mox
 
   # Define mocks here

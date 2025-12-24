@@ -150,34 +150,13 @@ defmodule Viva.Avatars do
       |> Stream.chunk_every(500)
       |> Enum.each(fn batch ->
         {to_delete_ids, to_update} =
-          Enum.reduce(batch, {[], []}, fn data, {del_acc, upd_acc} ->
-            # Reconstruct a lightweight struct for the logic function
-            memory = struct(Memory, data)
-            hours_passed = DateTime.diff(now, memory.inserted_at, :hour)
-            decayed = Memory.decay_strength(memory, hours_passed)
+          Enum.reduce(batch, {[], []}, &classify_memory(&1, &2, now))
 
-            if decayed.strength < 0.1 do
-              {[memory.id | del_acc], upd_acc}
-            else
-              # Prepare map for insert_all
-              update_map = %{
-                id: memory.id,
-                avatar_id: memory.avatar_id,
-                content: memory.content,
-                strength: decayed.strength,
-                updated_at: now
-              }
-
-              {del_acc, [update_map | upd_acc]}
-            end
-          end)
-
-        if to_delete_ids != [] do
+        unless to_delete_ids == [] do
           Repo.delete_all(from m in Memory, where: m.id in ^to_delete_ids)
         end
 
-        if to_update != [] do
-          # Use upsert to update strength efficiently in one query
+        unless to_update == [] do
           Repo.insert_all(Memory, to_update,
             on_conflict: {:replace, [:strength, :updated_at]},
             conflict_target: [:id]
@@ -267,4 +246,24 @@ defmodule Viva.Avatars do
 
   defp maybe_filter_memory_type(query, nil), do: query
   defp maybe_filter_memory_type(query, type), do: Memory.of_type(query, type)
+
+  defp classify_memory(data, {del_acc, upd_acc}, now) do
+    memory = struct(Memory, data)
+    hours_passed = DateTime.diff(now, memory.inserted_at, :hour)
+    decayed = Memory.decay_strength(memory, hours_passed)
+
+    if decayed.strength < 0.1 do
+      {[memory.id | del_acc], upd_acc}
+    else
+      update_map = %{
+        id: memory.id,
+        avatar_id: memory.avatar_id,
+        content: memory.content,
+        strength: decayed.strength,
+        updated_at: now
+      }
+
+      {del_acc, [update_map | upd_acc]}
+    end
+  end
 end

@@ -4,8 +4,9 @@ defmodule Viva.Sessions.LifeProcess do
   Runs 24/7, even when the owner is offline.
   Manages needs decay, emotions, desires, and autonomous actions.
   """
-  use GenServer
   @behaviour Viva.Sessions.LifeProcessBehaviour
+
+  use GenServer
 
   require Logger
 
