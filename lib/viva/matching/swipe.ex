@@ -17,6 +17,7 @@ defmodule Viva.Matching.Swipe do
     timestamps(type: :utc_datetime)
   end
 
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(swipe, attrs) do
     swipe
     |> cast(attrs, [:actor_avatar_id, :target_avatar_id, :action, :metadata])

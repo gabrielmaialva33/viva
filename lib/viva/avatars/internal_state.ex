@@ -38,6 +38,9 @@ defmodule Viva.Avatars.InternalState do
     field :updated_at, :utc_datetime
   end
 
+  @type t :: %__MODULE__{}
+
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(state, attrs) do
     state
     |> cast(attrs, [
@@ -54,6 +57,7 @@ defmodule Viva.Avatars.InternalState do
   @doc """
   Returns a label for the current dominant emotion.
   """
+  @spec dominant_emotion(t()) :: String.t()
   def dominant_emotion(%__MODULE__{emotional: emotional}) do
     emotional.mood_label
   end
@@ -62,6 +66,7 @@ defmodule Viva.Avatars.InternalState do
   Calculates overall wellbeing (0.0 to 1.0).
   A mix of high Pleasure, low Cortisol, and low Adenosine.
   """
+  @spec wellbeing(t()) :: float()
   def wellbeing(%__MODULE__{bio: bio, emotional: emotional}) do
     # Pleasure is -1 to 1, we normalize to 0 to 1
     pleasure_score = (emotional.pleasure + 1.0) / 2.0
@@ -75,6 +80,7 @@ defmodule Viva.Avatars.InternalState do
     |> min(1.0)
   end
 
+  @spec new() :: t()
   def new do
     %__MODULE__{
       bio: %BioState{},

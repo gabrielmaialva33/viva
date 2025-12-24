@@ -5,7 +5,6 @@ defmodule Viva.Avatars.Biology do
   """
 
   alias Viva.Avatars.BioState
-  alias Viva.Avatars.Personality
 
   # Decay rates per minute (simulated)
   @decay_dopamine 0.05
@@ -18,6 +17,7 @@ defmodule Viva.Avatars.Biology do
   @doc """
   Advances the biological state by one tick (minute).
   """
+  @spec tick(BioState.t(), Viva.Avatars.Personality.t()) :: BioState.t()
   def tick(%BioState{} = bio, personality) do
     bio
     |> decay_hormones(personality)

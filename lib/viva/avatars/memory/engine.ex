@@ -23,9 +23,10 @@ defmodule Viva.Avatars.Memory.Engine do
   Retrieves the most relevant memories for a given context query.
   Does NOT just rely on Vector Search; it re-ranks based on biological recency.
   """
+  @spec retrieve_relevant(Ecto.UUID.t(), String.t(), integer()) :: [map()]
   def retrieve_relevant(avatar_id, query_text, limit \\ 5) do
     # 1. Get Query Embedding
-    {:ok, query_vector} = EmbeddingClient.generate(query_text)
+    {:ok, query_vector} = EmbeddingClient.embed(query_text)
 
     # 2. Vector Search via Qdrant (Simulated via Postgres/pgvector for now or direct Qdrant call)
     # Ideally, we fetch top 50 candidates by semantic similarity first
@@ -43,18 +44,10 @@ defmodule Viva.Avatars.Memory.Engine do
     |> Enum.take(limit)
   end
 
-  defp search_vectors(avatar_id, vector, limit) do
-    # Using pgvector for simplicity within the monolith structure
-    Memory
-    |> where([m], m.avatar_id == ^avatar_id)
-    |> order_by([m], l2_distance(m.embedding, ^vector))
-    |> limit(^limit)
-    |> Repo.all()
-  end
-
   @doc """
   The Master Formula: Score = (Recency * w) + (Importance * w) + (Relevance * w)
   """
+  @spec calculate_score(map(), list(), DateTime.t()) :: float()
   def calculate_score(memory, _, current_time) do
     # 1. Recency: Exponential decay based on hours passed
     hours_passed = DateTime.diff(current_time, memory.inserted_at, :hour)
@@ -72,5 +65,14 @@ defmodule Viva.Avatars.Memory.Engine do
     @weight_recency * recency_score +
       @weight_importance * importance_score +
       @weight_relevance * relevance_score
+  end
+
+  defp search_vectors(avatar_id, vector, limit) do
+    # Using pgvector for simplicity within the monolith structure
+    Memory
+    |> where([m], m.avatar_id == ^avatar_id)
+    |> order_by([m], l2_distance(m.embedding, ^vector))
+    |> limit(^limit)
+    |> Repo.all()
   end
 end

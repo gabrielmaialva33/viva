@@ -11,6 +11,7 @@ defmodule Viva.Avatars.Psychology do
   @doc """
   Calculates the new emotional state based on biology and personality.
   """
+  @spec calculate_emotional_state(BioState.t(), Personality.t()) :: EmotionalState.t()
   def calculate_emotional_state(%BioState{} = bio, %Personality{} = personality) do
     # 1. Calculate raw PAD vectors from Hormones
     pleasure = bio.dopamine + bio.oxytocin - bio.cortisol

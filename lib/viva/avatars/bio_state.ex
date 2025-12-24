@@ -25,6 +25,9 @@ defmodule Viva.Avatars.BioState do
     field :wake_start_hour, :integer, default: 7
   end
 
+  @type t :: %__MODULE__{}
+
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(state, attrs) do
     state
     |> cast(attrs, [

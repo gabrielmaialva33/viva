@@ -1,8 +1,6 @@
 # Script to verify VIVA system functionalities
 alias Viva.Avatars
 alias Viva.Relationships
-alias Viva.Sessions
-alias Viva.Repo
 
 # Ensure the app is started (mix run starts it, but just in case)
 # Viva.Application.start(nil, nil) # Already started by mix run

@@ -1,20 +1,19 @@
 defmodule Viva.MatchingTest do
   use Viva.DataCase, async: true
 
-  alias Viva.Matching
-  alias Viva.Relationships
+  alias Viva.Accounts.User
   alias Viva.Avatars.Avatar
   alias Viva.Avatars.Personality
-  alias Viva.Accounts.User
+  alias Viva.Matching
+  alias Viva.Relationships
 
   setup do
     user =
-      %User{
+      Repo.insert!(%User{
         email: "user#{System.unique_integer()}@example.com",
         username: "user#{System.unique_integer()}",
         hashed_password: "password"
-      }
-      |> Repo.insert!()
+      })
 
     avatar_a = insert_avatar(user, "Avatar A")
     avatar_b = insert_avatar(user, "Avatar B")

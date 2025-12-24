@@ -5,14 +5,17 @@ defmodule Viva.Matching do
   """
   import Ecto.Query
   alias Ecto.Multi
+  alias Viva.Avatars.Avatar
   alias Viva.Matching.Swipe
   alias Viva.Relationships
   alias Viva.Repo
+  alias Viva.Sessions.LifeProcess
 
   @doc """
   Registers a swipe action and checks for a match.
   Returns {:ok, %{swipe: swipe, match: relationship | nil}}
   """
+  @spec swipe(Ecto.UUID.t(), Ecto.UUID.t(), atom()) :: {:ok, map()} | {:error, Ecto.Changeset.t()}
   def swipe(actor_id, target_id, action) do
     Multi.new()
     |> Multi.insert(
@@ -46,6 +49,7 @@ defmodule Viva.Matching do
   Gets candidate avatars for the discovery feed.
   Prioritizes avatars the user hasn't swiped on yet.
   """
+  @spec get_candidates(Ecto.UUID.t(), integer()) :: [Avatar.t()]
   def get_candidates(avatar_id, limit \\ 10) do
     # Subquery to get IDs of avatars already swiped on
     swiped_ids =
@@ -55,7 +59,7 @@ defmodule Viva.Matching do
       )
 
     # Fetch active avatars not including self and already swiped
-    Viva.Avatars.Avatar
+    Avatar
     |> where([a], a.id != ^avatar_id)
     |> where([a], a.id not in subquery(swiped_ids))
     |> limit(^limit)
@@ -93,12 +97,12 @@ defmodule Viva.Matching do
     end
   end
 
-  defp handle_transaction_result({:ok, %{swipe: _swipe, match: match}}) do
+  defp handle_transaction_result({:ok, %{swipe: swipe, match: match}}) do
     if match do
       notify_match(match)
     end
 
-    {:ok, %{swipe: _swipe, match: match}}
+    {:ok, %{swipe: swipe, match: match}}
   end
 
   defp handle_transaction_result({:error, _, changeset, _}) do
@@ -120,7 +124,7 @@ defmodule Viva.Matching do
     )
 
     # Notify LifeProcesses to update emotions (Dopamine hit!)
-    Viva.Sessions.LifeProcess.trigger_thought(relationship.avatar_a_id)
-    Viva.Sessions.LifeProcess.trigger_thought(relationship.avatar_b_id)
+    LifeProcess.trigger_thought(relationship.avatar_a_id)
+    LifeProcess.trigger_thought(relationship.avatar_b_id)
   end
 end

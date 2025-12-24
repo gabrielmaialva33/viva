@@ -20,6 +20,9 @@ defmodule Viva.Avatars.EmotionalState do
     field :mood_label, :string, default: "neutral"
   end
 
+  @type t :: %__MODULE__{}
+
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(state, attrs) do
     state
     |> cast(attrs, [:pleasure, :arousal, :dominance, :mood_label])

@@ -39,7 +39,6 @@ defmodule Viva.Sessions.LifeProcess do
   # 1 minute per tick
   @tick_interval :timer.seconds(60)
   # 1 real minute = 10 simulated minutes
-  @time_scale 10
 
   # Persist every 5 ticks (5 minutes with 60s tick interval)
   @persist_every_n_ticks 5
@@ -247,12 +246,12 @@ defmodule Viva.Sessions.LifeProcess do
     end
   end
 
-  defp sleep_time?(_bio) do
+  defp sleep_time?(_) do
     # Simple check against configured sleep hour (mocked for now)
     false
   end
 
-  defp trigger_dream_cycle(process_state) do
+  defp trigger_dream_cycle(_) do
     # Async task to process memories without blocking the heartbeat
     Task.Supervisor.start_child(Viva.Sessions.TaskSupervisor, fn ->
       # 1. Fetch recent memories

@@ -8,6 +8,7 @@ defmodule Viva.Nim.ReasoningClient do
   @doc """
   The 'Dreaming' process. Takes a list of raw memories and synthesizes high-level insights.
   """
+  @spec reflect_on_memories(String.t(), [map()]) :: {:ok, map()} | {:error, any()}
   def reflect_on_memories(avatar_name, recent_memories) do
     memory_text = Enum.map_join(recent_memories, "\n", &("- " <> &1.content))
 

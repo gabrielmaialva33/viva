@@ -86,6 +86,9 @@ defmodule Viva.MixProject do
       # Qdrant vector database client
       {:qdrant, "~> 0.0.8"},
 
+      # Environment variables from .env file
+      {:dotenvy, "~> 0.8"},
+
       # =========================================================================
       # Development & Code Quality Tools
       # =========================================================================
