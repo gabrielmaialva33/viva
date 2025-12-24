@@ -96,7 +96,7 @@ defmodule Viva.Accounts do
   @spec mark_user_seen(User.t()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def mark_user_seen(%User{} = user) do
     user
-    |> Ecto.Changeset.change(last_seen_at: DateTime.utc_now())
+    |> Ecto.Changeset.change(last_seen_at: DateTime.utc_now(:second))
     |> Repo.update()
   end
 

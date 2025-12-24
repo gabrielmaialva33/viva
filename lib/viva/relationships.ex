@@ -49,28 +49,21 @@ defmodule Viva.Relationships do
     # Ensure consistent ordering (lower ID is always avatar_a)
     {a_id, b_id} = order_avatar_ids(avatar_a_id, avatar_b_id)
 
-    insert_result =
-      %Relationship{}
-      |> Relationship.changeset(%{
-        avatar_a_id: a_id,
-        avatar_b_id: b_id,
-        status: :strangers,
-        first_interaction_at: DateTime.utc_now(),
-        last_interaction_at: DateTime.utc_now()
-      })
-      |> Repo.insert(
-        on_conflict: :nothing,
-        conflict_target: [:avatar_a_id, :avatar_b_id],
-        returning: true
-      )
+    # Check if relationship already exists
+    case get_relationship_between(a_id, b_id) do
+      %Relationship{} = existing ->
+        {:ok, existing}
 
-    case insert_result do
-      {:ok, %{id: nil}} ->
-        # Conflict happened, fetch the existing one
-        {:ok, get_relationship_between(a_id, b_id)}
-
-      result ->
-        result
+      nil ->
+        %Relationship{}
+        |> Relationship.changeset(%{
+          avatar_a_id: a_id,
+          avatar_b_id: b_id,
+          status: :strangers,
+          first_interaction_at: DateTime.utc_now(),
+          last_interaction_at: DateTime.utc_now()
+        })
+        |> Repo.insert()
     end
   end
 
@@ -98,12 +91,11 @@ defmodule Viva.Relationships do
 
   @spec record_interaction(avatar_id(), avatar_id(), interaction_type()) ::
           {:ok, Relationship.t()} | {:error, term()}
-  def record_interaction(avatar_a_id, avatar_b_id, interaction_type) do
+  def record_interaction(avatar_a_id, avatar_b_id, _) do
     with {:ok, rel} <- get_or_create_relationship(avatar_a_id, avatar_b_id) do
       update_relationship(rel, %{
         interaction_count: rel.interaction_count + 1,
-        last_interaction_at: DateTime.utc_now(),
-        last_interaction_type: interaction_type
+        last_interaction_at: DateTime.utc_now()
       })
     end
   end
@@ -113,7 +105,7 @@ defmodule Viva.Relationships do
   def update_feelings(rel, avatar_id, feelings) do
     {a_id, _} = order_avatar_ids(rel.avatar_a_id, rel.avatar_b_id)
 
-    field = if avatar_id == a_id, do: :feelings_a_to_b, else: :feelings_b_to_a
+    field = if avatar_id == a_id, do: :a_feelings, else: :b_feelings
 
     update_relationship(rel, %{field => feelings})
   end
@@ -171,25 +163,35 @@ defmodule Viva.Relationships do
     with {:ok, rel} <- get_or_create_relationship(avatar_a_id, avatar_b_id) do
       {a_id, _} = order_avatar_ids(rel.avatar_a_id, rel.avatar_b_id)
 
-      # Check if both avatars are interested
-      a_interested = get_in(rel.feelings_a_to_b, [:romantic_interest]) || false
-      b_interested = get_in(rel.feelings_b_to_a, [:romantic_interest]) || false
+      # Check if both avatars are interested (romantic_interest > 0.5 means interested)
+      a_interest = get_romantic_interest(rel.a_feelings)
+      b_interest = get_romantic_interest(rel.b_feelings)
 
-      if a_interested && b_interested do
+      if a_interest > 0.5 && b_interest > 0.5 do
         update_relationship(rel, %{
           status: :matched,
           matched_at: DateTime.utc_now()
         })
       else
         # Update interest for the requesting avatar
-        field = if avatar_a_id == a_id, do: :feelings_a_to_b, else: :feelings_b_to_a
+        field = if avatar_a_id == a_id, do: :a_feelings, else: :b_feelings
 
         current_feelings =
-          if avatar_a_id == a_id, do: rel.feelings_a_to_b, else: rel.feelings_b_to_a
+          if avatar_a_id == a_id, do: rel.a_feelings, else: rel.b_feelings
 
-        update_relationship(rel, %{
-          field => Map.put(current_feelings, :romantic_interest, true)
-        })
+        # Convert struct to map and update, or use empty map if nil
+        feelings_map =
+          case current_feelings do
+            %{__struct__: _} = s ->
+              s
+              |> Map.from_struct()
+              |> Map.put(:romantic_interest, 1.0)
+
+            _ ->
+              %{romantic_interest: 1.0}
+          end
+
+        update_relationship(rel, %{field => feelings_map})
       end
     end
   end
@@ -305,6 +307,12 @@ defmodule Viva.Relationships do
   defp order_avatar_ids(id_a, id_b) do
     if id_a < id_b, do: {id_a, id_b}, else: {id_b, id_a}
   end
+
+  defp get_romantic_interest(nil), do: 0.0
+
+  defp get_romantic_interest(%{romantic_interest: ri}) when is_number(ri), do: ri
+
+  defp get_romantic_interest(_), do: 0.0
 
   defp maybe_filter_status(query, nil), do: query
   defp maybe_filter_status(query, status), do: where(query, [r], r.status == ^status)

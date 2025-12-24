@@ -67,6 +67,9 @@ defmodule Viva.Relationships.Relationship do
     field :unresolved_conflicts, :integer, default: 0
     field :last_conflict_at, :utc_datetime
 
+    # Matching
+    field :matched_at, :utc_datetime
+
     timestamps(type: :utc_datetime)
   end
 
@@ -90,7 +93,8 @@ defmodule Viva.Relationships.Relationship do
       :total_conversation_minutes,
       :milestones,
       :unresolved_conflicts,
-      :last_conflict_at
+      :last_conflict_at,
+      :matched_at
     ])
     |> cast_embed(:a_feelings)
     |> cast_embed(:b_feelings)
