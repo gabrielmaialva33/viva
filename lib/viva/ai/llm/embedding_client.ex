@@ -12,12 +12,13 @@ defmodule Viva.AI.LLM.EmbeddingClient do
   - Document retrieval
   - Memory embedding for avatars
   """
+  @behaviour Viva.AI.Pipeline.Stage
+
   require Logger
 
-  alias Viva.Nim
+  alias Viva.AI.LLM
   alias Viva.AI.LLM.EmbeddingClient, as: Client
-
-  @behaviour Viva.AI.Pipeline.Stage
+  alias Viva.Nim
 
   # === Types ===
 
@@ -48,7 +49,7 @@ defmodule Viva.AI.LLM.EmbeddingClient do
   """
   @spec embed_batch([String.t()], keyword()) :: {:ok, [embedding()]} | {:error, term()}
   def embed_batch(texts, opts \\ []) when is_list(texts) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:embedding))
+    model = Keyword.get(opts, :model, LLM.model(:embedding))
     input_type = Keyword.get(opts, :input_type, "query")
 
     body = %{
@@ -58,7 +59,7 @@ defmodule Viva.AI.LLM.EmbeddingClient do
       truncate: Keyword.get(opts, :truncate, "END")
     }
 
-    case Viva.AI.LLM.request("/embeddings", body) do
+    case LLM.request("/embeddings", body) do
       {:ok, %{"data" => data}} ->
         embeddings = Enum.map(data, fn %{"embedding" => emb} -> emb end)
         {:ok, embeddings}

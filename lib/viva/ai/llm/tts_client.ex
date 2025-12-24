@@ -12,9 +12,14 @@ defmodule Viva.AI.LLM.TtsClient do
   - Expressive and natural speech
   - Streaming audio output
   """
+  @behaviour Viva.AI.Pipeline.Stage
+
   require Logger
 
+  alias Viva.AI.LLM
+  alias Viva.AI.LLM.TtsClient, as: Client
   alias Viva.Avatars.Avatar
+  alias Viva.Nim
 
   # === Types ===
 
@@ -38,7 +43,7 @@ defmodule Viva.AI.LLM.TtsClient do
   """
   @spec synthesize(String.t(), keyword()) :: {:ok, binary()} | {:error, term()}
   def synthesize(text, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:tts))
+    model = Keyword.get(opts, :model, LLM.model(:tts))
     language = Keyword.get(opts, :language, "pt-BR")
     voice_id = Keyword.get(opts, :voice_id, default_voice(language))
 
@@ -52,7 +57,7 @@ defmodule Viva.AI.LLM.TtsClient do
       response_format: Keyword.get(opts, :format, "wav")
     }
 
-    case Viva.AI.LLM.request("/audio/speech", body) do
+    case LLM.request("/audio/speech", body) do
       {:ok, audio_data} ->
         {:ok, audio_data}
 
@@ -69,7 +74,7 @@ defmodule Viva.AI.LLM.TtsClient do
   @spec synthesize_stream(String.t(), (binary() -> any()), keyword()) ::
           {:ok, Req.Response.t()} | {:error, term()}
   def synthesize_stream(text, callback, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:tts))
+    model = Keyword.get(opts, :model, LLM.model(:tts))
     language = Keyword.get(opts, :language, "pt-BR")
     voice_id = Keyword.get(opts, :voice_id, default_voice(language))
 
@@ -101,7 +106,7 @@ defmodule Viva.AI.LLM.TtsClient do
       name: name
     }
 
-    case Viva.AI.LLM.request("/audio/voice/clone", body) do
+    case LLM.request("/audio/speech_clone", body) do
       {:ok, %{"voice_id" => voice_id}} ->
         {:ok, voice_id}
 

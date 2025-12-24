@@ -14,14 +14,14 @@ defmodule Viva.AI.LLM.SafetyClient do
   - Topic control and filtering
   - Multi-modal safety (text + images)
   """
+  @behaviour Viva.AI.Pipeline.Stage
+
   require Logger
 
+  alias Viva.AI.LLM
   alias Viva.AI.LLM.SafetyClient, as: Client
-  alias Viva.Nim
-
-  @behaviour Viva.AI.Pipeline.Stager
-
   alias Viva.Avatars.Avatar
+  alias Viva.Nim
 
   # === Types ===
 
@@ -54,7 +54,7 @@ defmodule Viva.AI.LLM.SafetyClient do
   """
   @spec check_content(String.t(), keyword()) :: safety_result()
   def check_content(content, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:safety))
+    model = Keyword.get(opts, :model, LLM.model(:safety))
 
     messages = [
       %{role: "system", content: safety_system_prompt()},
@@ -68,7 +68,7 @@ defmodule Viva.AI.LLM.SafetyClient do
       temperature: 0.0
     }
 
-    case Viva.AI.LLM.request("/chat/completions", body) do
+    case LLM.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => %{"content" => response}} | _]}} ->
         parse_safety_response(response)
 
@@ -83,14 +83,14 @@ defmodule Viva.AI.LLM.SafetyClient do
   """
   @spec detect_jailbreak(String.t(), keyword()) :: {:ok, jailbreak_result()} | {:error, term()}
   def detect_jailbreak(content, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:jailbreak_detect))
+    model = Keyword.get(opts, :model, LLM.model(:jailbreak_detect))
 
     body = %{
       model: model,
       input: content
     }
 
-    case Viva.AI.LLM.request("/classify", body) do
+    case LLM.request("/classify", body) do
       {:ok, %{"is_jailbreak" => is_jailbreak, "confidence" => confidence}} ->
         {:ok, %{is_jailbreak: is_jailbreak, confidence: confidence}}
 
@@ -117,7 +117,7 @@ defmodule Viva.AI.LLM.SafetyClient do
     {"on_topic": true/false, "detected_topics": ["topic1", "topic2"], "reason": "explanation"}
     """
 
-    case Viva.AI.LLM.LlmClient.generate(
+    case LLM.LlmClient.generate(
            prompt,
            Keyword.merge([max_tokens: 150, temperature: 0.0], opts)
          ) do
@@ -134,7 +134,7 @@ defmodule Viva.AI.LLM.SafetyClient do
   """
   @spec check_multimodal(String.t(), binary(), keyword()) :: safety_result()
   def check_multimodal(text, image_data, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:safety_multimodal))
+    model = Keyword.get(opts, :model, LLM.model(:safety_multimodal))
 
     messages = [
       %{
@@ -158,7 +158,7 @@ defmodule Viva.AI.LLM.SafetyClient do
       temperature: 0.0
     }
 
-    case Viva.AI.LLM.request("/chat/completions", body) do
+    case LLM.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => %{"content" => response}} | _]}} ->
         parse_safety_response(response)
 

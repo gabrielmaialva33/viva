@@ -13,14 +13,15 @@ defmodule Viva.AI.LLM.LlmClient do
   - Conversation analysis
   - Avatar response generation with personality context
   """
+  @behaviour Viva.AI.Pipeline.Stage
+
   require Logger
 
-  alias Viva.Avatars.Avatar
-  alias Viva.Nim
+  alias Viva.AI.LLM
   alias Viva.AI.LLM.LlmClient, as: Client
+  alias Viva.Avatars.Avatar
   alias Viva.Avatars.InternalState
-
-  @behaviour Viva.AI.Pipeline.Stage
+  alias Viva.Nim
 
   @type message :: %{role: String.t(), content: String.t()}
   @type tool_call :: map()
@@ -53,7 +54,7 @@ defmodule Viva.AI.LLM.LlmClient do
   """
   @spec chat([message()], keyword()) :: chat_response()
   def chat(messages, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:llm))
+    model = Keyword.get(opts, :model, LLM.model(:llm))
 
     messages =
       case Keyword.get(opts, :system) do
@@ -74,7 +75,7 @@ defmodule Viva.AI.LLM.LlmClient do
         Keyword.get(opts, :tools)
       )
 
-    case Viva.AI.LLM.request("/chat/completions", body) do
+    case LLM.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => message} | _]}} ->
         parse_response(message)
 
@@ -95,7 +96,7 @@ defmodule Viva.AI.LLM.LlmClient do
   @spec chat_stream([message()], (String.t() -> any()), keyword()) ::
           {:ok, Req.Response.t()} | {:error, term()}
   def chat_stream(messages, callback, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:llm))
+    model = Keyword.get(opts, :model, LLM.model(:llm))
 
     messages =
       case Keyword.get(opts, :system) do
@@ -112,7 +113,7 @@ defmodule Viva.AI.LLM.LlmClient do
       stream: true
     }
 
-    Viva.AI.LLM.stream_request("/chat/completions", body, callback)
+    LLM.stream_request("/chat/completions", body, callback)
   end
 
   @doc """

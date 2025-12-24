@@ -13,14 +13,14 @@ defmodule Viva.AI.LLM.VlmClient do
   - Document and chart analysis
   - Multi-image conversations
   """
-  require Logger
-
   @behaviour Viva.AI.Pipeline.Stage
+
+  require Logger
 
   alias Viva.AI.LLM
   alias Viva.AI.LLM.VlmClient, as: Client
-  alias Viva.Nimr
   alias Viva.Avatars.Avatar
+  alias Viva.Nim
 
   # === Types ===
 
@@ -39,7 +39,7 @@ defmodule Viva.AI.LLM.VlmClient do
   """
   @spec analyze_image(image_input(), String.t(), keyword()) :: analysis_result()
   def analyze_image(image_data, prompt, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:vlm))
+    model = Keyword.get(opts, :model, LLM.model(:vlm))
 
     messages = [
       %{
@@ -64,7 +64,7 @@ defmodule Viva.AI.LLM.VlmClient do
       temperature: Keyword.get(opts, :temperature, 0.7)
     }
 
-    case Viva.AI.LLM.request("/chat/completions", body) do
+    case LLM.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} ->
         {:ok, content}
 
@@ -79,7 +79,7 @@ defmodule Viva.AI.LLM.VlmClient do
   """
   @spec analyze_images(images_and_prompts(), keyword()) :: analysis_result()
   def analyze_images(images_and_prompts, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:vlm))
+    model = Keyword.get(opts, :model, LLM.model(:vlm))
 
     content =
       Enum.flat_map(images_and_prompts, fn
@@ -107,7 +107,7 @@ defmodule Viva.AI.LLM.VlmClient do
       temperature: Keyword.get(opts, :temperature, 0.7)
     }
 
-    case Viva.AI.LLM.request("/chat/completions", body) do
+    case LLM.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} ->
         {:ok, content}
 

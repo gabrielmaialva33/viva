@@ -12,12 +12,13 @@ defmodule Viva.AI.LLM.AsrClient do
   - Punctuation and timestamps
   - Speaker diarization
   """
+  @behaviour Viva.AI.Pipeline.Stage
+
   require Logger
 
-  alias Viva.Nim
+  alias Viva.AI.LLM
   alias Viva.AI.LLM.AsrClient, as: Client
-
-  @behaviour Viva.AI.Pipeline.Stage
+  alias Viva.Nim
 
   # === Types ===
 
@@ -49,7 +50,7 @@ defmodule Viva.AI.LLM.AsrClient do
   """
   @spec transcribe(binary(), keyword()) :: {:ok, transcription_result()} | {:error, term()}
   def transcribe(audio_data, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:asr))
+    model = Keyword.get(opts, :model, LLM.model(:asr))
     language = Keyword.get(opts, :language, "pt-BR")
 
     body = %{
@@ -61,7 +62,7 @@ defmodule Viva.AI.LLM.AsrClient do
       diarization: Keyword.get(opts, :diarization, false)
     }
 
-    case Viva.AI.LLM.request("/audio/transcriptions", body) do
+    case LLM.request("/audio/transcriptions", body) do
       {:ok, %{"text" => text} = response} ->
         result = %{
           text: text,
@@ -85,7 +86,7 @@ defmodule Viva.AI.LLM.AsrClient do
   """
   @spec transcribe_stream((term() -> any()), keyword()) :: {:ok, stream_state()}
   def transcribe_stream(callback, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:asr))
+    model = Keyword.get(opts, :model, LLM.model(:asr))
     language = Keyword.get(opts, :language, "pt-BR")
 
     {:ok,
@@ -110,7 +111,7 @@ defmodule Viva.AI.LLM.AsrClient do
       stream: true
     }
 
-    case Viva.AI.LLM.request("/audio/transcriptions", body) do
+    case LLM.request("/audio/transcriptions", body) do
       {:ok, %{"text" => text, "is_final" => is_final}} ->
         stream_state.callback.({:transcript, text, is_final})
         {:ok, %{stream_state | partial_text: text}}
@@ -141,12 +142,12 @@ defmodule Viva.AI.LLM.AsrClient do
   @spec detect_language(binary()) :: {:ok, language_detection()} | {:error, term()}
   def detect_language(audio_data) do
     body = %{
-      model: Viva.AI.LLM.model(:asr),
+      model: LLM.model(:asr),
       audio: encode_audio(audio_data),
       task: "language_detection"
     }
 
-    case Viva.AI.LLM.request("/audio/transcriptions", body) do
+    case LLM.request("/audio/transcriptions", body) do
       {:ok, %{"language" => language, "confidence" => confidence}} ->
         {:ok, %{language: language, confidence: confidence}}
 

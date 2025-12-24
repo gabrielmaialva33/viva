@@ -13,13 +13,13 @@ defmodule Viva.AI.LLM.Avatar3DClient do
   - Real-time lipsync from audio
   - Facial expression animation
   """
+  @behaviour Viva.AI.Pipeline.Stage
+
   require Logger
 
-  alias Viva.Nim
   alias Viva.AI.LLM, as: Client
-  @behaviour Viva.AI.Pipeline.Stager
-
   alias Viva.Avatars.Avatar
+  alias Viva.Nim
 
   # === Types ===
 

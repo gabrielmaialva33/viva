@@ -12,13 +12,13 @@ defmodule Viva.AI.LLM.TranslateClient do
   - Batch translation for memories
   - Preserve context and tone
   """
-  require Logger
-
   @behaviour Viva.AI.Pipeline.Stage
+
+  require Logger
 
   alias Viva.AI.LLM
   alias Viva.AI.LLM.TranslateClient, as: Client
-  alias Viva.Nimr
+  alias Viva.Nim
 
   # === Types ===
 
@@ -299,7 +299,7 @@ defmodule Viva.AI.LLM.TranslateClient do
     """
 
     body = %{
-      model: Viva.AI.LLM.model(:llm),
+      model: LLM.model(:llm),
       messages: [
         %{role: "user", content: prompt}
       ],
@@ -307,7 +307,7 @@ defmodule Viva.AI.LLM.TranslateClient do
       temperature: 0.3
     }
 
-    case Viva.AI.LLM.request("/chat/completions", body) do
+    case LLM.request("/chat/completions", body) do
       {:ok, %{"choices" => [%{"message" => %{"content" => translation}} | _]}} ->
         {:ok, String.trim(translation)}
 
