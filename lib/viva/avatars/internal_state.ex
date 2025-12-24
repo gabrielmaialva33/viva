@@ -16,7 +16,9 @@ defmodule Viva.Avatars.InternalState do
   alias Viva.Avatars.BioState
   alias Viva.Avatars.ConsciousnessState
   alias Viva.Avatars.EmotionalState
+  alias Viva.Avatars.EmotionRegulationState
   alias Viva.Avatars.SensoryState
+  alias Viva.Avatars.SomaticMarkersState
 
   @primary_key false
   embedded_schema do
@@ -36,6 +38,12 @@ defmodule Viva.Avatars.InternalState do
 
     # Layer 5: Allostasis (chronic stress tracking)
     embeds_one :allostasis, AllostasisState, on_replace: :update
+
+    # Layer 6: Emotion Regulation (coping strategies)
+    embeds_one :regulation, EmotionRegulationState, on_replace: :update
+
+    # Layer 7: Somatic Markers (body memory influencing decisions)
+    embeds_one :somatic, SomaticMarkersState, on_replace: :update
 
     # Cognitive / Activity state
     field :current_thought, :string
@@ -78,6 +86,8 @@ defmodule Viva.Avatars.InternalState do
     |> cast_embed(:sensory)
     |> cast_embed(:consciousness)
     |> cast_embed(:allostasis)
+    |> cast_embed(:regulation)
+    |> cast_embed(:somatic)
   end
 
   @doc """
@@ -114,6 +124,8 @@ defmodule Viva.Avatars.InternalState do
       sensory: SensoryState.new(),
       consciousness: ConsciousnessState.new(),
       allostasis: AllostasisState.new(),
+      regulation: EmotionRegulationState.new(),
+      somatic: SomaticMarkersState.new(),
       updated_at: DateTime.utc_now(:second)
     }
   end
@@ -129,6 +141,8 @@ defmodule Viva.Avatars.InternalState do
       sensory: SensoryState.new(),
       consciousness: ConsciousnessState.from_personality(personality),
       allostasis: AllostasisState.new(),
+      regulation: EmotionRegulationState.new(),
+      somatic: SomaticMarkersState.new(),
       updated_at: DateTime.utc_now(:second)
     }
   end
@@ -179,6 +193,8 @@ defmodule Viva.Avatars.InternalState do
     |> ensure_sensory()
     |> ensure_consciousness(personality)
     |> ensure_allostasis()
+    |> ensure_regulation()
+    |> ensure_somatic()
   end
 
   defp ensure_bio(%{bio: nil} = state), do: %{state | bio: %BioState{}}
@@ -201,4 +217,16 @@ defmodule Viva.Avatars.InternalState do
   end
 
   defp ensure_allostasis(state), do: state
+
+  defp ensure_regulation(%{regulation: nil} = state) do
+    %{state | regulation: EmotionRegulationState.new()}
+  end
+
+  defp ensure_regulation(state), do: state
+
+  defp ensure_somatic(%{somatic: nil} = state) do
+    %{state | somatic: SomaticMarkersState.new()}
+  end
+
+  defp ensure_somatic(state), do: state
 end

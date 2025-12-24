@@ -14,11 +14,15 @@ defmodule Viva.Sessions.LifeProcess do
   alias Viva.Avatars.Avatar
   alias Viva.Avatars.InternalState
   alias Viva.Avatars.Systems.Allostasis
+  alias Viva.Avatars.Systems.AttachmentBias
   alias Viva.Avatars.Systems.Biology
   alias Viva.Avatars.Systems.Consciousness
+  alias Viva.Avatars.Systems.EmotionRegulation
+  alias Viva.Avatars.Systems.Metacognition
   alias Viva.Avatars.Systems.Neurochemistry
   alias Viva.Avatars.Systems.Psychology
   alias Viva.Avatars.Systems.Senses
+  alias Viva.Avatars.Systems.SomaticMarkers
   alias Viva.Sessions.AutonomousActions
   alias Viva.Sessions.DesireEngine
   alias Viva.Sessions.DreamProcessor
@@ -230,16 +234,22 @@ defmodule Viva.Sessions.LifeProcess do
     internal = state.state
 
     # 1. Gather environmental stimulus
-    stimulus = StimulusGathering.gather(state)
+    raw_stimulus = StimulusGathering.gather(state)
 
-    # 2. SENSES: Process perception through subjective filter
+    # 2. ATTACHMENT BIAS: Filter stimulus through attachment style lens
+    {stimulus, _interpretation} = AttachmentBias.interpret(raw_stimulus, avatar.personality)
+
+    # 3. SENSES: Process perception through subjective filter
     {new_sensory, neuro_effects} =
       Senses.perceive(internal.sensory, stimulus, avatar.personality, internal.emotional)
 
-    # 3. Apply neurochemical effects from surprise/perception
+    # 3.5. SOMATIC MARKERS: Recall body memories for this stimulus
+    {updated_somatic, _somatic_bias} = SomaticMarkers.recall(internal.somatic, stimulus)
+
+    # 4. Apply neurochemical effects from surprise/perception
     bio_with_perception = apply_neuro_effects(internal.bio, neuro_effects)
 
-    # 4. Biological Tick (Hormones decay/build)
+    # 5. Biological Tick (Hormones decay/build)
     # If interacting, apply ongoing interaction effects
     base_bio =
       if state.current_conversation do
@@ -250,37 +260,61 @@ defmodule Viva.Sessions.LifeProcess do
 
     new_bio = Biology.tick(base_bio, avatar.personality)
 
-    # 5. ALLOSTASIS: Track chronic stress effects
+    # 6. ALLOSTASIS: Track chronic stress effects
     new_allostasis = Allostasis.tick(internal.allostasis, new_bio)
 
-    # 6. Psychological Update (Translate hormones to PAD Vector)
+    # 7. Psychological Update (Translate hormones to PAD Vector)
     raw_emotional = Psychology.calculate_emotional_state(new_bio, avatar.personality)
 
-    # 7. Apply allostatic dampening to emotions (chronic stress blunts emotional response)
-    new_emotional = Allostasis.dampen_emotions(raw_emotional, new_allostasis)
+    # 8. Apply allostatic dampening to emotions (chronic stress blunts emotional response)
+    dampened_emotional = Allostasis.dampen_emotions(raw_emotional, new_allostasis)
 
-    # 8. CONSCIOUSNESS: Integrate into unified experience
+    # 9. EMOTION REGULATION: Apply personality-based coping strategies
+    {new_regulation, new_emotional, regulated_bio} =
+      EmotionRegulation.regulate(
+        internal.regulation,
+        dampened_emotional,
+        new_bio,
+        avatar.personality
+      )
+
+    # 10. CONSCIOUSNESS: Integrate into unified experience
     new_consciousness =
       Consciousness.integrate(
         internal.consciousness,
         new_sensory,
-        new_bio,
+        regulated_bio,
         new_emotional,
         internal.current_thought,
         avatar.personality
       )
 
-    # 9. Update Internal State with all new components
+    # 10.5. METACOGNITION: Process self-reflection and pattern detection
+    {metacog_consciousness, _metacog_result} =
+      Metacognition.process(
+        new_consciousness,
+        new_emotional,
+        avatar.personality,
+        tick_count
+      )
+
+    # 11. SOMATIC MARKERS: Maybe learn from intense experiences
+    final_somatic =
+      SomaticMarkers.maybe_learn(updated_somatic, stimulus, regulated_bio, new_emotional)
+
+    # 12. Update Internal State with all new components
     new_internal = %{
       internal
-      | bio: new_bio,
+      | bio: regulated_bio,
         emotional: new_emotional,
         sensory: new_sensory,
-        consciousness: new_consciousness,
-        allostasis: new_allostasis
+        consciousness: metacog_consciousness,
+        allostasis: new_allostasis,
+        regulation: new_regulation,
+        somatic: final_somatic
     }
 
-    # 10. Continue with high-level logic (now informed by experience)
+    # 13. Continue with high-level logic (now informed by experience)
     new_state =
       %{state | state: new_internal, tick_count: tick_count}
       |> maybe_sleep_and_reflect()
@@ -364,8 +398,16 @@ defmodule Viva.Sessions.LifeProcess do
     bio = process_state.state.bio
     emotional = process_state.state.emotional
     personality = process_state.avatar.personality
+    somatic = process_state.state.somatic
 
-    desire = DesireEngine.determine(bio, emotional, personality)
+    # Create somatic bias map for DesireEngine
+    somatic_bias = %{
+      bias: somatic.current_bias,
+      signal: somatic.body_signal,
+      markers_activated: if(somatic.last_marker_activation, do: 1, else: 0)
+    }
+
+    desire = DesireEngine.determine(bio, emotional, personality, somatic_bias)
 
     new_internal = %{process_state.state | current_desire: desire}
     %{process_state | state: new_internal}
