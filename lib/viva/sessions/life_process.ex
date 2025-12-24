@@ -27,10 +27,7 @@ defmodule Viva.Sessions.LifeProcess do
     tick_count: 0
   ]
 
-  # === Types ===
-
-  @type avatar_id :: Ecto.UUID.t()
-  @type process_state :: %__MODULE__{}
+  # === Constants ===
 
   # 1 minute per tick
   @tick_interval :timer.seconds(60)
@@ -39,6 +36,35 @@ defmodule Viva.Sessions.LifeProcess do
 
   # Persist every 5 ticks (5 minutes with 60s tick interval)
   @persist_every_n_ticks 5
+
+  # Base decay rates (per sim minute)
+  @decay_rate_energy 0.2
+  @decay_rate_social 0.5
+  @decay_rate_stimulation 0.3
+  @decay_rate_comfort 0.1
+
+  # Personality weights for decay
+  @weight_extraversion_social 0.5
+  @weight_openness_stimulation 0.4
+
+  # Desire thresholds
+  @threshold_social_low 20
+  @threshold_energy_low 15
+  @threshold_stimulation_low 25
+  @threshold_loneliness_high 0.7
+  @threshold_love_high 0.6
+
+  # Action probabilities
+  @prob_spontaneous_thought 0.1
+  @prob_initiate_conversation 0.3
+  @prob_message_crush 0.2
+
+  # Emotion processing constants
+  @emotion_persistence 0.9
+  @emotion_influence 0.1
+  @loneliness_relationship_bonus -0.2
+  @loneliness_no_relationship_penalty 0.1
+  @loneliness_interaction_bonus -0.3
 
   # === Client API ===
 
@@ -217,17 +243,17 @@ defmodule Viva.Sessions.LifeProcess do
     personality = process_state.avatar.personality
 
     # Extraverts lose social need faster
-    social_decay = 0.5 + personality.extraversion * 0.5
+    social_decay = @decay_rate_social + personality.extraversion * @weight_extraversion_social
 
     # High openness = need more stimulation
-    stim_decay = 0.3 + personality.openness * 0.4
+    stim_decay = @decay_rate_stimulation + personality.openness * @weight_openness_stimulation
 
     new_internal = %{
       internal
-      | energy: decay_value(internal.energy, 0.2),
+      | energy: decay_value(internal.energy, @decay_rate_energy),
         social: decay_value(internal.social, social_decay),
         stimulation: decay_value(internal.stimulation, stim_decay),
-        comfort: decay_value(internal.comfort, 0.1)
+        comfort: decay_value(internal.comfort, @decay_rate_comfort)
     }
 
     %{process_state | state: new_internal}
@@ -247,10 +273,10 @@ defmodule Viva.Sessions.LifeProcess do
 
     # Joy correlates with overall wellbeing
     wellbeing = InternalState.wellbeing(internal)
-    joy = emotions.joy * 0.9 + wellbeing * 0.1
+    joy = emotions.joy * @emotion_persistence + wellbeing * @emotion_influence
 
-    # Sadness inversely correlates with joy
-    sadness = max(0, emotions.sadness * 0.95 - joy * 0.05)
+    # Sadness inversely correlates with joy (simplified decay)
+    sadness = max(0, emotions.sadness * @emotion_persistence - joy * @emotion_influence)
 
     new_emotions = %{emotions | loneliness: loneliness, joy: joy, sadness: sadness}
 
@@ -267,10 +293,14 @@ defmodule Viva.Sessions.LifeProcess do
 
     # Having close relationships reduces loneliness
     has_relationships = has_close_relationships?(process_state.avatar_id)
-    relationship_factor = if has_relationships, do: -0.2, else: 0.1
+
+    relationship_factor =
+      if has_relationships,
+        do: @loneliness_relationship_bonus,
+        else: @loneliness_no_relationship_penalty
 
     # Currently interacting reduces loneliness
-    interaction_factor = if internal.interacting_with, do: -0.3, else: 0.0
+    interaction_factor = if internal.interacting_with, do: @loneliness_interaction_bonus, else: 0.0
 
     (base + relationship_factor + interaction_factor)
     |> max(0.0)
@@ -296,11 +326,11 @@ defmodule Viva.Sessions.LifeProcess do
 
     desire =
       cond do
-        internal.social < 20 -> :wants_to_talk
-        internal.energy < 15 -> :wants_rest
-        internal.stimulation < 25 -> :wants_something_new
-        internal.emotions.loneliness > 0.7 -> :wants_attention
-        internal.emotions.love > 0.6 -> :wants_to_see_crush
+        internal.social < @threshold_social_low -> :wants_to_talk
+        internal.energy < @threshold_energy_low -> :wants_rest
+        internal.stimulation < @threshold_stimulation_low -> :wants_something_new
+        internal.emotions.loneliness > @threshold_loneliness_high -> :wants_attention
+        internal.emotions.love > @threshold_love_high -> :wants_to_see_crush
         true -> :none
       end
 
@@ -312,7 +342,7 @@ defmodule Viva.Sessions.LifeProcess do
   defp maybe_think(process_state) do
     # 10% chance per tick, or 100% if owner is online and we have something to say
     should_think =
-      :rand.uniform() < 0.1 ||
+      :rand.uniform() < @prob_spontaneous_thought ||
         (process_state.owner_online? && process_state.state.current_desire != :none)
 
     if should_think do
@@ -392,8 +422,8 @@ defmodule Viva.Sessions.LifeProcess do
         process_state
 
       friend_id ->
-        # 30% chance to actually initiate
-        if :rand.uniform() < 0.3 do
+        # Chance to actually initiate
+        if :rand.uniform() < @prob_initiate_conversation do
           Viva.Conversations.start_autonomous(process_state.avatar_id, friend_id)
         end
 
@@ -407,7 +437,7 @@ defmodule Viva.Sessions.LifeProcess do
         process_state
 
       crush_id ->
-        if :rand.uniform() < 0.2 do
+        if :rand.uniform() < @prob_message_crush do
           Viva.Conversations.start_autonomous(process_state.avatar_id, crush_id)
         end
 

@@ -281,6 +281,7 @@ defmodule Viva.Nim.LlmClient do
   defp extract_content(error), do: error
 
   defp parse_json_response(response) do
+    # 1. Try simple markdown cleaning first
     cleaned =
       response
       |> String.replace(~r/```json\n?/, "")
@@ -288,8 +289,29 @@ defmodule Viva.Nim.LlmClient do
       |> String.trim()
 
     case Jason.decode(cleaned) do
-      {:ok, data} -> {:ok, data}
-      {:error, _} -> {:error, :invalid_json}
+      {:ok, data} ->
+        {:ok, data}
+
+      {:error, _} ->
+        # 2. More aggressive extraction using Regex for the first/last brace
+        case Regex.run(~r/\{.*\}/s, response) do
+          [json] ->
+            case Jason.decode(json) do
+              {:ok, data} ->
+                {:ok, data}
+
+              {:error, reason} ->
+                Logger.warning(
+                  "Failed to decode extracted JSON: #{inspect(reason)}\nContent: #{json}"
+                )
+
+                {:error, :invalid_json}
+            end
+
+          _ ->
+            Logger.warning("No JSON structure found in response: #{response}")
+            {:error, :invalid_json}
+        end
     end
   end
 

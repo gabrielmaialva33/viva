@@ -227,16 +227,52 @@ defmodule Viva.Conversations do
 
   @spec conversation_stats(avatar_id()) :: map()
   def conversation_stats(avatar_id) do
-    conversations = list_conversations(avatar_id)
-    count = Enum.count(conversations)
+    # Get general counts and averages
+    stats_query =
+      from(c in Conversation,
+        where: c.avatar_a_id == ^avatar_id or c.avatar_b_id == ^avatar_id,
+        select: %{
+          total: count(c.id),
+          total_messages: sum(c.message_count),
+          avg_duration: avg(c.duration_minutes)
+        }
+      )
+
+    stats = Repo.one(stats_query)
+
+    # Get frequencies by status
+    status_query =
+      from(c in Conversation,
+        where: c.avatar_a_id == ^avatar_id or c.avatar_b_id == ^avatar_id,
+        group_by: c.status,
+        select: {c.status, count(c.id)}
+      )
+
+    by_status = stats_to_map(Repo.all(status_query))
+
+    # Get frequencies by type
+    type_query =
+      from(c in Conversation,
+        where: c.avatar_a_id == ^avatar_id or c.avatar_b_id == ^avatar_id,
+        group_by: c.type,
+        select: {c.type, count(c.id)}
+      )
+
+    by_type = stats_to_map(Repo.all(type_query))
 
     %{
-      total: count,
-      by_status: Enum.frequencies_by(conversations, & &1.status),
-      by_type: Enum.frequencies_by(conversations, & &1.type),
-      total_messages: Enum.reduce(conversations, 0, &(&1.message_count + &2)),
-      avg_duration: avg_duration(conversations)
+      total: stats.total || 0,
+      by_status: by_status,
+      by_type: by_type,
+      total_messages: stats.total_messages || 0,
+      avg_duration: stats.avg_duration || 0
     }
+  end
+
+  defp stats_to_map(list) do
+    list
+    |> Enum.map(fn {k, v} -> {k, v} end)
+    |> Map.new()
   end
 
   @spec conversation_history(avatar_id(), avatar_id(), keyword()) :: [Conversation.t()]
@@ -260,18 +296,4 @@ defmodule Viva.Conversations do
 
   defp maybe_filter_after(query, nil), do: query
   defp maybe_filter_after(query, timestamp), do: where(query, [m], m.timestamp > ^timestamp)
-
-  defp avg_duration([]), do: 0
-
-  defp avg_duration(conversations) do
-    with_duration = Enum.filter(conversations, & &1.duration_minutes)
-    count = Enum.count(with_duration)
-
-    if count > 0 do
-      sum = Enum.reduce(with_duration, 0, &(&1.duration_minutes + &2))
-      sum / count
-    else
-      0
-    end
-  end
 end

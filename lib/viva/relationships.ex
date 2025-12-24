@@ -46,15 +46,6 @@ defmodule Viva.Relationships do
   @spec get_or_create_relationship(avatar_id(), avatar_id()) ::
           {:ok, Relationship.t()} | {:error, Ecto.Changeset.t()}
   def get_or_create_relationship(avatar_a_id, avatar_b_id) do
-    case get_relationship_between(avatar_a_id, avatar_b_id) do
-      nil -> create_relationship(avatar_a_id, avatar_b_id)
-      rel -> {:ok, rel}
-    end
-  end
-
-  @spec create_relationship(avatar_id(), avatar_id()) ::
-          {:ok, Relationship.t()} | {:error, Ecto.Changeset.t()}
-  def create_relationship(avatar_a_id, avatar_b_id) do
     # Ensure consistent ordering (lower ID is always avatar_a)
     {a_id, b_id} = order_avatar_ids(avatar_a_id, avatar_b_id)
 
@@ -63,9 +54,27 @@ defmodule Viva.Relationships do
       avatar_a_id: a_id,
       avatar_b_id: b_id,
       status: :strangers,
-      first_met_at: DateTime.utc_now()
+      first_interaction_at: DateTime.utc_now()
     })
-    |> Repo.insert()
+    |> Repo.insert(
+      on_conflict: :nothing,
+      conflict_target: [:avatar_a_id, :avatar_b_id],
+      returning: true
+    )
+    |> case do
+      {:ok, %{id: nil}} ->
+        # Conflict happened, fetch the existing one
+        {:ok, get_relationship_between(a_id, b_id)}
+
+      result ->
+        result
+    end
+  end
+
+  @spec create_relationship(avatar_id(), avatar_id()) ::
+          {:ok, Relationship.t()} | {:error, Ecto.Changeset.t()}
+  def create_relationship(avatar_a_id, avatar_b_id) do
+    get_or_create_relationship(avatar_a_id, avatar_b_id)
   end
 
   @spec update_relationship(Relationship.t(), map()) ::
@@ -186,16 +195,41 @@ defmodule Viva.Relationships do
 
   @spec relationship_stats(avatar_id()) :: map()
   def relationship_stats(avatar_id) do
-    relationships = list_relationships(avatar_id)
-    count = Enum.count(relationships)
+    # Get general counts and averages in one query
+    stats_query =
+      from(r in Relationship,
+        where: r.avatar_a_id == ^avatar_id or r.avatar_b_id == ^avatar_id,
+        select: %{
+          total: count(r.id),
+          avg_familiarity: avg(r.familiarity),
+          avg_trust: avg(r.trust),
+          avg_affection: avg(r.affection),
+          matches: filter(count(r.id), r.status == :matched)
+        }
+      )
+
+    stats = Repo.one(stats_query)
+
+    # Get frequencies by status
+    frequencies_query =
+      from(r in Relationship,
+        where: r.avatar_a_id == ^avatar_id or r.avatar_b_id == ^avatar_id,
+        group_by: r.status,
+        select: {r.status, count(r.id)}
+      )
+
+    by_status =
+      frequencies_query
+      |> Repo.all()
+      |> Map.new()
 
     %{
-      total: count,
-      by_status: Enum.frequencies_by(relationships, & &1.status),
-      avg_familiarity: avg_field(relationships, :familiarity),
-      avg_trust: avg_field(relationships, :trust),
-      avg_affection: avg_field(relationships, :affection),
-      matches: Enum.count(relationships, &(&1.status == :matched))
+      total: stats.total || 0,
+      by_status: by_status,
+      avg_familiarity: stats.avg_familiarity || 0.0,
+      avg_trust: stats.avg_trust || 0.0,
+      avg_affection: stats.avg_affection || 0.0,
+      matches: stats.matches || 0
     }
   end
 
@@ -288,13 +322,5 @@ defmodule Viva.Relationships do
       familiarity > 0.4 -> :friends
       true -> :acquaintances
     end
-  end
-
-  defp avg_field([], _), do: 0.0
-
-  defp avg_field(list, field) do
-    count = Enum.count(list)
-    sum = Enum.reduce(list, 0, fn item, acc -> acc + Map.get(item, field, 0) end)
-    sum / count
   end
 end
