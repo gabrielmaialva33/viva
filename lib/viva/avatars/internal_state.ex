@@ -12,6 +12,7 @@ defmodule Viva.Avatars.InternalState do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Viva.Avatars.AllostasisState
   alias Viva.Avatars.BioState
   alias Viva.Avatars.ConsciousnessState
   alias Viva.Avatars.EmotionalState
@@ -32,6 +33,9 @@ defmodule Viva.Avatars.InternalState do
 
     # Layer 4: Consciousness (experience stream, self-model, metacognition)
     embeds_one :consciousness, ConsciousnessState, on_replace: :update
+
+    # Layer 5: Allostasis (chronic stress tracking)
+    embeds_one :allostasis, AllostasisState, on_replace: :update
 
     # Cognitive / Activity state
     field :current_thought, :string
@@ -73,6 +77,7 @@ defmodule Viva.Avatars.InternalState do
     |> cast_embed(:emotional)
     |> cast_embed(:sensory)
     |> cast_embed(:consciousness)
+    |> cast_embed(:allostasis)
   end
 
   @doc """
@@ -108,6 +113,7 @@ defmodule Viva.Avatars.InternalState do
       emotional: %EmotionalState{},
       sensory: SensoryState.new(),
       consciousness: ConsciousnessState.new(),
+      allostasis: AllostasisState.new(),
       updated_at: DateTime.utc_now(:second)
     }
   end
@@ -122,6 +128,7 @@ defmodule Viva.Avatars.InternalState do
       emotional: %EmotionalState{},
       sensory: SensoryState.new(),
       consciousness: ConsciousnessState.from_personality(personality),
+      allostasis: AllostasisState.new(),
       updated_at: DateTime.utc_now(:second)
     }
   end
@@ -171,6 +178,7 @@ defmodule Viva.Avatars.InternalState do
     |> ensure_emotional()
     |> ensure_sensory()
     |> ensure_consciousness(personality)
+    |> ensure_allostasis()
   end
 
   defp ensure_bio(%{bio: nil} = state), do: %{state | bio: %BioState{}}
@@ -187,4 +195,10 @@ defmodule Viva.Avatars.InternalState do
   end
 
   defp ensure_consciousness(state, _), do: state
+
+  defp ensure_allostasis(%{allostasis: nil} = state) do
+    %{state | allostasis: AllostasisState.new()}
+  end
+
+  defp ensure_allostasis(state), do: state
 end

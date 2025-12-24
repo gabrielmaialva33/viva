@@ -13,6 +13,7 @@ defmodule Viva.Sessions.LifeProcess do
   alias Phoenix.PubSub
   alias Viva.Avatars.Avatar
   alias Viva.Avatars.InternalState
+  alias Viva.Avatars.Systems.Allostasis
   alias Viva.Avatars.Systems.Biology
   alias Viva.Avatars.Systems.Consciousness
   alias Viva.Avatars.Systems.Neurochemistry
@@ -249,10 +250,16 @@ defmodule Viva.Sessions.LifeProcess do
 
     new_bio = Biology.tick(base_bio, avatar.personality)
 
-    # 5. Psychological Update (Translate hormones to PAD Vector)
-    new_emotional = Psychology.calculate_emotional_state(new_bio, avatar.personality)
+    # 5. ALLOSTASIS: Track chronic stress effects
+    new_allostasis = Allostasis.tick(internal.allostasis, new_bio)
 
-    # 6. CONSCIOUSNESS: Integrate into unified experience
+    # 6. Psychological Update (Translate hormones to PAD Vector)
+    raw_emotional = Psychology.calculate_emotional_state(new_bio, avatar.personality)
+
+    # 7. Apply allostatic dampening to emotions (chronic stress blunts emotional response)
+    new_emotional = Allostasis.dampen_emotions(raw_emotional, new_allostasis)
+
+    # 8. CONSCIOUSNESS: Integrate into unified experience
     new_consciousness =
       Consciousness.integrate(
         internal.consciousness,
@@ -263,16 +270,17 @@ defmodule Viva.Sessions.LifeProcess do
         avatar.personality
       )
 
-    # 7. Update Internal State with all new components
+    # 9. Update Internal State with all new components
     new_internal = %{
       internal
       | bio: new_bio,
         emotional: new_emotional,
         sensory: new_sensory,
-        consciousness: new_consciousness
+        consciousness: new_consciousness,
+        allostasis: new_allostasis
     }
 
-    # 8. Continue with high-level logic (now informed by experience)
+    # 10. Continue with high-level logic (now informed by experience)
     new_state =
       %{state | state: new_internal, tick_count: tick_count}
       |> maybe_sleep_and_reflect()
