@@ -120,22 +120,24 @@ graph TB
         end
 
         subgraph Services["Core Services"]
-            MATCHMAKER[Matchmaker Engine]
+            MATCHMAKER[Matching Engine]
             WORLD_CLOCK[World Clock]
+            NETWORK[Network Analyst]
             NIM_CLIENTS[NIM Clients x14]
         end
     end
 
     subgraph Jobs["Background Jobs"]
         OBAN[Oban Queue]
+        AI_PIPELINE[Broadway AI Pipeline]
         MEMORY_DECAY[Memory Decay]
         MATCH_REFRESH[Match Refresh]
-        VISUAL_GEN[Visual Generation]
     end
 
     subgraph Infrastructure["Infrastructure Layer"]
         TIMESCALE[(TimescaleDB)]
         REDIS[(Redis)]
+        RABBITMQ[(RabbitMQ)]
         QDRANT[(Qdrant)]
     end
 
@@ -168,6 +170,8 @@ graph TB
     AVATARS --> TIMESCALE
     AVATARS --> QDRANT
     MATCHMAKER --> REDIS
+    AI_PIPELINE --> RABBITMQ
+    AI_PIPELINE --> NIM_CLIENTS
 
     NIM_CLIENTS --> NIM_LLM
     NIM_CLIENTS --> NIM_VOICE
@@ -402,12 +406,24 @@ viva/
 │   │   │
 │   │   ├── avatars/                   # Avatar Domain Schema
 │   │   │   ├── avatar.ex             # Main schema
-│   │   │   ├── internal_state.ex     # State schema
+│   │   │   ├── internal_state.ex     # State schema (needs, emotions)
+│   │   │   ├── personality.ex        # Big Five + Enneagram
+│   │   │   ├── memory.ex             # Memory schema
 │   │   │   │
-│   │   │   └── systems/              # Avatar Systems (Logic)
+│   │   │   └── systems/              # Avatar Simulation Systems (13 modules)
 │   │   │       ├── biology.ex        # Biological simulation
+│   │   │       ├── psychology.ex     # Emotional processing
 │   │   │       ├── neurochemistry.ex # Hormonal system
-│   │   │       └── psychology.ex     # Emotional processing
+│   │   │       ├── consciousness.ex  # Awareness & attention
+│   │   │       ├── allostasis.ex     # Homeostatic regulation
+│   │   │       ├── emotion_regulation.ex  # Affect regulation
+│   │   │       ├── metacognition.ex  # Self-reflection
+│   │   │       ├── motivation.ex     # Drive & goals
+│   │   │       ├── senses.ex         # Sensory processing
+│   │   │       ├── somatic_markers.ex # Body-mind signals
+│   │   │       ├── attachment_bias.ex # Relationship patterns
+│   │   │       ├── social_brain.ex   # Social cognition
+│   │   │       └── dreams.ex         # Dream processing
 │   │   │
 │   │   ├── relationships/             # Relationship domain
 │   │   │   └── relationship.ex       # Relationship schema
@@ -416,12 +432,20 @@ viva/
 │   │   │
 │   │   ├── sessions/                  # Avatar Runtime
 │   │   │   ├── supervisor.ex         # DynamicSupervisor
-│   │   │   └── life_process.ex       # Avatar GenServer (The Brain)
+│   │   │   ├── life_process.ex       # Avatar GenServer (The Brain)
+│   │   │   ├── desire_engine.ex      # Desire processing
+│   │   │   ├── thought_engine.ex     # Thought generation
+│   │   │   └── dream_processor.ex    # Dream processing
 │   │   │
-│   │   ├── matchmaker/                # Matching engine
+│   │   ├── matching/                  # Matching engine
+│   │   │
+│   │   ├── social/                    # Social network analysis
+│   │   │   └── network_analyst.ex    # Graph analysis GenServer
 │   │   │
 │   │   └── infrastructure/            # Technical Infra
-│   │       └── redis.ex              # Redis wrapper
+│   │       ├── redis.ex              # Redis wrapper
+│   │       ├── event_bus.ex          # Internal event publishing
+│   │       └── postgrex_types.ex     # Custom DB types
 │   │
 │   └── viva_web/                      # Web layer
 │       ├── channels/
@@ -649,7 +673,7 @@ avatar = Viva.Avatars.get_avatar!(avatar_id)
 Viva.Avatars.generate_visuals(avatar)
 
 # Deep compatibility analysis
-Viva.Nim.ReasoningClient.deep_analyze_compatibility(avatar_a, avatar_b)
+Viva.AI.LLM.ReasoningClient.deep_analyze_compatibility(avatar_a, avatar_b)
 
 # World time
 Viva.World.Clock.now()

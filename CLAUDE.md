@@ -11,7 +11,7 @@ VIVA (Virtual Intelligent Vida Autonoma) is an AI avatar platform where digital 
 ```bash
 # Development
 mix deps.get                    # Install dependencies
-docker compose up -d            # Start infrastructure (TimescaleDB, Redis, Qdrant)
+docker compose up -d            # Start infrastructure (TimescaleDB, Redis, RabbitMQ, Qdrant)
 mix ecto.setup                  # Create DB, migrate, seed
 iex -S mix phx.server           # Start server with IEx (recommended)
 
@@ -37,13 +37,20 @@ mix ecto.reset                  # Drop, create, migrate, seed
 ### Domain Contexts (lib/viva/)
 
 - **Accounts** - User management and authentication
-- **Avatars** - Avatar entities, personality (Big Five), internal state (emotions/needs), memories
+- **Avatars** - Avatar entities, personality (Big Five + Enneagram), internal state, memories
+  - `systems/` - Simulation modules: Biology, Psychology, Neurochemistry, Consciousness, Allostasis, EmotionRegulation, Metacognition, Motivation, Senses, SomaticMarkers, AttachmentBias
 - **Relationships** - Relationships between avatars with trust/affection/familiarity scores
 - **Conversations** - Messages and conversation history
-- **Matchmaker** - Compatibility scoring engine (GenServer with caching)
-- **Sessions** - Avatar runtime processes (LifeProcess GenServer for each avatar)
-- **Nim** - NVIDIA NIM LLM client using Req HTTP library
+- **Matching** - Compatibility scoring engine (GenServer with caching)
+- **Sessions** - Avatar runtime processes
+  - `LifeProcess` - Main GenServer for each avatar
+  - `DesireEngine`, `ThoughtEngine`, `DreamProcessor` - Cognitive subsystems
+- **AI** - NVIDIA NIM integration via Req
+  - `LLM/` - 14 specialized clients (LlmClient, ReasoningClient, EmbeddingClient, SafetyClient, TTSClient, ASRClient, VLMClient, ImageClient, Avatar3DClient, TranslateClient, AudioEnhanceClient)
+  - `Pipeline` - Broadway/RabbitMQ pipeline for async LLM processing
+- **Social** - Social network analysis (NetworkAnalyst GenServer)
 - **World** - Simulation clock with configurable time scaling
+- **Infrastructure** - Redis client, EventBus, Postgrex types
 
 ### Avatar Life Simulation
 
@@ -57,16 +64,20 @@ Each avatar runs as a `Viva.Sessions.LifeProcess` GenServer:
 
 ### Key GenServers
 
-- `Viva.Sessions.LifeProcess` - Individual avatar simulation
+- `Viva.Sessions.LifeProcess` - Individual avatar simulation (registered via `Viva.Sessions.AvatarRegistry`)
 - `Viva.Matching.Engine` - Caches compatibility scores, refreshes hourly
 - `Viva.World.Clock` - Manages simulation time
+- `Viva.Social.NetworkAnalyst` - Analyzes social graph and relationships
+- `Viva.AI.LLM.CircuitBreaker` - NIM API resilience
+- `Viva.AI.LLM.RateLimiter` - NIM API rate limiting
 
 ### Infrastructure
 
-- **TimescaleDB** (port 5432) - PostgreSQL with time-series extensions
+- **TimescaleDB** (port 5432) - PostgreSQL with time-series extensions + pgvector
 - **Redis** (port 6379) - Cache and pub/sub
+- **RabbitMQ** (port 5672) - AI event pipeline for async LLM processing
 - **Qdrant** (port 6333) - Vector database for semantic memory
-- **NVIDIA NIM Cloud** - LLM via `integrate.api.nvidia.com/v1`
+- **NVIDIA NIM Cloud** - 14 models via `integrate.api.nvidia.com/v1`
 
 ## Project Guidelines
 
@@ -150,7 +161,7 @@ This platform has unique architectural patterns:
 
 2. **Real-time State:** Heavy use of Phoenix Channels for owner-avatar communication. Frontend work often involves WebSocket event handling.
 
-3. **AI Integration:** NVIDIA NIM client (Viva.Nim.LLMClient) uses Req for HTTP. Any LLM-related work should consult existing patterns.
+3. **AI Integration:** NVIDIA NIM clients in `Viva.AI.LLM` use Req for HTTP. Any LLM-related work should consult existing client patterns (e.g., `LlmClient`, `ReasoningClient`).
 
 4. **Vector Memories:** Qdrant integration for semantic memory search. Database work may involve both TimescaleDB and vector operations.
 
