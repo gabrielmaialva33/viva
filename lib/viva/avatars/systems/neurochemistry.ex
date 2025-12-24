@@ -11,10 +11,13 @@ defmodule Viva.Avatars.Systems.Neurochemistry do
 
   ## Events
   - :interaction_start - Burst of dopamine and oxytocin
+  - :interaction_ongoing - Slow oxytocin buildup
   - :interaction_end - Drop in arousal, slight adenosine increase
-  - :rejection - Cortisol spike, dopamine drop
-  - :accomplishment - Dopamine spike
-  - :resting - Adenosine reduction, cortisol reduction
+  - :thought_generated - Small dopamine reward, slight fatigue
+  - :deep_sleep_tick - Recovery from adenosine and cortisol
+  - :stress_event - Cortisol spike, dopamine drop
+  - :surprise_high - Strong dopamine + cortisol (arousing surprise)
+  - :surprise_moderate - Moderate dopamine (interesting surprise)
   """
   @spec apply_effect(BioState.t(), atom()) :: BioState.t()
   def apply_effect(%BioState{} = bio, event) do
@@ -55,6 +58,35 @@ defmodule Viva.Avatars.Systems.Neurochemistry do
         |> boost(:cortisol, 0.3)
         |> dampen(:dopamine, 0.2)
         |> dampen(:oxytocin, 0.1)
+
+      # === Surprise Effects (from Senses module) ===
+
+      :surprise_high ->
+        # High surprise = dopamine (novelty reward) + cortisol (arousal) + fatigue
+        bio
+        |> boost(:dopamine, 0.2)
+        |> boost(:cortisol, 0.15)
+        |> boost(:adenosine, 0.03)
+
+      :surprise_moderate ->
+        # Moderate surprise = dopamine only (interesting but not stressful)
+        bio
+        |> boost(:dopamine, 0.1)
+        |> boost(:adenosine, 0.01)
+
+      # === Pain/Pleasure Signals (from Senses module) ===
+
+      :sensory_pain ->
+        # Physical/emotional pain triggers stress response
+        bio
+        |> boost(:cortisol, 0.2)
+        |> dampen(:dopamine, 0.1)
+
+      :sensory_pleasure ->
+        # Pleasure signals boost reward system
+        bio
+        |> boost(:dopamine, 0.15)
+        |> boost(:oxytocin, 0.05)
 
       _ ->
         bio

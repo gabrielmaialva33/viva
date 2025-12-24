@@ -11,13 +11,17 @@ defmodule Viva.Sessions.LifeProcess do
   require Logger
 
   alias Phoenix.PubSub
-  alias Viva.AI.LLM.LlmClient
   alias Viva.Avatars.Avatar
-  alias Viva.Avatars.InternalState
   alias Viva.Avatars.Systems.Biology
+  alias Viva.Avatars.Systems.Consciousness
   alias Viva.Avatars.Systems.Neurochemistry
   alias Viva.Avatars.Systems.Psychology
-  alias Viva.Relationships
+  alias Viva.Avatars.Systems.Senses
+  alias Viva.Sessions.AutonomousActions
+  alias Viva.Sessions.DesireEngine
+  alias Viva.Sessions.DreamProcessor
+  alias Viva.Sessions.StimulusGathering
+  alias Viva.Sessions.ThoughtEngine
 
   # === Struct ===
 
@@ -45,11 +49,6 @@ defmodule Viva.Sessions.LifeProcess do
 
   # Persist every 5 ticks (5 minutes with 60s tick interval)
   @persist_every_n_ticks 5
-
-  # Action probabilities
-  @prob_spontaneous_thought 0.1
-  @prob_initiate_conversation 0.25
-  @prob_message_crush 0.15
 
   # === Client API ===
 
@@ -163,7 +162,13 @@ defmodule Viva.Sessions.LifeProcess do
     new_bio = Neurochemistry.apply_effect(state.state.bio, :interaction_start)
     updated_internal = %{state.state | bio: new_bio}
 
-    new_state = maybe_generate_greeting(%{state | owner_online?: true, state: updated_internal})
+    new_state =
+      AutonomousActions.maybe_generate_greeting(%{
+        state
+        | owner_online?: true,
+          state: updated_internal
+      })
+
     {:noreply, new_state}
   end
 
@@ -179,7 +184,7 @@ defmodule Viva.Sessions.LifeProcess do
 
   @impl GenServer
   def handle_cast(:trigger_thought, state) do
-    {:noreply, generate_thought(state)}
+    {:noreply, ThoughtEngine.generate_thought(state)}
   end
 
   @impl GenServer
@@ -218,30 +223,57 @@ defmodule Viva.Sessions.LifeProcess do
     avatar = state.avatar
     internal = state.state
 
-    # 1. Biological Tick (Hormones decay/build)
+    # 1. Gather environmental stimulus
+    stimulus = StimulusGathering.gather(state)
+
+    # 2. SENSES: Process perception through subjective filter
+    {new_sensory, neuro_effects} =
+      Senses.perceive(internal.sensory, stimulus, avatar.personality, internal.emotional)
+
+    # 3. Apply neurochemical effects from surprise/perception
+    bio_with_perception = apply_neuro_effects(internal.bio, neuro_effects)
+
+    # 4. Biological Tick (Hormones decay/build)
     # If interacting, apply ongoing interaction effects
     base_bio =
       if state.current_conversation do
-        Neurochemistry.apply_effect(internal.bio, :interaction_ongoing)
+        Neurochemistry.apply_effect(bio_with_perception, :interaction_ongoing)
       else
-        internal.bio
+        bio_with_perception
       end
 
     new_bio = Biology.tick(base_bio, avatar.personality)
 
-    # 2. Psychological Update (Translate hormones to PAD Vector)
+    # 5. Psychological Update (Translate hormones to PAD Vector)
     new_emotional = Psychology.calculate_emotional_state(new_bio, avatar.personality)
 
-    # 3. Update Internal State
-    new_internal = %{internal | bio: new_bio, emotional: new_emotional}
+    # 6. CONSCIOUSNESS: Integrate into unified experience
+    new_consciousness =
+      Consciousness.integrate(
+        internal.consciousness,
+        new_sensory,
+        new_bio,
+        new_emotional,
+        internal.current_thought,
+        avatar.personality
+      )
 
-    # 4. Continue with high-level logic
+    # 7. Update Internal State with all new components
+    new_internal = %{
+      internal
+      | bio: new_bio,
+        emotional: new_emotional,
+        sensory: new_sensory,
+        consciousness: new_consciousness
+    }
+
+    # 8. Continue with high-level logic (now informed by experience)
     new_state =
       %{state | state: new_internal, tick_count: tick_count}
       |> maybe_sleep_and_reflect()
       |> maybe_develop_desire()
-      |> maybe_think()
-      |> maybe_act_autonomously()
+      |> ThoughtEngine.maybe_think()
+      |> AutonomousActions.maybe_act()
       |> update_timestamp()
 
     maybe_persist_state(new_state, tick_count)
@@ -251,6 +283,15 @@ defmodule Viva.Sessions.LifeProcess do
   end
 
   # === Private Functions ===
+
+  # Apply neurochemical effects from perception (surprise, hedonic responses)
+  defp apply_neuro_effects(bio, effects) when is_list(effects) do
+    Enum.reduce(effects, bio, fn effect, acc_bio ->
+      Neurochemistry.apply_effect(acc_bio, effect)
+    end)
+  end
+
+  defp apply_neuro_effects(bio, _), do: bio
 
   defp maybe_sleep_and_reflect(process_state) do
     internal = process_state.state
@@ -268,7 +309,7 @@ defmodule Viva.Sessions.LifeProcess do
       should_sleep and internal.current_activity != :sleeping ->
         # Fall asleep and trigger reflection
         Logger.info("Avatar #{process_state.avatar.name} is falling asleep. Triggering reflection.")
-        trigger_dream_cycle(process_state)
+        DreamProcessor.trigger_dream_cycle(process_state)
 
         new_internal = %{internal | current_activity: :sleeping}
         %{process_state | state: new_internal}
@@ -289,14 +330,6 @@ defmodule Viva.Sessions.LifeProcess do
     false
   end
 
-  defp trigger_dream_cycle(_) do
-    # Async task to process memories without blocking the heartbeat
-    Task.Supervisor.start_child(Viva.Sessions.TaskSupervisor, fn ->
-      Logger.debug("Dreaming and consolidating memories...")
-      # Future implementation: Replay events, summarize into long-term memory
-    end)
-  end
-
   defp schedule_tick do
     Process.send_after(self(), :tick, @tick_interval)
   end
@@ -313,186 +346,16 @@ defmodule Viva.Sessions.LifeProcess do
   end
 
   # Develop desires based on fuzzy logic (Neurochemistry + Personality)
-  # Less deterministic than before.
+  # Delegates to DesireEngine module.
   defp maybe_develop_desire(process_state) do
     bio = process_state.state.bio
     emotional = process_state.state.emotional
     personality = process_state.avatar.personality
 
-    desire = determine_desire(bio, emotional, personality)
+    desire = DesireEngine.determine(bio, emotional, personality)
 
     new_internal = %{process_state.state | current_desire: desire}
     %{process_state | state: new_internal}
-  end
-
-  defp determine_desire(bio, emotional, personality) do
-    cond do
-      bio.adenosine > 0.8 -> :wants_rest
-      wants_attention?(bio, personality) -> :wants_attention
-      wants_novelty?(bio, personality) -> :wants_something_new
-      needs_expression?(emotional) -> :wants_to_express
-      wants_crush?(bio) -> :wants_to_see_crush
-      true -> :none
-    end
-  end
-
-  defp wants_attention?(bio, personality) do
-    bio.oxytocin < 0.3 and (personality.extraversion > 0.6 or :rand.uniform() < 0.4)
-  end
-
-  defp wants_novelty?(bio, personality) do
-    bio.dopamine < 0.3 and (personality.openness > 0.6 or :rand.uniform() < 0.3)
-  end
-
-  defp needs_expression?(emotional) do
-    emotional.arousal > 0.7 or emotional.pleasure < -0.6
-  end
-
-  defp wants_crush?(bio) do
-    bio.libido > 0.6 and bio.oxytocin < 0.5
-  end
-
-  # Maybe generate a spontaneous thought
-  defp maybe_think(process_state) do
-    # Probability increases if desire is strong
-    base_prob = @prob_spontaneous_thought
-
-    adjusted_prob =
-      if process_state.state.current_desire != :none, do: base_prob * 2.0, else: base_prob
-
-    should_think =
-      :rand.uniform() < adjusted_prob ||
-        (process_state.owner_online? && :rand.uniform() < 0.3)
-
-    if should_think do
-      generate_thought(process_state)
-    else
-      process_state
-    end
-  end
-
-  defp generate_thought(process_state) do
-    avatar_id = process_state.avatar_id
-    prompt = build_thought_prompt(process_state)
-
-    payload = %{
-      type: :spontaneous_thought,
-      avatar_id: avatar_id,
-      prompt: prompt,
-      timestamp: DateTime.utc_now()
-    }
-
-    # Fire and forget via EventBus
-    Viva.Infrastructure.EventBus.publish_thought(payload)
-
-    process_state
-  end
-
-  defp build_thought_prompt(process_state) do
-    avatar = process_state.avatar
-    internal = process_state.state
-
-    # Translate bio-state to feelings
-    energy_desc = if internal.bio.adenosine > 0.7, do: "tired", else: "energetic"
-    social_desc = if internal.bio.oxytocin > 0.7, do: "loved", else: "lonely"
-
-    """
-    You are #{avatar.name}. Generate a single spontaneous thought.
-
-    Context:
-    - Mood: #{describe_mood(internal.emotional.mood_label)}
-    - Feeling: #{energy_desc} and #{social_desc}
-    - Desire: #{internal.current_desire}
-    - Dominant Emotion: #{InternalState.dominant_emotion(internal)}
-
-    Generate ONE brief, authentic thought (max 2 sentences).
-    Reflect your personality. No quotes.
-    """
-  end
-
-  defp describe_mood(mood_label), do: mood_label || "neutral"
-
-  # Take autonomous actions when needed
-  defp maybe_act_autonomously(process_state) do
-    internal = process_state.state
-
-    # Only act if not already in a conversation and awake
-    if is_nil(process_state.current_conversation) and internal.current_activity != :sleeping do
-      case internal.current_desire do
-        :wants_to_talk ->
-          maybe_initiate_conversation(process_state)
-
-        :wants_to_see_crush ->
-          maybe_message_crush(process_state)
-
-        _ ->
-          process_state
-      end
-    else
-      process_state
-    end
-  end
-
-  defp maybe_initiate_conversation(process_state) do
-    # Find available friend with good relationship
-    case Relationships.find_available_friend(process_state.avatar_id) do
-      nil ->
-        process_state
-
-      friend_id ->
-        if :rand.uniform() < @prob_initiate_conversation do
-          Viva.Conversations.start_autonomous(process_state.avatar_id, friend_id)
-        end
-
-        process_state
-    end
-  end
-
-  defp maybe_message_crush(process_state) do
-    case Relationships.get_crush(process_state.avatar_id) do
-      nil ->
-        process_state
-
-      crush_id ->
-        if :rand.uniform() < @prob_message_crush do
-          Viva.Conversations.start_autonomous(process_state.avatar_id, crush_id)
-        end
-
-        process_state
-    end
-  end
-
-  defp maybe_generate_greeting(process_state) do
-    avatar_id = process_state.avatar_id
-
-    Task.Supervisor.start_child(Viva.Sessions.TaskSupervisor, fn ->
-      case generate_greeting(process_state) do
-        {:ok, greeting} ->
-          broadcast_to_owner(avatar_id, {:greeting, greeting})
-
-        {:error, reason} ->
-          Logger.warning("Failed to generate greeting for avatar #{avatar_id}: #{inspect(reason)}")
-      end
-    end)
-
-    process_state
-  end
-
-  defp generate_greeting(process_state) do
-    avatar = process_state.avatar
-    internal = process_state.state
-
-    energy_desc = if internal.bio.adenosine > 0.6, do: "sleepy", else: "awake"
-
-    prompt = """
-    You are #{avatar.name}. Your owner just came online.
-    Generate a brief, warm greeting.
-
-    State: #{describe_mood(internal.emotional.mood_label)} and #{energy_desc}.
-    Keep it natural and short (1 sentence).
-    """
-
-    LlmClient.generate(prompt, max_tokens: 50)
   end
 
   defp update_timestamp(process_state) do
@@ -522,9 +385,5 @@ defmodule Viva.Sessions.LifeProcess do
 
   defp broadcast_thought(avatar_id, thought) do
     PubSub.broadcast(Viva.PubSub, "avatar:#{avatar_id}", {:thought, thought})
-  end
-
-  defp broadcast_to_owner(avatar_id, message) do
-    PubSub.broadcast(Viva.PubSub, "avatar:#{avatar_id}:owner", message)
   end
 end

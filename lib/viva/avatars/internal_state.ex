@@ -1,18 +1,37 @@
 defmodule Viva.Avatars.InternalState do
   @moduledoc """
-  The aggregate state of an avatar, combining biological, emotional and cognitive aspects.
+  The aggregate state of an avatar, combining biological, emotional,
+  sensory, and conscious aspects.
+
+  This is the complete internal state of the avatar's "synthetic soul":
+  - Bio: Hormonal/physiological state
+  - Emotional: PAD model emotions
+  - Sensory: Perception and qualia (subjective experience)
+  - Consciousness: Stream of experience and self-model
   """
   use Ecto.Schema
   import Ecto.Changeset
 
   alias Viva.Avatars.BioState
+  alias Viva.Avatars.ConsciousnessState
   alias Viva.Avatars.EmotionalState
+  alias Viva.Avatars.SensoryState
 
   @primary_key false
   embedded_schema do
-    # Layers of the Synthetic Soul
+    # === Layers of the Synthetic Soul ===
+
+    # Layer 1: Biological (hormones, physiology)
     embeds_one :bio, BioState, on_replace: :update
+
+    # Layer 2: Emotional (PAD model)
     embeds_one :emotional, EmotionalState, on_replace: :update
+
+    # Layer 3: Sensory (perception, qualia, attention)
+    embeds_one :sensory, SensoryState, on_replace: :update
+
+    # Layer 4: Consciousness (experience stream, self-model, metacognition)
+    embeds_one :consciousness, ConsciousnessState, on_replace: :update
 
     # Cognitive / Activity state
     field :current_thought, :string
@@ -52,6 +71,8 @@ defmodule Viva.Avatars.InternalState do
     ])
     |> cast_embed(:bio)
     |> cast_embed(:emotional)
+    |> cast_embed(:sensory)
+    |> cast_embed(:consciousness)
   end
 
   @doc """
@@ -85,7 +106,55 @@ defmodule Viva.Avatars.InternalState do
     %__MODULE__{
       bio: %BioState{},
       emotional: %EmotionalState{},
+      sensory: SensoryState.new(),
+      consciousness: ConsciousnessState.new(),
       updated_at: DateTime.utc_now(:second)
     }
+  end
+
+  @doc """
+  Creates a new internal state with consciousness initialized from personality.
+  """
+  @spec from_personality(Viva.Avatars.Personality.t()) :: t()
+  def from_personality(personality) do
+    %__MODULE__{
+      bio: %BioState{},
+      emotional: %EmotionalState{},
+      sensory: SensoryState.new(),
+      consciousness: ConsciousnessState.from_personality(personality),
+      updated_at: DateTime.utc_now(:second)
+    }
+  end
+
+  @doc """
+  Returns the current qualia narrative (subjective experience description).
+  """
+  @spec qualia_narrative(t()) :: String.t() | nil
+  def qualia_narrative(%__MODULE__{sensory: sensory}) do
+    SensoryState.experience_narrative(sensory)
+  end
+
+  @doc """
+  Returns true if the avatar is currently surprised.
+  """
+  @spec surprised?(t()) :: boolean()
+  def surprised?(%__MODULE__{sensory: sensory}) do
+    SensoryState.surprised?(sensory)
+  end
+
+  @doc """
+  Returns true if the avatar is in a dissociative state.
+  """
+  @spec dissociated?(t()) :: boolean()
+  def dissociated?(%__MODULE__{consciousness: consciousness}) do
+    ConsciousnessState.dissociated?(consciousness)
+  end
+
+  @doc """
+  Returns the current metacognitive observation.
+  """
+  @spec meta_observation(t()) :: String.t() | nil
+  def meta_observation(%__MODULE__{consciousness: consciousness}) do
+    consciousness.meta_observation
   end
 end
