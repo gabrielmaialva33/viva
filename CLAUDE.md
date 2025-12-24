@@ -58,7 +58,7 @@ Each avatar runs as a `Viva.Sessions.LifeProcess` GenServer:
 ### Key GenServers
 
 - `Viva.Sessions.LifeProcess` - Individual avatar simulation
-- `Viva.Matchmaker.Engine` - Caches compatibility scores, refreshes hourly
+- `Viva.Matching.Engine` - Caches compatibility scores, refreshes hourly
 - `Viva.World.Clock` - Manages simulation time
 
 ### Infrastructure

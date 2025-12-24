@@ -90,7 +90,7 @@ defmodule Viva.Sessions.Supervisor do
       Viva.World.Clock,
 
       # Matchmaker process
-      Viva.Matchmaker.Engine
+      Viva.Matching.Engine
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

@@ -66,7 +66,7 @@ Viva.Application
 │   ├── Task.Supervisor
 │   ├── DynamicSupervisor (AvatarSupervisor)
 │   ├── Viva.World.Clock
-│   └── Viva.Matchmaker.Engine
+│   └── Viva.Matching.Engine
 └── VivaWeb.Endpoint
 ```
 
@@ -229,7 +229,7 @@ Nim.LlmClient.chat(messages, system: "You are helpful")
 1. Add field to `Viva.Relationships.Relationship` schema
 2. Create migration: `mix ecto.gen.migration add_feature_to_relationships`
 3. Update `Viva.Relationships` context functions
-4. Update `Matchmaker.Engine` if affects compatibility
+4. Update `Matching.Engine` if affects compatibility
 
 ### Create a New LiveView
 

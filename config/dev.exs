@@ -10,7 +10,7 @@ config :viva, Viva.Repo,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10,
-  types: Viva.PostgrexTypes
+  types: Viva.Infrastructure.PostgrexTypes
 
 # Redis configuration
 config :viva, :redis, url: System.get_env("REDIS_URL", "redis://localhost:6379")

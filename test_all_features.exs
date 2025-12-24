@@ -178,7 +178,7 @@ defmodule FeatureTest do
     IO.puts("\n>>> [5/10] Testing Matchmaker.Engine...")
 
     try do
-      case GenServer.whereis(Viva.Matchmaker.Engine) do
+      case GenServer.whereis(Viva.Matching.Engine) do
         nil ->
           IO.puts("    [WARN] Matchmaker not running")
           {:matchmaker, :not_running}
@@ -193,7 +193,7 @@ defmodule FeatureTest do
             avatar = List.first(avatars)
             IO.puts("    Finding matches for: #{avatar.name}...")
 
-            case Viva.Matchmaker.Engine.find_matches(avatar.id, limit: 3) do
+            case Viva.Matching.Engine.find_matches(avatar.id, limit: 3) do
               {:ok, matches} ->
                 IO.puts("    [OK] Found #{length(matches)} matches")
 

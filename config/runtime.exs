@@ -71,7 +71,7 @@ if config_env() == :prod do
   config :viva, Viva.Repo,
     url: database_url,
     pool_size: pool_size,
-    types: Viva.PostgrexTypes,
+    types: Viva.Infrastructure.PostgrexTypes,
     socket_options: maybe_ipv6
 
   # Redis configuration

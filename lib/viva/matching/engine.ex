@@ -1,4 +1,4 @@
-defmodule Viva.Matchmaker.Engine do
+defmodule Viva.Matching.Engine do
   @moduledoc """
   Matchmaker engine that finds compatible avatars.
   Uses personality compatibility, shared interests, and values alignment.
@@ -13,7 +13,7 @@ defmodule Viva.Matchmaker.Engine do
 
   ## Configuration
 
-      config :viva, Viva.Matchmaker.Engine,
+      config :viva, Viva.Matching.Engine,
         cache_ttl_hours: 24,
         refresh_interval_hours: 1,
         max_cache_size: 10_000

@@ -1,7 +1,7 @@
-defmodule Viva.Matchmaker.EngineTest do
+defmodule Viva.Matching.EngineTest do
   use ExUnit.Case, async: true
 
-  alias Viva.Matchmaker.Engine
+  alias Viva.Matching.Engine
 
   describe "module structure" do
     test "exports expected functions" do

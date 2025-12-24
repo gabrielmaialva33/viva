@@ -76,7 +76,7 @@ defmodule VivaWeb.AvatarChannel do
   def handle_in("get_matches", payload, socket) do
     limit = Map.get(payload, "limit", 10)
 
-    case Viva.Matchmaker.Engine.find_matches(socket.assigns.avatar_id, limit: limit) do
+    case Viva.Matching.Engine.find_matches(socket.assigns.avatar_id, limit: limit) do
       {:ok, matches} ->
         {:reply, {:ok, %{matches: serialize_matches(matches)}}, socket}
 

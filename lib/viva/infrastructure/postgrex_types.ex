@@ -1,5 +1,5 @@
 Postgrex.Types.define(
-  Viva.PostgrexTypes,
+  Viva.Infrastructure.PostgrexTypes,
   [Pgvector.Extensions.Vector] ++ Ecto.Adapters.Postgres.extensions(),
   []
 )
