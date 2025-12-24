@@ -32,6 +32,9 @@ defmodule Viva.Conversations.Message do
     # Timing
     field :timestamp, :utc_datetime
 
+    # sender_type: user or avatar
+    field :sender_type, Ecto.Enum, values: [:user, :avatar], default: :avatar
+
     # Generation metadata
     # monotonic time for latency tracking
     field :generated_at, :integer
@@ -52,9 +55,10 @@ defmodule Viva.Conversations.Message do
       :audio_url,
       :duration_seconds,
       :timestamp,
-      :generated_at
+      :generated_at,
+      :sender_type
     ])
-    |> validate_required([:conversation_id, :content, :timestamp])
+    |> validate_required([:conversation_id, :content, :timestamp, :sender_type])
     |> validate_inclusion(:content_type, ["text", "audio", "image"])
     |> foreign_key_constraint(:conversation_id)
     |> foreign_key_constraint(:speaker_id)

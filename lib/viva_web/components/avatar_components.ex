@@ -24,7 +24,7 @@ defmodule VivaWeb.AvatarComponents do
     ~H"""
     <div class="flex items-center gap-4">
       <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-800/60 border border-white/5">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-synapse"></span>
         <span class="text-sm font-mono text-zinc-300">
           {Calendar.strftime(@world_time, "%H:%M")}
         </span>
@@ -61,7 +61,7 @@ defmodule VivaWeb.AvatarComponents do
       class={[
         "relative group p-5 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-md transition-all duration-300",
         "hover:bg-zinc-800/50 hover:border-white/10 hover:-translate-y-1 hover:shadow-xl cursor-pointer",
-        if(@is_online, do: "ring-1 ring-emerald-500/20", else: "")
+        if(@is_online, do: "ring-1 ring-cyan-500/20", else: "")
       ]}
       phx-click={@on_click}
       phx-value-id={@avatar.id}
@@ -124,9 +124,9 @@ defmodule VivaWeb.AvatarComponents do
     """
   end
 
-  defp life_pulse_color(true, mood) when mood > 0.3, do: "bg-emerald-500 animate-pulse"
-  defp life_pulse_color(true, mood) when mood < -0.3, do: "bg-red-400"
-  defp life_pulse_color(true, _), do: "bg-amber-400"
+  defp life_pulse_color(true, mood) when mood > 0.3, do: "bg-cyan-400 animate-pulse"
+  defp life_pulse_color(true, mood) when mood < -0.3, do: "bg-rose-400"
+  defp life_pulse_color(true, _), do: "bg-fuchsia-400"
   defp life_pulse_color(false, _), do: "bg-zinc-600"
 
   # ============================================================================
@@ -505,7 +505,7 @@ defmodule VivaWeb.AvatarComponents do
   defp relationship_status_color(:acquaintances), do: "bg-zinc-600 text-zinc-300"
   defp relationship_status_color(:friends), do: "bg-blue-500/20 text-blue-400"
   defp relationship_status_color(:close_friends), do: "bg-green-500/20 text-green-400"
-  defp relationship_status_color(:best_friends), do: "bg-emerald-500/20 text-emerald-400"
+  defp relationship_status_color(:best_friends), do: "bg-cyan-500/20 text-cyan-400"
   defp relationship_status_color(:crush), do: "bg-pink-500/20 text-pink-400"
   defp relationship_status_color(:mutual_crush), do: "bg-rose-500/20 text-rose-400"
   defp relationship_status_color(:dating), do: "bg-red-500/20 text-red-400"
@@ -854,8 +854,8 @@ defmodule VivaWeb.AvatarComponents do
   defp temperament_color(:melancholic), do: "badge-primary"
   defp temperament_color(_), do: "badge-ghost"
 
-  defp status_color(true, mood) when mood > 0.3, do: "bg-emerald-500 animate-pulse"
-  defp status_color(true, mood) when mood < -0.3, do: "bg-red-500"
-  defp status_color(true, _), do: "bg-amber-500"
+  defp status_color(true, mood) when mood > 0.3, do: "bg-cyan-400 animate-pulse"
+  defp status_color(true, mood) when mood < -0.3, do: "bg-rose-500"
+  defp status_color(true, _), do: "bg-fuchsia-400"
   defp status_color(false, _), do: "bg-zinc-600"
 end

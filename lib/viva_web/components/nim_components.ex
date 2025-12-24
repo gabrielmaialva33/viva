@@ -84,7 +84,7 @@ defmodule VivaWeb.NimComponents do
   def nim_card(assigns) do
     ~H"""
     <div class="group relative p-3 rounded-xl transition-all duration-300 hover:bg-white/5 cursor-default flex items-center gap-3 border border-transparent hover:border-white/5">
-      <div class="w-8 h-8 rounded-lg bg-zinc-800/50 flex items-center justify-center text-zinc-500 group-hover:text-emerald-400 group-hover:bg-emerald-500/10 transition-colors">
+      <div class="w-8 h-8 rounded-lg bg-zinc-800/50 flex items-center justify-center text-zinc-500 group-hover:text-cyan-400 group-hover:bg-cyan-500/10 transition-colors">
         <.icon name={@icon} class="w-4 h-4" />
       </div>
       <div>
@@ -149,7 +149,8 @@ defmodule VivaWeb.NimComponents do
       <div class="flex-1 p-8 min-h-[400px] flex flex-col relative bg-[#050507]/20">
         <%= if @selected_demo do %>
           <h2 class="text-sm font-medium text-zinc-400 mb-6 flex items-center gap-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Output: {@selected_demo}
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-synapse"></span>
+            Output: {@selected_demo}
           </h2>
         <% end %>
 
@@ -233,7 +234,7 @@ defmodule VivaWeb.NimComponents do
                   que serão integradas em breve.
                 </p>
                 <p class="text-zinc-500 text-xs mt-2">
-                  <span class="text-emerald-400">✓ Funcionando:</span> Conversa, Pensamento
+                  <span class="text-cyan-400">✓ Funcionando:</span> Conversa, Pensamento
                 </p>
               </div>
             </div>
@@ -241,7 +242,7 @@ defmodule VivaWeb.NimComponents do
             <%= case @demo do %>
               <% :chat -> %>
                 <div class="flex gap-4 items-start">
-                  <div class="shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500">
+                  <div class="shrink-0 w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400">
                     <.icon name="hero-chat-bubble-left-right" class="w-4 h-4" />
                   </div>
                   <div>
@@ -294,11 +295,11 @@ defmodule VivaWeb.NimComponents do
                     <span class="text-[10px] text-zinc-500 uppercase block mb-3">Input (PT-BR)</span>
                     <p class="text-white text-lg font-medium">{@result.original}</p>
                   </div>
-                  <div class="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-                    <span class="text-[10px] text-emerald-400 uppercase block mb-3">
+                  <div class="p-6 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">
+                    <span class="text-[10px] text-cyan-400 uppercase block mb-3">
                       Output ({@result.target_lang})
                     </span>
-                    <p class="text-emerald-300 text-lg font-medium">{@result.translated}</p>
+                    <p class="text-cyan-300 text-lg font-medium">{@result.translated}</p>
                   </div>
                 </div>
               <% _ -> %>

@@ -28,12 +28,25 @@ defmodule VivaWeb.LandingLive do
     avatars = load_demo_avatars()
     relationships = load_demo_relationships(avatars)
 
+    # Get stats for hero section
+    all_active_avatars = Avatars.list_avatars(active: true)
+    active_avatar_count = length(all_active_avatars)
+
+    # Extract avatar structs for the avatar stack (up to 5)
+    demo_avatar_list =
+      avatars
+      |> Map.values()
+      |> Enum.map(& &1.avatar)
+      |> Enum.take(5)
+
     socket =
       socket
       |> assign(:page_title, "VIVA - Avatares Digitais Autonomos")
       |> assign(:avatars, avatars)
       |> assign(:relationships, relationships)
       |> assign(:world_time, Clock.now())
+      |> assign(:active_avatar_count, active_avatar_count)
+      |> assign(:demo_avatar_list, demo_avatar_list)
 
     {:ok, socket}
   end

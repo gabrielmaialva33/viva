@@ -38,6 +38,7 @@ defmodule Viva.Relationships.Relationship do
         :best_friends,
         :crush,
         :mutual_crush,
+        :matched,
         :dating,
         :partners,
         :complicated,

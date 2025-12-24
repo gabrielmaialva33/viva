@@ -24,7 +24,7 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/viva"
 import topbar from "../vendor/topbar"
-import { RelationshipGraph } from "./hooks/relationship_graph"
+import { ParallaxOrbs, WordRotate, StepProgress, RelationshipGraph } from "./hooks/index"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
@@ -32,6 +32,9 @@ const liveSocket = new LiveSocket("/live", Socket, {
   params: {_csrf_token: csrfToken},
   hooks: {
     ...colocatedHooks,
+    ParallaxOrbs,
+    WordRotate,
+    StepProgress,
     RelationshipGraph
   },
 })

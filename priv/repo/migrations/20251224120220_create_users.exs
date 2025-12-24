@@ -4,24 +4,15 @@ defmodule Viva.Repo.Migrations.CreateUsers do
   def change do
     create table(:users, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :email, :string, null: false
       add :username, :string, null: false
+      add :locale, :string, default: "pt-BR"
+      add :email, :string, null: false
       add :display_name, :string
-      add :avatar_url, :string
-      add :hashed_password, :string
-
-      # Profile
+      add :hashed_password, :string, null: false
       add :bio, :text
-      add :date_of_birth, :date
-      add :timezone, :string, default: "UTC"
-      add :locale, :string, default: "en"
-
-      # Status
+      add :timezone, :string
       add :is_active, :boolean, default: true
       add :is_verified, :boolean, default: false
-      add :last_seen_at, :utc_datetime
-
-      # Preferences
       add :preferences, :map, default: %{}
 
       timestamps(type: :utc_datetime)

@@ -10,7 +10,9 @@ defmodule Viva.Sessions.LifeProcess do
 
   alias Phoenix.PubSub
   alias Viva.Avatars.Avatar
+  alias Viva.Avatars.Biology
   alias Viva.Avatars.InternalState
+  alias Viva.Avatars.Psychology
   alias Viva.Nim.LlmClient
   alias Viva.Relationships
 
@@ -42,34 +44,10 @@ defmodule Viva.Sessions.LifeProcess do
   # Persist every 5 ticks (5 minutes with 60s tick interval)
   @persist_every_n_ticks 5
 
-  # Base decay rates (per sim minute)
-  @decay_rate_energy 0.2
-  @decay_rate_social 0.5
-  @decay_rate_stimulation 0.3
-  @decay_rate_comfort 0.1
-
-  # Personality weights for decay
-  @weight_extraversion_social 0.5
-  @weight_openness_stimulation 0.4
-
-  # Desire thresholds
-  @threshold_social_low 20
-  @threshold_energy_low 15
-  @threshold_stimulation_low 25
-  @threshold_loneliness_high 0.7
-  @threshold_love_high 0.6
-
   # Action probabilities
   @prob_spontaneous_thought 0.1
   @prob_initiate_conversation 0.3
   @prob_message_crush 0.2
-
-  # Emotion processing constants
-  @emotion_persistence 0.9
-  @emotion_influence 0.1
-  @loneliness_relationship_bonus -0.2
-  @loneliness_no_relationship_penalty 0.1
-  @loneliness_interaction_bonus -0.3
 
   # === Client API ===
 
@@ -208,12 +186,22 @@ defmodule Viva.Sessions.LifeProcess do
   @impl GenServer
   def handle_info(:tick, state) do
     tick_count = state.tick_count + 1
+    avatar = state.avatar
+    internal = state.state
 
+    # 1. Biological Tick (Hormones decay/build)
+    new_bio = Biology.tick(internal.bio, avatar.personality)
+
+    # 2. Psychological Update (Translate hormones to PAD Vector)
+    new_emotional = Psychology.calculate_emotional_state(new_bio, avatar.personality)
+
+    # 3. Update Internal State
+    new_internal = %{internal | bio: new_bio, emotional: new_emotional}
+
+    # 4. Continue with high-level logic
     new_state =
-      state
-      |> Map.put(:tick_count, tick_count)
-      |> decay_needs()
-      |> process_emotions()
+      %{state | state: new_internal, tick_count: tick_count}
+      |> maybe_sleep_and_reflect()
       |> maybe_develop_desire()
       |> maybe_think()
       |> maybe_act_autonomously()
@@ -226,6 +214,53 @@ defmodule Viva.Sessions.LifeProcess do
   end
 
   # === Private Functions ===
+
+  defp maybe_sleep_and_reflect(process_state) do
+    internal = process_state.state
+
+    # If exhausted or it's sleep time, go to sleep
+    should_sleep = internal.bio.adenosine > 0.9 or sleep_time?(internal.bio)
+
+    cond do
+      internal.current_activity == :sleeping and internal.bio.adenosine > 0.1 ->
+        # Continue sleeping, recover energy
+        new_bio = %{internal.bio | adenosine: max(0.0, internal.bio.adenosine - 0.05)}
+        new_internal = %{internal | bio: new_bio}
+        %{process_state | state: new_internal}
+
+      should_sleep and internal.current_activity != :sleeping ->
+        # Fall asleep and trigger reflection
+        Logger.info("Avatar #{process_state.avatar.name} is falling asleep. Triggering reflection.")
+        trigger_dream_cycle(process_state)
+
+        new_internal = %{internal | current_activity: :sleeping}
+        %{process_state | state: new_internal}
+
+      internal.current_activity == :sleeping and internal.bio.adenosine <= 0.1 ->
+        # Wake up!
+        Logger.info("Avatar #{process_state.avatar.name} is waking up refreshed.")
+        new_internal = %{internal | current_activity: :idle}
+        %{process_state | state: new_internal}
+
+      true ->
+        process_state
+    end
+  end
+
+  defp sleep_time?(_bio) do
+    # Simple check against configured sleep hour (mocked for now)
+    false
+  end
+
+  defp trigger_dream_cycle(process_state) do
+    # Async task to process memories without blocking the heartbeat
+    Task.Supervisor.start_child(Viva.Sessions.TaskSupervisor, fn ->
+      # 1. Fetch recent memories
+      # 2. Call ReasoningClient.reflect_on_memories
+      # 3. Save new insights as high-importance memories
+      Logger.debug("Dreaming...")
+    end)
+  end
 
   defp schedule_tick do
     Process.send_after(self(), :tick, @tick_interval)
@@ -242,104 +277,21 @@ defmodule Viva.Sessions.LifeProcess do
     end
   end
 
-  # Decay needs over time
-  defp decay_needs(process_state) do
-    internal = process_state.state
-    personality = process_state.avatar.personality
-
-    # Extraverts lose social need faster
-    social_decay = @decay_rate_social + personality.extraversion * @weight_extraversion_social
-
-    # High openness = need more stimulation
-    stim_decay = @decay_rate_stimulation + personality.openness * @weight_openness_stimulation
-
-    new_internal = %{
-      internal
-      | energy: decay_value(internal.energy, @decay_rate_energy),
-        social: decay_value(internal.social, social_decay),
-        stimulation: decay_value(internal.stimulation, stim_decay),
-        comfort: decay_value(internal.comfort, @decay_rate_comfort)
-    }
-
-    %{process_state | state: new_internal}
-  end
-
-  defp decay_value(current, rate) do
-    max(0.0, current - rate * @time_scale)
-  end
-
-  # Process and update emotions based on current state
-  defp process_emotions(process_state) do
-    internal = process_state.state
-    emotions = internal.emotions
-
-    # Loneliness increases when social need is low
-    loneliness = calculate_loneliness(internal, process_state)
-
-    # Joy correlates with overall wellbeing
-    wellbeing = InternalState.wellbeing(internal)
-    joy = emotions.joy * @emotion_persistence + wellbeing * @emotion_influence
-
-    # Sadness inversely correlates with joy (simplified decay)
-    sadness = max(0, emotions.sadness * @emotion_persistence - joy * @emotion_influence)
-
-    new_emotions = %{emotions | loneliness: loneliness, joy: joy, sadness: sadness}
-
-    # Calculate new mood
-    mood = calculate_mood(new_emotions)
-
-    new_internal = %{internal | emotions: new_emotions, mood: mood}
-
-    %{process_state | state: new_internal}
-  end
-
-  defp calculate_loneliness(internal, process_state) do
-    base = 1.0 - internal.social / 100.0
-
-    # Having close relationships reduces loneliness
-    has_relationships = has_close_relationships?(process_state.avatar_id)
-
-    relationship_factor =
-      if has_relationships,
-        do: @loneliness_relationship_bonus,
-        else: @loneliness_no_relationship_penalty
-
-    # Currently interacting reduces loneliness
-    interaction_factor = if internal.interacting_with, do: @loneliness_interaction_bonus, else: 0.0
-
-    (base + relationship_factor + interaction_factor)
-    |> max(0.0)
-    |> min(1.0)
-  end
-
-  defp calculate_mood(emotions) do
-    positive = emotions.joy + emotions.love + emotions.excitement + emotions.curiosity
-    negative = emotions.sadness + emotions.anger + emotions.fear + emotions.loneliness
-
-    ((positive - negative) / 4.0)
-    |> max(-1.0)
-    |> min(1.0)
-  end
-
-  defp has_close_relationships?(avatar_id) do
-    Relationships.count_close_relationships(avatar_id) > 0
-  end
-
   # Develop desires based on current needs
   defp maybe_develop_desire(process_state) do
-    internal = process_state.state
+    bio = process_state.state.bio
+    emotional = process_state.state.emotional
 
     desire =
       cond do
-        internal.social < @threshold_social_low -> :wants_to_talk
-        internal.energy < @threshold_energy_low -> :wants_rest
-        internal.stimulation < @threshold_stimulation_low -> :wants_something_new
-        internal.emotions.loneliness > @threshold_loneliness_high -> :wants_attention
-        internal.emotions.love > @threshold_love_high -> :wants_to_see_crush
+        bio.oxytocin < 0.2 -> :wants_attention
+        bio.dopamine < 0.2 -> :wants_something_new
+        bio.adenosine > 0.8 -> :wants_rest
+        emotional.pleasure < -0.5 -> :wants_to_express
         true -> :none
       end
 
-    new_internal = %{internal | current_desire: desire}
+    new_internal = %{process_state.state | current_desire: desire}
     %{process_state | state: new_internal}
   end
 

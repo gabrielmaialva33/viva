@@ -1,33 +1,20 @@
 defmodule Viva.Avatars.InternalState do
   @moduledoc """
-  Embedded schema for avatar's current internal state.
-  Represents needs, emotions, and current mental state.
+  The aggregate state of an avatar, combining biological, emotional and cognitive aspects.
   """
   use Ecto.Schema
-
   import Ecto.Changeset
 
-  alias Viva.Avatars.Emotions
-
-  # === Types ===
-
-  @type t :: %__MODULE__{}
+  alias Viva.Avatars.BioState
+  alias Viva.Avatars.EmotionalState
 
   @primary_key false
   embedded_schema do
-    # Basic needs (0.0 to 100.0, decay over time)
-    field :energy, :float, default: 100.0
-    field :social, :float, default: 100.0
-    field :stimulation, :float, default: 100.0
-    field :comfort, :float, default: 80.0
+    # Layers of the Synthetic Soul
+    embeds_one :bio, BioState, on_replace: :update
+    embeds_one :emotional, EmotionalState, on_replace: :update
 
-    # Current emotions (0.0 to 1.0)
-    embeds_one :emotions, Emotions, on_replace: :update
-
-    # Overall mood (-1.0 to 1.0)
-    field :mood, :float, default: 0.3
-
-    # Current mental activity
+    # Cognitive / Activity state
     field :current_thought, :string
 
     field :current_desire, Ecto.Enum,
@@ -42,69 +29,57 @@ defmodule Viva.Avatars.InternalState do
       ],
       default: :none
 
-    # Current activity
     field :current_activity, Ecto.Enum,
-      values: [:idle, :resting, :thinking, :talking, :waiting, :excited],
+      values: [:idle, :resting, :thinking, :talking, :waiting, :excited, :sleeping],
       default: :idle
 
-    # Who they're interacting with (if any)
     field :interacting_with, :binary_id
 
-    # Last state update
     field :updated_at, :utc_datetime
   end
 
-  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(state, attrs) do
     state
     |> cast(attrs, [
-      :energy,
-      :social,
-      :stimulation,
-      :comfort,
-      :mood,
       :current_thought,
       :current_desire,
       :current_activity,
       :interacting_with,
       :updated_at
     ])
-    |> cast_embed(:emotions)
-    |> validate_number(:energy, greater_than_or_equal_to: 0.0, less_than_or_equal_to: 100.0)
-    |> validate_number(:social, greater_than_or_equal_to: 0.0, less_than_or_equal_to: 100.0)
-    |> validate_number(:mood, greater_than_or_equal_to: -1.0, less_than_or_equal_to: 1.0)
+    |> cast_embed(:bio)
+    |> cast_embed(:emotional)
   end
 
-  @spec new() :: t()
+  @doc """
+  Returns a label for the current dominant emotion.
+  """
+  def dominant_emotion(%__MODULE__{emotional: emotional}) do
+    emotional.mood_label
+  end
+
+  @doc """
+  Calculates overall wellbeing (0.0 to 1.0).
+  A mix of high Pleasure, low Cortisol, and low Adenosine.
+  """
+  def wellbeing(%__MODULE__{bio: bio, emotional: emotional}) do
+    # Pleasure is -1 to 1, we normalize to 0 to 1
+    pleasure_score = (emotional.pleasure + 1.0) / 2.0
+
+    # Stress and Fatigue are 0 to 1, we invert them
+    stress_penalty = bio.cortisol
+    fatigue_penalty = bio.adenosine
+
+    (pleasure_score * 0.6 + (1.0 - stress_penalty) * 0.2 + (1.0 - fatigue_penalty) * 0.2)
+    |> max(0.0)
+    |> min(1.0)
+  end
+
   def new do
     %__MODULE__{
-      emotions: %Emotions{},
+      bio: %BioState{},
+      emotional: %EmotionalState{},
       updated_at: DateTime.utc_now(:second)
     }
-  end
-
-  @doc "Get the dominant emotion"
-  @spec dominant_emotion(t()) :: atom()
-  def dominant_emotion(%__MODULE__{emotions: emotions}) do
-    emotions
-    |> Map.from_struct()
-    |> Enum.max_by(fn {_, v} -> v end)
-    |> elem(0)
-  end
-
-  @doc "Calculate overall wellbeing (0.0 to 1.0)"
-  @spec wellbeing(t()) :: float()
-  def wellbeing(%__MODULE__{} = state) do
-    needs_score = (state.energy + state.social + state.stimulation + state.comfort) / 400.0
-
-    emotion_score =
-      ((state.emotions.joy + state.emotions.love + state.emotions.excitement -
-          state.emotions.sadness - state.emotions.anger - state.emotions.loneliness) / 3.0)
-      |> max(-1.0)
-      |> min(1.0)
-      |> Kernel.+(1.0)
-      |> Kernel./(2.0)
-
-    needs_score * 0.4 + emotion_score * 0.4 + (state.mood + 1.0) / 2.0 * 0.2
   end
 end

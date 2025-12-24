@@ -1,12 +1,15 @@
-<div class="min-h-screen bg-[#050507] text-white selection:bg-white/20 font-sans">
+<div class="min-h-screen bg-[#0a0612] text-white selection:bg-fuchsia-500/30 font-sans">
   <!-- Navbar -->
   <.landing_navbar />
   
 <!-- Hero Section -->
-  <.hero_section />
+  <.hero_section active_avatars={@active_avatar_count} demo_avatars={@demo_avatar_list} />
   
 <!-- Features Section -->
   <.features_section />
+  
+<!-- How It Works Section -->
+  <.how_it_works_section />
   
 <!-- Demo Section -->
   <section id="demo" class="py-24 px-6 relative">
@@ -58,7 +61,7 @@
     <.tech_section />
     
 <!-- NIM Capabilities Grid (from NimComponents) -->
-    <div class="pb-24 px-6 bg-zinc-950/50">
+    <div class="pb-24 px-6 bg-purple-950/30">
       <div class="max-w-6xl mx-auto">
         <.nim_grid />
       </div>
