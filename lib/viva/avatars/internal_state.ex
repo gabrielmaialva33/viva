@@ -157,4 +157,34 @@ defmodule Viva.Avatars.InternalState do
   def meta_observation(%__MODULE__{consciousness: consciousness}) do
     consciousness.meta_observation
   end
+
+  @doc """
+  Ensures all internal state components are properly initialized.
+  Handles nil values that may exist in persisted states.
+  """
+  @spec ensure_integrity(t() | nil, Viva.Avatars.Personality.t()) :: t()
+  def ensure_integrity(nil, personality), do: from_personality(personality)
+
+  def ensure_integrity(state, personality) do
+    state
+    |> ensure_bio()
+    |> ensure_emotional()
+    |> ensure_sensory()
+    |> ensure_consciousness(personality)
+  end
+
+  defp ensure_bio(%{bio: nil} = state), do: %{state | bio: %BioState{}}
+  defp ensure_bio(state), do: state
+
+  defp ensure_emotional(%{emotional: nil} = state), do: %{state | emotional: %EmotionalState{}}
+  defp ensure_emotional(state), do: state
+
+  defp ensure_sensory(%{sensory: nil} = state), do: %{state | sensory: SensoryState.new()}
+  defp ensure_sensory(state), do: state
+
+  defp ensure_consciousness(%{consciousness: nil} = state, personality) do
+    %{state | consciousness: ConsciousnessState.from_personality(personality)}
+  end
+
+  defp ensure_consciousness(state, _), do: state
 end

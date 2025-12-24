@@ -12,6 +12,7 @@ defmodule Viva.Sessions.LifeProcess do
 
   alias Phoenix.PubSub
   alias Viva.Avatars.Avatar
+  alias Viva.Avatars.InternalState
   alias Viva.Avatars.Systems.Biology
   alias Viva.Avatars.Systems.Consciousness
   alias Viva.Avatars.Systems.Neurochemistry
@@ -114,10 +115,14 @@ defmodule Viva.Sessions.LifeProcess do
 
     case load_avatar(avatar_id) do
       {:ok, avatar} ->
+        # Ensure all internal state components are initialized
+        safe_internal_state =
+          InternalState.ensure_integrity(avatar.internal_state, avatar.personality)
+
         state = %__MODULE__{
           avatar_id: avatar_id,
-          avatar: avatar,
-          state: avatar.internal_state,
+          avatar: %{avatar | internal_state: safe_internal_state},
+          state: safe_internal_state,
           last_tick_at: DateTime.utc_now(),
           owner_online?: false,
           current_conversation: nil
