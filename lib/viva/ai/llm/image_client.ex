@@ -15,6 +15,7 @@ defmodule Viva.AI.LLM.ImageClient do
   """
   require Logger
 
+  alias Viva.AI.LLM
   alias Viva.Avatars.Avatar
 
   # === Types ===
@@ -52,7 +53,7 @@ defmodule Viva.AI.LLM.ImageClient do
       aspect_ratio: "1:1"
     }
 
-    case Viva.AI.LLM.image_request("stabilityai/stable-diffusion-3-medium", body, timeout: 120_000) do
+    case LLM.image_request("stabilityai/stable-diffusion-3-medium", body, timeout: 120_000) do
       {:ok, %{"artifacts" => [%{"base64" => image_data} | _]}} ->
         {:ok, Base.decode64!(image_data)}
 
@@ -95,7 +96,7 @@ defmodule Viva.AI.LLM.ImageClient do
       aspect_ratio: "1:1"
     }
 
-    case Viva.AI.LLM.image_request("stabilityai/stable-diffusion-3-medium", body, timeout: 90_000) do
+    case LLM.image_request("stabilityai/stable-diffusion-3-medium", body, timeout: 90_000) do
       {:ok, %{"artifacts" => [%{"base64" => image_data} | _]}} ->
         {:ok, Base.decode64!(image_data)}
 
@@ -122,7 +123,7 @@ defmodule Viva.AI.LLM.ImageClient do
       steps: 25
     }
 
-    case Viva.AI.LLM.image_request("black-forest-labs/flux-1-kontext-dev", body, timeout: 90_000) do
+    case LLM.image_request("black-forest-labs/flux-1-kontext-dev", body, timeout: 90_000) do
       {:ok, %{"artifacts" => [%{"base64" => edited_data} | _]}} ->
         {:ok, Base.decode64!(edited_data)}
 

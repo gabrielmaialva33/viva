@@ -16,6 +16,11 @@ defmodule Viva.AI.LLM.SafetyClient do
   """
   require Logger
 
+  alias Viva.AI.LLM.SafetyClient, as: Client
+  alias Viva.Nim
+
+  @behaviour Viva.AI.Pipeline.Stager
+
   alias Viva.Avatars.Avatar
 
   # === Types ===
@@ -200,7 +205,7 @@ defmodule Viva.AI.LLM.SafetyClient do
   @spec check_avatar_message(String.t(), Avatar.t(), keyword()) ::
           {:ok, :safe} | {:unsafe, [safety_category() | :jailbreak_attempt]} | {:error, term()}
   def check_avatar_message(message, avatar, opts \\ []) do
-    with {:ok, :safe} <- check_content(message, opts),
+    with {:ok, :safe} <- Client.check_content(message, opts),
          {:ok, %{is_jailbreak: false}} <- detect_jailbreak(message, opts) do
       {:ok, :safe}
     else

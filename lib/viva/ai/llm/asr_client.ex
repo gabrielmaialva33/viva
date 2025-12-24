@@ -14,6 +14,11 @@ defmodule Viva.AI.LLM.AsrClient do
   """
   require Logger
 
+  alias Viva.Nim
+  alias Viva.AI.LLM.AsrClient, as: Client
+
+  @behaviour Viva.AI.Pipeline.Stage
+
   # === Types ===
 
   @type transcription_result :: %{

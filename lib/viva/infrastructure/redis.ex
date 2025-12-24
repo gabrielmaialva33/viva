@@ -4,8 +4,16 @@ defmodule Viva.Infrastructure.Redis do
   Used primarily for caching avatar states (View State) to offload GenServer calls.
   """
 
-  # We assume a named dispatcher or pool will be started in application.ex
-  # For this MVP, we'll just use a singleton name :redix
+  @spec child_spec(term()) :: Supervisor.child_spec()
+  def child_spec(_) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, []},
+      type: :worker,
+      restart: :permanent,
+      shutdown: 500
+    }
+  end
 
   @spec start_link() :: GenServer.on_start()
   def start_link do

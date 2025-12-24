@@ -14,7 +14,11 @@ defmodule Viva.AI.LLM.TranslateClient do
   """
   require Logger
 
-  alias Viva.Avatars.Avatar
+  @behaviour Viva.AI.Pipeline.Stage
+
+  alias Viva.AI.LLM
+  alias Viva.AI.LLM.TranslateClient, as: Client
+  alias Viva.Nimr
 
   # === Types ===
 
@@ -115,7 +119,7 @@ defmodule Viva.AI.LLM.TranslateClient do
       {:ok, text}
     else
       # Use LLM for translation since NVIDIA NIM Translation API requires self-hosting
-      translate_via_llm(text, from_lang, to_lang, opts)
+      Client.translate_via_llm(text, from_lang, to_lang, opts)
     end
   end
 
@@ -126,7 +130,7 @@ defmodule Viva.AI.LLM.TranslateClient do
   @spec translate_batch([String.t()], language_code(), language_code(), keyword()) ::
           {:ok, [String.t()]} | {:error, term()}
   def translate_batch(texts, from_lang, to_lang, opts \\ []) when is_list(texts) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:translate))
+    model = Keyword.get(opts, :model, LLM.model(:translate))
 
     from_lang = normalize_lang(from_lang)
     to_lang = normalize_lang(to_lang)
@@ -141,7 +145,7 @@ defmodule Viva.AI.LLM.TranslateClient do
         target_language: to_lang
       }
 
-      case Viva.AI.LLM.request("/translate/batch", body) do
+      case LLM.request("/translate/batch", body) do
         {:ok, %{"translations" => translations}} ->
           {:ok, Enum.map(translations, & &1["text"])}
 
@@ -157,12 +161,12 @@ defmodule Viva.AI.LLM.TranslateClient do
   @spec detect_language(String.t()) :: {:ok, language_detection()} | {:error, term()}
   def detect_language(text) do
     body = %{
-      model: Viva.AI.LLM.model(:translate),
+      model: LLM.model(:translate),
       text: text,
       task: "detect"
     }
 
-    case Viva.AI.LLM.request("/translate/detect", body) do
+    case LLM.request("/translate/detect", body) do
       {:ok, %{"language" => lang, "confidence" => conf}} ->
         {:ok, %{language: lang, confidence: conf, name: @language_names[lang] || lang}}
 
@@ -181,7 +185,7 @@ defmodule Viva.AI.LLM.TranslateClient do
     from_lang = from_avatar.personality.native_language
     to_lang = to_avatar.personality.native_language
 
-    translate(message, from_lang, to_lang, opts)
+    Client.translate(message, from_lang, to_lang, opts)
   end
 
   @doc """
@@ -193,14 +197,14 @@ defmodule Viva.AI.LLM.TranslateClient do
     # Group messages by language to batch translate
     grouped =
       Enum.group_by(messages, fn msg ->
-        msg.language || detect_message_language(msg.content)
+        msg.language || Client.detect_message_language(msg.content)
       end)
 
     results =
       Enum.flat_map(grouped, fn {from_lang, msgs} ->
         texts = Enum.map(msgs, & &1.content)
 
-        case translate_batch(texts, from_lang, to_lang, opts) do
+        case Client.translate_batch(texts, from_lang, to_lang, opts) do
           {:ok, translations} ->
             msgs
             |> Enum.zip(translations)

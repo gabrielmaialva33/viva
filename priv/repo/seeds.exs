@@ -43,6 +43,7 @@ IO.puts("✅ Usuário Demo criado.")
 create_avatar = fn params ->
   bio_params = params[:bio_state] || %{}
   emo_params = params[:emotional_state] || %{}
+  social_persona_params = params[:social_persona] || %{}
 
   # Ensure we pass plain maps to Ecto.Changeset.cast
   internal_state = %{
@@ -60,6 +61,8 @@ create_avatar = fn params ->
     age: params.age,
     personality: params.personality,
     internal_state: internal_state,
+    social_persona: social_persona_params,
+    moral_flexibility: params[:moral_flexibility] || 0.3,
     is_active: true,
     avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=#{params.name}"
   })
@@ -90,12 +93,14 @@ sofia =
   })
 
 # --- Arthur ---
-arthur =
+_arthur =
   create_avatar.(%{
     name: "Arthur",
     age: 35,
     gender: :male,
     biography: "Professor de Filosofia. O mundo é um caos.",
+    # Muito honesto, talvez até demais
+    moral_flexibility: 0.1,
     personality: %{
       openness: 0.9,
       conscientiousness: 0.7,
@@ -108,17 +113,25 @@ arthur =
       attachment_style: "avoidant",
       native_language: "pt-BR"
     },
+    social_persona: %{
+      social_ambition: 0.1,
+      # Conhecido mas não "famoso"
+      public_reputation: 0.4,
+      perceived_traits: ["Intellectual", "Cynical", "Grumpy"]
+    },
     bio_state: %{oxytocin: 0.1, dopamine: 0.2, cortisol: 0.8, adenosine: 0.4},
     emotional_state: %{pleasure: -0.6, arousal: 0.4, dominance: -0.3, mood_label: "anxious"}
   })
 
 # --- Zara ---
-zara =
+_zara =
   create_avatar.(%{
     name: "Zara",
     age: 32,
     gender: :female,
     biography: "CEO de Fintech. Sem tempo para joguinhos.",
+    # Maquiavélica, faz o que for preciso
+    moral_flexibility: 0.8,
     personality: %{
       openness: 0.7,
       conscientiousness: 0.9,
@@ -130,6 +143,12 @@ zara =
       love_language: "touch",
       attachment_style: "secure",
       native_language: "pt-BR"
+    },
+    social_persona: %{
+      social_ambition: 0.95,
+      # Celebridade local
+      public_reputation: 0.9,
+      perceived_traits: ["Visionary", "Powerful", "Intimidating"]
     },
     bio_state: %{oxytocin: 0.3, dopamine: 0.8, cortisol: 0.4, libido: 0.8},
     emotional_state: %{pleasure: 0.5, arousal: 0.8, dominance: 0.9, mood_label: "excited"}
@@ -257,7 +276,39 @@ diana =
     emotional_state: %{pleasure: -0.2, arousal: 0.5, dominance: 0.7, mood_label: "critical"}
   })
 
-IO.puts("✅ 8 Avatares criados.")
+# --- Avatar 9: O Alpinista Social (Gael) ---
+gael =
+  create_avatar.(%{
+    name: "Gael",
+    age: 27,
+    gender: :male,
+    biography: "Consultor de Imagem. Fake it till you make it. O networking é tudo.",
+    # Flexível moralmente para subir na vida
+    moral_flexibility: 0.7,
+    personality: %{
+      openness: 0.6,
+      conscientiousness: 0.9,
+      extraversion: 0.95,
+      # Na verdade não é tão legal assim
+      agreeableness: 0.4,
+      # Inseguro no fundo
+      neuroticism: 0.7,
+      enneagram_type: "type_3",
+      humor_style: "witty",
+      love_language: "gifts",
+      attachment_style: :anxious,
+      native_language: "pt-BR"
+    },
+    social_persona: %{
+      social_ambition: 1.0,
+      public_reputation: 0.6,
+      perceived_traits: ["Charming", "Successful", "Busy"]
+    },
+    bio_state: %{oxytocin: 0.4, dopamine: 0.9, cortisol: 0.6, adenosine: 0.2},
+    emotional_state: %{pleasure: 0.6, arousal: 0.8, dominance: 0.4, mood_label: "ambitious"}
+  })
+
+IO.puts("✅ 9 Avatares criados.")
 
 # ==============================================================================
 # 4. MEMORIES
@@ -298,23 +349,50 @@ IO.puts("✅ Memórias implantadas.")
 # ==============================================================================
 # 5. SOCIAL GRAPH
 # ==============================================================================
+# Sofia & Arthur (Exes)
 Viva.Relationships.create_relationship(sofia.id, arthur.id)
 |> case do
   {:ok, rel} ->
+    # Helper to clean struct for embed update
+    to_map = fn struct ->
+      struct
+      |> Map.from_struct()
+      |> Map.drop([:__meta__])
+    end
+
     rel
     |> Ecto.Changeset.change(%{
       status: :ex,
       familiarity: 0.9,
       trust: 0.2,
       affection: 0.4,
-      unresolved_conflicts: 8
+      unresolved_conflicts: 8,
+      # Sofia tem leve vantagem emocional
+      social_leverage: 0.2
     })
+    |> Ecto.Changeset.put_embed(
+      :a_feelings,
+      Map.merge(to_map.(rel.a_feelings), %{
+        # Sofia é sincera
+        active_mask_intensity: 0.1,
+        perceived_trust: 0.3
+      })
+    )
+    |> Ecto.Changeset.put_embed(
+      :b_feelings,
+      Map.merge(to_map.(rel.b_feelings), %{
+        # Arthur esconde que ainda se importa
+        active_mask_intensity: 0.4,
+        perceived_trust: 0.5
+      })
+    )
     |> Repo.update!()
 
   _ ->
     nil
 end
 
+# Zara & Leo (Friends)
 Viva.Relationships.create_relationship(zara.id, leo.id)
 |> case do
   {:ok, rel} ->
@@ -323,8 +401,57 @@ Viva.Relationships.create_relationship(zara.id, leo.id)
       status: :close_friends,
       familiarity: 0.7,
       trust: 0.9,
-      affection: 0.6
+      affection: 0.6,
+      # Zara domina a relação (financeiramente/status)
+      social_leverage: 0.6
     })
+    |> Repo.update!()
+
+  _ ->
+    nil
+end
+
+# Zara & Gael (Strategic)
+Viva.Relationships.create_relationship(zara.id, gael.id)
+|> case do
+  {:ok, rel} ->
+    # Helper to clean struct for embed update
+    to_map = fn struct ->
+      struct
+      |> Map.from_struct()
+      |> Map.drop([:__meta__])
+    end
+
+    rel
+    |> Ecto.Changeset.change(%{
+      status: :acquaintances,
+      familiarity: 0.3,
+      trust: 0.4,
+      affection: 0.2,
+      # Zara domina TOTALMENTE
+      social_leverage: 0.9
+    })
+    # Gael está mascarado até o pescoço
+    |> Ecto.Changeset.put_embed(
+      :b_feelings,
+      Map.merge(to_map.(rel.b_feelings), %{
+        # Fake friend total
+        active_mask_intensity: 0.9,
+        # Ele confia nela (pelo poder)
+        perceived_trust: 0.8,
+        admiration: 1.0
+      })
+    )
+    # Zara nem nota ele direito
+    |> Ecto.Changeset.put_embed(
+      :a_feelings,
+      Map.merge(to_map.(rel.a_feelings), %{
+        # Ela não precisa fingir
+        active_mask_intensity: 0.0,
+        perceived_trust: 0.2,
+        admiration: 0.1
+      })
+    )
     |> Repo.update!()
 
   _ ->

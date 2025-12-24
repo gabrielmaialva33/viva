@@ -16,7 +16,11 @@ defmodule Viva.AI.LLM.LlmClient do
   require Logger
 
   alias Viva.Avatars.Avatar
+  alias Viva.Nim
+  alias Viva.AI.LLM.LlmClient, as: Client
   alias Viva.Avatars.InternalState
+
+  @behaviour Viva.AI.Pipeline.Stage
 
   @type message :: %{role: String.t(), content: String.t()}
   @type tool_call :: map()
@@ -204,7 +208,7 @@ defmodule Viva.AI.LLM.LlmClient do
     # Temperature varies with personality openness
     temperature = 0.7 + avatar.personality.openness * 0.2
 
-    chat(messages,
+    Client.chat(messages,
       system: system_prompt,
       temperature: temperature,
       max_tokens: 250

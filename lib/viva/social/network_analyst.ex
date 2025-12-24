@@ -9,8 +9,6 @@ defmodule Viva.Social.NetworkAnalyst do
   """
   use GenServer
 
-  import Ecto.Query
-
   require Logger
 
   alias Viva.Avatars.Avatar
@@ -61,15 +59,12 @@ defmodule Viva.Social.NetworkAnalyst do
 
   defp build_graph(relationships) do
     Enum.reduce(relationships, %{}, fn rel, acc ->
-      # Relationship implies connection
-      # We verify mutual interest or one-sided
-      # For reputation, being liked is key
-
       # Add edge A -> B (A likes B)
-      acc = update_in(acc, [rel.avatar_a_id], fn list -> [rel.avatar_b_id | list || []] end)
+      acc =
+        Map.update(acc, rel.avatar_a_id, [rel.avatar_b_id], fn list -> [rel.avatar_b_id | list] end)
 
       # Add edge B -> A (B likes A)
-      update_in(acc, [rel.avatar_b_id], fn list -> [rel.avatar_a_id | list || []] end)
+      Map.update(acc, rel.avatar_b_id, [rel.avatar_a_id], fn list -> [rel.avatar_a_id | list] end)
     end)
   end
 

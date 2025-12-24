@@ -55,7 +55,8 @@ defmodule Viva.Relationships do
         avatar_a_id: a_id,
         avatar_b_id: b_id,
         status: :strangers,
-        first_interaction_at: DateTime.utc_now()
+        first_interaction_at: DateTime.utc_now(),
+        last_interaction_at: DateTime.utc_now()
       })
       |> Repo.insert(
         on_conflict: :nothing,

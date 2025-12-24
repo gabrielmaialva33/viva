@@ -14,6 +14,11 @@ defmodule Viva.AI.LLM.EmbeddingClient do
   """
   require Logger
 
+  alias Viva.Nim
+  alias Viva.AI.LLM.EmbeddingClient, as: Client
+
+  @behaviour Viva.AI.Pipeline.Stage
+
   # === Types ===
 
   @type embedding :: [float()]

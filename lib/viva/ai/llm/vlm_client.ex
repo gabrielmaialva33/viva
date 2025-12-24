@@ -15,6 +15,11 @@ defmodule Viva.AI.LLM.VlmClient do
   """
   require Logger
 
+  @behaviour Viva.AI.Pipeline.Stage
+
+  alias Viva.AI.LLM
+  alias Viva.AI.LLM.VlmClient, as: Client
+  alias Viva.Nimr
   alias Viva.Avatars.Avatar
 
   # === Types ===
@@ -127,7 +132,7 @@ defmodule Viva.AI.LLM.VlmClient do
           "Describe this image in detail. Include objects, people, colors, environment, and atmosphere."
       end
 
-    analyze_image(image_data, prompt, opts)
+    Client.analyze_image(image_data, prompt, opts)
   end
 
   @doc """

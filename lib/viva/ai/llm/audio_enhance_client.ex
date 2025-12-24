@@ -15,6 +15,8 @@ defmodule Viva.AI.LLM.AudioEnhanceClient do
   """
   require Logger
 
+  alias Viva.AI.LLM
+
   # === Types ===
 
   @type audio_result :: {:ok, binary()} | {:ok, {:url, String.t()}} | {:error, term()}
@@ -43,7 +45,7 @@ defmodule Viva.AI.LLM.AudioEnhanceClient do
   """
   @spec enhance(binary(), keyword()) :: audio_result()
   def enhance(audio_data, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:audio_enhance))
+    model = Keyword.get(opts, :model, LLM.model(:audio_enhance))
     sample_rate = Keyword.get(opts, :sample_rate, 48_000)
     enhance_vocals = Keyword.get(opts, :enhance_vocals, true)
 
@@ -54,7 +56,7 @@ defmodule Viva.AI.LLM.AudioEnhanceClient do
       enhance_vocals: enhance_vocals
     }
 
-    case Viva.AI.LLM.request("/audio/enhance", body, timeout: 60_000) do
+    case LLM.request("/audio/enhance", body, timeout: 60_000) do
       {:ok, %{"audio" => enhanced_audio}} ->
         {:ok, Base.decode64!(enhanced_audio)}
 
@@ -78,7 +80,7 @@ defmodule Viva.AI.LLM.AudioEnhanceClient do
   """
   @spec remove_noise(binary(), keyword()) :: {:ok, binary()} | {:error, term()}
   def remove_noise(audio_data, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:noise_removal))
+    model = Keyword.get(opts, :model, LLM.model(:noise_removal))
     aggressiveness = Keyword.get(opts, :aggressiveness, "medium")
     preserve_speech = Keyword.get(opts, :preserve_speech, true)
 
@@ -89,7 +91,7 @@ defmodule Viva.AI.LLM.AudioEnhanceClient do
       preserve_speech: preserve_speech
     }
 
-    case Viva.AI.LLM.request("/audio/denoise", body, timeout: 30_000) do
+    case LLM.request("/audio/denoise", body, timeout: 30_000) do
       {:ok, %{"audio" => denoised_audio}} ->
         {:ok, Base.decode64!(denoised_audio)}
 
@@ -115,7 +117,7 @@ defmodule Viva.AI.LLM.AudioEnhanceClient do
   """
   @spec stream_enhance((term() -> any()), keyword()) :: {:ok, stream_state()}
   def stream_enhance(callback, opts \\ []) do
-    model = Keyword.get(opts, :model, Viva.AI.LLM.model(:audio_enhance))
+    model = Keyword.get(opts, :model, LLM.model(:audio_enhance))
 
     {:ok,
      %{
@@ -138,7 +140,7 @@ defmodule Viva.AI.LLM.AudioEnhanceClient do
       stream: true
     }
 
-    case Viva.AI.LLM.request("/audio/enhance", body) do
+    case LLM.request("/audio/enhance", body) do
       {:ok, %{"audio" => enhanced_chunk, "is_final" => is_final}} ->
         stream_state.callback.({:audio, Base.decode64!(enhanced_chunk), is_final})
         {:ok, stream_state}
@@ -171,13 +173,13 @@ defmodule Viva.AI.LLM.AudioEnhanceClient do
     target_db = Keyword.get(opts, :target_db, -14.0)
 
     body = %{
-      model: Viva.AI.LLM.model(:audio_enhance),
+      model: LLM.model(:audio_enhance),
       audio: Base.encode64(audio_data),
       normalize: true,
       target_loudness: target_db
     }
 
-    case Viva.AI.LLM.request("/audio/normalize", body) do
+    case LLM.request("/audio/normalize", body) do
       {:ok, %{"audio" => normalized}} ->
         {:ok, Base.decode64!(normalized)}
 
@@ -192,12 +194,12 @@ defmodule Viva.AI.LLM.AudioEnhanceClient do
   @spec analyze_quality(binary()) :: {:ok, quality_metrics()} | {:error, term()}
   def analyze_quality(audio_data) do
     body = %{
-      model: Viva.AI.LLM.model(:audio_enhance),
+      model: LLM.model(:audio_enhance),
       audio: Base.encode64(audio_data),
       task: "analyze"
     }
 
-    case Viva.AI.LLM.request("/audio/analyze", body) do
+    case LLM.request("/audio/analyze", body) do
       {:ok, %{"metrics" => metrics}} ->
         {:ok,
          %{
