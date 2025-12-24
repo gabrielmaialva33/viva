@@ -299,7 +299,7 @@ flowchart LR
 | **Database** | TimescaleDB (PG17) | Time-series data, conversations |
 | **Vector Store** | Qdrant | Semantic memory search |
 | **Cache** | Redis + Cachex | Session cache, pub/sub |
-| **Queue** | Oban | Background job processing |
+| **Queue** | Oban + RabbitMQ (Broadway) | Background jobs & AI Pipeline |
 | **AI** | NVIDIA NIM Cloud (14 models) | Full AI stack |
 | **HTTP Client** | Req | API requests with resilience |
 
@@ -332,6 +332,7 @@ docker compose up -d
 |---------|------|---------|
 | **TimescaleDB** | 5432 | PostgreSQL + time-series |
 | **Redis** | 6379 | Cache & pub/sub |
+| **RabbitMQ** | 5672 | AI Event Pipeline |
 | **Qdrant** | 6333 | Vector database |
 
 ### 3. Get NVIDIA API Key
@@ -392,56 +393,40 @@ viva/
 │   │   ├── accounts/                  # User management
 │   │   │   └── user.ex               # User schema + auth
 │   │   │
-│   │   ├── avatars/                   # Avatar domain
+│   │   ├── ai/                        # Artificial Intelligence Domain
+│   │   │   ├── llm/                  # NVIDIA NIM Clients
+│   │   │   │   ├── llm_client.ex     # Primary LLM
+│   │   │   │   └── ...               # Other clients
+│   │   │   ├── pipeline.ex           # Broadway RabbitMQ Pipeline
+│   │   │   └── llm.ex                # Main AI entrypoint
+│   │   │
+│   │   ├── avatars/                   # Avatar Domain Schema
 │   │   │   ├── avatar.ex             # Main schema
-│   │   │   ├── personality.ex        # Big Five + Enneagram
-│   │   │   ├── enneagram.ex          # 9 personality types
-│   │   │   ├── internal_state.ex     # Emotions & needs
-│   │   │   ├── memory.ex             # Vector memories
-│   │   │   └── visuals.ex            # Visual generation
+│   │   │   ├── internal_state.ex     # State schema
+│   │   │   │
+│   │   │   └── systems/              # Avatar Systems (Logic)
+│   │   │       ├── biology.ex        # Biological simulation
+│   │   │       ├── neurochemistry.ex # Hormonal system
+│   │   │       └── psychology.ex     # Emotional processing
 │   │   │
 │   │   ├── relationships/             # Relationship domain
 │   │   │   └── relationship.ex       # Relationship schema
 │   │   │
 │   │   ├── conversations/             # Conversation domain
-│   │   │   ├── conversation.ex       # Conversation schema
-│   │   │   └── message.ex            # Message schema
 │   │   │
-│   │   ├── sessions/                  # Avatar runtime
+│   │   ├── sessions/                  # Avatar Runtime
 │   │   │   ├── supervisor.ex         # DynamicSupervisor
-│   │   │   └── life_process.ex       # Avatar GenServer
+│   │   │   └── life_process.ex       # Avatar GenServer (The Brain)
 │   │   │
 │   │   ├── matchmaker/                # Matching engine
-│   │   │   └── engine.ex             # Compatibility scoring
 │   │   │
-│   │   ├── nim/                       # NVIDIA NIM clients
-│   │   │   ├── llm_client.ex         # Primary LLM
-│   │   │   ├── reasoning_client.ex   # DeepSeek R1
-│   │   │   ├── tts_client.ex         # Text-to-Speech
-│   │   │   ├── asr_client.ex         # Speech Recognition
-│   │   │   ├── vlm_client.ex         # Vision-Language
-│   │   │   ├── image_client.ex       # Image Generation
-│   │   │   ├── avatar_3d_client.ex   # 3D Model + Lipsync
-│   │   │   ├── translate_client.ex   # Translation
-│   │   │   ├── audio_enhance_client.ex # Audio Enhancement
-│   │   │   ├── embedding_client.ex   # Embeddings
-│   │   │   ├── safety_client.ex      # Content Safety
-│   │   │   ├── circuit_breaker.ex    # Resilience
-│   │   │   └── rate_limiter.ex       # Rate limiting
-│   │   │
-│   │   ├── world/                     # World simulation
-│   │   │   └── clock.ex              # Time management (10x)
-│   │   │
-│   │   └── nim.ex                     # Central NIM module
+│   │   └── infrastructure/            # Technical Infra
+│   │       └── redis.ex              # Redis wrapper
 │   │
 │   └── viva_web/                      # Web layer
 │       ├── channels/
-│       │   ├── user_socket.ex        # Socket auth
-│       │   ├── avatar_channel.ex     # Avatar real-time
-│       │   └── world_channel.ex      # World events
-│       │
-│       ├── controllers/               # REST controllers
-│       └── endpoint.ex               # HTTP endpoint
+│       ├── controllers/
+│       └── endpoint.ex
 │
 ├── priv/
 │   └── repo/
@@ -487,50 +472,50 @@ Viva.Avatars.generate_lipsync(avatar, audio_data)
 
 ```elixir
 # Translate between avatars
-Viva.Nim.TranslateClient.translate_avatar_message(
+Viva.AI.LLM.TranslateClient.translate_avatar_message(
   message,
   from_avatar,
   to_avatar
 )
 
 # Detect language
-Viva.Nim.TranslateClient.detect_language("Olá, como vai?")
+Viva.AI.LLM.TranslateClient.detect_language("Olá, como vai?")
 # => {:ok, %{language: "pt", name: "Portuguese"}}
 
 # Translate conversation history
-Viva.Nim.TranslateClient.translate_conversation(messages, "en")
+Viva.AI.LLM.TranslateClient.translate_conversation(messages, "en")
 ```
 
 ### Advanced Reasoning
 
 ```elixir
 # Deep compatibility analysis
-Viva.Nim.ReasoningClient.deep_analyze_compatibility(avatar_a, avatar_b)
+Viva.AI.LLM.ReasoningClient.deep_analyze_compatibility(avatar_a, avatar_b)
 
 # Autonomous decision making
-Viva.Nim.ReasoningClient.make_autonomous_decision(avatar, situation, options)
+Viva.AI.LLM.ReasoningClient.make_autonomous_decision(avatar, situation, options)
 
 # Relationship conflict resolution
-Viva.Nim.ReasoningClient.resolve_relationship_conflict(relationship, context)
+Viva.AI.LLM.ReasoningClient.resolve_relationship_conflict(relationship, context)
 
 # Emotional trajectory prediction
-Viva.Nim.ReasoningClient.analyze_emotional_trajectory(avatar, recent_events)
+Viva.AI.LLM.ReasoningClient.analyze_emotional_trajectory(avatar, recent_events)
 ```
 
 ### Audio Enhancement
 
 ```elixir
 # Full audio processing pipeline
-Viva.Nim.AudioEnhanceClient.process_full(audio_data)
+Viva.AI.LLM.AudioEnhanceClient.process_full(audio_data)
 
 # Remove background noise
-Viva.Nim.AudioEnhanceClient.remove_noise(audio_data, aggressiveness: "high")
+Viva.AI.LLM.AudioEnhanceClient.remove_noise(audio_data, aggressiveness: "high")
 
 # Enhance for transcription
-Viva.Nim.AudioEnhanceClient.enhance_for_transcription(audio_data)
+Viva.AI.LLM.AudioEnhanceClient.enhance_for_transcription(audio_data)
 
 # Smart enhance (only if needed)
-Viva.Nim.AudioEnhanceClient.smart_enhance(audio_data, threshold: 0.7)
+Viva.AI.LLM.AudioEnhanceClient.smart_enhance(audio_data, threshold: 0.7)
 ```
 
 ### WebSocket API
