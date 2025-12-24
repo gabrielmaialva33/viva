@@ -9,12 +9,12 @@ defmodule Viva.Sessions.LifeProcess do
   require Logger
 
   alias Phoenix.PubSub
+  alias Viva.AI.LLM.LlmClient
   alias Viva.Avatars.Avatar
-  alias Viva.Avatars.Systems.Biology
   alias Viva.Avatars.InternalState
+  alias Viva.Avatars.Systems.Biology
   alias Viva.Avatars.Systems.Neurochemistry
   alias Viva.Avatars.Systems.Psychology
-  alias Viva.AI.LLM.LlmClient
   alias Viva.Relationships
 
   # === Struct ===
@@ -380,18 +380,8 @@ defmodule Viva.Sessions.LifeProcess do
       timestamp: DateTime.utc_now()
     }
 
-    # Fire and forget to RabbitMQ
-    # In a real app, we would use a dedicated publisher module to reuse connections
-    case AMQP.Connection.open(host: System.get_env("RABBITMQ_HOST", "localhost")) do
-      {:ok, conn} ->
-        {:ok, chan} = AMQP.Channel.open(conn)
-        AMQP.Queue.declare(chan, "viva.brain.thoughts", durable: true)
-        AMQP.Basic.publish(chan, "", "viva.brain.thoughts", :erlang.term_to_binary(payload))
-        AMQP.Connection.close(conn)
-
-      {:error, reason} ->
-        Logger.error("Failed to publish thought to RabbitMQ: #{inspect(reason)}")
-    end
+    # Fire and forget via EventBus
+    Viva.Infrastructure.EventBus.publish_thought(payload)
 
     process_state
   end

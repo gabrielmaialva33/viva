@@ -14,7 +14,6 @@ defmodule Viva.AI.LLM.EmbeddingClient do
   """
   require Logger
 
-
   # === Types ===
 
   @type embedding :: [float()]

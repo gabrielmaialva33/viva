@@ -28,6 +28,9 @@ defmodule Viva.Relationships.Relationship do
     field :attraction, :float, default: 0.0
     field :compatibility_score, :float
 
+    # Power dynamic (-1.0: B dominates, 1.0: A dominates)
+    field :social_leverage, :float, default: 0.0
+
     # Relationship status
     field :status, Ecto.Enum,
       values: [
@@ -78,6 +81,7 @@ defmodule Viva.Relationships.Relationship do
       :affection,
       :attraction,
       :compatibility_score,
+      :social_leverage,
       :status,
       :first_interaction_at,
       :last_interaction_at,

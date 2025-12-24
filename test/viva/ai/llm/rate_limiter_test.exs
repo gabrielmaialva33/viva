@@ -26,7 +26,7 @@ defmodule Viva.AI.LLM.RateLimiterTest do
       end)
 
       # Next request should be rate limited
-      assert {:error, {:rate_limited, _wait_time}} = RateLimiter.check_rate()
+      assert {:error, {:rate_limited, _}} = RateLimiter.check_rate()
     end
   end
 

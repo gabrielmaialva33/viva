@@ -13,7 +13,8 @@ defmodule Viva.AI.Pipeline do
   alias Viva.AI.LLM.LlmClient
   alias Viva.Sessions.LifeProcess
 
-  def start_link(_opts) do
+  @spec start_link(any()) :: GenServer.on_start()
+  def start_link(_) do
     Broadway.start_link(__MODULE__,
       name: __MODULE__,
       producer: [
@@ -43,7 +44,7 @@ defmodule Viva.AI.Pipeline do
     )
   end
 
-  @impl true
+  @impl Broadway
   def handle_message(_, %{data: data} = message, _) do
     # RabbitMQ sends data as binary JSON (or erlang term if we configure it)
     # For simplicity, we assume we publish :erlang.term_to_binary
@@ -57,7 +58,7 @@ defmodule Viva.AI.Pipeline do
       Broadway.Message.failed(message, "decode_error")
   end
 
-  @impl true
+  @impl Broadway
   def handle_batch(_, messages, _, _) do
     # Process batch in parallel or singly. Since LLM calls are IO bound,
     # we can use Task.async_stream here or just let the processors handle it.
@@ -66,8 +67,7 @@ defmodule Viva.AI.Pipeline do
     # Important: In this architecture, we want per-message processing because
     # each thought is independent and takes ~1-2s.
 
-    messages
-    |> Enum.map(fn message ->
+    Enum.map(messages, fn message ->
       try do
         process_thought(message.data)
         message

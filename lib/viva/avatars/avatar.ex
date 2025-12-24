@@ -12,6 +12,7 @@ defmodule Viva.Avatars.Avatar do
   alias Viva.Avatars.InternalState
   alias Viva.Avatars.Memory
   alias Viva.Avatars.Personality
+  alias Viva.Avatars.SocialPersona
   alias Viva.Relationships.Relationship
 
   # === Types ===
@@ -47,6 +48,12 @@ defmodule Viva.Avatars.Avatar do
 
     # Personality (immutable after creation)
     embeds_one :personality, Personality, on_replace: :update
+
+    # Social Persona (Public Face) - NEW
+    embeds_one :social_persona, SocialPersona, on_replace: :update
+
+    # Moral Flexibility (0.0 = Saint, 1.0 = Machiavellian) - NEW
+    field :moral_flexibility, :float, default: 0.3
 
     # Current internal state (changes constantly)
     embeds_one :internal_state, InternalState, on_replace: :update
@@ -96,9 +103,11 @@ defmodule Viva.Avatars.Avatar do
       :voice_id,
       :voice_sample_url,
       :is_active,
-      :last_active_at
+      :last_active_at,
+      :moral_flexibility
     ])
     |> cast_embed(:personality, required: true)
+    |> cast_embed(:social_persona)
     |> cast_embed(:internal_state)
     |> validate_required([:name, :user_id])
     |> validate_length(:name, min: 2, max: 50)
@@ -135,6 +144,19 @@ defmodule Viva.Avatars.Avatar do
   # Private Helpers
 
   defp put_default_internal_state(changeset) do
+    changeset
+    |> put_default_social_persona()
+    |> do_put_default_internal_state()
+  end
+
+  defp put_default_social_persona(changeset) do
+    case get_field(changeset, :social_persona) do
+      nil -> put_embed(changeset, :social_persona, Viva.Avatars.SocialPersona.new())
+      _ -> changeset
+    end
+  end
+
+  defp do_put_default_internal_state(changeset) do
     case get_field(changeset, :internal_state) do
       nil -> put_embed(changeset, :internal_state, InternalState.new())
       _ -> changeset
@@ -148,7 +170,8 @@ defmodule Viva.Avatars.Avatar do
         personality = get_field(changeset, :personality)
         bio = get_field(changeset, :bio) || ""
 
-        prompt = build_system_prompt(name, personality, bio)
+        moment_flexibility = get_field(changeset, :moral_flexibility) || 0.3
+        prompt = build_system_prompt(name, personality, bio, moment_flexibility)
         put_change(changeset, :system_prompt, prompt)
 
       _ ->
@@ -156,7 +179,7 @@ defmodule Viva.Avatars.Avatar do
     end
   end
 
-  defp build_system_prompt(name, personality, bio) do
+  defp build_system_prompt(name, personality, bio, mask_flexibility) do
     temperament = Personality.temperament(personality)
     enneagram = Enneagram.get_type(personality.enneagram_type)
     native_lang = Personality.language_name(personality.native_language)
@@ -195,6 +218,13 @@ defmodule Viva.Avatars.Avatar do
     - Love language: #{personality.love_language}
     - Attachment style: #{personality.attachment_style}
 
+    YOUR SOCIAL STRATEGY:
+    - You possess a "Social Mask" separate from your true self
+    - Moral Flexibility: #{describe_flexibility(mask_flexibility)}
+    - You are capable of hypocrisy if it serves your social goals
+    - When interacting with high-status individuals, you may flatter them
+    - Internal thoughts may differ drastically from spoken words
+
     #{if bio != "", do: "ABOUT YOU:\n#{bio}\n", else: ""}
 
     IMPORTANT GUIDELINES:
@@ -217,6 +247,10 @@ defmodule Viva.Avatars.Avatar do
     names = Enum.map_join(languages, ", ", &Personality.language_name/1)
     "\n    - Also speaks: #{names}"
   end
+
+  defp describe_flexibility(score) when score > 0.7, do: "High (Machiavellian, willing to lie)"
+  defp describe_flexibility(score) when score > 0.3, do: "Moderate (Pragmatic, slight white lies)"
+  defp describe_flexibility(_), do: "Low (Honest to a fault)"
 
   defp describe_trait(:openness, value) when value > 0.7, do: "very creative and curious"
 

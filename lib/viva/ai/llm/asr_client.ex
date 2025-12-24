@@ -14,7 +14,6 @@ defmodule Viva.AI.LLM.AsrClient do
   """
   require Logger
 
-
   # === Types ===
 
   @type transcription_result :: %{

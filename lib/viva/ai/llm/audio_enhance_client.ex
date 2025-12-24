@@ -15,7 +15,6 @@ defmodule Viva.AI.LLM.AudioEnhanceClient do
   """
   require Logger
 
-
   # === Types ===
 
   @type audio_result :: {:ok, binary()} | {:ok, {:url, String.t()}} | {:error, term()}
