@@ -47,6 +47,15 @@ defmodule Viva.Avatars.Systems.SomaticMarkers do
           markers_activated: non_neg_integer()
         }
 
+  @type warning_level ::
+          :go_for_it
+          | :proceed_cautiously
+          | :strong_caution
+          | :avoid
+          | :neutral
+
+  @type decision_confidence_result :: {float(), warning_level()}
+
   @doc """
   Recalls somatic markers based on current stimulus.
   Returns updated state and somatic bias for decision-making.
@@ -131,6 +140,150 @@ defmodule Viva.Avatars.Systems.SomaticMarkers do
   """
   @spec body_attraction?(SomaticMarkersState.t()) :: boolean()
   def body_attraction?(%SomaticMarkersState{current_bias: bias}), do: bias > 0.2
+
+  # === Decision Confidence Functions ===
+
+  @doc """
+  Returns decision confidence based on somatic markers for a given action type.
+  Looks up markers related to the action and returns a confidence score (0.0-1.0)
+  and a warning level.
+
+  ## Action Types
+  - :social - Social interactions
+  - :explore - New/novel activities
+  - :rest - Resting/recovery
+  - :express - Self-expression
+  - :intimate - Intimate/romantic actions
+
+  ## Returns
+  - {confidence_score, warning_level}
+  - confidence: 0.0 (avoid) to 1.0 (go for it)
+  - warning: :go_for_it | :proceed_cautiously | :strong_caution | :avoid | :neutral
+  """
+  @spec decision_confidence(SomaticMarkersState.t(), atom()) :: {float(), warning_level()}
+  def decision_confidence(state, action_type) do
+    # Find relevant markers for this action type
+    relevant_valence = find_relevant_valence(state, action_type)
+
+    case relevant_valence do
+      nil ->
+        # No marker = neutral confidence
+        {0.5, :neutral}
+
+      v when v > 0.7 ->
+        {1.0, :go_for_it}
+
+      v when v > 0.4 ->
+        {0.7, :proceed_cautiously}
+
+      v when v > 0.2 ->
+        {0.4, :strong_caution}
+
+      _ ->
+        {0.1, :avoid}
+    end
+  end
+
+  @doc """
+  Applies decision confidence to modify a desire/action's viability.
+  Returns adjusted desire weight based on somatic memory.
+  """
+  @spec apply_confidence_to_desire(SomaticMarkersState.t(), atom(), float()) :: float()
+  def apply_confidence_to_desire(state, action_type, base_weight) do
+    {confidence, _} = decision_confidence(state, action_type)
+
+    # Blend base weight with somatic confidence
+    # Confidence < 0.5 reduces weight, > 0.5 increases it
+    adjustment = (confidence - 0.5) * 0.4
+    clamp(base_weight + adjustment, 0.0, 1.0)
+  end
+
+  @doc """
+  Returns a narrative explanation of why the body feels a certain way about an action.
+  """
+  @spec explain_confidence(SomaticMarkersState.t(), atom()) :: String.t()
+  def explain_confidence(state, action_type) do
+    {_, warning} = decision_confidence(state, action_type)
+
+    case warning do
+      :go_for_it ->
+        "My body remembers good things about this. There's warmth, a pull forward."
+
+      :proceed_cautiously ->
+        "Something feels familiar here. Not quite sure, but leaning toward yes."
+
+      :neutral ->
+        "No strong feeling either way. This is new territory."
+
+      :strong_caution ->
+        "There's tension building. Something about this feels... risky."
+
+      :avoid ->
+        "My stomach tightens. Past experiences scream no. Don't go there."
+    end
+  end
+
+  defp find_relevant_valence(state, action_type) do
+    # Map action types to marker categories
+    result =
+      case action_type do
+        :social ->
+          # Check social and context markers
+          find_avg_valence([
+            state.activity_markers[:social],
+            state.activity_markers[:social_ambient]
+          ])
+
+        :explore ->
+          # Check for novelty-related markers
+          state.context_markers["new"] || state.context_markers["exploration"]
+
+        :rest ->
+          # Rest is usually neutral unless specifically marked
+          state.activity_markers[:rest]
+
+        :express ->
+          # Expression markers
+          state.activity_markers[:express] || state.context_markers["self_expression"]
+
+        :intimate ->
+          # Check crush/intimate context
+          find_avg_valence([
+            state.social_markers["crush"],
+            state.context_markers["intimate"]
+          ])
+
+        _ ->
+          # Default to current bias
+          if state.current_bias != 0.0 do
+            %{valence: state.current_bias, strength: 0.5}
+          else
+            nil
+          end
+      end
+
+    extract_valence(result)
+  end
+
+  defp find_avg_valence(markers) do
+    valid_markers = Enum.filter(markers, & &1)
+
+    if Enum.empty?(valid_markers) do
+      nil
+    else
+      avg_valence =
+        Enum.reduce(valid_markers, 0.0, fn m, acc -> acc + m.valence end) / length(valid_markers)
+
+      avg_strength =
+        Enum.reduce(valid_markers, 0.0, fn m, acc -> acc + m.strength end) / length(valid_markers)
+
+      %{valence: avg_valence, strength: avg_strength}
+    end
+  end
+
+  defp extract_valence(nil), do: nil
+  defp extract_valence(%{valence: v, strength: s}), do: v * s
+  defp extract_valence(_), do: nil
 
   # === Private Functions ===
 

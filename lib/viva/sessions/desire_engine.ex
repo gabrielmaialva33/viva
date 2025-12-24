@@ -1,11 +1,14 @@
 defmodule Viva.Sessions.DesireEngine do
   @moduledoc """
   Handles desire determination logic based on neurochemistry, personality,
-  and somatic markers (body memory).
+  somatic markers (body memory), and motivational drives.
 
   Somatic markers influence desires by creating approach/avoidance biases
   based on past experiences. A body warning can suppress social desires,
   while body attraction can amplify them.
+
+  The motivation system provides the current urgent drive, which biases
+  desire selection toward actions that satisfy that drive.
   """
 
   alias Viva.Avatars.BioState
@@ -20,6 +23,14 @@ defmodule Viva.Sessions.DesireEngine do
           | :wants_to_see_crush
           | :none
 
+  @type drive ::
+          :survival
+          | :safety
+          | :belonging
+          | :status
+          | :autonomy
+          | :transcendence
+
   @type somatic_bias :: %{
           bias: float(),
           signal: String.t() | nil,
@@ -28,20 +39,32 @@ defmodule Viva.Sessions.DesireEngine do
 
   @doc """
   Determine the avatar's current desire based on biological, emotional state,
-  and somatic markers (body memory).
+  somatic markers (body memory), and current motivational drive.
 
   Uses fuzzy logic combining neurochemistry with personality traits,
-  modulated by somatic bias from past experiences.
+  modulated by somatic bias from past experiences and current urgent drive.
   """
-  @spec determine(BioState.t(), EmotionalState.t(), Personality.t(), somatic_bias() | nil) ::
-          desire()
-  def determine(bio, emotional, personality, somatic_bias \\ nil) do
+  @spec determine(
+          BioState.t(),
+          EmotionalState.t(),
+          Personality.t(),
+          somatic_bias() | nil,
+          drive() | nil
+        ) :: desire()
+  def determine(bio, emotional, personality, somatic_bias \\ nil, urgent_drive \\ nil) do
     bias = get_bias(somatic_bias)
 
+    # First check drive-based desires (motivation system takes priority)
+    drive_desire = desire_from_drive(urgent_drive, bio, personality)
+
     cond do
-      # Rest always takes priority
+      # Rest always takes priority (survival/safety drive or exhaustion)
       bio.adenosine > 0.8 ->
         :wants_rest
+
+      # Strong drive-based desire takes priority (if not blocked by somatic markers)
+      drive_desire != :none and bias >= -0.3 ->
+        drive_desire
 
       # Body warning suppresses social desires if strong enough
       bias < -0.4 and wants_social?(bio, personality) ->
@@ -63,6 +86,47 @@ defmodule Viva.Sessions.DesireEngine do
 
       true ->
         :none
+    end
+  end
+
+  # === Drive-based Desire Mapping ===
+
+  defp desire_from_drive(nil, _, _), do: :none
+
+  defp desire_from_drive(:survival, bio, _) do
+    if bio.adenosine > 0.6, do: :wants_rest, else: :none
+  end
+
+  defp desire_from_drive(:safety, bio, _) do
+    if bio.cortisol > 0.5, do: :wants_rest, else: :none
+  end
+
+  defp desire_from_drive(:belonging, bio, personality) do
+    if bio.oxytocin < 0.4 or personality.extraversion > 0.6 do
+      :wants_attention
+    else
+      :none
+    end
+  end
+
+  defp desire_from_drive(:status, _, _) do
+    # Status drive leads to wanting to express/achieve
+    :wants_to_express
+  end
+
+  defp desire_from_drive(:autonomy, bio, personality) do
+    if bio.dopamine < 0.4 or personality.openness > 0.5 do
+      :wants_something_new
+    else
+      :none
+    end
+  end
+
+  defp desire_from_drive(:transcendence, _, personality) do
+    if personality.openness > 0.6 do
+      :wants_something_new
+    else
+      :none
     end
   end
 

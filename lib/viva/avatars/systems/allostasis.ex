@@ -29,6 +29,22 @@ defmodule Viva.Avatars.Systems.Allostasis do
   # Recovery rate when cortisol is low (per hour)
   @base_recovery_rate 0.02
 
+  # === Type Definitions ===
+
+  @type phenomenology_result :: %{
+          quality: :peaceful | :pressured | :overwhelmed | :burnout,
+          narrative: String.t(),
+          attention_capacity: :broad | :moderate | :narrow | :fragmented,
+          time_horizon: :long | :medium | :very_short | :none,
+          threat_sensitivity: :low | :moderate | :very_high | :exhausted
+        }
+
+  @type impairment_result :: %{
+          cognitive_penalty: float(),
+          impulsivity_bonus: float(),
+          risk_aversion_shift: float()
+        }
+
   # === Public API ===
 
   @doc """
@@ -149,6 +165,164 @@ defmodule Viva.Avatars.Systems.Allostasis do
 
       true ->
         "Well-rested and resilient."
+    end
+  end
+
+  # === Phenomenology Functions ===
+
+  @doc """
+  Returns the subjective EXPERIENCE of allostatic load.
+  Not just a number - describes what the avatar FEELS phenomenologically.
+  """
+  @spec phenomenology(AllostasisState.t()) :: phenomenology_result()
+  def phenomenology(%AllostasisState{load_level: load}) do
+    cond do
+      load < 0.2 ->
+        %{
+          quality: :peaceful,
+          narrative: "I feel grounded and resilient. There's a quiet strength within me.",
+          attention_capacity: :broad,
+          time_horizon: :long,
+          threat_sensitivity: :low
+        }
+
+      load < 0.5 ->
+        %{
+          quality: :pressured,
+          narrative:
+            "There's a low hum of tension, but I'm managing. I can feel the weight of things.",
+          attention_capacity: :moderate,
+          time_horizon: :medium,
+          threat_sensitivity: :moderate
+        }
+
+      load < 0.75 ->
+        %{
+          quality: :overwhelmed,
+          narrative:
+            "My nerves are frayed. Everything feels urgent and threatening. I can barely think straight.",
+          attention_capacity: :narrow,
+          time_horizon: :very_short,
+          threat_sensitivity: :very_high
+        }
+
+      true ->
+        %{
+          quality: :burnout,
+          narrative:
+            "I'm numb. Nothing matters. I can barely function. Just... existing takes everything.",
+          attention_capacity: :fragmented,
+          time_horizon: :none,
+          threat_sensitivity: :exhausted
+        }
+    end
+  end
+
+  @doc """
+  Returns how allostatic load impairs decision-making.
+  High load leads to more impulsive, risk-averse decisions.
+  """
+  @spec decision_impairment(AllostasisState.t()) :: impairment_result()
+  def decision_impairment(%AllostasisState{load_level: load} = state) do
+    # Cognitive penalty (already exists, reused)
+    cog_penalty = cognitive_penalty(state)
+
+    # Impulsivity increases with load (less deliberation)
+    impulsivity =
+      cond do
+        load < 0.3 -> 0.0
+        load < 0.5 -> (load - 0.3) * 0.5
+        load < 0.7 -> 0.1 + (load - 0.5) * 0.75
+        true -> 0.25 + (load - 0.7) * 1.0
+      end
+
+    # Risk aversion shifts with load
+    risk_shift =
+      cond do
+        load < 0.3 -> 0.0
+        load < 0.6 -> -0.2
+        load < 0.8 -> -0.3
+        true -> 0.3
+      end
+
+    %{
+      cognitive_penalty: cog_penalty,
+      impulsivity_bonus: min(impulsivity, 0.5),
+      risk_aversion_shift: risk_shift
+    }
+  end
+
+  @doc """
+  Generates recovery fantasy when under significant stress.
+  The avatar imagines relief based on personality.
+  """
+  @spec generate_recovery_fantasy(AllostasisState.t(), map()) ::
+          {:fantasy_activated, String.t()} | :no_fantasy
+  def generate_recovery_fantasy(%AllostasisState{load_level: load}, personality)
+      when load > 0.6 do
+    fantasy =
+      cond do
+        personality.extraversion > 0.7 ->
+          "I dream of a weekend surrounded by friends, laughing, feeling alive again."
+
+        personality.extraversion < 0.3 ->
+          "I crave solitude. A quiet place, no demands, just... peace."
+
+        personality.openness > 0.7 ->
+          "I fantasize about escaping somewhere new, discovering something that makes me forget all this."
+
+        personality.neuroticism > 0.7 ->
+          "I just want to feel safe. To know everything will be okay."
+
+        true ->
+          "I fantasize about a break. Just a few days where nothing matters, where I can breathe."
+      end
+
+    {:fantasy_activated, fantasy}
+  end
+
+  def generate_recovery_fantasy(_, _), do: :no_fantasy
+
+  @doc """
+  Returns attention constraints based on allostatic load.
+  Under stress, attention narrows to immediate threats.
+  """
+  @spec attention_constraints(AllostasisState.t()) :: map()
+  def attention_constraints(%AllostasisState{} = allostasis) do
+    phenom = phenomenology(allostasis)
+
+    case phenom.attention_capacity do
+      :broad ->
+        %{
+          can_plan_ahead: true,
+          can_consider_abstract: true,
+          threat_filter: :balanced,
+          memory_access: :full
+        }
+
+      :moderate ->
+        %{
+          can_plan_ahead: true,
+          can_consider_abstract: :limited,
+          threat_filter: :slightly_biased,
+          memory_access: :mostly_full
+        }
+
+      :narrow ->
+        %{
+          can_plan_ahead: false,
+          can_consider_abstract: false,
+          threat_filter: :threat_focused,
+          memory_access: :recent_only
+        }
+
+      :fragmented ->
+        %{
+          can_plan_ahead: false,
+          can_consider_abstract: false,
+          threat_filter: :blunted,
+          memory_access: :impaired
+        }
     end
   end
 

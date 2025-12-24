@@ -19,6 +19,7 @@ defmodule Viva.Sessions.LifeProcess do
   alias Viva.Avatars.Systems.Consciousness
   alias Viva.Avatars.Systems.EmotionRegulation
   alias Viva.Avatars.Systems.Metacognition
+  alias Viva.Avatars.Systems.Motivation
   alias Viva.Avatars.Systems.Neurochemistry
   alias Viva.Avatars.Systems.Psychology
   alias Viva.Avatars.Systems.Senses
@@ -263,6 +264,15 @@ defmodule Viva.Sessions.LifeProcess do
     # 6. ALLOSTASIS: Track chronic stress effects
     new_allostasis = Allostasis.tick(internal.allostasis, new_bio)
 
+    # 6.5. MOTIVATION: Update drive urgencies based on current state
+    new_motivation =
+      Motivation.tick(
+        internal.motivation,
+        new_bio,
+        internal.emotional,
+        avatar.personality
+      )
+
     # 7. Psychological Update (Translate hormones to PAD Vector)
     raw_emotional = Psychology.calculate_emotional_state(new_bio, avatar.personality)
 
@@ -311,7 +321,8 @@ defmodule Viva.Sessions.LifeProcess do
         consciousness: metacog_consciousness,
         allostasis: new_allostasis,
         regulation: new_regulation,
-        somatic: final_somatic
+        somatic: final_somatic,
+        motivation: new_motivation
     }
 
     # 13. Continue with high-level logic (now informed by experience)
@@ -392,13 +403,14 @@ defmodule Viva.Sessions.LifeProcess do
     end
   end
 
-  # Develop desires based on fuzzy logic (Neurochemistry + Personality)
+  # Develop desires based on fuzzy logic (Neurochemistry + Personality + Motivation)
   # Delegates to DesireEngine module.
   defp maybe_develop_desire(process_state) do
     bio = process_state.state.bio
     emotional = process_state.state.emotional
     personality = process_state.avatar.personality
     somatic = process_state.state.somatic
+    motivation = process_state.state.motivation
 
     # Create somatic bias map for DesireEngine
     somatic_bias = %{
@@ -407,7 +419,10 @@ defmodule Viva.Sessions.LifeProcess do
       markers_activated: if(somatic.last_marker_activation, do: 1, else: 0)
     }
 
-    desire = DesireEngine.determine(bio, emotional, personality, somatic_bias)
+    # Get current urgent drive from motivation system
+    urgent_drive = Motivation.calculate_urgent_drive(motivation)
+
+    desire = DesireEngine.determine(bio, emotional, personality, somatic_bias, urgent_drive)
 
     new_internal = %{process_state.state | current_desire: desire}
     %{process_state | state: new_internal}

@@ -60,6 +60,21 @@ defmodule Viva.Avatars.SelfModel do
 
     # Groups/roles I identify with
     field :social_identities, {:array, :string}, default: []
+
+    # === Dynamic Identity (Coherence Tracking) ===
+    # How coherent is my self-image? (0.0 = identity crisis, 1.0 = fully integrated)
+    field :coherence_level, :float, default: 0.8
+
+    # Experiences that contradicted my self-image
+    # Each: %{experience_type: atom, claimed_aspect: string, occurred_at: datetime}
+    field :contradictions, {:array, :map}, default: []
+
+    # History of identity renegotiations
+    # Each: %{old_belief: string, new_belief: string, trigger: string, occurred_at: datetime}
+    field :identity_negotiations, {:array, :map}, default: []
+
+    # When identity was last updated
+    field :last_identity_update, :utc_datetime
   end
 
   @type t :: %__MODULE__{
@@ -76,7 +91,11 @@ defmodule Viva.Avatars.SelfModel do
           ideal_self: String.t() | nil,
           feared_self: String.t() | nil,
           attachment_narrative: String.t() | nil,
-          social_identities: list(String.t())
+          social_identities: list(String.t()),
+          coherence_level: float(),
+          contradictions: list(map()),
+          identity_negotiations: list(map()),
+          last_identity_update: DateTime.t() | nil
         }
 
   # === Public API ===
@@ -98,13 +117,21 @@ defmodule Viva.Avatars.SelfModel do
       :ideal_self,
       :feared_self,
       :attachment_narrative,
-      :social_identities
+      :social_identities,
+      :coherence_level,
+      :contradictions,
+      :identity_negotiations,
+      :last_identity_update
     ])
     |> validate_number(:self_esteem,
       greater_than_or_equal_to: 0.0,
       less_than_or_equal_to: 1.0
     )
     |> validate_number(:self_efficacy,
+      greater_than_or_equal_to: 0.0,
+      less_than_or_equal_to: 1.0
+    )
+    |> validate_number(:coherence_level,
       greater_than_or_equal_to: 0.0,
       less_than_or_equal_to: 1.0
     )
@@ -126,7 +153,11 @@ defmodule Viva.Avatars.SelfModel do
       ideal_self: nil,
       feared_self: nil,
       attachment_narrative: nil,
-      social_identities: []
+      social_identities: [],
+      coherence_level: 0.8,
+      contradictions: [],
+      identity_negotiations: [],
+      last_identity_update: nil
     }
   end
 
@@ -175,7 +206,216 @@ defmodule Viva.Avatars.SelfModel do
     Enum.filter(beliefs, fn b -> b[:domain] == domain end)
   end
 
+  # === Dynamic Identity Functions ===
+
+  @doc """
+  Returns true if the avatar is experiencing an identity crisis.
+  Low coherence indicates significant contradictions in self-image.
+  """
+  @spec identity_crisis?(t()) :: boolean()
+  def identity_crisis?(%__MODULE__{coherence_level: level}), do: level < 0.4
+
+  @doc """
+  Returns true if identity is somewhat fragmented but not in crisis.
+  """
+  @spec identity_uncertain?(t()) :: boolean()
+  def identity_uncertain?(%__MODULE__{coherence_level: level}), do: level < 0.6
+
+  @doc """
+  Integrates an experience and checks for contradictions with self-model.
+  Returns updated self-model with potential coherence changes.
+
+  ## Experience Types
+  - :social_rejection - Contradicts "I am liked"
+  - :failure - Contradicts "I am competent"
+  - :success - Reinforces "I am capable"
+  - :betrayal - Contradicts "I can trust others"
+  - :altruistic_action - Contradicts "I am selfish"
+  - :cowardice - Contradicts "I am brave"
+  - :kindness_received - Contradicts "Others are against me"
+  """
+  @spec integrate_experience(t(), map()) :: t()
+  def integrate_experience(self_model, experience) do
+    # Extract what this experience claims about self
+    claims = extract_self_claims(experience)
+
+    # Check each claim against current self-model
+    contradictions =
+      claims
+      |> Enum.map(fn claim -> detect_contradiction(self_model, claim, experience) end)
+      |> Enum.filter(& &1)
+
+    if Enum.empty?(contradictions) do
+      # No contradictions - possibly reinforce existing beliefs
+      maybe_reinforce_identity(self_model, experience)
+    else
+      # Contradictions detected - update coherence and record
+      negotiate_identity(self_model, contradictions, experience)
+    end
+  end
+
+  @doc """
+  Describes the current state of identity coherence.
+  """
+  @spec describe_coherence(t()) :: String.t()
+  def describe_coherence(%__MODULE__{coherence_level: level, contradictions: contradictions}) do
+    recent_contradictions = length(contradictions)
+
+    cond do
+      level < 0.3 ->
+        "I don't recognize myself anymore. Everything I believed about who I am is being questioned."
+
+      level < 0.5 ->
+        "I'm going through a change. Not sure who I am anymore."
+
+      level < 0.7 and recent_contradictions > 0 ->
+        "Some experiences have challenged what I thought I knew about myself."
+
+      level < 0.7 ->
+        "I'm still figuring myself out."
+
+      true ->
+        "I have a clear sense of who I am."
+    end
+  end
+
+  @doc """
+  Recovers coherence over time (called during reflection/sleep).
+  Integration happens naturally as the avatar processes experiences.
+  """
+  @spec recover_coherence(t(), float()) :: t()
+  def recover_coherence(self_model, recovery_amount \\ 0.05) do
+    new_coherence = min(1.0, self_model.coherence_level + recovery_amount)
+    %{self_model | coherence_level: new_coherence}
+  end
+
   # === Private Helpers ===
+
+  defp extract_self_claims(experience) do
+    case experience do
+      %{type: :social_rejection, intensity: i} when i > 0.6 ->
+        ["I am liked", "I belong"]
+
+      %{type: :failure, intensity: i} when i > 0.5 ->
+        ["I am competent", "I am capable"]
+
+      %{type: :success, intensity: i} when i > 0.5 ->
+        ["I struggle", "I often fail"]
+
+      %{type: :betrayal, intensity: i} when i > 0.6 ->
+        ["I can trust others", "People are reliable"]
+
+      %{type: :altruistic_action, intensity: i} when i > 0.4 ->
+        ["I am selfish"]
+
+      %{type: :cowardice, intensity: i} when i > 0.5 ->
+        ["I am brave", "I face my fears"]
+
+      %{type: :kindness_received, intensity: i} when i > 0.4 ->
+        ["Others are against me", "I am alone"]
+
+      _ ->
+        []
+    end
+  end
+
+  defp detect_contradiction(self_model, claim, experience) do
+    # Check if claim contradicts current beliefs
+    contradicting_belief =
+      Enum.find(self_model.core_beliefs, fn belief ->
+        belief_matches_claim?(belief[:belief], claim)
+      end)
+
+    if contradicting_belief do
+      %{
+        experience_type: experience[:type],
+        claimed_aspect: claim,
+        contradicted_belief: contradicting_belief[:belief],
+        intensity: experience[:intensity] || 0.5,
+        occurred_at: DateTime.utc_now(:second)
+      }
+    else
+      nil
+    end
+  end
+
+  defp belief_matches_claim?(belief, claim) when is_binary(belief) and is_binary(claim) do
+    # Simple check - could be enhanced with semantic matching
+    belief_lower = String.downcase(belief)
+    claim_lower = String.downcase(claim)
+
+    String.contains?(belief_lower, claim_lower) or String.contains?(claim_lower, belief_lower)
+  end
+
+  defp belief_matches_claim?(_, _), do: false
+
+  defp negotiate_identity(self_model, contradictions, _) do
+    # Calculate coherence decrease based on number and intensity of contradictions
+    total_impact =
+      Enum.reduce(contradictions, 0.0, fn c, acc ->
+        acc + (c.intensity || 0.5) * 0.1
+      end)
+
+    coherence_decrease = min(total_impact, 0.3)
+
+    # Record negotiations
+    negotiations =
+      Enum.map(contradictions, fn c ->
+        %{
+          old_belief: c.contradicted_belief,
+          new_belief: nil,
+          trigger: "#{c.experience_type}: #{c.claimed_aspect}",
+          occurred_at: DateTime.utc_now(:second)
+        }
+      end)
+
+    new_coherence = max(0.1, self_model.coherence_level - coherence_decrease)
+
+    self_model
+    |> Map.put(:coherence_level, new_coherence)
+    |> Map.put(:contradictions, Enum.take(self_model.contradictions ++ contradictions, -10))
+    |> Map.put(
+      :identity_negotiations,
+      Enum.take(self_model.identity_negotiations ++ negotiations, -10)
+    )
+    |> Map.put(:last_identity_update, DateTime.utc_now(:second))
+    |> maybe_update_narrative()
+  end
+
+  defp maybe_reinforce_identity(self_model, %{type: :success, intensity: i}) when i > 0.6 do
+    # Success reinforces self-efficacy
+    new_efficacy = min(1.0, self_model.self_efficacy + 0.02)
+    new_coherence = min(1.0, self_model.coherence_level + 0.01)
+
+    %{self_model | self_efficacy: new_efficacy, coherence_level: new_coherence}
+  end
+
+  defp maybe_reinforce_identity(self_model, %{type: :kindness_received, intensity: i})
+       when i > 0.5 do
+    # Kindness reinforces self-esteem
+    new_esteem = min(1.0, self_model.self_esteem + 0.02)
+    %{self_model | self_esteem: new_esteem}
+  end
+
+  defp maybe_reinforce_identity(self_model, _), do: self_model
+
+  defp maybe_update_narrative(self_model) do
+    if self_model.coherence_level < 0.4 and length(self_model.contradictions) > 2 do
+      # Identity crisis - narrative becomes uncertain
+      old_parts = String.split(self_model.identity_narrative, " ")
+
+      uncertain_narrative =
+        if length(old_parts) > 3 do
+          "I thought I was #{Enum.join(Enum.take(old_parts, 4), " ")}... but I'm not sure anymore."
+        else
+          "I'm questioning everything I thought I knew about myself."
+        end
+
+      %{self_model | identity_narrative: uncertain_narrative}
+    else
+      self_model
+    end
+  end
 
   defp get_enneagram_data(nil), do: %{}
 

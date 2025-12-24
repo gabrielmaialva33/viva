@@ -17,6 +17,7 @@ defmodule Viva.Avatars.InternalState do
   alias Viva.Avatars.ConsciousnessState
   alias Viva.Avatars.EmotionalState
   alias Viva.Avatars.EmotionRegulationState
+  alias Viva.Avatars.MotivationState
   alias Viva.Avatars.SensoryState
   alias Viva.Avatars.SomaticMarkersState
 
@@ -44,6 +45,9 @@ defmodule Viva.Avatars.InternalState do
 
     # Layer 7: Somatic Markers (body memory influencing decisions)
     embeds_one :somatic, SomaticMarkersState, on_replace: :update
+
+    # Layer 8: Motivation (hierarchical drives system)
+    embeds_one :motivation, MotivationState, on_replace: :update
 
     # Cognitive / Activity state
     field :current_thought, :string
@@ -88,6 +92,7 @@ defmodule Viva.Avatars.InternalState do
     |> cast_embed(:allostasis)
     |> cast_embed(:regulation)
     |> cast_embed(:somatic)
+    |> cast_embed(:motivation)
   end
 
   @doc """
@@ -126,6 +131,7 @@ defmodule Viva.Avatars.InternalState do
       allostasis: AllostasisState.new(),
       regulation: EmotionRegulationState.new(),
       somatic: SomaticMarkersState.new(),
+      motivation: MotivationState.new(),
       updated_at: DateTime.utc_now(:second)
     }
   end
@@ -143,6 +149,7 @@ defmodule Viva.Avatars.InternalState do
       allostasis: AllostasisState.new(),
       regulation: EmotionRegulationState.new(),
       somatic: SomaticMarkersState.new(),
+      motivation: MotivationState.from_enneagram(personality.enneagram_type),
       updated_at: DateTime.utc_now(:second)
     }
   end
@@ -195,6 +202,7 @@ defmodule Viva.Avatars.InternalState do
     |> ensure_allostasis()
     |> ensure_regulation()
     |> ensure_somatic()
+    |> ensure_motivation(personality)
   end
 
   defp ensure_bio(%{bio: nil} = state), do: %{state | bio: %BioState{}}
@@ -229,4 +237,10 @@ defmodule Viva.Avatars.InternalState do
   end
 
   defp ensure_somatic(state), do: state
+
+  defp ensure_motivation(%{motivation: nil} = state, personality) do
+    %{state | motivation: MotivationState.from_enneagram(personality.enneagram_type)}
+  end
+
+  defp ensure_motivation(state, _), do: state
 end
