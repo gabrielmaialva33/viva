@@ -29,3 +29,6 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# Disable Oban queues and plugins in test to avoid DB connection errors
+config :viva, Oban, queues: false, plugins: false
