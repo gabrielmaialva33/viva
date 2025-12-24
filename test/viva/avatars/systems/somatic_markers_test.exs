@@ -118,7 +118,8 @@ defmodule Viva.Avatars.Systems.SomaticMarkersTest do
     test "reinforces activated markers" do
       original_strength = 0.5
 
-      last_activated = DateTime.add(DateTime.utc_now(:second), -3600, :second)
+      now = DateTime.utc_now(:second)
+      last_activated = DateTime.add(now, -3600, :second)
 
       marker = %{
         valence: 0.7,
