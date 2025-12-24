@@ -5,6 +5,7 @@ defmodule Viva.Avatars.Memory.Engine do
   """
 
   import Ecto.Query
+  import Pgvector.Ecto.Query
   alias Viva.Avatars.Memory
   alias Viva.Nim.EmbeddingClient
   alias Viva.Repo

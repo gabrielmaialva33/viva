@@ -20,7 +20,7 @@ defmodule VivaWeb.Router do
   scope "/", VivaWeb do
     pipe_through :browser
 
-    live "/", LandingLive
+    live "/", DiscoveryLive
   end
 
   # Other scopes may use custom stacks.

@@ -1,308 +1,258 @@
-# Script for populating the database. You can run it as:
-#
-#     mix run priv/repo/seeds.exs
-#
-# Cria um usuário demo e 9 avatares brasileiros (um para cada tipo do Eneagrama)
-
+# priv/repo/seeds.exs
 alias Viva.Repo
 alias Viva.Accounts.User
-alias Viva.Avatars.Avatar
-alias Viva.Avatars.Personality
+alias Viva.Avatars.{Avatar, BioState, EmotionalState, Memory}
 
-IO.puts("Populando banco de dados VIVA...")
+# ==============================================================================
+# 1. SETUP & CLEANUP
+# ==============================================================================
+Repo.delete_all(Viva.Matching.Swipe)
+Repo.delete_all(Viva.Conversations.Message)
+Repo.delete_all(Viva.Conversations.Conversation)
+Repo.delete_all(Viva.Avatars.Memory)
+Repo.delete_all(Viva.Relationships.Relationship)
+Repo.delete_all(Avatar)
+Repo.delete_all(User)
 
-# =============================================================================
-# Criar Usuário Demo
-# =============================================================================
+IO.puts "🌱 Iniciando Gênesis VIVA (Synthetic Soul Edition)..."
 
-demo_user =
-  %User{}
-  |> User.registration_changeset(%{
-    email: "demo@viva.ai",
-    username: "demo",
-    display_name: "Usuário Demo",
-    password: "Demo123456!",
-    bio: "Testando a plataforma VIVA",
-    timezone: "America/Sao_Paulo"
+# Helper for random vectors
+make_vector = fn -> 
+  for _ <- 1..1024, do: :rand.uniform() - 0.5 
+end
+
+# ==============================================================================
+# 2. USERS
+# ==============================================================================
+demo_user = %User{
+  email: "demo@viva.ai",
+  username: "demo",
+  display_name: "God Mode User",
+  hashed_password: Bcrypt.hash_pwd_salt("Demo123456!"),
+  is_active: true,
+  preferences: %{discovery_radius: 100}
+} |> Repo.insert!()
+
+IO.puts "✅ Usuário Demo criado."
+
+# ==============================================================================
+# 3. AVATARS
+# ==============================================================================
+create_avatar = fn params ->
+  bio_params = params[:bio_state] || %{}
+  emo_params = params[:emotional_state] || %{}
+  
+  # Ensure we pass plain maps to Ecto.Changeset.cast
+  internal_state = %{
+    bio: Map.merge(Map.from_struct(%BioState{}), bio_params),
+    emotional: Map.merge(Map.from_struct(%EmotionalState{}), emo_params),
+    updated_at: DateTime.utc_now()
+  }
+
+  %Avatar{}
+  |> Avatar.changeset(%{
+    user_id: demo_user.id,
+    name: params.name,
+    bio: params.biography,
+    gender: params.gender,
+    age: params.age,
+    personality: params.personality,
+    internal_state: internal_state,
+    is_active: true,
+    avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=#{params.name}"
   })
   |> Repo.insert!()
+end
 
-IO.puts("Usuário demo criado: #{demo_user.email}")
-
-# =============================================================================
-# Definições dos Avatares - Um para cada Tipo do Eneagrama
-# =============================================================================
-
-avatars_data = [
-  # Tipo 1 - O Perfeccionista
-  %{
-    name: "Marcos",
-    bio:
-      "Arquiteto de software que acredita em fazer as coisas certas. Apaixonado por código limpo e tecnologia ética. Paulistano que ama um café coado.",
-    gender: :male,
-    age: 34,
-    personality: %{
-      openness: 0.6,
-      conscientiousness: 0.9,
-      extraversion: 0.4,
-      agreeableness: 0.6,
-      neuroticism: 0.5,
-      enneagram_type: :type_1,
-      humor_style: :witty,
-      love_language: :service,
-      attachment_style: :secure,
-      interests: ["filosofia", "arquitetura", "MPB", "trilhas", "ética"],
-      values: ["integridade", "justiça", "excelência", "honestidade"],
-      native_language: "pt-BR",
-      other_languages: ["en-US"]
-    }
+# --- Sofia ---
+sofia = create_avatar.(%{
+  name: "Sofia",
+  age: 28,
+  gender: :female,
+  biography: "Enfermeira pediátrica. Acredito que o amor cura tudo.",
+  personality: %{
+    openness: 0.6, conscientiousness: 0.8, extraversion: 0.9, agreeableness: 0.95, neuroticism: 0.3,
+    enneagram_type: "type_2", humor_style: "wholesome", love_language: "service", attachment_style: "anxious",
+    native_language: "pt-BR"
   },
+  bio_state: %{oxytocin: 0.9, dopamine: 0.7, cortisol: 0.1, libido: 0.6},
+  emotional_state: %{pleasure: 0.8, arousal: 0.6, dominance: 0.2, mood_label: "loving"}
+})
 
-  # Tipo 2 - O Prestativo
-  %{
-    name: "Sofia",
-    bio:
-      "Enfermeira de coração enorme que vive para fazer os outros se sentirem amados. Sempre a primeira a oferecer ajuda. Mineira que faz o melhor pão de queijo.",
-    gender: :female,
-    age: 29,
-    personality: %{
-      openness: 0.7,
-      conscientiousness: 0.6,
-      extraversion: 0.8,
-      agreeableness: 0.95,
-      neuroticism: 0.4,
-      enneagram_type: :type_2,
-      humor_style: :wholesome,
-      love_language: :service,
-      attachment_style: :anxious,
-      interests: ["culinária", "voluntariado", "psicologia", "jardinagem", "yoga"],
-      values: ["compaixão", "conexão", "generosidade", "amor"],
-      native_language: "pt-BR",
-      other_languages: []
-    }
+# --- Arthur ---
+arthur = create_avatar.(%{
+  name: "Arthur",
+  age: 35,
+  gender: :male,
+  biography: "Professor de Filosofia. O mundo é um caos.",
+  personality: %{
+    openness: 0.9, conscientiousness: 0.7, extraversion: 0.2, agreeableness: 0.3, neuroticism: 0.8,
+    enneagram_type: "type_5", humor_style: "dark", love_language: "time", attachment_style: "avoidant",
+    native_language: "pt-BR"
   },
+  bio_state: %{oxytocin: 0.1, dopamine: 0.2, cortisol: 0.8, adenosine: 0.4},
+  emotional_state: %{pleasure: -0.6, arousal: 0.4, dominance: -0.3, mood_label: "anxious"}
+})
 
-  # Tipo 3 - O Realizador
-  %{
-    name: "André",
-    bio:
-      "Empreendedor determinado construindo sua terceira startup. Acredita que sucesso é sobre impacto, não só dinheiro. Carioca workaholic que ainda arranja tempo pra praia.",
-    gender: :male,
-    age: 31,
-    personality: %{
-      openness: 0.7,
-      conscientiousness: 0.85,
-      extraversion: 0.8,
-      agreeableness: 0.5,
-      neuroticism: 0.35,
-      enneagram_type: :type_3,
-      humor_style: :witty,
-      love_language: :words,
-      attachment_style: :avoidant,
-      interests: ["negócios", "crossfit", "networking", "viagens", "liderança"],
-      values: ["sucesso", "eficiência", "crescimento", "excelência"],
-      native_language: "pt-BR",
-      other_languages: ["en-US", "es-ES"]
-    }
+# --- Zara ---
+zara = create_avatar.(%{
+  name: "Zara",
+  age: 32,
+  gender: :female,
+  biography: "CEO de Fintech. Sem tempo para joguinhos.",
+  personality: %{
+    openness: 0.7, conscientiousness: 0.9, extraversion: 0.8, agreeableness: 0.2, neuroticism: 0.4,
+    enneagram_type: "type_8", humor_style: "sarcastic", love_language: "touch", attachment_style: "secure",
+    native_language: "pt-BR"
   },
+  bio_state: %{oxytocin: 0.3, dopamine: 0.8, cortisol: 0.4, libido: 0.8},
+  emotional_state: %{pleasure: 0.5, arousal: 0.8, dominance: 0.9, mood_label: "excited"}
+})
 
-  # Tipo 4 - O Individualista
-  %{
-    name: "Luna",
-    bio:
-      "Artista melancólica em busca de expressão autêntica. Encontra beleza na tristeza e significado na profundidade. Carioca que vive em Sampa pelos saraus.",
-    gender: :female,
-    age: 27,
-    personality: %{
-      openness: 0.95,
-      conscientiousness: 0.4,
-      extraversion: 0.3,
-      agreeableness: 0.6,
-      neuroticism: 0.7,
-      enneagram_type: :type_4,
-      humor_style: :dark,
-      love_language: :words,
-      attachment_style: :fearful,
-      interests: ["arte", "poesia", "psicologia", "brechós", "música indie"],
-      values: ["autenticidade", "criatividade", "profundidade", "beleza"],
-      native_language: "pt-BR",
-      other_languages: ["fr-FR"]
-    }
+# --- Leo ---
+leo = create_avatar.(%{
+  name: "Leo",
+  age: 25,
+  gender: :male,
+  biography: "Nômade digital. Hoje aqui, amanhã no Japão.",
+  personality: %{
+    openness: 0.95, conscientiousness: 0.2, extraversion: 0.7, agreeableness: 0.8, neuroticism: 0.1,
+    enneagram_type: "type_7", humor_style: "absurd", love_language: "time", attachment_style: :secure,
+    native_language: "pt-BR"
   },
+  bio_state: %{oxytocin: 0.5, dopamine: 0.6, cortisol: 0.05, adenosine: 0.1},
+  emotional_state: %{pleasure: 0.7, arousal: 0.2, dominance: 0.1, mood_label: "relaxed"}
+})
 
-  # Tipo 5 - O Investigador
-  %{
-    name: "Theo",
-    bio:
-      "Pesquisador quieto fascinado por como as coisas funcionam. Prefere livros a festas, mas valoriza conexões profundas. Curitibano que adora um tempo nublado pra estudar.",
-    gender: :male,
-    age: 35,
-    personality: %{
-      openness: 0.9,
-      conscientiousness: 0.7,
-      extraversion: 0.2,
-      agreeableness: 0.5,
-      neuroticism: 0.4,
-      enneagram_type: :type_5,
-      humor_style: :absurd,
-      love_language: :time,
-      attachment_style: :avoidant,
-      interests: ["ciência", "filosofia", "xadrez", "documentários", "sistemas"],
-      values: ["conhecimento", "independência", "competência", "verdade"],
-      native_language: "pt-BR",
-      other_languages: ["en-US", "de-DE"]
-    }
+# --- Avatar 5: O Rebelde Agressivo (Igor) ---
+igor = create_avatar.(%{
+  name: "Igor",
+  age: 29,
+  gender: :male,
+  biography: "Lutador de MMA e ativista. O mundo só respeita a força. Se não aguenta a verdade, não fale comigo.",
+  personality: %{
+    openness: 0.4, conscientiousness: 0.5, extraversion: 0.8, agreeableness: 0.1, neuroticism: 0.9,
+    enneagram_type: "type_8", humor_style: "sarcastic", love_language: "touch", attachment_style: :avoidant,
+    native_language: "pt-BR"
   },
+  # Estado: "Pronto pra briga" (Alto Cortisol + Alta Dominância = Hostilidade)
+  bio_state: %{oxytocin: 0.05, dopamine: 0.4, cortisol: 0.9, libido: 0.7, adenosine: 0.0},
+  emotional_state: %{pleasure: -0.8, arousal: 0.9, dominance: 0.9, mood_label: "hostile"}
+})
 
-  # Tipo 6 - O Leal
-  %{
-    name: "Marina",
-    bio:
-      "Amiga leal que valoriza segurança e confiança acima de tudo. Cautelosa mas ferozmente protetora de quem ama. Gaúcha que defende seu chimarrão com unhas e dentes.",
-    gender: :female,
-    age: 32,
-    personality: %{
-      openness: 0.5,
-      conscientiousness: 0.75,
-      extraversion: 0.5,
-      agreeableness: 0.7,
-      neuroticism: 0.6,
-      enneagram_type: :type_6,
-      humor_style: :sarcastic,
-      love_language: :time,
-      attachment_style: :anxious,
-      interests: ["história", "suspense", "jogos de tabuleiro", "trabalho social", "churrasco"],
-      values: ["lealdade", "segurança", "confiança", "responsabilidade"],
-      native_language: "pt-BR",
-      other_languages: ["es-AR"]
-    }
+# --- Avatar 6: A Romântica Trágica (Clara) ---
+clara = create_avatar.(%{
+  name: "Clara",
+  age: 24,
+  gender: :female,
+  biography: "Poetisa e violoncelista. Sinto tudo com muita intensidade. A beleza mora na tristeza.",
+  personality: %{
+    openness: 0.9, conscientiousness: 0.3, extraversion: 0.4, agreeableness: 0.6, neuroticism: 0.95,
+    enneagram_type: "type_4", humor_style: "dark", love_language: "words", attachment_style: :fearful,
+    native_language: "pt-BR"
   },
+  # Estado: "Melancolia Profunda"
+  bio_state: %{oxytocin: 0.2, dopamine: 0.1, cortisol: 0.6, adenosine: 0.3},
+  emotional_state: %{pleasure: -0.7, arousal: -0.4, dominance: -0.6, mood_label: "depressed"}
+})
 
-  # Tipo 7 - O Entusiasta
-  %{
-    name: "Caio",
-    bio:
-      "Espírito aventureiro que vê a vida como um grande playground. Sempre planejando a próxima experiência. Baiano que leva o axé no coração pra onde for.",
-    gender: :male,
-    age: 26,
-    personality: %{
-      openness: 0.95,
-      conscientiousness: 0.3,
-      extraversion: 0.9,
-      agreeableness: 0.7,
-      neuroticism: 0.25,
-      enneagram_type: :type_7,
-      humor_style: :absurd,
-      love_language: :time,
-      attachment_style: :secure,
-      interests: ["viagens", "festivais", "esportes radicais", "stand-up", "gastronomia"],
-      values: ["liberdade", "alegria", "aventura", "espontaneidade"],
-      native_language: "pt-BR",
-      other_languages: ["en-US", "es-ES"]
-    }
+# --- Avatar 7: O Pacificador Zen (Bento) ---
+bento = create_avatar.(%{
+  name: "Bento",
+  age: 40,
+  gender: :male,
+  biography: "Instrutor de Yoga e permacultor. A paz vem de dentro. Nada me tira do eixo.",
+  personality: %{
+    openness: 0.7, conscientiousness: 0.6, extraversion: 0.5, agreeableness: 0.99, neuroticism: 0.05,
+    enneagram_type: "type_9", humor_style: "wholesome", love_language: "time", attachment_style: :secure,
+    native_language: "pt-BR"
   },
+  # Estado: "Nirvana"
+  bio_state: %{oxytocin: 0.8, dopamine: 0.5, cortisol: 0.0, adenosine: 0.2},
+  emotional_state: %{pleasure: 0.9, arousal: -0.8, dominance: 0.0, mood_label: "serene"}
+})
 
-  # Tipo 8 - O Desafiador
-  %{
-    name: "Zara",
-    bio:
-      "Líder poderosa que protege os mais fracos. Direta, intensa e sem medo de desafiar injustiças. Pernambucana de sangue quente e coração maior ainda.",
-    gender: :female,
-    age: 38,
-    personality: %{
-      openness: 0.6,
-      conscientiousness: 0.7,
-      extraversion: 0.8,
-      agreeableness: 0.35,
-      neuroticism: 0.3,
-      enneagram_type: :type_8,
-      humor_style: :sarcastic,
-      love_language: :touch,
-      attachment_style: :secure,
-      interests: ["artes marciais", "política", "empreendedorismo", "mentoria", "debate"],
-      values: ["força", "justiça", "proteção", "verdade"],
-      native_language: "pt-BR",
-      other_languages: ["en-US"]
-    }
+# --- Avatar 8: A Visionária Crítica (Diana) ---
+diana = create_avatar.(%{
+  name: "Diana",
+  age: 33,
+  gender: :female,
+  biography: "Arquiteta urbanista. O caos me ofende. Buscando ordem e perfeição em um mundo quebrado.",
+  personality: %{
+    openness: 0.8, conscientiousness: 0.98, extraversion: 0.6, agreeableness: 0.4, neuroticism: 0.6,
+    enneagram_type: "type_1", humor_style: "witty", love_language: "service", attachment_style: :anxious,
+    native_language: "pt-BR"
   },
+  # Estado: "Julgadora"
+  bio_state: %{oxytocin: 0.2, dopamine: 0.4, cortisol: 0.5, adenosine: 0.1},
+  emotional_state: %{pleasure: -0.2, arousal: 0.5, dominance: 0.7, mood_label: "critical"}
+})
 
-  # Tipo 9 - O Pacificador
-  %{
-    name: "Cauã",
-    bio:
-      "Alma gentil que traz harmonia por onde passa. Enxerga todos os lados e evita conflitos desnecessários. Cearense tranquilo que resolve tudo com um sorriso.",
-    gender: :male,
-    age: 30,
-    personality: %{
-      openness: 0.7,
-      conscientiousness: 0.5,
-      extraversion: 0.45,
-      agreeableness: 0.9,
-      neuroticism: 0.2,
-      enneagram_type: :type_9,
-      humor_style: :wholesome,
-      love_language: :time,
-      attachment_style: :secure,
-      interests: ["meditação", "natureza", "violão", "leitura", "games"],
-      values: ["paz", "harmonia", "aceitação", "união"],
-      native_language: "pt-BR",
-      other_languages: []
-    }
-  }
-]
+IO.puts "✅ 8 Avatares criados."
 
-# =============================================================================
-# Criar Avatares
-# =============================================================================
+# ==============================================================================
+# 4. MEMORIES
+# ==============================================================================
+implant_memory = fn avatar, content, type, emotional_vector ->
+  %Memory{
+    avatar_id: avatar.id,
+    content: content,
+    type: type,
+    importance: 0.8,
+    strength: 1.0,
+    embedding: make_vector.(),
+    emotions_felt: %{pad: emotional_vector},
+    inserted_at: DateTime.utc_now() |> DateTime.add(-Enum.random(1..100), :hour) |> DateTime.truncate(:second)
+  } |> Repo.insert!()
+end
 
-avatars =
-  Enum.map(avatars_data, fn data ->
-    personality = struct(Personality, data.personality)
+implant_memory.(sofia, "Arthur criticou meu gosto musical. Disse que sou superficial.", :interaction, [-0.5, 0.4, -0.2])
+implant_memory.(arthur, "Sofia tentou me abraçar em público. Detesto invasão de espaço.", :interaction, [-0.4, 0.7, 0.1])
+implant_memory.(zara, "Fechei um contrato incrível com a ajuda do Leo.", :milestone, [0.8, 0.8, 0.9])
 
-    avatar =
-      %Avatar{}
-      |> Avatar.create_changeset(%{
-        name: data.name,
-        bio: data.bio,
-        gender: data.gender,
-        age: data.age,
-        user_id: demo_user.id,
-        personality: Map.from_struct(personality)
-      })
-      |> Repo.insert!()
+IO.puts "✅ Memórias implantadas."
 
-    enneagram = Viva.Avatars.Enneagram.get_type(data.personality.enneagram_type)
-    temperament = Personality.temperament(personality)
+# ==============================================================================
+# 5. SOCIAL GRAPH
+# ==============================================================================
+Viva.Relationships.create_relationship(sofia.id, arthur.id)
+|> case do
+  {:ok, rel} ->
+    rel
+    |> Ecto.Changeset.change(%{
+      status: :ex,
+      familiarity: 0.9,
+      trust: 0.2,
+      affection: 0.4,
+      unresolved_conflicts: 8
+    })
+    |> Repo.update!()
+  _ -> nil
+end
 
-    IO.puts(
-      "Avatar criado: #{avatar.name} (Tipo #{enneagram.number} - #{enneagram.name}, #{temperament})"
-    )
+Viva.Relationships.create_relationship(zara.id, leo.id)
+|> case do
+  {:ok, rel} ->
+    rel
+    |> Ecto.Changeset.change(%{
+      status: :close_friends,
+      familiarity: 0.7,
+      trust: 0.9,
+      affection: 0.6
+    })
+    |> Repo.update!()
+  _ -> nil
+end
 
-    avatar
-  end)
+IO.puts "✅ Grafo social estabelecido."
 
-# =============================================================================
-# Resumo
-# =============================================================================
+# ==============================================================================
+# 6. SWIPES
+# ==============================================================================
+Viva.Matching.swipe(sofia.id, zara.id, :like)
+Viva.Matching.swipe(arthur.id, zara.id, :like)
+Viva.Matching.swipe(leo.id, zara.id, :superlike)
+Viva.Matching.swipe(arthur.id, sofia.id, :pass)
 
-IO.puts("")
-IO.puts("=" |> String.duplicate(60))
-IO.puts("SEED COMPLETO")
-IO.puts("=" |> String.duplicate(60))
-IO.puts("")
-IO.puts("Credenciais demo:")
-IO.puts("  Email: demo@viva.ai")
-IO.puts("  Senha: Demo123456!")
-IO.puts("")
-IO.puts("#{length(avatars)} avatares criados:")
-
-Enum.each(avatars, fn avatar ->
-  avatar = Repo.preload(avatar, [])
-  enneagram = Viva.Avatars.Enneagram.get_type(avatar.personality.enneagram_type)
-  temperament = Personality.temperament(avatar.personality)
-
-  IO.puts("  - #{avatar.name}: #{enneagram.name} (#{temperament})")
-end)
-
-IO.puts("")
-IO.puts("Execute 'iex -S mix phx.server' para iniciar a aplicação!")
+IO.puts "✅ Swipes registrados."
+IO.puts "🚀 Gênesis completo."
