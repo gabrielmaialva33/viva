@@ -1,7 +1,12 @@
 # priv/repo/seeds.exs
 alias Viva.Repo
 alias Viva.Accounts.User
-alias Viva.Avatars.{Avatar, BioState, EmotionalState, Memory}
+
+alias Viva.Avatars.{
+  Avatar,
+  Memory,
+  Personality
+}
 
 # ==============================================================================
 # 1. SETUP & CLEANUP
@@ -46,10 +51,22 @@ create_avatar = fn params ->
   social_persona_params = params[:social_persona] || %{}
 
   # Ensure we pass plain maps to Ecto.Changeset.cast
-  internal_state = %{
-    bio: Map.merge(Map.from_struct(%BioState{}), bio_params),
-    emotional: Map.merge(Map.from_struct(%EmotionalState{}), emo_params),
-    updated_at: DateTime.utc_now()
+  # We need to construct the personality struct for consciousness generation
+  personality_struct = struct(Personality, params.personality)
+
+  # 1. Create fully initialized internal state struct
+  initial_state = Viva.Avatars.InternalState.from_personality(personality_struct)
+
+  # 2. Merge overrides for bio/emotional state if provided
+  # NOTE: bio_params/emo_params are maps, structs are structs.
+  updated_bio = struct(initial_state.bio, bio_params)
+  updated_emotional = struct(initial_state.emotional, emo_params)
+
+  final_internal_state = %{
+    initial_state
+    | bio: updated_bio,
+      emotional: updated_emotional,
+      updated_at: DateTime.utc_now()
   }
 
   %Avatar{}
@@ -60,12 +77,13 @@ create_avatar = fn params ->
     gender: params.gender,
     age: params.age,
     personality: params.personality,
-    internal_state: internal_state,
     social_persona: social_persona_params,
     moral_flexibility: params[:moral_flexibility] || 0.3,
     is_active: true,
     avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=#{params.name}"
   })
+  # Manually embed the fully constructed struct (bypassing strict casting)
+  |> Ecto.Changeset.put_embed(:internal_state, final_internal_state)
   |> Repo.insert!()
 end
 
@@ -82,7 +100,7 @@ sofia =
       extraversion: 0.9,
       agreeableness: 0.95,
       neuroticism: 0.3,
-      enneagram_type: "type_2",
+      enneagram_type: :type_2,
       humor_style: "wholesome",
       love_language: "service",
       attachment_style: "anxious",
@@ -93,7 +111,7 @@ sofia =
   })
 
 # --- Arthur ---
-_arthur =
+arthur =
   create_avatar.(%{
     name: "Arthur",
     age: 35,
@@ -107,7 +125,7 @@ _arthur =
       extraversion: 0.2,
       agreeableness: 0.3,
       neuroticism: 0.8,
-      enneagram_type: "type_5",
+      enneagram_type: :type_5,
       humor_style: "dark",
       love_language: "time",
       attachment_style: "avoidant",
@@ -124,7 +142,7 @@ _arthur =
   })
 
 # --- Zara ---
-_zara =
+zara =
   create_avatar.(%{
     name: "Zara",
     age: 32,
@@ -138,7 +156,7 @@ _zara =
       extraversion: 0.8,
       agreeableness: 0.2,
       neuroticism: 0.4,
-      enneagram_type: "type_8",
+      enneagram_type: :type_8,
       humor_style: "sarcastic",
       love_language: "touch",
       attachment_style: "secure",
@@ -167,7 +185,7 @@ leo =
       extraversion: 0.7,
       agreeableness: 0.8,
       neuroticism: 0.1,
-      enneagram_type: "type_7",
+      enneagram_type: :type_7,
       humor_style: "absurd",
       love_language: "time",
       attachment_style: :secure,
@@ -178,7 +196,7 @@ leo =
   })
 
 # --- Avatar 5: O Rebelde Agressivo (Igor) ---
-igor =
+_igor =
   create_avatar.(%{
     name: "Igor",
     age: 29,
@@ -191,7 +209,7 @@ igor =
       extraversion: 0.8,
       agreeableness: 0.1,
       neuroticism: 0.9,
-      enneagram_type: "type_8",
+      enneagram_type: :type_8,
       humor_style: "sarcastic",
       love_language: "touch",
       attachment_style: :avoidant,
@@ -203,7 +221,7 @@ igor =
   })
 
 # --- Avatar 6: A Romântica Trágica (Clara) ---
-clara =
+_clara =
   create_avatar.(%{
     name: "Clara",
     age: 24,
@@ -216,7 +234,7 @@ clara =
       extraversion: 0.4,
       agreeableness: 0.6,
       neuroticism: 0.95,
-      enneagram_type: "type_4",
+      enneagram_type: :type_4,
       humor_style: "dark",
       love_language: "words",
       attachment_style: :fearful,
@@ -228,7 +246,7 @@ clara =
   })
 
 # --- Avatar 7: O Pacificador Zen (Bento) ---
-bento =
+_bento =
   create_avatar.(%{
     name: "Bento",
     age: 40,
@@ -240,7 +258,7 @@ bento =
       extraversion: 0.5,
       agreeableness: 0.99,
       neuroticism: 0.05,
-      enneagram_type: "type_9",
+      enneagram_type: :type_9,
       humor_style: "wholesome",
       love_language: "time",
       attachment_style: :secure,
@@ -252,7 +270,7 @@ bento =
   })
 
 # --- Avatar 8: A Visionária Crítica (Diana) ---
-diana =
+_diana =
   create_avatar.(%{
     name: "Diana",
     age: 33,
@@ -265,7 +283,7 @@ diana =
       extraversion: 0.6,
       agreeableness: 0.4,
       neuroticism: 0.6,
-      enneagram_type: "type_1",
+      enneagram_type: :type_1,
       humor_style: "witty",
       love_language: "service",
       attachment_style: :anxious,
@@ -293,7 +311,7 @@ gael =
       agreeableness: 0.4,
       # Inseguro no fundo
       neuroticism: 0.7,
-      enneagram_type: "type_3",
+      enneagram_type: :type_3,
       humor_style: "witty",
       love_language: "gifts",
       attachment_style: :anxious,
