@@ -15,7 +15,7 @@ config :viva,
 config :viva, :nim,
   # API Configuration
   base_url: System.get_env("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1"),
-  api_key: System.get_env("NVIDIA_API_KEY"),
+  api_key: System.get_env("NIM_API_KEY"),
   timeout: 120_000,
 
   # Models - Maximum Quality Selection

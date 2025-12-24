@@ -244,7 +244,7 @@ Required in `.env`:
 
 ```bash
 # NVIDIA NIM (Required)
-NVIDIA_API_KEY=nvapi-xxx
+NIM_API_KEY=nvapi-xxx
 NIM_BASE_URL=https://integrate.api.nvidia.com/v1
 
 # Database

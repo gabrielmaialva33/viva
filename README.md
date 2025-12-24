@@ -352,7 +352,7 @@ Edit `.env`:
 
 ```bash
 # Required: NVIDIA NIM Cloud API
-NVIDIA_API_KEY=nvapi-xxxxxxxxxxxxxxxxxxxx
+NIM_API_KEY=nvapi-xxxxxxxxxxxxxxxxxxxx
 
 # Optional: Override defaults
 NIM_BASE_URL=https://integrate.api.nvidia.com/v1

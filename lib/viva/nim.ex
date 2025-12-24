@@ -23,7 +23,7 @@ defmodule Viva.Nim do
   ## Configuration
 
       config :viva, :nim,
-        api_key: System.get_env("NVIDIA_API_KEY"),
+        api_key: System.get_env("NIM_API_KEY"),
         base_url: "https://integrate.api.nvidia.com/v1",
         timeout: 120_000,
         max_retries: 3,
@@ -81,7 +81,7 @@ defmodule Viva.Nim do
   @doc "Get API key"
   @spec api_key() :: String.t() | nil
   def api_key do
-    Keyword.get(config(), :api_key) || System.get_env("NVIDIA_API_KEY")
+    Keyword.get(config(), :api_key) || System.get_env("NIM_API_KEY")
   end
 
   @doc "Get timeout in milliseconds"
