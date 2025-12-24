@@ -4,6 +4,6 @@ defmodule Viva.AI.Pipeline.Stage do
   """
 
   @callback process(input :: any(), opts :: keyword()) :: {:ok, any()} | {:error, term()}
-  
+
   @optional_callbacks process: 2
 end
