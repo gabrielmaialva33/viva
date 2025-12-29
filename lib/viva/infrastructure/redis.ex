@@ -38,7 +38,7 @@ defmodule Viva.Infrastructure.Redis do
 
     case Redix.command(:redix, ["GET", key]) do
       {:ok, nil} -> nil
-      {:ok, json} -> Jason.decode!(json, keys: :atoms!)
+      {:ok, json} -> Jason.decode!(json, keys: :strings)
       _ -> nil
     end
   end
