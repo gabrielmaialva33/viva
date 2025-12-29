@@ -11,7 +11,8 @@ config :viva, Viva.Repo,
   hostname: "localhost",
   database: "viva_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
+  pool_size: System.schedulers_online() * 2,
+  types: Viva.Infrastructure.PostgrexTypes
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
@@ -35,3 +36,9 @@ config :viva, Oban, queues: false, plugins: false
 
 # Disable starting active avatars automatically in tests
 config :viva, start_active_avatars: false
+
+# Use Mock LLM Client in tests
+config :viva, :llm_client, Viva.AI.LLM.MockClient
+
+# Use Mock EventBus in tests
+config :viva, :event_bus, Viva.Infrastructure.MockEventBus

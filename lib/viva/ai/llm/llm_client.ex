@@ -33,11 +33,10 @@ defmodule Viva.AI.LLM.LlmClient do
   """
   @spec generate(String.t(), keyword()) :: generate_response()
   def generate(prompt, opts \\ []) do
-    messages = [%{role: "user", content: prompt}]
-
-    messages
-    |> chat(opts)
-    |> extract_content()
+    case client() do
+      __MODULE__ -> do_generate(prompt, opts)
+      other -> other.generate(prompt, opts)
+    end
   end
 
   @doc """
@@ -118,28 +117,6 @@ defmodule Viva.AI.LLM.LlmClient do
 
   @doc """
   Chat with tool/function calling support.
-
-  ## Example
-
-      tools = [
-        %{
-          type: "function",
-          function: %{
-            name: "send_message",
-            description: "Send a message to another avatar",
-            parameters: %{
-              type: "object",
-              properties: %{
-                recipient_id: %{type: "string", description: "Avatar ID to message"},
-                content: %{type: "string", description: "Message content"}
-              },
-              required: ["recipient_id", "content"]
-            }
-          }
-        }
-      ]
-
-      LlmClient.chat_with_tools(messages, tools)
   """
   @spec chat_with_tools([message()], [map()], keyword()) :: chat_response()
   def chat_with_tools(messages, tools, opts \\ []) do
@@ -256,6 +233,20 @@ defmodule Viva.AI.LLM.LlmClient do
     """
 
     generate(prompt, max_tokens: 60, temperature: 0.8)
+  end
+
+  # === Private Functions ===
+
+  defp do_generate(prompt, opts) do
+    messages = [%{role: "user", content: prompt}]
+
+    messages
+    |> chat(opts)
+    |> extract_content()
+  end
+
+  defp client do
+    Application.get_env(:viva, :llm_client, __MODULE__)
   end
 
   defp maybe_add_tools(body, nil), do: body
