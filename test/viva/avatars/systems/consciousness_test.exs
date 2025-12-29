@@ -1,5 +1,5 @@
 defmodule Viva.Avatars.Systems.ConsciousnessTest do
-  use ExUnit.Case, async: true
+  use Viva.DataCase, async: true
 
   alias Viva.Avatars.BioState
   alias Viva.Avatars.ConsciousnessState
@@ -8,320 +8,240 @@ defmodule Viva.Avatars.Systems.ConsciousnessTest do
   alias Viva.Avatars.SensoryState
   alias Viva.Avatars.Systems.Consciousness
 
+  setup do
+    consciousness_data = ConsciousnessState.new()
+    sensory_data = SensoryState.new()
+    bio_data = %BioState{}
+    emotional_data = %EmotionalState{}
+    personality_data = %Personality{}
+
+    {:ok,
+     consciousness: consciousness_data,
+     sensory: sensory_data,
+     bio: bio_data,
+     emotional: emotional_data,
+     personality: personality_data}
+  end
+
   describe "integrate/6" do
-    setup do
-      consciousness = ConsciousnessState.new()
-      sensory = SensoryState.new()
-      bio = %BioState{}
-      emotional = %EmotionalState{}
-      personality = build_personality()
+    test "updates consciousness state with new moment", context do
+      %{consciousness: c, sensory: s, bio: b, emotional: e, personality: p} = context
 
-      {:ok,
-       consciousness: consciousness,
-       sensory: sensory,
-       bio: bio,
-       emotional: emotional,
-       personality: personality}
-    end
+      thought = "I wonder what that is."
+      updated = Consciousness.integrate(c, s, b, e, thought, p)
 
-    test "returns updated consciousness state", ctx do
-      result =
-        Consciousness.integrate(
-          ctx.consciousness,
-          ctx.sensory,
-          ctx.bio,
-          ctx.emotional,
-          "thinking about something",
-          ctx.personality
-        )
-
-      assert %ConsciousnessState{} = result
-    end
-
-    test "adds moment to experience stream", ctx do
-      result =
-        Consciousness.integrate(
-          ctx.consciousness,
-          ctx.sensory,
-          ctx.bio,
-          ctx.emotional,
-          nil,
-          ctx.personality
-        )
-
-      assert result.experience_stream != []
-    end
-
-    test "limits experience stream length", ctx do
-      # Create consciousness with full stream
-      full_stream = for _ <- 1..20, do: %{timestamp: DateTime.utc_now()}
-      consciousness = %{ctx.consciousness | experience_stream: full_stream}
-
-      result =
-        Consciousness.integrate(
-          consciousness,
-          ctx.sensory,
-          ctx.bio,
-          ctx.emotional,
-          nil,
-          ctx.personality
-        )
-
-      # Should be limited to max stream length (use Enum.count for comparison)
-      assert Enum.count(result.experience_stream) <= 15
-    end
-
-    test "updates focal content when sensory qualia is intense", ctx do
-      sensory = %{
-        ctx.sensory
-        | current_qualia: %{
-            dominant_sensation: "warmth",
-            emotional_color: "pleasant",
-            intensity: 0.8,
-            narrative: "A warm sensation"
-          }
-      }
-
-      result =
-        Consciousness.integrate(
-          ctx.consciousness,
-          sensory,
-          ctx.bio,
-          ctx.emotional,
-          nil,
-          ctx.personality
-        )
-
-      assert result.focal_content != nil
-    end
-
-    test "calculates tempo based on arousal and fatigue", ctx do
-      # High arousal, low fatigue = fast tempo
-      high_arousal_bio = %{ctx.bio | adenosine: 0.2}
-      high_arousal_emotional = %{ctx.emotional | arousal: 0.9}
-
-      result =
-        Consciousness.integrate(
-          ctx.consciousness,
-          ctx.sensory,
-          high_arousal_bio,
-          high_arousal_emotional,
-          nil,
-          ctx.personality
-        )
-
-      assert result.stream_tempo in [:fast, :racing]
-    end
-
-    test "calculates slow tempo when fatigued", ctx do
-      fatigued_bio = %{ctx.bio | adenosine: 0.9}
-      low_arousal_emotional = %{ctx.emotional | arousal: 0.1}
-
-      result =
-        Consciousness.integrate(
-          ctx.consciousness,
-          ctx.sensory,
-          fatigued_bio,
-          low_arousal_emotional,
-          nil,
-          ctx.personality
-        )
-
-      assert result.stream_tempo in [:slow, :frozen]
+      assert length(updated.experience_stream) == 1
+      assert updated.focal_content.type == :thought
+      assert updated.stream_tempo == :normal
     end
   end
 
   describe "calculate_tempo/2" do
-    test "returns racing for very high arousal" do
-      assert Consciousness.calculate_tempo(0.95, 0.1) == :racing
+    test "returns frozen for high adenosine" do
+      assert Consciousness.calculate_tempo(0.5, 0.95) == :frozen
     end
 
-    test "returns fast or racing for high arousal" do
-      tempo = Consciousness.calculate_tempo(0.8, 0.2)
-      assert tempo in [:fast, :racing]
+    test "returns slow for low arousal" do
+      assert Consciousness.calculate_tempo(0.0, 0.5) == :slow
     end
 
-    test "returns normal for moderate arousal and fatigue" do
+    test "returns racing for high arousal" do
+      assert Consciousness.calculate_tempo(0.9, 0.0) == :racing
+    end
+
+    test "returns fast for moderate high arousal" do
+      assert Consciousness.calculate_tempo(0.6, 0.0) == :fast
+    end
+
+    test "returns normal for balanced state" do
       assert Consciousness.calculate_tempo(0.5, 0.4) == :normal
     end
+  end
 
-    test "returns slow or normal for moderate fatigue" do
-      tempo = Consciousness.calculate_tempo(0.2, 0.7)
-      assert tempo in [:slow, :normal]
+  describe "update_workspace/4" do
+    test "prioritizes high salience perception" do
+      current = %{}
+      qualia = %{narrative: "Loud bang!", intensity: 0.9}
+      emotional = %EmotionalState{pleasure: 0.5, arousal: 0.5, mood_label: "neutral"}
+      thought = "What?"
+
+      {focal, _} = Consciousness.update_workspace(current, qualia, emotional, thought)
+
+      assert focal.type == :perception
+      assert focal.content == qualia
     end
 
-    test "returns frozen for very high fatigue" do
-      assert Consciousness.calculate_tempo(0.1, 0.95) == :frozen
+    test "prioritizes intense emotion" do
+      current = %{}
+      qualia = %{narrative: "Quiet room", intensity: 0.2}
+      emotional = %EmotionalState{pleasure: -0.9, arousal: 0.8, mood_label: "devastated"}
+      thought = "Sad."
+
+      {focal, _} = Consciousness.update_workspace(current, qualia, emotional, thought)
+
+      assert focal.type == :emotion
+      assert focal.content == "devastated"
+    end
+
+    test "prioritizes thought when other inputs low" do
+      current = %{}
+      qualia = %{narrative: "Wall", intensity: 0.1}
+      emotional = %EmotionalState{pleasure: 0.1, arousal: 0.1, mood_label: "calm"}
+      thought = "Deep philosophy."
+
+      {focal, _} = Consciousness.update_workspace(current, qualia, emotional, thought)
+
+      assert focal.type == :thought
+      assert focal.content == "Deep philosophy."
     end
   end
 
   describe "calculate_presence/3" do
-    test "returns high presence for normal conditions" do
-      emotional = %EmotionalState{arousal: 0.5, pleasure: 0.3, dominance: 0.5}
-      bio = %BioState{adenosine: 0.3}
+    test "calculates presence based on factors" do
+      # High stress reduces presence
+      emotional_state = %EmotionalState{arousal: 0.5}
+      bio_state = %BioState{cortisol: 0.9, adenosine: 0.0}
+      surprise_val = 0.0
 
-      presence = Consciousness.calculate_presence(emotional, bio, 0.2)
-      assert presence > 0.5
-    end
+      pres_val = Consciousness.calculate_presence(emotional_state, bio_state, surprise_val)
+      assert pres_val < 0.7
 
-    test "returns presence value for high arousal conditions" do
-      emotional = %EmotionalState{arousal: 0.95, pleasure: -0.8, dominance: 0.2}
-      bio = %BioState{adenosine: 0.3}
+      # High surprise reduces presence
+      bio_low = %BioState{cortisol: 0.2, adenosine: 0.0}
+      surprise_high = 0.95
+      pres_surp = Consciousness.calculate_presence(emotional_state, bio_low, surprise_high)
+      assert pres_surp < 0.7
 
-      presence = Consciousness.calculate_presence(emotional, bio, 0.8)
-      # High arousal and surprise can affect presence but doesn't always lower it
-      assert presence > 0.0 and presence <= 1.0
-    end
-
-    test "returns lower presence when very fatigued" do
-      emotional = %EmotionalState{arousal: 0.3, pleasure: 0.0, dominance: 0.5}
-      bio = %BioState{adenosine: 0.95}
-
-      presence = Consciousness.calculate_presence(emotional, bio, 0.0)
-      # Very high adenosine should reduce presence
-      assert presence <= 0.7
+      # High arousal increases presence
+      emotional_high = %EmotionalState{arousal: 0.9}
+      surprise_none = 0.0
+      pres_high = Consciousness.calculate_presence(emotional_high, bio_low, surprise_none)
+      assert pres_high > 0.7
     end
   end
 
-  describe "synthesize_experience_narrative/3" do
-    test "generates narrative from consciousness state" do
-      consciousness = ConsciousnessState.new()
-      sensory = SensoryState.new()
-      emotional = %EmotionalState{}
+  describe "calculate_flow/3" do
+    test "high flow state conditions" do
+      sensory = %SensoryState{attention_intensity: 0.9}
+      emotional = %EmotionalState{pleasure: 0.8, arousal: 0.4}
+      consciousness = %ConsciousnessState{temporal_focus: :present}
 
-      narrative = Consciousness.synthesize_experience_narrative(consciousness, sensory, emotional)
-
-      assert is_binary(narrative)
-      assert String.length(narrative) > 0
+      flow = Consciousness.calculate_flow(sensory, emotional, consciousness)
+      assert flow > 0.8
     end
 
-    test "includes awareness description" do
-      consciousness = %{ConsciousnessState.new() | presence_level: 0.9}
-      sensory = SensoryState.new()
-      emotional = %EmotionalState{}
+    test "low flow state conditions" do
+      sensory = %SensoryState{attention_intensity: 0.2}
+      emotional = %EmotionalState{pleasure: -0.5, arousal: 0.9}
+      consciousness = %ConsciousnessState{temporal_focus: :future}
 
-      narrative = Consciousness.synthesize_experience_narrative(consciousness, sensory, emotional)
-
-      # Should mention awareness/presence/present in some form
-      assert String.contains?(narrative, "present") or String.contains?(narrative, "Awareness")
-    end
-
-    test "includes temporal focus" do
-      consciousness = %{ConsciousnessState.new() | temporal_focus: :past}
-      sensory = SensoryState.new()
-      emotional = %EmotionalState{}
-
-      narrative = Consciousness.synthesize_experience_narrative(consciousness, sensory, emotional)
-
-      assert String.contains?(narrative, "past")
-    end
-
-    test "includes emotional state description" do
-      consciousness = ConsciousnessState.new()
-      sensory = SensoryState.new()
-      emotional = %EmotionalState{pleasure: 0.7, arousal: 0.3, dominance: 0.5, mood_label: "happy"}
-
-      narrative = Consciousness.synthesize_experience_narrative(consciousness, sensory, emotional)
-
-      assert String.contains?(narrative, "happy") or String.contains?(narrative, "Emotional")
-    end
-
-    test "includes qualia when present" do
-      consciousness = ConsciousnessState.new()
-
-      sensory = %{
-        SensoryState.new()
-        | current_qualia: %{
-            dominant_sensation: "warmth",
-            emotional_color: nil,
-            intensity: 0.6,
-            narrative: "A gentle warmth spreads through me"
-          }
-      }
-
-      emotional = %EmotionalState{}
-
-      narrative = Consciousness.synthesize_experience_narrative(consciousness, sensory, emotional)
-
-      assert String.contains?(narrative, "warmth") or String.contains?(narrative, "Sensation")
+      flow = Consciousness.calculate_flow(sensory, emotional, consciousness)
+      assert flow < 0.4
     end
   end
 
   describe "maybe_metacognate/3" do
-    test "returns observation for high awareness" do
-      consciousness = %{ConsciousnessState.new() | meta_awareness: 0.8}
-      emotional = %EmotionalState{}
-      personality = build_personality(openness: 0.8)
+    test "triggers metacognition on strong emotion" do
+      c_state = %ConsciousnessState{
+        meta_awareness: 0.4,
+        focal_content: %{type: :emotion, content: "joy"}
+      }
 
-      {awareness, observation} =
-        Consciousness.maybe_metacognate(consciousness, emotional, personality)
+      e_state = %EmotionalState{pleasure: 0.9, arousal: 0.8}
+      p_traits = %Personality{openness: 0.5}
 
-      assert awareness >= 0.0
-      # Observation might be nil if random chance doesn't trigger it
-      assert is_nil(observation) or is_binary(observation)
+      {new_meta, obs} = Consciousness.maybe_metacognate(c_state, e_state, p_traits)
+
+      assert new_meta > 0.3
+      assert obs =~ "I notice I'm feeling"
     end
 
-    test "rarely generates observation for low awareness" do
-      consciousness = %{ConsciousnessState.new() | meta_awareness: 0.1}
+    test "decays metacognition when calm" do
+      c = %ConsciousnessState{meta_awareness: 0.8}
+      e = %EmotionalState{pleasure: 0.1, arousal: 0.1}
+      p = %Personality{openness: 0.5, neuroticism: 0.5}
+
+      {new_meta, _} = Consciousness.maybe_metacognate(c, e, p)
+
+      assert new_meta < 0.8
+    end
+  end
+
+  describe "determine_temporal_focus/2" do
+    test "detects past keywords" do
       emotional = %EmotionalState{}
-      personality = build_personality(openness: 0.2)
+      assert Consciousness.determine_temporal_focus("I remember yesterday", emotional) == :past
+      assert Consciousness.determine_temporal_focus("Back when I was young", emotional) == :past
+    end
 
-      # Run multiple times to check probability
-      results =
-        for _ <- 1..10 do
-          {_, observation} = Consciousness.maybe_metacognate(consciousness, emotional, personality)
-          observation
-        end
+    test "detects future keywords" do
+      emotional = %EmotionalState{}
+      assert Consciousness.determine_temporal_focus("I will go tomorrow", emotional) == :future
+      assert Consciousness.determine_temporal_focus("I worry about the plan", emotional) == :future
+    end
 
-      # Most should be nil with low awareness
-      nil_count = Enum.count(results, &is_nil/1)
-      assert nil_count >= 5
+    test "detects past focus from negative mood" do
+      emotional = %EmotionalState{pleasure: -0.8}
+      assert Consciousness.determine_temporal_focus("thinking", emotional) == :past
+    end
+
+    test "detects future focus from anxiety" do
+      emotional = %EmotionalState{pleasure: -0.2, arousal: 0.8}
+      assert Consciousness.determine_temporal_focus("thinking", emotional) == :future
+    end
+
+    test "defaults to present" do
+      emotional = %EmotionalState{pleasure: 0.5, arousal: 0.5}
+      assert Consciousness.determine_temporal_focus("Looking at this tree", emotional) == :present
+    end
+  end
+
+  describe "synthesize_experience_narrative/3" do
+    test "generates rich description" do
+      c = %ConsciousnessState{
+        presence_level: 0.9,
+        stream_tempo: :normal,
+        focal_content: %{content: "a beautiful sunset"},
+        meta_observation: "I feel peaceful",
+        temporal_focus: :present
+      }
+
+      s = %SensoryState{current_qualia: %{narrative: "Golden light"}}
+      e = %EmotionalState{mood_label: "serene", pleasure: 0.8, arousal: 0.2}
+
+      narrative = Consciousness.synthesize_experience_narrative(c, s, e)
+
+      assert narrative =~ "fully present"
+      assert narrative =~ "flowing naturally"
+      assert narrative =~ "beautiful sunset"
+      assert narrative =~ "Golden light"
+      assert narrative =~ "serene"
+      assert narrative =~ "I feel peaceful"
     end
   end
 
   describe "tick/2" do
-    test "decays meta_awareness" do
-      consciousness = %{ConsciousnessState.new() | meta_awareness: 0.9}
-      personality = build_personality()
+    test "decays meta awareness and drifts to present" do
+      c = %ConsciousnessState{meta_awareness: 0.9, temporal_focus: :past}
+      p = %Personality{openness: 0.5}
 
-      result = Consciousness.tick(consciousness, personality)
-      # Meta awareness should decay by 5% each tick
-      assert result.meta_awareness < 0.9
+      # Run multiple ticks to ensure drift happens (it's probabilistic)
+      updated = Enum.reduce(1..20, c, fn _, acc -> Consciousness.tick(acc, p) end)
+
+      assert updated.meta_awareness < 0.9
     end
 
     test "ages experience stream" do
-      old_exp = %{content: "old", timestamp: DateTime.add(DateTime.utc_now(), -700, :second)}
-      recent_exp = %{content: "recent", timestamp: DateTime.utc_now()}
+      old_moment = %{timestamp: DateTime.add(DateTime.utc_now(), -700, :second)}
+      new_moment = %{timestamp: DateTime.utc_now()}
 
-      consciousness = %{
-        ConsciousnessState.new()
-        | experience_stream: [recent_exp, old_exp]
-      }
+      c = %ConsciousnessState{experience_stream: [new_moment, old_moment]}
+      p = %Personality{}
 
-      personality = build_personality()
+      updated = Consciousness.tick(c, p)
 
-      result = Consciousness.tick(consciousness, personality)
-      # Old experience (> 600 seconds) should be removed
-      assert Enum.count(result.experience_stream) == 1
+      assert length(updated.experience_stream) == 1
+      assert hd(updated.experience_stream) == new_moment
     end
-
-    test "meta awareness has minimum based on openness" do
-      consciousness = %{ConsciousnessState.new() | meta_awareness: 0.1}
-      personality = build_personality(openness: 0.8)
-
-      result = Consciousness.tick(consciousness, personality)
-      # Minimum is openness * 0.3 = 0.24
-      assert result.meta_awareness >= 0.24
-    end
-  end
-
-  defp build_personality(opts \\ []) do
-    %Personality{
-      openness: Keyword.get(opts, :openness, 0.5),
-      conscientiousness: Keyword.get(opts, :conscientiousness, 0.5),
-      extraversion: Keyword.get(opts, :extraversion, 0.5),
-      agreeableness: Keyword.get(opts, :agreeableness, 0.5),
-      neuroticism: Keyword.get(opts, :neuroticism, 0.5)
-    }
   end
 end

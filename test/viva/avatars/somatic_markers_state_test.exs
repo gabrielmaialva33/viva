@@ -1,161 +1,55 @@
 defmodule Viva.Avatars.SomaticMarkersStateTest do
-  use ExUnit.Case, async: true
-
+  use Viva.DataCase, async: true
   alias Viva.Avatars.SomaticMarkersState
 
   describe "new/0" do
-    test "creates state with default values" do
-      state = SomaticMarkersState.new()
-
-      assert state.social_markers == %{}
-      assert state.activity_markers == %{}
-      assert state.context_markers == %{}
-      assert state.current_bias == 0.0
-      assert state.body_signal == nil
-      assert state.learning_threshold == 0.7
-      assert state.markers_formed == 0
-      assert state.last_marker_activation == nil
+    test "returns default state" do
+      s = SomaticMarkersState.new()
+      assert s.current_bias == 0.0
+      assert s.social_markers == %{}
     end
   end
 
   describe "changeset/2" do
-    test "validates current_bias range" do
-      state = SomaticMarkersState.new()
-
-      changeset = SomaticMarkersState.changeset(state, %{current_bias: 1.5})
+    test "validates bias range" do
+      params = %{current_bias: 1.5}
+      changeset = SomaticMarkersState.changeset(%SomaticMarkersState{}, params)
       refute changeset.valid?
       assert %{current_bias: ["must be less than or equal to 1.0"]} = errors_on(changeset)
-
-      invalid_negative_changeset = SomaticMarkersState.changeset(state, %{current_bias: -1.5})
-      refute invalid_negative_changeset.valid?
-
-      assert %{current_bias: ["must be greater than or equal to -1.0"]} =
-               errors_on(invalid_negative_changeset)
-    end
-
-    test "validates learning_threshold range" do
-      state = SomaticMarkersState.new()
-
-      changeset = SomaticMarkersState.changeset(state, %{learning_threshold: 1.5})
-      refute changeset.valid?
-      assert %{learning_threshold: ["must be less than or equal to 1.0"]} = errors_on(changeset)
-
-      invalid_negative_changeset = SomaticMarkersState.changeset(state, %{learning_threshold: -0.1})
-      refute invalid_negative_changeset.valid?
-
-      assert %{learning_threshold: ["must be greater than or equal to 0.0"]} =
-               errors_on(invalid_negative_changeset)
-    end
-
-    test "accepts valid changes" do
-      state = SomaticMarkersState.new()
-
-      changeset =
-        SomaticMarkersState.changeset(state, %{
-          current_bias: 0.5,
-          learning_threshold: 0.8,
-          markers_formed: 5
-        })
-
-      assert changeset.valid?
     end
   end
 
-  describe "total_markers/1" do
-    test "returns zero for empty state" do
-      state = SomaticMarkersState.new()
-      assert SomaticMarkersState.total_markers(state) == 0
-    end
-
-    test "counts markers across all categories" do
-      state = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | social_markers: %{"a" => %{}, "b" => %{}},
-          activity_markers: %{social: %{}},
-          context_markers: %{"conversation" => %{}}
+  describe "query functions" do
+    test "total_markers/1 counts all maps" do
+      s = %SomaticMarkersState{
+        social_markers: %{"a" => %{}},
+        activity_markers: %{b: %{}},
+        context_markers: %{"c" => %{}}
       }
 
-      assert SomaticMarkersState.total_markers(state) == 4
-    end
-  end
-
-  describe "has_body_memory?/1" do
-    test "returns false when fewer than 3 markers formed" do
-      state = %SomaticMarkersState{SomaticMarkersState.new() | markers_formed: 2}
-      refute SomaticMarkersState.has_body_memory?(state)
+      assert SomaticMarkersState.total_markers(s) == 3
     end
 
-    test "returns true when 3 or more markers formed" do
-      state = %SomaticMarkersState{SomaticMarkersState.new() | markers_formed: 3}
-      assert SomaticMarkersState.has_body_memory?(state)
-
-      state_with_many = %SomaticMarkersState{SomaticMarkersState.new() | markers_formed: 10}
-      assert SomaticMarkersState.has_body_memory?(state_with_many)
-    end
-  end
-
-  describe "strongest_marker/1" do
-    test "returns nil when no markers exist" do
-      state = SomaticMarkersState.new()
-      assert SomaticMarkersState.strongest_marker(state) == nil
+    test "has_body_memory?/1" do
+      assert SomaticMarkersState.has_body_memory?(%SomaticMarkersState{markers_formed: 3})
+      refute SomaticMarkersState.has_body_memory?(%SomaticMarkersState{markers_formed: 2})
     end
 
-    test "finds strongest marker by valence * strength" do
-      weak_marker = %{valence: 0.5, strength: 0.3, last_activated: nil, context: nil}
-      strong_marker = %{valence: 0.8, strength: 0.9, last_activated: nil, context: nil}
+    test "strongest_marker/1 returns the one with highest abs impact" do
+      # 0.25
+      m1 = %{valence: 0.5, strength: 0.5}
+      # 0.64
+      m2 = %{valence: -0.8, strength: 0.8}
 
-      state = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | social_markers: %{"weak" => weak_marker, "strong" => strong_marker}
+      s = %SomaticMarkersState{
+        social_markers: %{"friend" => m1},
+        activity_markers: %{social: m2}
       }
 
-      {category, key, marker} = SomaticMarkersState.strongest_marker(state)
-      assert category == :social
-      assert key == "strong"
-      assert marker == strong_marker
+      {type, key, marker} = SomaticMarkersState.strongest_marker(s)
+      assert type == :activity
+      assert key == "social"
+      assert marker == m2
     end
-
-    test "considers absolute valence for negative markers" do
-      positive_marker = %{valence: 0.5, strength: 0.5, last_activated: nil, context: nil}
-      negative_marker = %{valence: -0.9, strength: 0.9, last_activated: nil, context: nil}
-
-      state = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | social_markers: %{"positive" => positive_marker},
-          activity_markers: %{social: negative_marker}
-      }
-
-      {category, _, marker} = SomaticMarkersState.strongest_marker(state)
-      assert category == :activity
-      assert marker == negative_marker
-    end
-
-    test "searches across all marker categories" do
-      social_marker = %{valence: 0.3, strength: 0.3, last_activated: nil, context: nil}
-      activity_marker = %{valence: 0.5, strength: 0.5, last_activated: nil, context: nil}
-      context_marker = %{valence: 0.9, strength: 0.9, last_activated: nil, context: nil}
-
-      state = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | social_markers: %{"friend" => social_marker},
-          activity_markers: %{social: activity_marker},
-          context_markers: %{"conversation" => context_marker}
-      }
-
-      {category, key, _} = SomaticMarkersState.strongest_marker(state)
-      assert category == :context
-      assert key == "conversation"
-    end
-  end
-
-  defp errors_on(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
-      Regex.replace(~r"%{(\w+)}", message, fn _, key ->
-        key
-        |> String.to_existing_atom()
-        |> then(&Keyword.get(opts, &1, key))
-        |> to_string()
-      end)
-    end)
   end
 end

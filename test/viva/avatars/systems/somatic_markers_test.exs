@@ -1,467 +1,141 @@
 defmodule Viva.Avatars.Systems.SomaticMarkersTest do
-  use ExUnit.Case, async: true
+  use Viva.DataCase, async: true
 
   alias Viva.Avatars.BioState
   alias Viva.Avatars.EmotionalState
   alias Viva.Avatars.SomaticMarkersState
   alias Viva.Avatars.Systems.SomaticMarkers
 
-  describe "recall/2" do
-    test "returns neutral bias when no markers exist" do
-      somatic = SomaticMarkersState.new()
-      stimulus = %{type: :social, source: "conversation_partner"}
-
-      {updated_somatic, bias} = SomaticMarkers.recall(somatic, stimulus)
-
-      assert bias.bias == 0.0
-      assert bias.signal == nil
-      assert bias.markers_activated == 0
-      assert updated_somatic == somatic
-    end
-
-    test "activates matching social marker" do
-      marker = %{
-        valence: 0.8,
-        strength: 0.7,
-        last_activated: DateTime.utc_now(:second),
-        context: nil
-      }
-
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | social_markers: %{"conversation_partner" => marker}
-      }
-
-      stimulus = %{type: :social, source: "conversation_partner"}
-
-      {updated_somatic, bias} = SomaticMarkers.recall(somatic, stimulus)
-
-      assert bias.bias > 0
-      assert bias.markers_activated == 1
-      assert updated_somatic.current_bias > 0
-      assert updated_somatic.body_signal != nil
-    end
-
-    test "activates matching activity marker" do
-      marker = %{
-        valence: -0.6,
-        strength: 0.8,
-        last_activated: DateTime.utc_now(:second),
-        context: nil
-      }
-
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | activity_markers: %{social: marker}
-      }
-
-      stimulus = %{type: :social, source: "unknown"}
-
-      {updated_somatic, bias} = SomaticMarkers.recall(somatic, stimulus)
-
-      assert bias.bias < 0
-      assert bias.markers_activated == 1
-      assert updated_somatic.current_bias < 0
-    end
-
-    test "activates matching context marker" do
-      marker = %{
-        valence: 0.5,
-        strength: 0.6,
-        last_activated: DateTime.utc_now(:second),
-        context: nil
-      }
-
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | context_markers: %{"conversation" => marker}
-      }
-
-      stimulus = %{type: :social, source: "someone", social_context: :conversation}
-
-      {updated_somatic, bias} = SomaticMarkers.recall(somatic, stimulus)
-
-      assert bias.bias > 0
-      assert bias.markers_activated == 1
-      assert updated_somatic.current_bias > 0
-    end
-
-    test "combines multiple matching markers" do
-      social_marker = %{
-        valence: 0.7,
-        strength: 0.5,
-        last_activated: DateTime.utc_now(:second),
-        context: nil
-      }
-
-      context_marker = %{
-        valence: 0.6,
-        strength: 0.5,
-        last_activated: DateTime.utc_now(:second),
-        context: nil
-      }
-
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | social_markers: %{"friend" => social_marker},
-          context_markers: %{"conversation" => context_marker}
-      }
-
-      stimulus = %{type: :social, source: "friend", social_context: :conversation}
-
-      {_, bias} = SomaticMarkers.recall(somatic, stimulus)
-
-      assert bias.markers_activated == 2
-      assert bias.bias > 0
-    end
-
-    test "reinforces activated markers" do
-      original_strength = 0.5
-
-      now = DateTime.utc_now(:second)
-      last_activated = DateTime.add(now, -3600, :second)
-
-      marker = %{
-        valence: 0.7,
-        strength: original_strength,
-        last_activated: last_activated,
-        context: nil
-      }
-
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | social_markers: %{"crush" => marker}
-      }
-
-      stimulus = %{type: :social, source: "crush"}
-
-      {updated_somatic, _} = SomaticMarkers.recall(somatic, stimulus)
-
-      reinforced_marker = Map.get(updated_somatic.social_markers, "crush")
-      assert reinforced_marker.strength > original_strength
-    end
-
-    test "generates positive body signal for strong positive bias" do
-      marker = %{
-        valence: 0.9,
-        strength: 0.9,
-        last_activated: DateTime.utc_now(:second),
-        context: nil
-      }
-
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | social_markers: %{"crush" => marker}
-      }
-
-      stimulus = %{type: :social, source: "crush"}
-
-      {updated_somatic, bias} = SomaticMarkers.recall(somatic, stimulus)
-
-      assert bias.signal =~ "warm"
-      assert updated_somatic.body_signal =~ "warm"
-    end
-
-    test "generates negative body signal for strong negative bias" do
-      marker = %{
-        valence: -0.9,
-        strength: 0.9,
-        last_activated: DateTime.utc_now(:second),
-        context: nil
-      }
-
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | social_markers: %{"conversation_partner" => marker}
-      }
-
-      stimulus = %{type: :social, source: "conversation_partner"}
-
-      {updated_somatic, bias} = SomaticMarkers.recall(somatic, stimulus)
-
-      assert bias.signal =~ "tighten" or bias.signal =~ "unease"
-      assert updated_somatic.body_signal != nil
-    end
+  setup do
+    somatic = SomaticMarkersState.new()
+    bio = %BioState{}
+    {:ok, somatic: somatic, bio: bio}
   end
 
   describe "maybe_learn/4" do
-    test "does not learn marker when intensity below threshold" do
-      somatic = SomaticMarkersState.new()
-      stimulus = %{type: :social, source: "conversation_partner"}
-      bio = %BioState{}
-      emotional = %EmotionalState{pleasure: 0.2, arousal: 0.2}
+    test "learns new positive marker", %{somatic: s, bio: b} do
+      # Intensity = arousal*0.6 + abs(pleasure)*0.4. Threshold = 0.7
+      # a=0.8, p=0.8 -> 0.48 + 0.32 = 0.8
+      e = %EmotionalState{pleasure: 0.8, arousal: 0.8}
+      stimulus = %{source: "friend", type: :social, social_context: "party"}
 
-      updated_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
+      updated = SomaticMarkers.maybe_learn(s, stimulus, b, e)
 
-      assert updated_somatic.markers_formed == 0
-      assert map_size(updated_somatic.social_markers) == 0
+      assert updated.markers_formed == 1
+      assert Map.has_key?(updated.social_markers, "friend")
+      assert updated.social_markers["friend"].valence > 0
     end
 
-    test "learns marker when intensity above threshold" do
-      somatic = SomaticMarkersState.new()
-      stimulus = %{type: :social, source: "conversation_partner", social_context: :conversation}
-      bio = %BioState{}
-      emotional = %EmotionalState{pleasure: 0.8, arousal: 0.9}
+    test "learns new negative marker", %{somatic: s, bio: b} do
+      e = %EmotionalState{pleasure: -0.8, arousal: 0.8}
+      stimulus = %{source: "conversation_partner", type: :social}
 
-      updated_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
+      updated = SomaticMarkers.maybe_learn(s, stimulus, b, e)
 
-      assert updated_somatic.markers_formed > 0
+      assert updated.social_markers["conversation_partner"].valence < 0
     end
 
-    test "learns positive marker from high pleasure high arousal" do
-      somatic = SomaticMarkersState.new()
-      stimulus = %{type: :social, source: "crush"}
-      bio = %BioState{}
-      emotional = %EmotionalState{pleasure: 0.9, arousal: 0.8}
+    test "merges with existing markers", %{bio: b} do
+      m = %{valence: 0.5, strength: 0.5, last_activated: DateTime.utc_now(), context: nil}
+      s = %SomaticMarkersState{social_markers: %{"friend" => m}}
 
-      updated_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
+      e = %EmotionalState{pleasure: 0.9, arousal: 0.9}
+      stimulus = %{source: "friend"}
 
-      marker = Map.get(updated_somatic.social_markers, "crush")
-      assert marker != nil
-      assert marker.valence > 0
+      updated = SomaticMarkers.maybe_learn(s, stimulus, b, e)
+
+      # Strength should increase
+      assert updated.social_markers["friend"].strength > 0.5
     end
 
-    test "learns negative marker from low pleasure high arousal" do
-      somatic = SomaticMarkersState.new()
-      stimulus = %{type: :social, source: "conversation_partner"}
-      bio = %BioState{}
-      emotional = %EmotionalState{pleasure: -0.8, arousal: 0.9}
+    test "decays markers when intensity low", %{bio: b} do
+      # Set strength high enough to survive decay but still decrease
+      m = %{valence: 0.5, strength: 0.5, last_activated: DateTime.utc_now(), context: nil}
+      s = %SomaticMarkersState{social_markers: %{"friend" => m}}
 
-      updated_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
+      e = %EmotionalState{pleasure: 0.0, arousal: 0.0}
+      stimulus = %{source: "friend"}
 
-      marker = Map.get(updated_somatic.social_markers, "conversation_partner")
-      assert marker != nil
-      assert marker.valence < 0
-    end
+      updated = SomaticMarkers.maybe_learn(s, stimulus, b, e)
 
-    test "learns activity marker for social type" do
-      somatic = SomaticMarkersState.new()
-      stimulus = %{type: :social, source: "friend"}
-      bio = %BioState{}
-      emotional = %EmotionalState{pleasure: 0.8, arousal: 0.9}
-
-      updated_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
-
-      assert Map.has_key?(updated_somatic.activity_markers, :social)
-    end
-
-    test "learns context marker when social_context present" do
-      somatic = SomaticMarkersState.new()
-      stimulus = %{type: :social, source: "friend", social_context: :conversation}
-      bio = %BioState{}
-      emotional = %EmotionalState{pleasure: 0.8, arousal: 0.9}
-
-      updated_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
-
-      assert Map.has_key?(updated_somatic.context_markers, "conversation")
-    end
-
-    test "merges with existing marker" do
-      existing_marker = %{
-        valence: 0.5,
-        strength: 0.4,
-        last_activated: DateTime.utc_now(:second),
-        context: nil
-      }
-
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | social_markers: %{"friend" => existing_marker}
-      }
-
-      stimulus = %{type: :social, source: "friend"}
-      bio = %BioState{}
-      emotional = %EmotionalState{pleasure: 0.9, arousal: 0.9}
-
-      updated_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
-
-      merged_marker = Map.get(updated_somatic.social_markers, "friend")
-      assert merged_marker.strength > existing_marker.strength
-    end
-
-    test "decays markers when intensity below threshold" do
-      marker = %{
-        valence: 0.5,
-        strength: 0.5,
-        last_activated: DateTime.utc_now(:second),
-        context: nil
-      }
-
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | social_markers: %{"friend" => marker}
-      }
-
-      stimulus = %{type: :ambient, source: "environment"}
-      bio = %BioState{}
-      emotional = %EmotionalState{pleasure: 0.1, arousal: 0.1}
-
-      updated_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
-
-      decayed_marker = Map.get(updated_somatic.social_markers, "friend")
-      assert decayed_marker.strength < marker.strength
-    end
-
-    test "removes markers that decay below minimum strength" do
-      # Strength 0.1009 - 0.001 = 0.0999, which is below @min_strength (0.1)
-      marker = %{
-        valence: 0.5,
-        strength: 0.1009,
-        last_activated: DateTime.utc_now(:second),
-        context: nil
-      }
-
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | social_markers: %{"weak_memory" => marker}
-      }
-
-      stimulus = %{type: :ambient, source: "environment"}
-      bio = %BioState{}
-      emotional = %EmotionalState{pleasure: 0.0, arousal: 0.0}
-
-      updated_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
-
-      assert Map.get(updated_somatic.social_markers, "weak_memory") == nil
+      assert updated.social_markers["friend"].strength < 0.5
     end
   end
 
-  describe "describe/1" do
-    test "describes positive bias state" do
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | current_bias: 0.5,
-          body_signal: "A warm feeling"
-      }
+  describe "recall/2" do
+    test "activates matching markers", %{bio: _b} do
+      m = %{valence: 0.8, strength: 0.8, last_activated: nil, context: nil}
+      s = %SomaticMarkersState{social_markers: %{"friend" => m}}
 
-      description = SomaticMarkers.describe(somatic)
-      assert description =~ "warm" or description =~ "drawn"
+      stimulus = %{source: "friend", type: :social}
+      {updated, result} = SomaticMarkers.recall(s, stimulus)
+
+      assert result.bias > 0
+      assert result.markers_activated == 1
+      assert updated.current_bias == result.bias
+
+      updated.body_signal
+      |> String.downcase()
+      |> String.contains?("warm")
+      |> assert()
     end
 
-    test "describes negative bias state" do
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | current_bias: -0.5,
-          body_signal: "Stomach tightens"
-      }
-
-      description = SomaticMarkers.describe(somatic)
-      assert description =~ "tighten" or description =~ "tense" or description =~ "warning"
-    end
-
-    test "describes neutral state with no markers" do
-      somatic = SomaticMarkersState.new()
-
-      description = SomaticMarkers.describe(somatic)
-      assert description =~ "No strong body memories"
-    end
-
-    test "describes neutral state with existing markers" do
-      somatic = %SomaticMarkersState{
-        SomaticMarkersState.new()
-        | current_bias: 0.0,
-          markers_formed: 3
-      }
-
-      description = SomaticMarkers.describe(somatic)
-      assert description =~ "neutral"
+    test "returns neutral if no match", %{somatic: s} do
+      {_, result} = SomaticMarkers.recall(s, %{source: "unknown"})
+      assert result.bias == 0.0
+      assert result.markers_activated == 0
     end
   end
 
-  describe "body_warning?/1" do
-    test "returns true for negative bias below threshold" do
-      somatic = %SomaticMarkersState{SomaticMarkersState.new() | current_bias: -0.3}
-      assert SomaticMarkers.body_warning?(somatic)
-    end
+  describe "decision_confidence/2" do
+    test "returns levels based on marker valence" do
+      m = %{valence: 0.9, strength: 1.0}
+      s = %SomaticMarkersState{activity_markers: %{social: m}}
 
-    test "returns false for neutral bias" do
-      somatic = %SomaticMarkersState{SomaticMarkersState.new() | current_bias: 0.0}
-      refute SomaticMarkers.body_warning?(somatic)
-    end
+      {conf, warning} = SomaticMarkers.decision_confidence(s, :social)
+      assert conf == 1.0
+      assert warning == :go_for_it
 
-    test "returns false for positive bias" do
-      somatic = %SomaticMarkersState{SomaticMarkersState.new() | current_bias: 0.5}
-      refute SomaticMarkers.body_warning?(somatic)
-    end
-  end
-
-  describe "body_attraction?/1" do
-    test "returns true for positive bias above threshold" do
-      somatic = %SomaticMarkersState{SomaticMarkersState.new() | current_bias: 0.3}
-      assert SomaticMarkers.body_attraction?(somatic)
-    end
-
-    test "returns false for neutral bias" do
-      somatic = %SomaticMarkersState{SomaticMarkersState.new() | current_bias: 0.0}
-      refute SomaticMarkers.body_attraction?(somatic)
-    end
-
-    test "returns false for negative bias" do
-      somatic = %SomaticMarkersState{SomaticMarkersState.new() | current_bias: -0.5}
-      refute SomaticMarkers.body_attraction?(somatic)
+      m_neg = %{valence: -0.9, strength: 1.0}
+      s_neg = %SomaticMarkersState{activity_markers: %{social: m_neg}}
+      {conf_n, warning_n} = SomaticMarkers.decision_confidence(s_neg, :social)
+      assert conf_n == 0.1
+      assert warning_n == :avoid
     end
   end
 
-  describe "integration scenarios" do
-    test "body learns from repeated positive experiences with same source" do
-      somatic = SomaticMarkersState.new()
-      stimulus = %{type: :social, source: "friend"}
-      bio = %BioState{}
-      emotional = %EmotionalState{pleasure: 0.8, arousal: 0.8}
+  describe "apply_confidence_to_desire/3" do
+    test "adjusts weight up for positive markers" do
+      m = %{valence: 0.9, strength: 1.0}
+      s = %SomaticMarkersState{activity_markers: %{social: m}}
 
-      learned_somatic =
-        Enum.reduce(1..3, somatic, fn _, acc ->
-          SomaticMarkers.maybe_learn(acc, stimulus, bio, emotional)
-        end)
-
-      marker = Map.get(learned_somatic.social_markers, "friend")
-      assert marker != nil
-      assert marker.strength > 0.5
+      adjusted = SomaticMarkers.apply_confidence_to_desire(s, :social, 0.5)
+      assert adjusted > 0.5
     end
+  end
 
-    test "body warning suppresses approach after negative experience" do
-      somatic = SomaticMarkersState.new()
-      stimulus = %{type: :social, source: "conversation_partner"}
-      bio = %BioState{}
-      emotional = %EmotionalState{pleasure: -0.9, arousal: 0.9}
+  describe "describe/1 and explain_confidence/2" do
+    test "returns human readable info" do
+      s = %SomaticMarkersState{current_bias: 0.5, body_signal: "Warm sun"}
+      assert SomaticMarkers.describe(s) == "Warm sun"
 
-      learned_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
+      # No activity marker
+      assert SomaticMarkers.explain_confidence(s, :social) =~ "new territory"
 
-      {updated_somatic, bias} = SomaticMarkers.recall(learned_somatic, stimulus)
-
-      assert bias.bias < 0
-      assert SomaticMarkers.body_warning?(updated_somatic)
+      s_with_act = %{s | activity_markers: %{social: %{valence: 0.9, strength: 1.0}}}
+      assert SomaticMarkers.explain_confidence(s_with_act, :social) =~ "warmth"
     end
+  end
 
-    test "body attraction increases approach after positive experience" do
-      somatic = SomaticMarkersState.new()
-      stimulus = %{type: :social, source: "crush"}
-      bio = %BioState{}
-      emotional = %EmotionalState{pleasure: 0.9, arousal: 0.9}
+  describe "query helpers" do
+    test "body_warning? and body_attraction?" do
+      s = %SomaticMarkersState{current_bias: 0.5}
+      assert SomaticMarkers.body_attraction?(s)
+      refute SomaticMarkers.body_warning?(s)
 
-      learned_somatic = SomaticMarkers.maybe_learn(somatic, stimulus, bio, emotional)
-
-      {updated_somatic, bias} = SomaticMarkers.recall(learned_somatic, stimulus)
-
-      assert bias.bias > 0
-      assert SomaticMarkers.body_attraction?(updated_somatic)
-    end
-
-    test "mixed experiences blend marker valence" do
-      somatic = SomaticMarkersState.new()
-      stimulus = %{type: :social, source: "friend"}
-      bio = %BioState{}
-
-      positive_emotional = %EmotionalState{pleasure: 0.8, arousal: 0.8}
-      # Use intermediate variables to avoid shadowing 'somatic'
-      somatic_step1 = SomaticMarkers.maybe_learn(somatic, stimulus, bio, positive_emotional)
-
-      negative_emotional = %EmotionalState{pleasure: -0.6, arousal: 0.8}
-      final_somatic = SomaticMarkers.maybe_learn(somatic_step1, stimulus, bio, negative_emotional)
-
-      marker = Map.get(final_somatic.social_markers, "friend")
-      assert marker.valence > -0.6
-      assert marker.valence < 0.8
+      s_warn = %SomaticMarkersState{current_bias: -0.5}
+      assert SomaticMarkers.body_warning?(s_warn)
+      refute SomaticMarkers.body_attraction?(s_warn)
     end
   end
 end

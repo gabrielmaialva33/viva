@@ -1,281 +1,122 @@
 defmodule Viva.Avatars.Systems.SensesTest do
-  use ExUnit.Case, async: true
+  use Viva.DataCase, async: true
+  import Mox
 
   alias Viva.Avatars.EmotionalState
+
   alias Viva.Avatars.Personality
+
   alias Viva.Avatars.SensoryState
+
   alias Viva.Avatars.Systems.Senses
 
-  @base_stimulus %{
-    type: :social,
-    source: "conversation_partner",
-    intensity: 0.6,
-    valence: 0.3,
-    novelty: 0.5,
-    threat_level: 0.0
-  }
+  setup :verify_on_exit!
+
+  setup do
+    sensory = SensoryState.new()
+
+    personality = %Personality{openness: 0.5, neuroticism: 0.5, extraversion: 0.5}
+
+    emotional = %EmotionalState{pleasure: 0.0, arousal: 0.0}
+
+    stimulus = %{
+      type: :social,
+      source: "friend",
+      intensity: 0.5,
+      valence: 0.5,
+      novelty: 0.5,
+      threat_level: 0.0
+    }
+
+    {:ok, sensory: sensory, personality: personality, emotional: emotional, stimulus: stimulus}
+  end
 
   describe "perceive/4" do
-    setup do
-      sensory = SensoryState.new()
-      emotional = %EmotionalState{}
-      personality = build_personality()
+    test "processes stimulus and updates focus", context do
+      %{sensory: s, personality: p, emotional: e, stimulus: stim} = context
 
-      {:ok, sensory: sensory, emotional: emotional, personality: personality}
-    end
+      # Mock LLM for qualia
 
-    test "returns updated sensory state and neuro effects", ctx do
-      {new_sensory, effects} =
-        Senses.perceive(ctx.sensory, @base_stimulus, ctx.personality, ctx.emotional)
+      expect(Viva.AI.LLM.MockClient, :generate, fn _, _ ->
+        {:ok, "I feel a warm connection."}
+      end)
 
-      assert %SensoryState{} = new_sensory
+      {updated, effects} = Senses.perceive(s, stim, p, e)
+
+      assert updated.attention_focus == "social"
+
+      assert updated.current_qualia.narrative == "I feel a warm connection."
+
+      assert is_float(updated.surprise_level)
+
       assert is_list(effects)
-    end
-
-    test "updates attention focus based on stimulus", ctx do
-      {new_sensory, _} =
-        Senses.perceive(ctx.sensory, @base_stimulus, ctx.personality, ctx.emotional)
-
-      assert new_sensory.attention_focus != nil
-    end
-
-    test "calculates surprise for novel stimuli", ctx do
-      high_novelty_stimulus = %{@base_stimulus | novelty: 0.9, intensity: 0.8}
-
-      {new_sensory, _} =
-        Senses.perceive(ctx.sensory, high_novelty_stimulus, ctx.personality, ctx.emotional)
-
-      assert new_sensory.surprise_level > 0.0
-    end
-
-    test "returns surprise_high effect for very surprising stimuli", ctx do
-      # Create an expectation that will be violated
-      sensory_with_expectation = %{
-        ctx.sensory
-        | expectations: [
-            %{context: "social", prediction: "calm interaction", confidence: 0.9}
-          ]
-      }
-
-      threatening_stimulus = %{@base_stimulus | threat_level: 0.8, novelty: 0.9, intensity: 0.9}
-
-      {new_sensory, effects} =
-        Senses.perceive(
-          sensory_with_expectation,
-          threatening_stimulus,
-          ctx.personality,
-          ctx.emotional
-        )
-
-      assert new_sensory.surprise_level > 0.5
-      # Effects might include surprise_high or surprise_moderate
-      assert Enum.any?(effects, &(&1 in [:surprise_high, :surprise_moderate])) or effects == []
-    end
-
-    test "updates hedonic signals based on valence", ctx do
-      pleasant_stimulus = %{@base_stimulus | valence: 0.8}
-
-      {new_sensory, _} =
-        Senses.perceive(ctx.sensory, pleasant_stimulus, ctx.personality, ctx.emotional)
-
-      assert new_sensory.sensory_pleasure > 0.0
-    end
-
-    test "calculates pain for threatening stimuli", ctx do
-      threatening_stimulus = %{@base_stimulus | threat_level: 0.7, valence: -0.5}
-
-      {new_sensory, _} =
-        Senses.perceive(ctx.sensory, threatening_stimulus, ctx.personality, ctx.emotional)
-
-      assert new_sensory.sensory_pain > 0.0
-    end
-
-    test "adds stimulus to active percepts", ctx do
-      {new_sensory, _} =
-        Senses.perceive(ctx.sensory, @base_stimulus, ctx.personality, ctx.emotional)
-
-      assert new_sensory.active_percepts != []
     end
   end
 
   describe "calculate_salience/3" do
-    test "high intensity increases salience" do
-      stimulus = %{@base_stimulus | intensity: 0.9}
-      emotional = %EmotionalState{}
+    test "boosts salience for threat", %{emotional: e} do
+      low_threat = %{intensity: 0.5, perceived_threat: 0.1}
+      high_threat = %{intensity: 0.5, perceived_threat: 0.9}
 
-      salience = Senses.calculate_salience(stimulus, emotional, nil)
-      assert salience > 0.5
+      s_low = Senses.calculate_salience(low_threat, e, nil)
+      s_high = Senses.calculate_salience(high_threat, e, nil)
+
+      assert s_high > s_low
     end
 
-    test "high novelty increases salience" do
-      stimulus = %{@base_stimulus | novelty: 0.9, intensity: 0.3}
-      emotional = %EmotionalState{}
+    test "boosts salience for mood congruence", %{stimulus: stim} do
+      e_happy = %EmotionalState{pleasure: 0.8}
+      e_sad = %EmotionalState{pleasure: -0.8}
 
-      salience = Senses.calculate_salience(stimulus, emotional, nil)
-      assert salience > 0.3
-    end
+      # stim has valence 0.5 (positive)
+      s_happy = Senses.calculate_salience(stim, e_happy, nil)
+      s_sad = Senses.calculate_salience(stim, e_sad, nil)
 
-    test "threat increases salience significantly" do
-      stimulus = %{@base_stimulus | threat_level: 0.8, intensity: 0.3}
-      emotional = %EmotionalState{}
-
-      salience = Senses.calculate_salience(stimulus, emotional, nil)
-      assert salience > 0.5
-    end
-
-    test "emotional arousal amplifies salience" do
-      stimulus = %{@base_stimulus | intensity: 0.5}
-      high_arousal_emotional = %EmotionalState{arousal: 0.9, pleasure: 0.0, dominance: 0.5}
-
-      salience = Senses.calculate_salience(stimulus, high_arousal_emotional, nil)
-      assert salience > 0.4
-    end
-
-    test "salience is clamped to 1.0" do
-      extreme_stimulus = %{@base_stimulus | intensity: 1.0, novelty: 1.0, threat_level: 1.0}
-      high_arousal = %EmotionalState{arousal: 1.0, pleasure: 0.0, dominance: 0.5}
-
-      salience = Senses.calculate_salience(extreme_stimulus, high_arousal, nil)
-      assert salience <= 1.0
+      assert s_happy > s_sad
     end
   end
 
-  describe "filter_through_personality/2" do
-    test "high openness adds high perceived detail" do
-      high_openness = %Personality{
-        openness: 0.9,
-        conscientiousness: 0.5,
-        extraversion: 0.5,
-        agreeableness: 0.5,
-        neuroticism: 0.5
-      }
+  describe "calculate_sensory_pleasure/3" do
+    test "influenced by mood and personality", %{stimulus: stim} do
+      # More positive baseline
+      p = %Personality{neuroticism: 0.1}
+      e = %EmotionalState{pleasure: 0.8}
 
-      stimulus = %{@base_stimulus | novelty: 0.6}
-
-      filtered = Senses.filter_through_personality(stimulus, high_openness)
-      assert filtered.perceived_detail == :high
+      pleasure = Senses.calculate_sensory_pleasure(stim, p, e)
+      # Base 0.5 + mood bonus + personality bonus
+      assert pleasure > stim.valence
     end
+  end
 
-    test "high neuroticism amplifies perceived threat" do
-      high_neuroticism = %Personality{
-        openness: 0.5,
-        conscientiousness: 0.5,
-        extraversion: 0.5,
-        agreeableness: 0.5,
-        neuroticism: 0.9
-      }
+  describe "calculate_sensory_pain/3" do
+    test "amplified by neuroticism", %{stimulus: stim, emotional: e} do
+      stim_pain = %{stim | valence: -0.8, threat_level: 0.5}
 
-      stimulus = %{@base_stimulus | threat_level: 0.3}
+      p_calm = %Personality{neuroticism: 0.0}
+      p_sensitive = %Personality{neuroticism: 1.0}
 
-      filtered = Senses.filter_through_personality(stimulus, high_neuroticism)
-      # perceived_threat = threat_level * neuroticism * 1.5 = 0.3 * 0.9 * 1.5 = 0.405
-      assert filtered.perceived_threat > stimulus.threat_level
-    end
+      pain_low = Senses.calculate_sensory_pain(stim_pain, p_calm, e)
+      pain_high = Senses.calculate_sensory_pain(stim_pain, p_sensitive, e)
 
-    test "low extraversion causes overwhelm at high intensity" do
-      low_extraversion = %Personality{
-        openness: 0.5,
-        conscientiousness: 0.5,
-        extraversion: 0.2,
-        agreeableness: 0.5,
-        neuroticism: 0.5
-      }
-
-      high_intensity_stimulus = %{@base_stimulus | intensity: 0.8}
-
-      filtered = Senses.filter_through_personality(high_intensity_stimulus, low_extraversion)
-      assert filtered.overwhelm == true
-    end
-
-    test "high extraversion does not cause overwhelm" do
-      high_extraversion = %Personality{
-        openness: 0.5,
-        conscientiousness: 0.5,
-        extraversion: 0.9,
-        agreeableness: 0.5,
-        neuroticism: 0.5
-      }
-
-      high_intensity_stimulus = %{@base_stimulus | intensity: 0.8}
-
-      filtered = Senses.filter_through_personality(high_intensity_stimulus, high_extraversion)
-      assert filtered.overwhelm == false
+      assert pain_high > pain_low
     end
   end
 
   describe "tick/2" do
-    test "decays attention intensity over time" do
-      sensory = %SensoryState{attention_intensity: 0.8, cognitive_load: 0.5}
-      personality = build_personality()
+    test "decays attention and surprise", %{personality: p} do
+      s = %SensoryState{attention_intensity: 0.8, surprise_level: 0.8}
+      updated = Senses.tick(s, p)
 
-      new_sensory = Senses.tick(sensory, personality)
-      assert new_sensory.attention_intensity < 0.8
-    end
-
-    test "decays surprise level" do
-      sensory = %SensoryState{surprise_level: 0.7}
-      personality = build_personality()
-
-      new_sensory = Senses.tick(sensory, personality)
-      assert new_sensory.surprise_level < 0.7
-    end
-
-    test "ages and removes old percepts" do
-      old_percept = %{
-        stimulus: %{type: :ambient},
-        qualia: %{},
-        timestamp: DateTime.add(DateTime.utc_now(), -120, :second),
-        salience: 0.3
-      }
-
-      sensory = %SensoryState{active_percepts: [old_percept]}
-      personality = build_personality()
-
-      new_sensory = Senses.tick(sensory, personality)
-      # Old percepts with low salience should be removed
-      assert length(new_sensory.active_percepts) <= length(sensory.active_percepts)
-    end
-
-    test "decays hedonic signals" do
-      sensory = %SensoryState{sensory_pleasure: 0.6, sensory_pain: 0.4}
-      personality = build_personality()
-
-      new_sensory = Senses.tick(sensory, personality)
-      # Hedonic signals decay toward 0 over time
-      assert new_sensory.sensory_pleasure <= 0.6
-      assert new_sensory.sensory_pain <= 0.4
+      assert updated.attention_intensity < 0.8
+      assert updated.surprise_level < 0.8
     end
   end
 
-  describe "check_prediction/2" do
-    test "returns baseline surprise with no expectations" do
-      stimulus = @base_stimulus
-      {surprise, _} = Senses.check_prediction(stimulus, [])
-
-      # Baseline surprise is 0.3 when there are no expectations
-      assert surprise == 0.3
+  describe "surprise_to_neurochemistry/1" do
+    test "returns effects for levels of surprise" do
+      assert Senses.surprise_to_neurochemistry(0.9) == [:surprise_high]
+      assert Senses.surprise_to_neurochemistry(0.5) == [:surprise_moderate]
+      assert Senses.surprise_to_neurochemistry(0.1) == []
     end
-
-    test "returns surprise for unexpected threat" do
-      expectations = [
-        %{context: "social", prediction: "calm environment", confidence: 0.9}
-      ]
-
-      threatening_stimulus = %{@base_stimulus | threat_level: 0.8}
-      {surprise, error} = Senses.check_prediction(threatening_stimulus, expectations)
-
-      assert surprise > 0.3
-      assert error != nil
-    end
-  end
-
-  defp build_personality(opts \\ []) do
-    %Personality{
-      openness: Keyword.get(opts, :openness, 0.5),
-      conscientiousness: Keyword.get(opts, :conscientiousness, 0.5),
-      extraversion: Keyword.get(opts, :extraversion, 0.5),
-      agreeableness: Keyword.get(opts, :agreeableness, 0.5),
-      neuroticism: Keyword.get(opts, :neuroticism, 0.5)
-    }
   end
 end

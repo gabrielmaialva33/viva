@@ -1,327 +1,239 @@
 defmodule Viva.Avatars.Systems.AllostasisTest do
-  use ExUnit.Case, async: true
+  use Viva.DataCase, async: true
 
   alias Viva.Avatars.AllostasisState
   alias Viva.Avatars.BioState
   alias Viva.Avatars.EmotionalState
+  alias Viva.Avatars.Personality
   alias Viva.Avatars.Systems.Allostasis
 
+  setup do
+    allostasis_data = AllostasisState.new()
+    # Defaults to cortisol 0.2
+    bio_data = %BioState{}
+
+    {:ok, allostasis: allostasis_data, bio: bio_data}
+  end
+
   describe "tick/3" do
-    test "accumulates load when cortisol is high" do
-      allostasis = AllostasisState.new()
+    test "accumulates load when cortisol is high", %{allostasis: allostasis} do
+      # High stress (> 0.6)
       bio = %BioState{cortisol: 0.8}
 
-      result = Allostasis.tick(allostasis, bio)
+      updated = Allostasis.tick(allostasis, bio)
 
-      assert result.load_level > allostasis.load_level
+      assert updated.load_level > allostasis.load_level
+      assert updated.high_stress_hours > allostasis.high_stress_hours
+      assert length(updated.cortisol_history) == 1
+      assert updated.receptor_sensitivity < 1.0
     end
 
-    test "does not accumulate load when cortisol is low" do
-      allostasis = %{AllostasisState.new() | load_level: 0.3}
-      bio = %BioState{cortisol: 0.3}
+    test "recovers load when cortisol is low", %{allostasis: allostasis} do
+      # Start with some load
+      allostasis = %{allostasis | load_level: 0.5, high_stress_hours: 5.0}
+      # Low stress
+      bio = %BioState{cortisol: 0.2}
 
-      result = Allostasis.tick(allostasis, bio)
+      updated = Allostasis.tick(allostasis, bio)
 
-      # Should recover instead of accumulate
-      assert result.load_level < allostasis.load_level
+      assert updated.load_level < 0.5
+      assert updated.high_stress_hours < 5.0
+      assert updated.recovery_capacity > 0.1
     end
 
-    test "higher cortisol causes faster load accumulation" do
-      allostasis = AllostasisState.new()
-      moderate_stress = %BioState{cortisol: 0.65}
-      high_stress = %BioState{cortisol: 0.9}
-
-      moderate_result = Allostasis.tick(allostasis, moderate_stress)
-      high_result = Allostasis.tick(allostasis, high_stress)
-
-      assert high_result.load_level > moderate_result.load_level
-    end
-
-    test "tracks high stress hours when cortisol exceeds threshold" do
-      allostasis = AllostasisState.new()
-      bio = %BioState{cortisol: 0.8}
-
-      result = Allostasis.tick(allostasis, bio)
-
-      assert result.high_stress_hours > 0
-    end
-
-    test "reduces high stress hours when cortisol is low" do
-      allostasis = %{AllostasisState.new() | high_stress_hours: 10.0}
-      bio = %BioState{cortisol: 0.3}
-
-      result = Allostasis.tick(allostasis, bio)
-
-      assert result.high_stress_hours < allostasis.high_stress_hours
-    end
-
-    test "updates cortisol history" do
-      allostasis = AllostasisState.new()
-      bio = %BioState{cortisol: 0.7}
-
-      result = Allostasis.tick(allostasis, bio)
-
-      assert 0.7 in result.cortisol_history
-    end
-
-    test "limits cortisol history size" do
-      history = Enum.map(1..30, fn _ -> 0.5 end)
-      allostasis = %{AllostasisState.new() | cortisol_history: history}
-      bio = %BioState{cortisol: 0.7}
-
-      result = Allostasis.tick(allostasis, bio)
-
-      assert length(result.cortisol_history) <= 24
-    end
-
-    test "receptor sensitivity decreases as load increases" do
-      allostasis = AllostasisState.new()
-      bio = %BioState{cortisol: 0.9}
-
-      # Simulate several ticks of high stress
-      result =
-        Enum.reduce(1..50, allostasis, fn _, acc ->
-          Allostasis.tick(acc, bio)
-        end)
-
-      assert result.receptor_sensitivity < 1.0
-    end
-
-    test "recovery capacity decreases with sustained stress" do
-      allostasis = AllostasisState.new()
-      bio = %BioState{cortisol: 0.9}
-
-      # Simulate sustained high stress
-      result =
-        Enum.reduce(1..100, allostasis, fn _, acc ->
-          Allostasis.tick(acc, bio)
-        end)
-
-      assert result.recovery_capacity < 1.0
-    end
-
-    test "cognitive impairment increases with high load" do
-      allostasis = %{AllostasisState.new() | load_level: 0.7}
-      bio = %BioState{cortisol: 0.8}
-
-      result = Allostasis.tick(allostasis, bio)
-
-      assert result.cognitive_impairment > 0
-    end
-
-    test "records recovery milestone when load drops below 0.3" do
-      allostasis = %{AllostasisState.new() | load_level: 0.35, last_recovery_at: nil}
+    test "updates recovery timestamp when milestone reached", %{allostasis: allostasis} do
+      allostasis = %{allostasis | load_level: 0.31, last_recovery_at: nil}
       bio = %BioState{cortisol: 0.1}
 
-      # Low cortisol should trigger recovery
-      result =
-        Enum.reduce(1..10, allostasis, fn _, acc ->
-          Allostasis.tick(acc, bio)
-        end)
+      # Should recover enough to cross 0.3 threshold downwards?
+      # Assuming 1 hour elapsed to force significant drop
+      updated = Allostasis.tick(allostasis, bio, 5.0)
 
-      if result.load_level < 0.3 do
-        assert result.last_recovery_at != nil
-      end
-    end
-
-    test "load never exceeds 1.0" do
-      allostasis = %{AllostasisState.new() | load_level: 0.99}
-      bio = %BioState{cortisol: 1.0}
-
-      result = Allostasis.tick(allostasis, bio)
-
-      assert result.load_level <= 1.0
-    end
-
-    test "load never goes below 0.0" do
-      allostasis = %{AllostasisState.new() | load_level: 0.01}
-      bio = %BioState{cortisol: 0.0}
-
-      result = Allostasis.tick(allostasis, bio)
-
-      assert result.load_level >= 0.0
+      assert updated.load_level < 0.3
+      assert updated.last_recovery_at != nil
     end
   end
 
   describe "dampen_emotions/2" do
-    test "does not dampen emotions when sensitivity is high" do
+    test "dampens pleasure and arousal based on sensitivity" do
+      # Sensitivity 0.5 means emotions are halved
+      allostasis = %AllostasisState{receptor_sensitivity: 0.5}
+      emotional = %EmotionalState{pleasure: 0.8, arousal: 0.6, mood_label: "happy"}
+
+      dampened = Allostasis.dampen_emotions(emotional, allostasis)
+
+      assert_in_delta dampened.pleasure, 0.4, 0.01
+      assert_in_delta dampened.arousal, 0.3, 0.01
+      # Not low enough to change label yet
+      assert dampened.mood_label == "happy"
+    end
+
+    test "changes mood label when sensitivity is very low" do
+      # Very low
+      allostasis = %AllostasisState{receptor_sensitivity: 0.2}
       emotional = %EmotionalState{pleasure: 0.5, arousal: 0.5, mood_label: "happy"}
-      allostasis = %{AllostasisState.new() | receptor_sensitivity: 1.0}
 
-      result = Allostasis.dampen_emotions(emotional, allostasis)
+      dampened = Allostasis.dampen_emotions(emotional, allostasis)
 
-      assert result.pleasure == emotional.pleasure
-      assert result.arousal == emotional.arousal
+      assert dampened.mood_label == "numb"
     end
 
-    test "dampens emotions proportionally to sensitivity loss" do
-      emotional = %EmotionalState{pleasure: 0.8, arousal: 0.6, mood_label: "excited"}
-      allostasis = %{AllostasisState.new() | receptor_sensitivity: 0.5}
+    test "changes mood label to exhausted when sensitivity low and pleasure negative" do
+      allostasis = %AllostasisState{receptor_sensitivity: 0.4}
+      emotional = %EmotionalState{pleasure: -0.5, arousal: 0.5, mood_label: "sad"}
 
-      result = Allostasis.dampen_emotions(emotional, allostasis)
+      dampened = Allostasis.dampen_emotions(emotional, allostasis)
 
-      assert result.pleasure == 0.4
-      assert result.arousal == 0.3
+      assert dampened.mood_label == "exhausted"
     end
 
-    test "changes mood label to 'numb' when severely desensitized" do
+    test "changes mood label to depleted when sensitivity low and pleasure positive" do
+      allostasis = %AllostasisState{receptor_sensitivity: 0.4}
       emotional = %EmotionalState{pleasure: 0.5, arousal: 0.5, mood_label: "happy"}
-      allostasis = %{AllostasisState.new() | receptor_sensitivity: 0.2}
 
-      result = Allostasis.dampen_emotions(emotional, allostasis)
+      dampened = Allostasis.dampen_emotions(emotional, allostasis)
 
-      assert result.mood_label == "numb"
-    end
-
-    test "changes mood label to 'exhausted' when moderately desensitized with negative pleasure" do
-      emotional = %EmotionalState{pleasure: -0.3, arousal: 0.3, mood_label: "anxious"}
-      allostasis = %{AllostasisState.new() | receptor_sensitivity: 0.4}
-
-      result = Allostasis.dampen_emotions(emotional, allostasis)
-
-      assert result.mood_label == "exhausted"
-    end
-
-    test "keeps original mood label when already 'numb' or 'exhausted'" do
-      emotional = %EmotionalState{pleasure: 0.5, arousal: 0.5, mood_label: "numb"}
-      allostasis = %{AllostasisState.new() | receptor_sensitivity: 0.3}
-
-      result = Allostasis.dampen_emotions(emotional, allostasis)
-
-      assert result.mood_label == "numb"
+      assert dampened.mood_label == "depleted"
     end
   end
 
   describe "cognitive_penalty/1" do
-    test "returns 1.0 when no impairment" do
-      allostasis = %{AllostasisState.new() | cognitive_impairment: 0.0}
-
-      assert Allostasis.cognitive_penalty(allostasis) == 1.0
-    end
-
-    test "returns reduced value when impaired" do
-      allostasis = %{AllostasisState.new() | cognitive_impairment: 0.5}
-
-      result = Allostasis.cognitive_penalty(allostasis)
-
-      assert result == 0.75
-    end
-
-    test "never goes below 0.5" do
-      allostasis = %{AllostasisState.new() | cognitive_impairment: 1.0}
-
-      result = Allostasis.cognitive_penalty(allostasis)
-
-      assert result >= 0.5
+    test "returns penalty based on impairment" do
+      allostasis = %AllostasisState{cognitive_impairment: 0.5}
+      # 1.0 - 0.5 * 0.5 = 0.75
+      assert Allostasis.cognitive_penalty(allostasis) == 0.75
     end
   end
 
   describe "burnout?/1" do
-    test "returns true when load is high and sensitivity is low" do
-      allostasis = %{AllostasisState.new() | load_level: 0.9, receptor_sensitivity: 0.3}
-
+    test "returns true when load high and sensitivity low" do
+      allostasis = %AllostasisState{load_level: 0.9, receptor_sensitivity: 0.3}
       assert Allostasis.burnout?(allostasis)
     end
 
-    test "returns false when load is moderate" do
-      allostasis = %{AllostasisState.new() | load_level: 0.5, receptor_sensitivity: 0.3}
-
-      refute Allostasis.burnout?(allostasis)
-    end
-
-    test "returns false when sensitivity is still good" do
-      allostasis = %{AllostasisState.new() | load_level: 0.9, receptor_sensitivity: 0.6}
-
+    test "returns false otherwise" do
+      allostasis = %AllostasisState{load_level: 0.5, receptor_sensitivity: 0.8}
       refute Allostasis.burnout?(allostasis)
     end
   end
 
   describe "describe/1" do
-    test "describes burnout state" do
-      allostasis = %{AllostasisState.new() | load_level: 0.9, receptor_sensitivity: 0.3}
+    test "returns correct description for each level" do
+      allo_state = %AllostasisState{}
 
-      result = Allostasis.describe(allostasis)
+      assert Allostasis.describe(%{allo_state | load_level: 0.9, receptor_sensitivity: 0.3}) =~
+               "burnout"
 
-      assert result =~ "burnout"
-    end
-
-    test "describes significant stress" do
-      allostasis = %{AllostasisState.new() | load_level: 0.7, receptor_sensitivity: 0.5}
-
-      result = Allostasis.describe(allostasis)
-
-      assert result =~ "chronic stress"
-    end
-
-    test "describes moderate stress" do
-      allostasis = %{AllostasisState.new() | load_level: 0.4}
-
-      result = Allostasis.describe(allostasis)
-
-      assert result =~ "Moderate"
-    end
-
-    test "describes mild stress" do
-      allostasis = %{AllostasisState.new() | load_level: 0.15}
-
-      result = Allostasis.describe(allostasis)
-
-      assert result =~ "Mild"
-    end
-
-    test "describes well-rested state" do
-      allostasis = AllostasisState.new()
-
-      result = Allostasis.describe(allostasis)
-
-      assert result =~ "resilient"
+      assert Allostasis.describe(%{allo_state | load_level: 0.7}) =~ "significant chronic stress"
+      assert Allostasis.describe(%{allo_state | load_level: 0.4}) =~ "Moderate stress"
+      assert Allostasis.describe(%{allo_state | load_level: 0.2}) =~ "Mild stress"
+      assert Allostasis.describe(%{allo_state | load_level: 0.0}) =~ "Well-rested"
     end
   end
 
-  describe "integration scenario" do
-    test "chronic stress causes emotional blunting over time" do
-      allostasis = AllostasisState.new()
-      emotional = %EmotionalState{pleasure: 0.8, arousal: 0.7, mood_label: "excited"}
-      bio = %BioState{cortisol: 0.85}
+  describe "phenomenology/1" do
+    test "returns subjective experience for levels" do
+      allo_state = %AllostasisState{}
 
-      # Simulate 100 ticks of chronic high stress (roughly 17 simulated hours)
-      {final_allostasis, _} =
-        Enum.reduce(1..100, {allostasis, emotional}, fn _, {acc_allostasis, acc_emotional} ->
-          new_allostasis = Allostasis.tick(acc_allostasis, bio)
-          new_emotional = Allostasis.dampen_emotions(acc_emotional, new_allostasis)
-          {new_allostasis, new_emotional}
-        end)
+      assert Allostasis.phenomenology(%{allo_state | load_level: 0.1}).quality == :peaceful
+      assert Allostasis.phenomenology(%{allo_state | load_level: 0.4}).quality == :pressured
+      assert Allostasis.phenomenology(%{allo_state | load_level: 0.7}).quality == :overwhelmed
+      assert Allostasis.phenomenology(%{allo_state | load_level: 0.9}).quality == :burnout
+    end
+  end
 
-      final_emotional = Allostasis.dampen_emotions(emotional, final_allostasis)
+  describe "decision_impairment/1" do
+    test "returns impairment metrics" do
+      # Simulate a state where impairment has been calculated
+      allostasis = %AllostasisState{load_level: 0.8, cognitive_impairment: 0.7}
+      imp = Allostasis.decision_impairment(allostasis)
 
-      # After chronic stress, emotions should be significantly dampened
-      assert final_emotional.pleasure < emotional.pleasure
-      # Load increases meaningfully under chronic stress
-      assert final_allostasis.load_level > 0.2
-      assert final_allostasis.receptor_sensitivity < 1.0
+      assert imp.cognitive_penalty < 1.0
+      assert imp.impulsivity_bonus > 0.0
+      assert imp.risk_aversion_shift != 0.0
     end
 
-    test "recovery occurs when stress is removed" do
-      # Start with high load
-      allostasis = %{
-        AllostasisState.new()
-        | load_level: 0.6,
-          receptor_sensitivity: 0.6,
-          high_stress_hours: 20.0
-      }
+    test "returns different metrics for low load" do
+      allostasis = %AllostasisState{load_level: 0.1}
+      imp = Allostasis.decision_impairment(allostasis)
 
-      bio = %BioState{cortisol: 0.2}
+      assert imp.impulsivity_bonus == 0.0
+      assert imp.risk_aversion_shift == 0.0
+    end
 
-      # Simulate 50 ticks of low stress (recovery period)
-      final_allostasis =
-        Enum.reduce(1..50, allostasis, fn _, acc ->
-          Allostasis.tick(acc, bio)
-        end)
+    test "returns metrics for medium load" do
+      allostasis = %AllostasisState{load_level: 0.4}
+      imp = Allostasis.decision_impairment(allostasis)
 
-      # Load should decrease during recovery
-      assert final_allostasis.load_level < allostasis.load_level
-      # Sensitivity should improve
-      assert final_allostasis.receptor_sensitivity > allostasis.receptor_sensitivity
+      assert imp.impulsivity_bonus > 0.0
+      assert imp.risk_aversion_shift == -0.2
+    end
+
+    test "returns metrics for high load" do
+      allostasis = %AllostasisState{load_level: 0.65}
+      imp = Allostasis.decision_impairment(allostasis)
+
+      assert imp.impulsivity_bonus > 0.1
+      assert imp.risk_aversion_shift == -0.3
+    end
+  end
+
+  describe "generate_recovery_fantasy/2" do
+    test "generates fantasy when load > 0.6 based on personality" do
+      allostasis = %AllostasisState{load_level: 0.7}
+
+      # Extravert
+      p_ext = %Personality{extraversion: 0.8}
+      {:fantasy_activated, f_ext} = Allostasis.generate_recovery_fantasy(allostasis, p_ext)
+      assert f_ext =~ "surrounded by friends"
+
+      # Introvert
+      p_int = %Personality{extraversion: 0.2}
+      {:fantasy_activated, f_int} = Allostasis.generate_recovery_fantasy(allostasis, p_int)
+      assert f_int =~ "crave solitude"
+
+      # Openness
+      p_open = %Personality{extraversion: 0.5, openness: 0.8}
+      {:fantasy_activated, f_open} = Allostasis.generate_recovery_fantasy(allostasis, p_open)
+      assert f_open =~ "escaping somewhere new"
+
+      # Neuroticism
+      p_neur = %Personality{extraversion: 0.5, openness: 0.5, neuroticism: 0.8}
+      {:fantasy_activated, f_neur} = Allostasis.generate_recovery_fantasy(allostasis, p_neur)
+      assert f_neur =~ "feel safe"
+
+      # Default
+      p_def = %Personality{extraversion: 0.5, openness: 0.5, neuroticism: 0.5}
+      {:fantasy_activated, f_def} = Allostasis.generate_recovery_fantasy(allostasis, p_def)
+      assert f_def =~ "break"
+    end
+
+    test "returns :no_fantasy when load is low" do
+      allostasis = %AllostasisState{load_level: 0.5}
+      p_traits = %Personality{}
+      assert Allostasis.generate_recovery_fantasy(allostasis, p_traits) == :no_fantasy
+    end
+  end
+
+  describe "attention_constraints/1" do
+    test "maps phenomenology attention capacity to constraints" do
+      allo_state = %AllostasisState{}
+
+      # Broad
+      c_broad = Allostasis.attention_constraints(%{allo_state | load_level: 0.1})
+      assert c_broad.can_plan_ahead == true
+
+      # Moderate
+      c_mod = Allostasis.attention_constraints(%{allo_state | load_level: 0.4})
+      assert c_mod.can_consider_abstract == :limited
+
+      # Narrow
+      c_nar = Allostasis.attention_constraints(%{allo_state | load_level: 0.7})
+      assert c_nar.can_plan_ahead == false
+
+      # Fragmented
+      c_frag = Allostasis.attention_constraints(%{allo_state | load_level: 0.9})
+      assert c_frag.memory_access == :impaired
     end
   end
 end

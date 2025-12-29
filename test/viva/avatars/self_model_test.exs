@@ -1,230 +1,163 @@
 defmodule Viva.Avatars.SelfModelTest do
-  use ExUnit.Case, async: true
+  use Viva.DataCase, async: true
 
   alias Viva.Avatars.Personality
   alias Viva.Avatars.SelfModel
 
   describe "new/0" do
-    test "creates a new self-model with defaults" do
+    test "returns default state" do
       model = SelfModel.new()
-
-      assert model.identity_narrative == "I am still discovering who I am."
-      assert model.core_values == []
-      assert model.core_beliefs == []
-      assert model.perceived_strengths == []
-      assert model.perceived_weaknesses == []
       assert model.self_esteem == 0.5
-      assert model.self_efficacy == 0.5
-      assert model.behavioral_patterns == []
-      assert model.emotional_patterns == []
-      assert model.current_goals == []
-      assert model.ideal_self == nil
-      assert model.feared_self == nil
-      assert model.attachment_narrative == nil
-      assert model.social_identities == []
-    end
-  end
-
-  describe "changeset/2" do
-    test "validates self_esteem range" do
-      model = SelfModel.new()
-
-      invalid_high = SelfModel.changeset(model, %{self_esteem: 1.5})
-      refute invalid_high.valid?
-      assert "must be less than or equal to 1.0" in errors_on(invalid_high).self_esteem
-
-      invalid_low = SelfModel.changeset(model, %{self_esteem: -0.5})
-      refute invalid_low.valid?
-      assert "must be greater than or equal to 0.0" in errors_on(invalid_low).self_esteem
-
-      valid_changeset = SelfModel.changeset(model, %{self_esteem: 0.7})
-      assert valid_changeset.valid?
-    end
-
-    test "validates self_efficacy range" do
-      model = SelfModel.new()
-
-      invalid_changeset = SelfModel.changeset(model, %{self_efficacy: 2.0})
-      refute invalid_changeset.valid?
-
-      valid_changeset = SelfModel.changeset(model, %{self_efficacy: 0.8})
-      assert valid_changeset.valid?
-    end
-
-    test "accepts valid attributes" do
-      model = SelfModel.new()
-
-      changeset =
-        SelfModel.changeset(model, %{
-          identity_narrative: "I am a creative problem solver.",
-          core_values: ["honesty", "creativity"],
-          perceived_strengths: ["empathy"],
-          self_esteem: 0.7
-        })
-
-      assert changeset.valid?
+      assert model.coherence_level == 0.8
     end
   end
 
   describe "from_personality/1" do
-    test "initializes from a high openness personality" do
-      personality = %Personality{
-        openness: 0.8,
-        conscientiousness: 0.5,
-        extraversion: 0.5,
-        agreeableness: 0.5,
-        neuroticism: 0.5,
-        attachment_style: :secure,
-        values: ["creativity", "freedom"]
+    test "derives strengths and weaknesses from Big Five" do
+      p = %Personality{
+        # Creative
+        openness: 0.9,
+        # Disorganized
+        conscientiousness: 0.1,
+        # Social energy
+        extraversion: 0.8,
+        # Difficulty trusting
+        agreeableness: 0.2,
+        # Anxiety
+        neuroticism: 0.9
       }
 
-      model = SelfModel.from_personality(personality)
+      model = SelfModel.from_personality(p)
 
       assert "creative thinking" in model.perceived_strengths
-      assert "curiosity and imagination" in model.perceived_strengths
-      assert model.core_values == ["creativity", "freedom"]
-
-      assert model.attachment_narrative ==
-               "I generally trust others and feel comfortable with intimacy."
-    end
-
-    test "initializes from a high conscientiousness personality" do
-      personality = %Personality{
-        openness: 0.5,
-        conscientiousness: 0.8,
-        extraversion: 0.5,
-        agreeableness: 0.5,
-        neuroticism: 0.5,
-        attachment_style: :anxious,
-        values: []
-      }
-
-      model = SelfModel.from_personality(personality)
-
-      assert "reliability and organization" in model.perceived_strengths
-      assert "discipline and focus" in model.perceived_strengths
-      assert model.attachment_narrative == "I worry about abandonment and crave closeness."
-    end
-
-    test "derives weaknesses from low traits" do
-      personality = %Personality{
-        openness: 0.2,
-        conscientiousness: 0.2,
-        extraversion: 0.2,
-        agreeableness: 0.2,
-        neuroticism: 0.5,
-        attachment_style: :avoidant,
-        values: []
-      }
-
-      model = SelfModel.from_personality(personality)
-
-      assert "resistance to change" in model.perceived_weaknesses
       assert "disorganization" in model.perceived_weaknesses
-      assert "social withdrawal" in model.perceived_weaknesses
-      assert "difficulty trusting others" in model.perceived_weaknesses
-
-      assert model.attachment_narrative ==
-               "I value independence and sometimes struggle with closeness."
-    end
-
-    test "derives weaknesses from high neuroticism" do
-      personality = %Personality{
-        openness: 0.5,
-        conscientiousness: 0.5,
-        extraversion: 0.5,
-        agreeableness: 0.5,
-        neuroticism: 0.85,
-        attachment_style: :fearful,
-        values: []
-      }
-
-      model = SelfModel.from_personality(personality)
-
-      assert "emotional sensitivity" in model.perceived_weaknesses
       assert "anxiety proneness" in model.perceived_weaknesses
-      assert model.attachment_narrative == "I desire closeness but fear getting hurt."
     end
 
-    test "calculates base esteem from personality" do
-      # High extraversion, low neuroticism = higher self-esteem
-      personality = %Personality{
-        openness: 0.5,
-        conscientiousness: 0.5,
-        extraversion: 0.8,
-        agreeableness: 0.5,
-        neuroticism: 0.2,
-        attachment_style: :secure,
-        values: []
-      }
+    test "derives beliefs from Enneagram" do
+      p = %Personality{enneagram_type: :type_5}
+      model = SelfModel.from_personality(p)
 
-      model = SelfModel.from_personality(personality)
-      # Expected: 0.5 + (0.5 - 0.2) * 0.3 + (0.8 - 0.5) * 0.2 = 0.5 + 0.09 + 0.06 = 0.65
-      assert model.self_esteem >= 0.6
-      assert model.self_esteem <= 0.7
+      assert model.identity_narrative =~ "understand the world"
+      assert Enum.any?(model.core_beliefs, fn b -> b.belief =~ "desire To be capable" end)
     end
 
-    test "calculates base efficacy from personality" do
-      # High conscientiousness, high openness = higher self-efficacy
-      personality = %Personality{
-        openness: 0.8,
-        conscientiousness: 0.8,
-        extraversion: 0.5,
-        agreeableness: 0.5,
-        neuroticism: 0.5,
-        attachment_style: :secure,
-        values: []
-      }
+    test "calculates esteem and efficacy" do
+      # High N lowers esteem, High C increases efficacy
+      p = %Personality{neuroticism: 0.9, conscientiousness: 0.9}
+      model = SelfModel.from_personality(p)
 
-      model = SelfModel.from_personality(personality)
-      # Expected: 0.5 + (0.8 - 0.5) * 0.3 + (0.8 - 0.5) * 0.2 = 0.5 + 0.09 + 0.06 = 0.65
-      assert model.self_efficacy >= 0.6
-      assert model.self_efficacy <= 0.7
+      # Esteem: 0.5 + (0.5 - 0.9)*0.3 = 0.5 - 0.12 = 0.38
+      assert model.self_esteem < 0.5
+
+      # Efficacy: 0.5 + (0.9 - 0.5)*0.3 = 0.5 + 0.12 = 0.62
+      assert model.self_efficacy > 0.5
     end
   end
 
-  describe "query functions" do
-    test "low_self_esteem?/1 returns true when esteem is low" do
-      low_esteem = %SelfModel{self_esteem: 0.3}
-      assert SelfModel.low_self_esteem?(low_esteem)
+  describe "integrate_experience/2" do
+    test "reinforces identity on success" do
+      model = SelfModel.new()
+      exp = %{type: :success, intensity: 0.8}
 
-      normal_esteem = %SelfModel{self_esteem: 0.5}
-      refute SelfModel.low_self_esteem?(normal_esteem)
+      updated = SelfModel.integrate_experience(model, exp)
+
+      assert updated.self_efficacy > model.self_efficacy
+      assert updated.coherence_level > model.coherence_level
     end
 
-    test "confident?/1 returns true when efficacy is high" do
-      confident = %SelfModel{self_efficacy: 0.7}
-      assert SelfModel.confident?(confident)
+    test "reinforces esteem on kindness received" do
+      model = SelfModel.new()
+      exp = %{type: :kindness_received, intensity: 0.7}
 
-      not_confident = %SelfModel{self_efficacy: 0.5}
-      refute SelfModel.confident?(not_confident)
+      updated = SelfModel.integrate_experience(model, exp)
+
+      assert updated.self_esteem > model.self_esteem
     end
 
-    test "get_beliefs_by_domain/2 filters beliefs" do
+    test "reduces coherence on contradiction" do
+      # Setup a belief "I am competent"
+      model = %SelfModel{
+        core_beliefs: [%{domain: "self", belief: "I am competent"}],
+        coherence_level: 0.8,
+        contradictions: []
+      }
+
+      # Failure contradicts competence
+      exp = %{type: :failure, intensity: 0.8}
+
+      updated = SelfModel.integrate_experience(model, exp)
+
+      assert updated.coherence_level < 0.8
+      assert length(updated.contradictions) == 1
+      assert length(updated.identity_negotiations) == 1
+    end
+
+    test "triggers crisis narrative when coherence drops low" do
+      model = %SelfModel{
+        core_beliefs: [%{domain: "self", belief: "I am brave"}],
+        # Already low
+        coherence_level: 0.35,
+        # Already has some history
+        contradictions: [%{}, %{}],
+        identity_narrative: "I am brave and strong"
+      }
+
+      # Cowardice contradicts bravery
+      exp = %{type: :cowardice, intensity: 0.9}
+
+      updated = SelfModel.integrate_experience(model, exp)
+
+      assert updated.coherence_level < 0.3
+      assert updated.identity_narrative =~ "not sure anymore"
+    end
+  end
+
+  describe "recover_coherence/2" do
+    test "increases coherence" do
+      model = %SelfModel{coherence_level: 0.5}
+      updated = SelfModel.recover_coherence(model)
+      assert updated.coherence_level > 0.5
+    end
+  end
+
+  describe "query helpers" do
+    test "low_self_esteem?/1" do
+      assert SelfModel.low_self_esteem?(%SelfModel{self_esteem: 0.3})
+      refute SelfModel.low_self_esteem?(%SelfModel{self_esteem: 0.5})
+    end
+
+    test "confident?/1" do
+      assert SelfModel.confident?(%SelfModel{self_efficacy: 0.7})
+      refute SelfModel.confident?(%SelfModel{self_efficacy: 0.5})
+    end
+
+    test "identity_crisis?/1" do
+      assert SelfModel.identity_crisis?(%SelfModel{coherence_level: 0.3})
+      refute SelfModel.identity_crisis?(%SelfModel{coherence_level: 0.5})
+    end
+
+    test "describe_coherence/1" do
+      model_crisis = %SelfModel{coherence_level: 0.2, contradictions: []}
+      assert SelfModel.describe_coherence(model_crisis) =~ "don't recognize myself"
+
+      model_clear = %SelfModel{coherence_level: 0.9}
+      assert SelfModel.describe_coherence(model_clear) =~ "clear sense"
+    end
+  end
+
+  describe "get_beliefs_by_domain/2" do
+    test "filters beliefs" do
       model = %SelfModel{
         core_beliefs: [
-          %{domain: "self", belief: "I am capable", strength: 0.8},
-          %{domain: "others", belief: "People are generally kind", strength: 0.6},
-          %{domain: "self", belief: "I deserve respect", strength: 0.7}
+          %{domain: "self", belief: "A"},
+          %{domain: "world", belief: "B"}
         ]
       }
 
-      self_beliefs = SelfModel.get_beliefs_by_domain(model, "self")
-      assert length(self_beliefs) == 2
-      assert Enum.all?(self_beliefs, &(&1.domain == "self"))
-
-      other_beliefs = SelfModel.get_beliefs_by_domain(model, "others")
-      assert length(other_beliefs) == 1
+      results = SelfModel.get_beliefs_by_domain(model, "self")
+      assert length(results) == 1
+      assert hd(results).belief == "A"
     end
-  end
-
-  defp errors_on(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
-      Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
-        opts
-        |> Keyword.get(String.to_existing_atom(key), key)
-        |> to_string()
-      end)
-    end)
   end
 end

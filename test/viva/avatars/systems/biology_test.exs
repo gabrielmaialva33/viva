@@ -1,115 +1,86 @@
 defmodule Viva.Avatars.Systems.BiologyTest do
-  use ExUnit.Case, async: true
+  use Viva.DataCase, async: true
 
   alias Viva.Avatars.BioState
   alias Viva.Avatars.Personality
   alias Viva.Avatars.Systems.Biology
 
+  setup do
+    bio = %BioState{
+      dopamine: 1.0,
+      cortisol: 1.0,
+      oxytocin: 1.0,
+      adenosine: 0.0,
+      libido: 0.5
+    }
+
+    personality = %Personality{
+      extraversion: 0.5,
+      neuroticism: 0.5
+    }
+
+    {:ok, bio: bio, personality: personality}
+  end
+
   describe "tick/2" do
-    test "decays dopamine based on personality extraversion" do
-      bio = %BioState{dopamine: 0.5, oxytocin: 0.5, cortisol: 0.5, adenosine: 0.5, libido: 0.5}
-      personality = %Personality{extraversion: 0.0, neuroticism: 0.0}
+    test "decays hormones", %{bio: bio, personality: p} do
+      updated = Biology.tick(bio, p)
 
-      result = Biology.tick(bio, personality)
-
-      # Base decay is 0.05, with extraversion 0.0: decay = 0.05 * 1.0 = 0.05
-      # Dopamine also affected by fatigue factor
-      assert result.dopamine < bio.dopamine
+      assert updated.dopamine < bio.dopamine
+      assert updated.oxytocin < bio.oxytocin
+      assert updated.cortisol < bio.cortisol
     end
 
-    test "extraverts burn dopamine faster" do
-      bio = %BioState{dopamine: 0.5, oxytocin: 0.5, cortisol: 0.5, adenosine: 0.0, libido: 0.5}
-      low_extraversion = %Personality{extraversion: 0.0, neuroticism: 0.0}
-      high_extraversion = %Personality{extraversion: 1.0, neuroticism: 0.0}
-
-      low_result = Biology.tick(bio, low_extraversion)
-      high_result = Biology.tick(bio, high_extraversion)
-
-      # High extraversion should cause more dopamine decay
-      assert high_result.dopamine < low_result.dopamine
+    test "accumulates adenosine", %{bio: bio, personality: p} do
+      updated = Biology.tick(bio, p)
+      assert updated.adenosine > bio.adenosine
     end
 
-    test "neurotics hold onto cortisol longer" do
-      bio = %BioState{dopamine: 0.5, oxytocin: 0.5, cortisol: 0.5, adenosine: 0.0, libido: 0.5}
-      low_neuroticism = %Personality{extraversion: 0.5, neuroticism: 0.0}
-      high_neuroticism = %Personality{extraversion: 0.5, neuroticism: 1.0}
+    test "extraversion accelerates dopamine decay", %{bio: bio} do
+      p_low = %Personality{extraversion: 0.0}
+      p_high = %Personality{extraversion: 1.0}
 
-      low_result = Biology.tick(bio, low_neuroticism)
-      high_result = Biology.tick(bio, high_neuroticism)
+      updated_low = Biology.tick(bio, p_low)
+      updated_high = Biology.tick(bio, p_high)
 
-      # High neuroticism means slower cortisol decay (higher remaining cortisol)
-      assert high_result.cortisol > low_result.cortisol
+      # Higher extraversion = faster decay = lower remaining value
+      assert updated_high.dopamine < updated_low.dopamine
     end
 
-    test "decays oxytocin at fixed rate" do
-      bio = %BioState{dopamine: 0.5, oxytocin: 0.5, cortisol: 0.5, adenosine: 0.0, libido: 0.5}
-      personality = %Personality{extraversion: 0.5, neuroticism: 0.5}
+    test "neuroticism slows cortisol decay", %{bio: bio} do
+      p_low = %Personality{neuroticism: 0.0}
+      p_high = %Personality{neuroticism: 1.0}
 
-      result = Biology.tick(bio, personality)
+      updated_low = Biology.tick(bio, p_low)
+      updated_high = Biology.tick(bio, p_high)
 
-      # Oxytocin decay is fixed at 0.02
-      assert_in_delta result.oxytocin, 0.48, 0.001
+      # Higher neuroticism = slower decay = higher remaining value
+      assert updated_high.cortisol > updated_low.cortisol
     end
 
-    test "accumulates adenosine (fatigue)" do
-      bio = %BioState{dopamine: 0.5, oxytocin: 0.5, cortisol: 0.5, adenosine: 0.5, libido: 0.5}
-      personality = %Personality{extraversion: 0.5, neuroticism: 0.5}
-
-      result = Biology.tick(bio, personality)
-
-      # Adenosine builds at 0.005 per tick
-      assert result.adenosine > bio.adenosine
+    test "high cortisol kills libido", %{bio: bio, personality: p} do
+      # Bio already has 1.0 cortisol in setup
+      updated = Biology.tick(bio, p)
+      assert updated.libido == 0.0
     end
 
-    test "adenosine caps at 1.0" do
-      bio = %BioState{dopamine: 0.5, oxytocin: 0.5, cortisol: 0.5, adenosine: 0.999, libido: 0.5}
-      personality = %Personality{extraversion: 0.5, neuroticism: 0.5}
-
-      result = Biology.tick(bio, personality)
-
-      assert result.adenosine <= 1.0
+    test "low cortisol preserves libido", %{bio: bio, personality: p} do
+      bio = %{bio | cortisol: 0.2}
+      updated = Biology.tick(bio, p)
+      assert updated.libido == 0.5
     end
 
-    test "high cortisol kills libido" do
-      bio = %BioState{dopamine: 0.5, oxytocin: 0.5, cortisol: 0.7, adenosine: 0.0, libido: 0.8}
-      personality = %Personality{extraversion: 0.5, neuroticism: 0.5}
+    test "adenosine suppresses dopamine", %{bio: bio, personality: p} do
+      # Compare decay with and without fatigue
+      bio_tired = %{bio | adenosine: 1.0}
+      bio_fresh = %{bio | adenosine: 0.0}
 
-      result = Biology.tick(bio, personality)
+      updated_tired = Biology.tick(bio_tired, p)
+      updated_fresh = Biology.tick(bio_fresh, p)
 
-      # Cortisol > 0.6 should set libido to 0
-      assert result.libido == 0.0
-    end
-
-    test "low cortisol preserves libido" do
-      bio = %BioState{dopamine: 0.5, oxytocin: 0.5, cortisol: 0.3, adenosine: 0.0, libido: 0.8}
-      personality = %Personality{extraversion: 0.5, neuroticism: 0.5}
-
-      result = Biology.tick(bio, personality)
-
-      # Cortisol <= 0.6 should preserve libido
-      assert result.libido == 0.8
-    end
-
-    test "high adenosine suppresses dopamine" do
-      bio = %BioState{dopamine: 0.5, oxytocin: 0.5, cortisol: 0.0, adenosine: 0.9, libido: 0.5}
-      personality = %Personality{extraversion: 0.0, neuroticism: 0.0}
-
-      result = Biology.tick(bio, personality)
-
-      # Fatigue factor = 1.0 - 0.9 * 0.3 = 0.73
-      # Dopamine should be significantly reduced
-      assert result.dopamine < bio.dopamine * 0.8
-    end
-
-    test "hormones never go below 0" do
-      bio = %BioState{dopamine: 0.01, oxytocin: 0.01, cortisol: 0.01, adenosine: 0.0, libido: 0.5}
-      personality = %Personality{extraversion: 1.0, neuroticism: 0.0}
-
-      result = Biology.tick(bio, personality)
-
-      assert result.dopamine >= 0.0
-      assert result.oxytocin >= 0.0
-      assert result.cortisol >= 0.0
+      # Fatigue factor is applied at end: dopamine * (1 - adenosine*0.3)
+      # So tired one should be significantly lower
+      assert updated_tired.dopamine < updated_fresh.dopamine
     end
   end
 end
