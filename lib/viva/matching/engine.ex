@@ -103,10 +103,10 @@ defmodule Viva.Matching.Engine do
         {:ok, size} = Cachex.size(@cache_name)
 
         %{
-          hits: stats.hits,
-          misses: stats.misses,
-          evictions: stats.evictions,
-          expirations: stats.expirations,
+          hits: Map.get(stats, :hits, 0),
+          misses: Map.get(stats, :misses, 0),
+          evictions: Map.get(stats, :evictions, 0),
+          expirations: Map.get(stats, :expirations, 0),
           size: size,
           hit_rate: calculate_hit_rate(stats)
         }
