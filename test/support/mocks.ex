@@ -8,4 +8,5 @@ defmodule Viva.TestMocks do
   defmock(Viva.AI.Pipeline.MockStage, for: Viva.AI.Pipeline.Stage)
   defmock(Viva.AI.LLM.MockClient, for: Viva.AI.LLM.ClientBehaviour)
   defmock(Viva.Sessions.MockLifeProcess, for: Viva.Sessions.LifeProcessBehaviour)
+  defmock(Viva.Infrastructure.MockEventBus, for: Viva.Infrastructure.EventBusBehaviour)
 end

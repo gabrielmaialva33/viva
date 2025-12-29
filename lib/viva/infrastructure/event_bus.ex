@@ -3,6 +3,8 @@ defmodule Viva.Infrastructure.EventBus do
   Wrapper for publishing events to the message broker (RabbitMQ).
   Decouples domain logic from AMQP details.
   """
+  @behaviour Viva.Infrastructure.EventBusBehaviour
+
   require Logger
 
   @exchange ""
