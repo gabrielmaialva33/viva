@@ -49,9 +49,9 @@ defmodule Viva.Application do
 
     result = Supervisor.start_link(children, opts)
 
-    # Start all active avatars after supervision tree is up
+    # Schedule avatar startup via Oban (replaces Process.sleep anti-pattern)
     if Application.get_env(:viva, :start_active_avatars, true) do
-      start_active_avatars()
+      schedule_avatar_startup()
     end
 
     result
@@ -65,11 +65,12 @@ defmodule Viva.Application do
     :ok
   end
 
-  defp start_active_avatars do
-    # Delay startup to ensure everything is ready
-    Task.start(fn ->
-      Process.sleep(2000)
-      Viva.Sessions.Supervisor.start_all_active_avatars()
-    end)
+  defp schedule_avatar_startup do
+    # Schedule job with 2 second delay to ensure all processes are ready
+    %{}
+    |> Viva.Workers.AvatarStartupWorker.new(
+      scheduled_at: DateTime.add(DateTime.utc_now(), 2, :second)
+    )
+    |> Oban.insert()
   end
 end
