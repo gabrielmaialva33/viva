@@ -164,12 +164,12 @@ defmodule Viva.Avatars.Avatar do
   end
 
   defp generate_system_prompt(changeset) do
-    case get_field(changeset, :system_prompt) do
-      nil ->
-        name = get_field(changeset, :name)
-        personality = get_field(changeset, :personality)
-        bio = get_field(changeset, :bio) || ""
+    name = get_field(changeset, :name)
+    personality = get_field(changeset, :personality)
 
+    case {get_field(changeset, :system_prompt), name, personality} do
+      {nil, name, %Personality{} = personality} when is_binary(name) ->
+        bio = get_field(changeset, :bio) || ""
         moment_flexibility = get_field(changeset, :moral_flexibility) || 0.3
         prompt = build_system_prompt(name, personality, bio, moment_flexibility)
         put_change(changeset, :system_prompt, prompt)

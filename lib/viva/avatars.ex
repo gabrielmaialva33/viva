@@ -69,25 +69,27 @@ defmodule Viva.Avatars do
     Repo.delete(avatar)
   end
 
-  @spec update_internal_state(avatar_id(), InternalState.t()) :: {non_neg_integer(), nil}
+  @spec update_internal_state(avatar_id(), InternalState.t()) ::
+          {:ok, Avatar.t()} | {:error, Ecto.Changeset.t()}
   def update_internal_state(avatar_id, %InternalState{} = state) do
-    Avatar
-    |> where([a], a.id == ^avatar_id)
-    |> Repo.update_all(
-      set: [
-        internal_state: Map.from_struct(state),
-        updated_at: DateTime.utc_now()
-      ]
-    )
+    avatar = get_avatar!(avatar_id)
+    # Convert everything to plain maps/strings for the changeset cast
+    params = %{"internal_state" => sanitize_for_db(state)}
+
+    avatar
+    |> Avatar.changeset(params)
+    |> Repo.update()
   end
 
   @spec mark_active(avatar_id()) :: {non_neg_integer(), nil}
   def mark_active(avatar_id) do
+    now = DateTime.utc_now(:second)
+
     Avatar
     |> where([a], a.id == ^avatar_id)
     |> Repo.update_all(
       set: [
-        last_active_at: DateTime.utc_now()
+        last_active_at: now
       ]
     )
   end
@@ -260,10 +262,31 @@ defmodule Viva.Avatars do
         avatar_id: memory.avatar_id,
         content: memory.content,
         strength: decayed.strength,
-        updated_at: now
+        updated_at: DateTime.truncate(now, :second)
       }
 
       {del_acc, [update_map | upd_acc]}
     end
   end
+
+  # Recursively sanitize nested structs/maps for DB storage
+  defp sanitize_for_db(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+  defp sanitize_for_db(%Date{} = d), do: Date.to_iso8601(d)
+  defp sanitize_for_db(%Time{} = t), do: Time.to_iso8601(t)
+
+  defp sanitize_for_db(%_{} = struct) do
+    struct
+    |> Map.from_struct()
+    |> sanitize_for_db()
+  end
+
+  defp sanitize_for_db(%{} = map) do
+    Map.new(map, fn {k, v} -> {k, sanitize_for_db(v)} end)
+  end
+
+  defp sanitize_for_db(list) when is_list(list) do
+    Enum.map(list, &sanitize_for_db/1)
+  end
+
+  defp sanitize_for_db(value), do: value
 end
