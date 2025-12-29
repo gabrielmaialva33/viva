@@ -50,12 +50,16 @@ defmodule Viva.Sessions.ThoughtEngine do
     }
 
     # Fire and forget via EventBus
-    Viva.Infrastructure.EventBus.publish_thought(payload)
+    event_bus().publish_thought(payload)
 
     process_state
   end
 
   # === Private Functions ===
+
+  defp event_bus do
+    Application.get_env(:viva, :event_bus, Viva.Infrastructure.EventBus)
+  end
 
   defp build_thought_prompt(process_state) do
     avatar = process_state.avatar
