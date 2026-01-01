@@ -6,7 +6,7 @@
 alias Viva.Repo
 alias Viva.Avatars.Avatar
 alias Viva.Avatars.{BioState, EmotionalState, Personality, SensoryState, AllostasisState, ConsciousnessState, SomaticMarkersState}
-alias Viva.Avatars.Systems.{Biology, Psychology, Senses, RecurrentProcessor}
+alias Viva.Avatars.Systems.{Biology, Psychology, Senses, RecurrentProcessor, Consciousness}
 import Ecto.Query
 
 defmodule SentienceTest do
@@ -177,6 +177,16 @@ defmodule SentienceTest do
         state.recurrent_ctx
       )
 
+    # NOVO: Integrar consciência para gerar meta_awareness e meta_observation
+    new_consciousness = Consciousness.integrate(
+      state.consciousness,
+      rec_sensory,
+      rec_bio,
+      rec_emotional,
+      nil,  # thought (não temos neste teste)
+      personality
+    )
+
     record = %{
       pleasure: rec_emotional.pleasure,
       arousal: rec_emotional.arousal,
@@ -189,13 +199,18 @@ defmodule SentienceTest do
       stimulus_type: stimulus.type,
       stimulus_valence: stimulus.valence,
       resonance: new_recurrent_ctx.resonance_level,
-      integration_depth: new_recurrent_ctx.integration_depth
+      integration_depth: new_recurrent_ctx.integration_depth,
+      # Campos metacognitivos para HOT
+      meta_awareness: new_consciousness.meta_awareness,
+      meta_observation: new_consciousness.meta_observation,
+      self_congruence: new_consciousness.self_congruence
     }
 
     %{state |
       bio: rec_bio,
       emotional: rec_emotional,
       sensory: rec_sensory,
+      consciousness: new_consciousness,
       recurrent_ctx: new_recurrent_ctx,
       history: state.history ++ [record]
     }
@@ -251,11 +266,26 @@ defmodule SentienceTest do
     )
     iit_score = min(abs(bio_emo_correlation) + avg_depth / 5, 1.0)
 
-    # HOT: Mood changes (metacognitive reflection)
-    mood_changes = history
-    |> Enum.chunk_every(2, 1, :discard)
-    |> Enum.count(fn [a, b] -> a.mood != b.mood end)
-    hot_score = min(mood_changes / (length(history) * 0.3), 1.0)
+    # HOT: Metacognição real (usando campos gerados por Consciousness.integrate)
+    # 1. Nível médio de meta_awareness (capacidade de auto-reflexão)
+    meta_values = Enum.map(history, & &1.meta_awareness)
+    avg_meta = Enum.sum(meta_values) / length(meta_values)
+
+    # 2. Insights metacognitivos únicos gerados
+    unique_insights = history
+    |> Enum.map(& &1.meta_observation)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> length()
+    insight_score = min(unique_insights / 3.0, 1.0)  # 3+ insights = 100%
+
+    # 3. Variação de self_congruence (detectar inconsistências = metacognição)
+    congruence_vals = Enum.map(history, & &1.self_congruence)
+    congruence_std = std_dev(congruence_vals)
+    congruence_score = min(congruence_std * 5, 1.0)
+
+    # Score HOT combinado
+    hot_score = avg_meta * 0.5 + insight_score * 0.3 + congruence_score * 0.2
 
     # Self-model: Personality affects responses
     emotional_range = max_p - min_p + max_a - min_a
@@ -400,6 +430,14 @@ defmodule SentienceTest do
     end
   end
   defp calculate_correlation(_, _), do: 0.0
+
+  defp std_dev(values) when length(values) > 1 do
+    n = length(values)
+    mean = Enum.sum(values) / n
+    variance = Enum.reduce(values, 0, fn v, acc -> acc + (v - mean) * (v - mean) end) / n
+    :math.sqrt(variance)
+  end
+  defp std_dev(_), do: 0.0
 
   defp clamp(v, min_v, max_v), do: max(min_v, min(max_v, v))
   defp pct(v), do: "#{round(v * 100)}%"
