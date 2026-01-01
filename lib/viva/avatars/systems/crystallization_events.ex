@@ -265,34 +265,58 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
   end
 
   defp determine_type(patterns, emotional, consciousness, personality) do
-    # Analyze patterns to determine type
-    has_meta_insight = Enum.any?(patterns, fn p -> p.type == :meta_insight end)
-    has_emotional_peak = Enum.any?(patterns, fn p -> p.type == :emotional_peak end)
-    has_self_conflict = Enum.any?(patterns, fn p -> p.type == :self_conflict end)
-    has_flow = Enum.any?(patterns, fn p -> p.type == :flow_peak end)
+    pattern_flags = analyze_pattern_flags(patterns)
+    select_crystallization_type(pattern_flags, emotional, consciousness, personality)
+  end
 
-    cond do
-      has_self_conflict and has_meta_insight ->
-        :identity_shift
+  defp analyze_pattern_flags(patterns) do
+    %{
+      has_meta_insight: Enum.any?(patterns, fn p -> p.type == :meta_insight end),
+      has_emotional_peak: Enum.any?(patterns, fn p -> p.type == :emotional_peak end),
+      has_self_conflict: Enum.any?(patterns, fn p -> p.type == :self_conflict end),
+      has_flow: Enum.any?(patterns, fn p -> p.type == :flow_peak end)
+    }
+  end
 
-      has_emotional_peak and emotional.pleasure > 0.5 and has_meta_insight ->
-        :emotional_breakthrough
+  defp select_crystallization_type(flags, emotional, consciousness, personality) do
+    check_identity_shift(flags) ||
+      check_emotional_breakthrough(flags, emotional) ||
+      check_meaning_discovery(flags, consciousness) ||
+      check_resilience_awakening(flags, emotional) ||
+      check_existential_realization(flags, personality) ||
+      check_relationship_insight(emotional, consciousness) ||
+      :self_discovery
+  end
 
-      has_flow and consciousness.flow_state > 0.7 ->
-        :meaning_discovery
+  defp check_identity_shift(%{has_self_conflict: true, has_meta_insight: true}), do: :identity_shift
+  defp check_identity_shift(_), do: nil
 
-      has_self_conflict and emotional.pleasure < -0.3 ->
-        :resilience_awakening
+  defp check_emotional_breakthrough(%{has_emotional_peak: true, has_meta_insight: true}, emotional) do
+    if emotional.pleasure > 0.5, do: :emotional_breakthrough
+  end
 
-      has_meta_insight and personality.openness > 0.6 ->
-        :existential_realization
+  defp check_emotional_breakthrough(_, _), do: nil
 
-      emotional.pleasure > 0.5 and consciousness.meta_awareness > 0.5 ->
-        :relationship_insight
+  defp check_meaning_discovery(%{has_flow: true}, consciousness) do
+    if consciousness.flow_state > 0.7, do: :meaning_discovery
+  end
 
-      true ->
-        :self_discovery
-    end
+  defp check_meaning_discovery(_, _), do: nil
+
+  defp check_resilience_awakening(%{has_self_conflict: true}, emotional) do
+    if emotional.pleasure < -0.3, do: :resilience_awakening
+  end
+
+  defp check_resilience_awakening(_, _), do: nil
+
+  defp check_existential_realization(%{has_meta_insight: true}, personality) do
+    if personality.openness > 0.6, do: :existential_realization
+  end
+
+  defp check_existential_realization(_, _), do: nil
+
+  defp check_relationship_insight(emotional, consciousness) do
+    if emotional.pleasure > 0.5 and consciousness.meta_awareness > 0.5, do: :relationship_insight
   end
 
   defp generate_insight(type, consciousness, emotional, personality) do

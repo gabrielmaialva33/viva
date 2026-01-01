@@ -201,31 +201,8 @@ defmodule Viva.Avatars.Systems.QualiaSynthesizer do
   end
 
   defp generate_somatic_stream(somatic, bio) do
-    # Body signal intensity
-    signal_intensity =
-      case somatic.body_signal do
-        :none -> 0.0
-        :neutral -> 0.1
-        :tension -> 0.6
-        :heaviness -> 0.5
-        :lightness -> 0.4
-        :warmth -> 0.5
-        :chill -> 0.6
-        :flutter -> 0.7
-        :hollow -> 0.5
-        _ -> 0.3
-      end
-
-    # Bias adds to intensity
-    bias_intensity =
-      case somatic.current_bias do
-        :approach -> 0.3
-        :avoid -> 0.4
-        :freeze -> 0.5
-        _ -> 0.0
-      end
-
-    # Biological urgency (low energy, high stress)
+    signal_intensity = body_signal_intensity(somatic.body_signal)
+    bias_intensity = bias_to_intensity(somatic.current_bias)
     urgency = (bio.cortisol + bio.adenosine) / 2
 
     %{
@@ -239,6 +216,22 @@ defmodule Viva.Avatars.Systems.QualiaSynthesizer do
       }
     }
   end
+
+  defp body_signal_intensity(:none), do: 0.0
+  defp body_signal_intensity(:neutral), do: 0.1
+  defp body_signal_intensity(:tension), do: 0.6
+  defp body_signal_intensity(:heaviness), do: 0.5
+  defp body_signal_intensity(:lightness), do: 0.4
+  defp body_signal_intensity(:warmth), do: 0.5
+  defp body_signal_intensity(:chill), do: 0.6
+  defp body_signal_intensity(:flutter), do: 0.7
+  defp body_signal_intensity(:hollow), do: 0.5
+  defp body_signal_intensity(_), do: 0.3
+
+  defp bias_to_intensity(:approach), do: 0.3
+  defp bias_to_intensity(:avoid), do: 0.4
+  defp bias_to_intensity(:freeze), do: 0.5
+  defp bias_to_intensity(_), do: 0.0
 
   defp generate_temporal_stream(consciousness, emotional, bio) do
     # Time distortion based on arousal and adenosine

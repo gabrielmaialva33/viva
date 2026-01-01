@@ -331,47 +331,9 @@ defmodule Viva.Avatars.Systems.SocialDynamics do
     action = event.content[:action]
     target = event.content[:target]
 
-    # Infer intentions from observed actions
-    inferred_intention =
-      case action do
-        :helping -> :prosocial
-        :sharing -> :generous
-        :attacking -> :hostile
-        :avoiding -> :fearful
-        :approaching -> :friendly
-        _ -> nil
-      end
-
-    intentions =
-      if inferred_intention do
-        [inferred_intention | model.believed_intentions]
-        |> Enum.uniq()
-        |> Enum.take(5)
-      else
-        model.believed_intentions
-      end
-
-    # Update predictability based on action consistency
-    predictability =
-      if action in model.believed_intentions do
-        min(1.0, model.predictability + 0.05)
-      else
-        max(0.0, model.predictability - 0.03)
-      end
-
-    # If action was toward us, update perception
-    perception =
-      if target == :self do
-        case action do
-          :helping -> :valued
-          :attacking -> :threatened
-          :approaching -> :liked
-          :avoiding -> :rejected
-          _ -> model.believed_perception_of_us
-        end
-      else
-        model.believed_perception_of_us
-      end
+    intentions = update_believed_intentions(model.believed_intentions, action)
+    predictability = update_predictability(model.predictability, action, model.believed_intentions)
+    perception = update_perception_of_us(model.believed_perception_of_us, action, target)
 
     %{
       model
@@ -381,6 +343,47 @@ defmodule Viva.Avatars.Systems.SocialDynamics do
         model_confidence: min(1.0, model.model_confidence + 0.03)
     }
   end
+
+  defp update_believed_intentions(current_intentions, action) do
+    case infer_intention_from_action(action) do
+      nil ->
+        current_intentions
+
+      intention ->
+        [intention | current_intentions]
+        |> Enum.uniq()
+        |> Enum.take(5)
+    end
+  end
+
+  defp infer_intention_from_action(:helping), do: :prosocial
+  defp infer_intention_from_action(:sharing), do: :generous
+  defp infer_intention_from_action(:attacking), do: :hostile
+  defp infer_intention_from_action(:avoiding), do: :fearful
+  defp infer_intention_from_action(:approaching), do: :friendly
+  defp infer_intention_from_action(_), do: nil
+
+  defp update_predictability(current, action, believed_intentions) do
+    if action in believed_intentions do
+      min(1.0, current + 0.05)
+    else
+      max(0.0, current - 0.03)
+    end
+  end
+
+  defp update_perception_of_us(current_perception, _, target) when target != :self do
+    current_perception
+  end
+
+  defp update_perception_of_us(current_perception, action, :self) do
+    action_to_perception(action, current_perception)
+  end
+
+  defp action_to_perception(:helping, _), do: :valued
+  defp action_to_perception(:attacking, _), do: :threatened
+  defp action_to_perception(:approaching, _), do: :liked
+  defp action_to_perception(:avoiding, _), do: :rejected
+  defp action_to_perception(_, current), do: current
 
   defp update_from_trust_event(model, event) do
     trust_delta = event.content[:delta] || 0.0
@@ -773,35 +776,37 @@ defmodule Viva.Avatars.Systems.SocialDynamics do
   end
 
   defp describe_relationship(model, personality) do
+    base_description = relationship_base_description(model)
+    add_memorable_moment_text(base_description, model, personality)
+  end
+
+  defp relationship_base_description(model) do
     category = categorize_relationship(model)
+    category_to_description(category, model.name)
+  end
 
-    base_description =
-      case category do
-        :close_friend -> "#{model.name} é alguém em quem confio profundamente"
-        :friend -> "Tenho uma conexão positiva com #{model.name}"
-        :complicated -> "Minha relação com #{model.name} é complexa"
-        :adversary -> "Tenho tensão com #{model.name}"
-        :acquaintance -> "Conheço #{model.name} há algum tempo"
-        :stranger -> "Ainda estou conhecendo #{model.name}"
-      end
+  defp category_to_description(:close_friend, name),
+    do: "#{name} é alguém em quem confio profundamente"
 
-    # Add personality-flavored observation
+  defp category_to_description(:friend, name), do: "Tenho uma conexão positiva com #{name}"
+  defp category_to_description(:complicated, name), do: "Minha relação com #{name} é complexa"
+  defp category_to_description(:adversary, name), do: "Tenho tensão com #{name}"
+  defp category_to_description(:acquaintance, name), do: "Conheço #{name} há algum tempo"
+  defp category_to_description(:stranger, name), do: "Ainda estou conhecendo #{name}"
+
+  defp add_memorable_moment_text(description, model, personality) do
     if personality.openness > 0.6 and model.memorable_moments != [] do
       moment = hd(model.memorable_moments)
-
-      moment_text =
-        case moment.type do
-          :conversation -> ", e lembro de conversas significativas"
-          :trust_change -> ", e passamos por momentos importantes"
-          :conflict -> ", apesar de desentendimentos passados"
-          _ -> ""
-        end
-
-      base_description <> moment_text
+      description <> moment_type_text(moment.type)
     else
-      base_description
+      description
     end
   end
+
+  defp moment_type_text(:conversation), do: ", e lembro de conversas significativas"
+  defp moment_type_text(:trust_change), do: ", e passamos por momentos importantes"
+  defp moment_type_text(:conflict), do: ", apesar de desentendimentos passados"
+  defp moment_type_text(_), do: ""
 
   defp detect_social_pattern(models) do
     trust_levels = Enum.map(models, fn {_, m} -> m.trust_level end)

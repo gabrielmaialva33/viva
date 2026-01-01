@@ -269,40 +269,9 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
     body_signal = somatic.body_signal
     current_bias = somatic.current_bias
 
-    # Body signal affects emotional valence
-    valence_shift =
-      case body_signal do
-        :tension -> -0.1
-        :heaviness -> -0.08
-        :lightness -> 0.1
-        :warmth -> 0.08
-        :chill -> -0.05
-        :flutter -> 0.0
-        :hollow -> -0.12
-        _ -> 0.0
-      end
-
-    # Body signal affects arousal
-    arousal_shift =
-      case body_signal do
-        :tension -> 0.1
-        :heaviness -> -0.1
-        :lightness -> 0.05
-        :warmth -> -0.03
-        :chill -> 0.08
-        :flutter -> 0.15
-        :hollow -> -0.05
-        _ -> 0.0
-      end
-
-    # Bias affects dominance
-    dominance_shift =
-      case current_bias do
-        :approach -> 0.1
-        :avoid -> -0.1
-        :freeze -> -0.15
-        _ -> 0.0
-      end
+    valence_shift = body_signal_valence(body_signal)
+    arousal_shift = body_signal_arousal(body_signal)
+    dominance_shift = bias_dominance(current_bias)
 
     updated_emotional = %{
       emotional
@@ -505,4 +474,30 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
   defp calculate_pattern_match(_, _), do: {false, 0.0}
 
   defp clamp(value, min_val, max_val), do: max(min_val, min(max_val, value))
+
+  # Body signal to valence shift mapping
+  defp body_signal_valence(:tension), do: -0.1
+  defp body_signal_valence(:heaviness), do: -0.08
+  defp body_signal_valence(:lightness), do: 0.1
+  defp body_signal_valence(:warmth), do: 0.08
+  defp body_signal_valence(:chill), do: -0.05
+  defp body_signal_valence(:flutter), do: 0.0
+  defp body_signal_valence(:hollow), do: -0.12
+  defp body_signal_valence(_), do: 0.0
+
+  # Body signal to arousal shift mapping
+  defp body_signal_arousal(:tension), do: 0.1
+  defp body_signal_arousal(:heaviness), do: -0.1
+  defp body_signal_arousal(:lightness), do: 0.05
+  defp body_signal_arousal(:warmth), do: -0.03
+  defp body_signal_arousal(:chill), do: 0.08
+  defp body_signal_arousal(:flutter), do: 0.15
+  defp body_signal_arousal(:hollow), do: -0.05
+  defp body_signal_arousal(_), do: 0.0
+
+  # Bias to dominance shift mapping
+  defp bias_dominance(:approach), do: 0.1
+  defp bias_dominance(:avoid), do: -0.1
+  defp bias_dominance(:freeze), do: -0.15
+  defp bias_dominance(_), do: 0.0
 end
