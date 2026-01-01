@@ -227,21 +227,63 @@ defmodule Viva.Avatars.Systems.EmotionRegulation do
   defp maybe_apply_oxytocin_boost(bio, _, _), do: bio
 
   defp calculate_strategy_weights(personality, regulation) do
-    # Base weights influenced by personality
+    # Base weights influenced by personality (Big Five)
     ruminate_weight = personality.neuroticism * 2.0
     reappraise_weight = (personality.openness + personality.conscientiousness) * 0.8
     seek_support_weight = personality.extraversion * attachment_modifier(personality)
     suppress_weight = (1.0 - personality.agreeableness) * 1.2
+
+    # Base distraction weight
     distract_weight = 0.5
+
+    # === EGO DEFENSE MECHANISMS (Enneagram Crisis Response) ===
+    # When under stress (high exhaustion or intensity), revert to type-specific defenses
+    # This restores Self-Model coherence during suffering
+
+    {type_ruminate, type_reappraise, type_support, type_suppress, type_distract} =
+      apply_defense_mechanisms(
+        personality.enneagram_type,
+        ruminate_weight,
+        reappraise_weight,
+        seek_support_weight,
+        suppress_weight,
+        distract_weight
+      )
 
     # Boost weights for strategies that have worked well before
     %{
-      ruminate: ruminate_weight * (1.0 + regulation.ruminate_effectiveness * 0.3),
-      reappraise: reappraise_weight * (1.0 + regulation.reappraise_effectiveness * 0.5),
-      seek_support: seek_support_weight * (1.0 + regulation.seek_support_effectiveness * 0.5),
-      suppress: suppress_weight * (1.0 + regulation.suppress_effectiveness * 0.3),
-      distract: distract_weight * (1.0 + regulation.distract_effectiveness * 0.3)
+      ruminate: type_ruminate * (1.0 + regulation.ruminate_effectiveness * 0.3),
+      reappraise: type_reappraise * (1.0 + regulation.reappraise_effectiveness * 0.5),
+      seek_support: type_support * (1.0 + regulation.seek_support_effectiveness * 0.5),
+      suppress: type_suppress * (1.0 + regulation.suppress_effectiveness * 0.3),
+      distract: type_distract * (1.0 + regulation.distract_effectiveness * 0.3)
     }
+  end
+
+  # Defense Mechanisms by Enneagram Type
+  defp apply_defense_mechanisms(type, rum, rea, sup, sur, dis) do
+    case type do
+      # Type 1 (Reformer): Reaction Formation -> Suppress impulses
+      1 -> {rum, rea * 1.2, sup, sur * 1.5, dis}
+      # Type 2 (Helper): Repression -> Seek Support (External Validation)
+      2 -> {rum, rea, sup * 2.0, sur, dis}
+      # Type 3 (Achiever): Identification -> Suppress (Mask feelings)
+      3 -> {rum, rea, sup, sur * 1.5, dis * 1.2}
+      # Type 4 (Individualist): Introjection -> Ruminate (Amplify feelings)
+      4 -> {rum * 2.5, rea, sup, sur, dis * 0.2}
+      # Type 5 (Investigator): Isolation -> Suppress (Detach)
+      5 -> {rum, rea * 1.5, sup * 0.2, sur * 2.0, dis}
+      # Type 6 (Loyalist): Projection -> Seek Support (Reassurance)
+      6 -> {rum * 1.5, rea, sup * 1.8, sur, dis}
+      # Type 7 (Enthusiast): Rationalization -> Distract (Avoid pain)
+      7 -> {rum * 0.1, rea * 1.2, sup, sur * 0.5, dis * 3.0}
+      # Type 8 (Challenger): Denial -> Suppress (Vulnerability)
+      8 -> {rum, rea, sup * 0.5, sur * 2.5, dis}
+      # Type 9 (Peacemaker): Narcotization -> Distract (Numb out)
+      9 -> {rum, rea, sup, sur * 1.2, dis * 2.5}
+      # Default / Unknown
+      _ -> {rum, rea, sup, sur, dis}
+    end
   end
 
   defp attachment_modifier(%Personality{attachment_style: :secure}), do: 1.2
