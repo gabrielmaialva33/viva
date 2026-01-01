@@ -96,11 +96,6 @@ defmodule Viva.AI.LLM.RateLimiter do
     acquire_loop(wait_ms, System.monotonic_time(:millisecond))
   end
 
-  defp get_wait_ms do
-    nim_config = Application.get_env(:viva, :nim, [])
-    Keyword.get(nim_config, :rate_limit_wait_ms, @default_wait_ms)
-  end
-
   @doc "Get current rate limiter stats including throttle information"
   @spec stats() :: stats() | %{tokens_available: 0, error: :not_initialized}
   def stats do
@@ -157,7 +152,7 @@ defmodule Viva.AI.LLM.RateLimiter do
   @spec throttle_multiplier() :: float()
   def throttle_multiplier do
     case :ets.lookup(@table, :throttle) do
-      [{:throttle, multiplier, _count, _last_429}] -> multiplier
+      [{:throttle, multiplier, _, _}] -> multiplier
       [] -> 1.0
     end
   end
@@ -213,7 +208,7 @@ defmodule Viva.AI.LLM.RateLimiter do
 
     {new_multiplier, new_count} =
       case :ets.lookup(@table, :throttle) do
-        [{:throttle, multiplier, count, _last}] ->
+        [{:throttle, multiplier, count, _}] ->
           # Increase throttle on each 429
           increased = min(multiplier + @throttle_increase_per_429, @max_throttle_multiplier)
           {increased, count + 1}
@@ -291,6 +286,11 @@ defmodule Viva.AI.LLM.RateLimiter do
       [] ->
         %{requests_per_minute: @default_requests_per_minute, burst_size: @default_burst_size}
     end
+  end
+
+  defp get_wait_ms do
+    nim_config = Application.get_env(:viva, :nim, [])
+    Keyword.get(nim_config, :rate_limit_wait_ms, @default_wait_ms)
   end
 
   defp acquire_loop(max_wait_ms, start_time) do
