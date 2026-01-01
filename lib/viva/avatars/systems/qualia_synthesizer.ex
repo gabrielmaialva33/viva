@@ -133,7 +133,12 @@ defmodule Viva.Avatars.Systems.QualiaSynthesizer do
         true -> " como em um sonho confuso"
       end
 
-    [base_narrative, vividness_marker <> stream_flavor <> clarity_marker, temporal_flavor, self_flavor]
+    [
+      base_narrative,
+      vividness_marker <> stream_flavor <> clarity_marker,
+      temporal_flavor,
+      self_flavor
+    ]
     |> Enum.filter(&(&1 != ""))
     |> Enum.join(" ")
     |> String.trim()
@@ -266,7 +271,7 @@ defmodule Viva.Avatars.Systems.QualiaSynthesizer do
     meta = consciousness.meta_awareness
 
     # Relevance = how much this moment matters to self
-    relevance = (congruence * 0.5 + meta * 0.5)
+    relevance = congruence * 0.5 + meta * 0.5
 
     # Intensity based on self-focused attention
     intensity = meta * 0.7 + abs(emotional.dominance) * 0.3
@@ -339,7 +344,8 @@ defmodule Viva.Avatars.Systems.QualiaSynthesizer do
       end
 
     # Merge with current qualia
-    base_narrative = Map.get(current_qualia, :narrative) || Map.get(current_qualia, "narrative") || ""
+    base_narrative =
+      Map.get(current_qualia, :narrative) || Map.get(current_qualia, "narrative") || ""
 
     %{
       dominant_sensation: dominant.type,

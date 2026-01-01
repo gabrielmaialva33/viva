@@ -156,7 +156,8 @@ sofia =
     name: "Sofia",
     age: 28,
     gender: :female,
-    biography: "Enfermeira pediátrica. Acredito que o amor cura tudo. Recém saí de um relacionamento complicado.",
+    biography:
+      "Enfermeira pediátrica. Acredito que o amor cura tudo. Recém saí de um relacionamento complicado.",
     personality: %{
       openness: 0.6,
       conscientiousness: 0.8,
@@ -327,7 +328,8 @@ clara =
     name: "Clara",
     age: 24,
     gender: :female,
-    biography: "Poetisa e violoncelista. Sinto tudo com intensidade absurda. A beleza mora na tristeza.",
+    biography:
+      "Poetisa e violoncelista. Sinto tudo com intensidade absurda. A beleza mora na tristeza.",
     personality: %{
       openness: 0.95,
       conscientiousness: 0.3,
@@ -351,7 +353,8 @@ leo =
     name: "Leo",
     age: 26,
     gender: :male,
-    biography: "Nômade digital e fotógrafo. Hoje aqui, amanhã no Japão. A vida é curta demais pra rotina.",
+    biography:
+      "Nômade digital e fotógrafo. Hoje aqui, amanhã no Japão. A vida é curta demais pra rotina.",
     personality: %{
       openness: 0.98,
       conscientiousness: 0.2,
@@ -425,7 +428,8 @@ helena =
     name: "Helena",
     age: 38,
     gender: :female,
-    biography: "Psicóloga clínica. Especialista em relacionamentos. Irônico que os meus nunca dão certo.",
+    biography:
+      "Psicóloga clínica. Especialista em relacionamentos. Irônico que os meus nunca dão certo.",
     personality: %{
       openness: 0.8,
       conscientiousness: 0.85,
@@ -475,7 +479,8 @@ igor =
     name: "Igor",
     age: 29,
     gender: :male,
-    biography: "Lutador de MMA e personal trainer. O mundo só respeita força. Sem paciência pra falsidade.",
+    biography:
+      "Lutador de MMA e personal trainer. O mundo só respeita força. Sem paciência pra falsidade.",
     moral_flexibility: 0.2,
     personality: %{
       openness: 0.35,
@@ -500,7 +505,8 @@ diana =
     name: "Diana",
     age: 33,
     gender: :female,
-    biography: "Arquiteta urbanista perfeccionista. O caos me ofende. Buscando ordem num mundo quebrado.",
+    biography:
+      "Arquiteta urbanista perfeccionista. O caos me ofende. Buscando ordem num mundo quebrado.",
     personality: %{
       openness: 0.8,
       conscientiousness: 0.98,
@@ -524,7 +530,8 @@ tiago =
     name: "Tiago",
     age: 28,
     gender: :male,
-    biography: "Advogado trabalhista. Defendo os fracos contra os poderosos. Meio paranóico, mas com razão.",
+    biography:
+      "Advogado trabalhista. Defendo os fracos contra os poderosos. Meio paranóico, mas com razão.",
     personality: %{
       openness: 0.6,
       conscientiousness: 0.85,
@@ -597,7 +604,8 @@ isadora =
     name: "Isadora",
     age: 21,
     gender: :female,
-    biography: "Dançarina de ballet e estudante. Perfeccionista desde criança. Meu corpo é meu instrumento.",
+    biography:
+      "Dançarina de ballet e estudante. Perfeccionista desde criança. Meu corpo é meu instrumento.",
     personality: %{
       openness: 0.75,
       conscientiousness: 0.95,
@@ -622,7 +630,8 @@ carmen =
     name: "Carmen",
     age: 55,
     gender: :female,
-    biography: "Dona de restaurante tradicional. Viúva há 5 anos. Meus filhos cresceram, agora é minha vez.",
+    biography:
+      "Dona de restaurante tradicional. Viúva há 5 anos. Meus filhos cresceram, agora é minha vez.",
     personality: %{
       openness: 0.5,
       conscientiousness: 0.8,
@@ -667,10 +676,26 @@ jorge =
 
 # Lista de todos os avatares para referência
 all_avatars = [
-  sofia, arthur, lucas, zara, gael, valentina,
-  clara, leo, marina, bento, helena, rafael,
-  igor, diana, tiago, luna, pedro, isadora,
-  carmen, jorge
+  sofia,
+  arthur,
+  lucas,
+  zara,
+  gael,
+  valentina,
+  clara,
+  leo,
+  marina,
+  bento,
+  helena,
+  rafael,
+  igor,
+  diana,
+  tiago,
+  luna,
+  pedro,
+  isadora,
+  carmen,
+  jorge
 ]
 
 IO.puts("   ✅ #{length(all_avatars)} avatares criados")
@@ -923,49 +948,198 @@ IO.puts("   ✅ Grafo social tecido")
 IO.puts("🧠 Implantando memórias...")
 
 # Sofia
-implant_memory.(sofia, "Arthur me disse que eu era emocionalmente imatura. Doeu muito.", :interaction, 0.9, [-0.7, 0.5, -0.4])
-implant_memory.(sofia, "Lucas sempre me traz café no hospital. Ele é tão atencioso.", :interaction, 0.7, [0.6, 0.3, 0.1])
-implant_memory.(sofia, "Me formei em enfermagem. O dia mais orgulhoso da minha vida.", :milestone, 0.95, [0.9, 0.7, 0.5])
+implant_memory.(
+  sofia,
+  "Arthur me disse que eu era emocionalmente imatura. Doeu muito.",
+  :interaction,
+  0.9,
+  [-0.7, 0.5, -0.4]
+)
+
+implant_memory.(
+  sofia,
+  "Lucas sempre me traz café no hospital. Ele é tão atencioso.",
+  :interaction,
+  0.7,
+  [0.6, 0.3, 0.1]
+)
+
+implant_memory.(
+  sofia,
+  "Me formei em enfermagem. O dia mais orgulhoso da minha vida.",
+  :milestone,
+  0.95,
+  [0.9, 0.7, 0.5]
+)
 
 # Arthur
-implant_memory.(arthur, "Sofia tentou me abraçar em público. Detesto invasão de espaço.", :interaction, 0.8, [-0.4, 0.6, 0.2])
-implant_memory.(arthur, "Defendi minha tese de doutorado. Finalmente Dr. Arthur.", :milestone, 0.9, [0.7, 0.5, 0.8])
-implant_memory.(arthur, "Meu pai morreu quando eu tinha 15 anos. Nunca superei.", :emotional_peak, 1.0, [-0.9, -0.2, -0.6])
+implant_memory.(
+  arthur,
+  "Sofia tentou me abraçar em público. Detesto invasão de espaço.",
+  :interaction,
+  0.8,
+  [-0.4, 0.6, 0.2]
+)
+
+implant_memory.(
+  arthur,
+  "Defendi minha tese de doutorado. Finalmente Dr. Arthur.",
+  :milestone,
+  0.9,
+  [0.7, 0.5, 0.8]
+)
+
+implant_memory.(
+  arthur,
+  "Meu pai morreu quando eu tinha 15 anos. Nunca superei.",
+  :emotional_peak,
+  1.0,
+  [-0.9, -0.2, -0.6]
+)
 
 # Lucas
-implant_memory.(lucas, "Vi Sofia chorando no plantão. Queria abraçá-la mas não tive coragem.", :interaction, 0.85, [0.3, 0.5, -0.3])
-implant_memory.(lucas, "Salvei uma criança de parada cardíaca. Isso é por isso que faço medicina.", :milestone, 0.95, [0.8, 0.8, 0.7])
+implant_memory.(
+  lucas,
+  "Vi Sofia chorando no plantão. Queria abraçá-la mas não tive coragem.",
+  :interaction,
+  0.85,
+  [0.3, 0.5, -0.3]
+)
+
+implant_memory.(
+  lucas,
+  "Salvei uma criança de parada cardíaca. Isso é por isso que faço medicina.",
+  :milestone,
+  0.95,
+  [0.8, 0.8, 0.7]
+)
 
 # Zara
-implant_memory.(zara, "Fechei rodada de Series B. R$50 milhões. Eles duvidaram, eu venci.", :milestone, 1.0, [0.9, 0.9, 0.95])
-implant_memory.(zara, "Gael é um bajulador óbvio. Útil, mas descartável.", :reflection, 0.6, [0.0, 0.3, 0.8])
-implant_memory.(zara, "Rafael terminou comigo por mensagem. Homens são todos iguais.", :interaction, 0.85, [-0.6, 0.7, 0.4])
+implant_memory.(
+  zara,
+  "Fechei rodada de Series B. R$50 milhões. Eles duvidaram, eu venci.",
+  :milestone,
+  1.0,
+  [0.9, 0.9, 0.95]
+)
+
+implant_memory.(zara, "Gael é um bajulador óbvio. Útil, mas descartável.", :reflection, 0.6, [
+  0.0,
+  0.3,
+  0.8
+])
+
+implant_memory.(
+  zara,
+  "Rafael terminou comigo por mensagem. Homens são todos iguais.",
+  :interaction,
+  0.85,
+  [-0.6, 0.7, 0.4]
+)
 
 # Clara
-implant_memory.(clara, "Compus minha primeira sinfonia. Chorei por horas depois.", :milestone, 0.95, [0.5, 0.3, 0.4])
-implant_memory.(clara, "Vi Leo sorrindo na praia. Meu coração parou.", :interaction, 0.9, [0.7, 0.8, -0.5])
-implant_memory.(clara, "Minha mãe me disse que artista não é profissão.", :emotional_peak, 0.85, [-0.8, 0.4, -0.6])
+implant_memory.(
+  clara,
+  "Compus minha primeira sinfonia. Chorei por horas depois.",
+  :milestone,
+  0.95,
+  [0.5, 0.3, 0.4]
+)
+
+implant_memory.(clara, "Vi Leo sorrindo na praia. Meu coração parou.", :interaction, 0.9, [
+  0.7,
+  0.8,
+  -0.5
+])
+
+implant_memory.(clara, "Minha mãe me disse que artista não é profissão.", :emotional_peak, 0.85, [
+  -0.8,
+  0.4,
+  -0.6
+])
 
 # Leo
-implant_memory.(leo, "Fotografei aurora boreal na Islândia. Melhor momento da vida.", :milestone, 0.95, [0.95, 0.6, 0.3])
-implant_memory.(leo, "Valentina me emprestou dinheiro quando quebrei. Nunca vou esquecer.", :interaction, 0.9, [0.7, 0.3, 0.0])
+implant_memory.(
+  leo,
+  "Fotografei aurora boreal na Islândia. Melhor momento da vida.",
+  :milestone,
+  0.95,
+  [0.95, 0.6, 0.3]
+)
+
+implant_memory.(
+  leo,
+  "Valentina me emprestou dinheiro quando quebrei. Nunca vou esquecer.",
+  :interaction,
+  0.9,
+  [0.7, 0.3, 0.0]
+)
 
 # Igor
-implant_memory.(igor, "Ganhei minha primeira luta profissional por nocaute.", :milestone, 0.95, [0.8, 0.9, 0.9])
-implant_memory.(igor, "Diana me chamou de primitivo. Vou lembrar disso.", :interaction, 0.8, [-0.7, 0.9, 0.6])
-implant_memory.(igor, "Meu pai me batia quando criança. Prometi que nunca seria fraco.", :emotional_peak, 1.0, [-0.8, 0.7, -0.4])
+implant_memory.(igor, "Ganhei minha primeira luta profissional por nocaute.", :milestone, 0.95, [
+  0.8,
+  0.9,
+  0.9
+])
+
+implant_memory.(igor, "Diana me chamou de primitivo. Vou lembrar disso.", :interaction, 0.8, [
+  -0.7,
+  0.9,
+  0.6
+])
+
+implant_memory.(
+  igor,
+  "Meu pai me batia quando criança. Prometi que nunca seria fraco.",
+  :emotional_peak,
+  1.0,
+  [-0.8, 0.7, -0.4]
+)
 
 # Helena
-implant_memory.(helena, "Ajudei uma paciente a superar trauma de 20 anos. Por isso amo meu trabalho.", :milestone, 0.9, [0.8, 0.4, 0.6])
-implant_memory.(helena, "Bento me ensinou que silêncio também é resposta.", :reflection, 0.7, [0.5, -0.3, 0.2])
+implant_memory.(
+  helena,
+  "Ajudei uma paciente a superar trauma de 20 anos. Por isso amo meu trabalho.",
+  :milestone,
+  0.9,
+  [0.8, 0.4, 0.6]
+)
+
+implant_memory.(helena, "Bento me ensinou que silêncio também é resposta.", :reflection, 0.7, [
+  0.5,
+  -0.3,
+  0.2
+])
 
 # Carmen
-implant_memory.(carmen, "Meu marido morreu há 5 anos. Ainda sinto falta do cheiro dele.", :emotional_peak, 1.0, [-0.7, -0.4, -0.5])
-implant_memory.(carmen, "Abri o restaurante com minhas economias. Meu sonho realizado.", :milestone, 0.95, [0.8, 0.5, 0.7])
+implant_memory.(
+  carmen,
+  "Meu marido morreu há 5 anos. Ainda sinto falta do cheiro dele.",
+  :emotional_peak,
+  1.0,
+  [-0.7, -0.4, -0.5]
+)
+
+implant_memory.(
+  carmen,
+  "Abri o restaurante com minhas economias. Meu sonho realizado.",
+  :milestone,
+  0.95,
+  [0.8, 0.5, 0.7]
+)
 
 # Jorge
-implant_memory.(jorge, "Toquei com Tom Jobim em 1985. Maior honra da carreira.", :milestone, 1.0, [0.9, 0.6, 0.5])
-implant_memory.(jorge, "Carmen me faz lembrar de ser jovem novamente.", :reflection, 0.8, [0.7, 0.4, 0.3])
+implant_memory.(jorge, "Toquei com Tom Jobim em 1985. Maior honra da carreira.", :milestone, 1.0, [
+  0.9,
+  0.6,
+  0.5
+])
+
+implant_memory.(jorge, "Carmen me faz lembrar de ser jovem novamente.", :reflection, 0.8, [
+  0.7,
+  0.4,
+  0.3
+])
 
 IO.puts("   ✅ Memórias implantadas")
 

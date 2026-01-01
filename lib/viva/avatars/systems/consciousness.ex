@@ -339,8 +339,8 @@ defmodule Viva.Avatars.Systems.Consciousness do
     presence_desc = presence_description(consciousness.presence_level)
     tempo_desc = tempo_description(consciousness.stream_tempo)
 
+    # Handle both atom and string keys (Ecto serialization converts atoms to strings)
     focal_desc =
-      # Handle both atom and string keys (Ecto serialization converts atoms to strings)
       case consciousness.focal_content do
         %{content: %{narrative: n}} when is_binary(n) -> n
         %{"content" => %{"narrative" => n}} when is_binary(n) -> n

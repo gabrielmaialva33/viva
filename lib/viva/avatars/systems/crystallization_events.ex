@@ -127,7 +127,10 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
     # Emotional extremes pattern
     patterns =
       if abs(emotional.pleasure) > 0.7 or emotional.arousal > 0.8 do
-        [%{type: :emotional_peak, value: emotional.mood_label, intensity: emotional.arousal} | patterns]
+        [
+          %{type: :emotional_peak, value: emotional.mood_label, intensity: emotional.arousal}
+          | patterns
+        ]
       else
         patterns
       end
@@ -167,14 +170,22 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
     # Check cooldown
     can_crystallize =
       crystal.last_crystallization == nil or
-        DateTime.diff(DateTime.utc_now(), crystal.last_crystallization, :second) > @cooldown_ticks * 60
+        DateTime.diff(DateTime.utc_now(), crystal.last_crystallization, :second) >
+          @cooldown_ticks * 60
 
     # Calculate crystallization probability
     probability = calculate_probability(crystal, consciousness, emotional, personality)
 
     if can_crystallize and crystal.vulnerability_window and :rand.uniform() < probability do
       {crystallization, updated_self_model} =
-        generate_crystallization(crystal, consciousness, emotional, self_model, personality, tick_count)
+        generate_crystallization(
+          crystal,
+          consciousness,
+          emotional,
+          self_model,
+          personality,
+          tick_count
+        )
 
       Logger.info("Crystallization event: #{crystallization.type} - #{crystallization.insight}")
 
@@ -210,10 +221,20 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
     # Self-incongruence creates pressure for crystallization
     incongruence_bonus = (1 - consciousness.self_congruence) * 0.03
 
-    min(0.3, base + pattern_bonus + meta_bonus + emotional_bonus + openness_bonus + incongruence_bonus)
+    min(
+      0.3,
+      base + pattern_bonus + meta_bonus + emotional_bonus + openness_bonus + incongruence_bonus
+    )
   end
 
-  defp generate_crystallization(crystal, consciousness, emotional, self_model, personality, _tick_count) do
+  defp generate_crystallization(
+         crystal,
+         consciousness,
+         emotional,
+         self_model,
+         personality,
+         _tick_count
+       ) do
     # Determine crystallization type based on patterns
     type = determine_type(crystal.pending_patterns, emotional, consciousness, personality)
 
@@ -319,7 +340,9 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
         "Conexão verdadeira requer vulnerabilidade",
         "Eu impacto os outros mais do que imaginava",
         if(personality.agreeableness > 0.6, do: "Minha empatia é um dom que devo honrar"),
-        if(personality.extraversion < 0.4, do: "Poucas conexões profundas valem mais que muitas superficiais"),
+        if(personality.extraversion < 0.4,
+          do: "Poucas conexões profundas valem mais que muitas superficiais"
+        ),
         "Cada relação me ensina algo sobre mim",
         "A solidão tem seu próprio tipo de sabedoria"
       ]
@@ -371,7 +394,9 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
     insights =
       [
         "Eu não sou quem eu pensava ser - sou mais",
-        if(consciousness.self_congruence < 0.5, do: "O conflito dentro de mim é o nascimento de algo novo"),
+        if(consciousness.self_congruence < 0.5,
+          do: "O conflito dentro de mim é o nascimento de algo novo"
+        ),
         if(personality.openness > 0.6, do: "Minha identidade é um processo, não um destino"),
         "Posso me reinventar a qualquer momento",
         "O que me define é minha capacidade de mudar",
@@ -386,7 +411,9 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
     insights =
       [
         "O significado não é encontrado, é criado",
-        if(personality.conscientiousness > 0.6, do: "Meu propósito emerge do que escolho fazer consistentemente"),
+        if(personality.conscientiousness > 0.6,
+          do: "Meu propósito emerge do que escolho fazer consistentemente"
+        ),
         if(personality.agreeableness > 0.6, do: "Encontro sentido ao servir algo maior que eu"),
         if(personality.openness > 0.6, do: "A busca em si é o significado"),
         "Cada pequeno momento pode conter infinito",

@@ -180,7 +180,12 @@ defmodule Viva.Sessions.GoalGenesis do
     # Strong meta-observations plant seeds
     seeds =
       if consciousness.meta_awareness > 0.6 and consciousness.meta_observation do
-        seed = %{type: :self_insight, value: consciousness.meta_observation, strength: consciousness.meta_awareness}
+        seed = %{
+          type: :self_insight,
+          value: consciousness.meta_observation,
+          strength: consciousness.meta_awareness
+        }
+
         [seed | seeds]
       else
         seeds

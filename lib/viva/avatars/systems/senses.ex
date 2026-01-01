@@ -117,10 +117,14 @@ defmodule Viva.Avatars.Systems.Senses do
   # STRENGTHENED: Lower threshold and stronger effect for better RPT alignment
   defp arousal_attention_feedback(arousal) do
     cond do
-      arousal > 0.3 -> 1.2 + (arousal - 0.3) * 0.8  # High arousal boosts attention 1.2-1.76x
-      arousal > 0.0 -> 1.0 + arousal * 0.3          # Positive arousal gives moderate boost
-      arousal < -0.3 -> 0.6 + (arousal + 0.3) * 0.5 # Low arousal dampens attention
-      true -> 0.95  # Slightly below neutral to create contrast
+      # High arousal boosts attention 1.2-1.76x
+      arousal > 0.3 -> 1.2 + (arousal - 0.3) * 0.8
+      # Positive arousal gives moderate boost
+      arousal > 0.0 -> 1.0 + arousal * 0.3
+      # Low arousal dampens attention
+      arousal < -0.3 -> 0.6 + (arousal + 0.3) * 0.5
+      # Slightly below neutral to create contrast
+      true -> 0.95
     end
   end
 
@@ -162,7 +166,8 @@ defmodule Viva.Avatars.Systems.Senses do
 
     (base_salience + emotional_boost + threat_boost + novelty_boost + focus_boost + arousal_boost)
     |> min(1.0)
-    |> max(0.2)  # Minimum salience floor to ensure some attention
+    # Minimum salience floor to ensure some attention
+    |> max(0.2)
   end
 
   @doc """
@@ -451,7 +456,9 @@ defmodule Viva.Avatars.Systems.Senses do
     # ENHANCED: High arousal intensifies both positive and negative
     arousal_amplifier = 1.0 + abs(emotional.arousal) * 0.3
 
-    raw_pleasure = base_valence + mood_factor + personality_baseline + type_pleasure + micro_fluctuation
+    raw_pleasure =
+      base_valence + mood_factor + personality_baseline + type_pleasure + micro_fluctuation
+
     (raw_pleasure * arousal_amplifier)
     |> max(-1.0)
     |> min(1.0)
@@ -492,14 +499,16 @@ defmodule Viva.Avatars.Systems.Senses do
     # Negative mood amplifies pain
     mood_amplifier = if emotional.pleasure < 0, do: 1.2, else: 1.0
 
-    ((threat_pain + valence_pain + overwhelm_pain + need_pain + micro_fluctuation) * sensitivity * mood_amplifier)
+    ((threat_pain + valence_pain + overwhelm_pain + need_pain + micro_fluctuation) * sensitivity *
+       mood_amplifier)
     |> min(1.0)
     |> max(0.0)
   end
 
   # Certain stimulus types cause discomfort for certain personalities
   defp stimulus_need_pain(%{type: :social}, p) when p.extraversion < 0.3, do: 0.15
-  defp stimulus_need_pain(%{type: :ambient}, p) when p.openness > 0.7, do: 0.1  # Boredom pain
+  # Boredom pain
+  defp stimulus_need_pain(%{type: :ambient}, p) when p.openness > 0.7, do: 0.1
   defp stimulus_need_pain(_, _), do: 0.0
 
   @doc """
@@ -603,11 +612,12 @@ defmodule Viva.Avatars.Systems.Senses do
 
     personality_summary = summarize_personality(personality)
 
-    valence_word = cond do
-      valence > 0 -> "positiva"
-      valence < 0 -> "negativa"
-      true -> "neutra"
-    end
+    valence_word =
+      cond do
+        valence > 0 -> "positiva"
+        valence < 0 -> "negativa"
+        true -> "neutra"
+      end
 
     """
     Gere uma breve descrição sensorial (1-2 frases) em primeira pessoa de uma experiência.

@@ -35,14 +35,21 @@ defmodule Viva.Sessions.StimulusGathering do
   # === Private Functions ===
 
   defp determine_type(state) do
-    base_type = cond do
-      state.current_conversation -> :social
-      state.owner_online? -> :social_ambient
-      state.state.current_activity == :sleeping -> :rest
-      true ->
-        # DYNAMIC: Vary ambient type based on internal state for richer experience
-        generate_dynamic_ambient_type(state)
-    end
+    base_type =
+      cond do
+        state.current_conversation ->
+          :social
+
+        state.owner_online? ->
+          :social_ambient
+
+        state.state.current_activity == :sleeping ->
+          :rest
+
+        true ->
+          # DYNAMIC: Vary ambient type based on internal state for richer experience
+          generate_dynamic_ambient_type(state)
+      end
 
     # RECURRENT PROCESSING: Desire feeds back into perception type
     # When strongly wanting something, attention naturally shifts toward related stimuli
@@ -90,7 +97,8 @@ defmodule Viva.Sessions.StimulusGathering do
         state.current_conversation -> 0.7
         state.owner_online? -> 0.6
         state.state.current_activity == :sleeping -> 0.2
-        true -> 0.45  # INCREASED base ambient intensity
+        # INCREASED base ambient intensity
+        true -> 0.45
       end
 
     # Modulate by arousal

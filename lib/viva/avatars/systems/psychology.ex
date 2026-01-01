@@ -26,12 +26,14 @@ defmodule Viva.Avatars.Systems.Psychology do
     macro_fluctuation = (:rand.uniform() - 0.5) * 0.6
 
     # Apply sensitivity and fluctuation
-    pleasure = (raw_pleasure * emotional_sensitivity) + macro_fluctuation
+    pleasure = raw_pleasure * emotional_sensitivity + macro_fluctuation
 
     # Arousal calculation with amplification
     raw_arousal = bio.dopamine + bio.libido + bio.cortisol - bio.adenosine
-    arousal = raw_arousal * (1.0 + personality.extraversion * 0.3) +
-              (:rand.uniform() - 0.5) * 0.15
+
+    arousal =
+      raw_arousal * (1.0 + personality.extraversion * 0.3) +
+        (:rand.uniform() - 0.5) * 0.15
 
     # Dominance is boosted by Testosterone (not yet impl) or Confidence (Low Cortisol)
     dominance = 1.0 - bio.cortisol + personality.extraversion * 0.5

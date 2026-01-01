@@ -409,7 +409,9 @@ defmodule Viva.Sessions.LifeProcess do
 
     # Log crystallization if it occurred
     if maybe_crystal do
-      Logger.info("🔮 Avatar #{avatar.name} had crystallization: #{maybe_crystal.type} - #{maybe_crystal.insight}")
+      Logger.info(
+        "🔮 Avatar #{avatar.name} had crystallization: #{maybe_crystal.type} - #{maybe_crystal.insight}"
+      )
     end
 
     # 12.9. SOCIAL DYNAMICS: Theory of Mind and social cognition
