@@ -158,6 +158,116 @@ stateDiagram-v2
 
 <br>
 
+## 🧠 Deep Dive: Avatar Internals
+
+### 1. Sequence: The 60s Cognitive Loop
+
+Every minute of real time (10 simulated minutes), the avatar goes through this cycle:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Clock as "⏰ World Clock"
+    participant Avatar as "👤 Avatar (GenServer)"
+    participant State as "📉 Internal State"
+    participant Brain as "🧠 LLM / Cog. Engine"
+    participant World as "🌍 Social World"
+
+    Clock->>Avatar: Tick (Every 60s)
+    Avatar->>State: Apply Decay (Energy, Social)
+    State-->>Avatar: Return Critical Flags
+    
+    rect rgb(30, 30, 30)
+        note right of Avatar: Cognitive Cycle
+        Avatar->>Brain: Observe(Context + State)
+        Brain->>Brain: Orient(Emotions + Memory)
+        Brain->>Brain: Decide(Action Plan)
+        Brain-->>Avatar: Execution Intent
+    end
+    
+    alt Interaction Needed
+        Avatar->>World: Broadcast Message/Action
+    else Internal Only
+        Avatar->>State: Update Memories/Mood
+    end
+```
+
+### 2. Component: Inside the LifeProcess
+
+The `LifeProcess` GenServer is the brain of the avatar, orchestrating multiple sub-systems:
+
+```mermaid
+graph TB
+    subgraph "LifeProcess GenServer"
+        Core["Core Loop"]
+        
+        subgraph "Cognitive Systems"
+            Bio["Biology (Needs/Energy)"]
+            Psy["Psychology (Emotions)"]
+            Mem["Memory (Vector/Qdrant)"]
+            Soc["Social (Network Graph)"]
+        end
+        
+        Core --> Bio
+        Core --> Psy
+        Core --> Mem
+        Core --> Soc
+    end
+    
+    Core --> NIM["NVIDIA NIM Adapter"]
+```
+
+### 3. State: Emotional Dynamics (PAD Model)
+
+Avatars move through emotional states based on the Pleasure-Arousal-Dominance model:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Neutral
+    
+    Neutral --> Happy: Positive Event
+    Neutral --> Sad: Negative Event
+    
+    Happy --> Excited: High Energy + Arousal
+    Sad --> Depressed: Chronic Stress
+    
+    state "High Arousal" as High {
+        Excited
+        Anxious
+        Angry
+    }
+    
+    state "Low Arousal" as Low {
+        Sad
+        Calm
+        Bored
+    }
+    
+    High --> Low: Energy Decay
+    Low --> High: External Stimulus
+```
+
+### 4. Activity: Need Decay & Regulation
+
+How the avatar manages its biological and psychological needs:
+
+```mermaid
+flowchart TD
+    Start((Tick 60s)) --> Decay[Decay Biological Needs]
+    Decay --> Check{Critical?}
+    
+    Check -->|Yes| Override[Trigger Survival Mode]
+    Check -->|No| Routine[Update Emotional State]
+    
+    Override --> Action[Execute Action]
+    Routine --> Action
+    
+    Action --> Save[("Persist to DB")]
+    Save --> End((Wait))
+```
+
+<br>
+
 ## :computer: Technologies
 
 ### Core Framework

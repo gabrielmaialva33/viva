@@ -158,6 +158,116 @@ stateDiagram-v2
 
 <br>
 
+## 🧠 Aprofundando: Internals do Avatar
+
+### 1. Sequência: O Loop Cognitivo de 60s
+
+A cada minuto de tempo real (10 minutos simulados), o avatar passa por este ciclo:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Clock as "⏰ World Clock"
+    participant Avatar as "👤 Avatar (GenServer)"
+    participant State as "📉 Estado Interno"
+    participant Brain as "🧠 LLM / Cog. Engine"
+    participant World as "🌍 Mundo Social"
+
+    Clock->>Avatar: Tick (A cada 60s)
+    Avatar->>State: Aplicar Decaimento (Energia, Social)
+    State-->>Avatar: Retornar Flags Críticas
+    
+    rect rgb(30, 30, 30)
+        note right of Avatar: Ciclo Cognitivo
+        Avatar->>Brain: Observar(Contexto + Estado)
+        Brain->>Brain: Orientar(Emoções + Memória)
+        Brain->>Brain: Decidir(Plano de Ação)
+        Brain-->>Avatar: Intenção de Execução
+    end
+    
+    alt Interação Necessária
+        Avatar->>World: Transmitir Mensagem/Ação
+    else Apenas Interno
+        Avatar->>State: Atualizar Memórias/Humor
+    end
+```
+
+### 2. Componente: Dentro do LifeProcess
+
+O GenServer `LifeProcess` é o cérebro do avatar, orquestrando múltiplos subsistemas:
+
+```mermaid
+graph TB
+    subgraph "LifeProcess GenServer"
+        Core["Loop Central"]
+        
+        subgraph "Sistemas Cognitivos"
+            Bio["Biologia (Necessidades)"]
+            Psy["Psicologia (Emoções)"]
+            Mem["Memória (Vetorial/Qdrant)"]
+            Soc["Social (Grafo)"]
+        end
+        
+        Core --> Bio
+        Core --> Psy
+        Core --> Mem
+        Core --> Soc
+    end
+    
+    Core --> NIM["Adaptador NVIDIA NIM"]
+```
+
+### 3. Estado: Dinâmica Emocional (Modelo PAD)
+
+Avatares transitam por estados emocionais baseados no modelo Prazer-Excitação-Dominância:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Neutro
+    
+    Neutro --> Feliz: Evento Positivo
+    Neutro --> Triste: Evento Negativo
+    
+    Feliz --> Empolgado: Alta Energia + Excitação
+    Triste --> Deprimido: Estresse Crônico
+    
+    state "Alta Excitação" as High {
+        Empolgado
+        Ansioso
+        Raivoso
+    }
+    
+    state "Baixa Excitação" as Low {
+        Triste
+        Calmo
+        Entediado
+    }
+    
+    High --> Low: Decaimento de Energia
+    Low --> High: Estímulo Externo
+```
+
+### 4. Atividade: Decaimento e Regulação de Necessidades
+
+Como o avatar gerencia suas necessidades biológicas e psicológicas:
+
+```mermaid
+flowchart TD
+    Start((Tick 60s)) --> Decay[Decair Necessidades]
+    Decay --> Check{Crítico?}
+    
+    Check -->|Sim| Override[Ativar Modo Sobrevivência]
+    Check -->|Não| Routine[Atualizar Estado Emocional]
+    
+    Override --> Action[Executar Ação]
+    Routine --> Action
+    
+    Action --> Save[("Persistir no BD")]
+    Save --> End((Aguardar))
+```
+
+<br>
+
 ## :computer: Tecnologias
 
 ### Framework Central
