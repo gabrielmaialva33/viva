@@ -104,7 +104,7 @@ graph TD
         subgraph "Núcleo de Simulação"
             Sup[⚙️ Session Supervisor]
             Reg[📖 Avatar Registry]
-            Life[🧠 LifeProcess (GenServer)]
+            Life["🧠 LifeProcess (GenServer)"]
         end
         
         subgraph "Serviços de Inteligência"
