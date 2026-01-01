@@ -5,7 +5,7 @@
 
 alias Viva.Repo
 alias Viva.Avatars.Avatar
-alias Viva.Avatars.{BioState, EmotionalState, Personality, SensoryState, AllostasisState, ConsciousnessState, SomaticMarkersState}
+alias Viva.Avatars.{BioState, Personality, SensoryState, ConsciousnessState, SomaticMarkersState}
 alias Viva.Avatars.Systems.{Biology, Psychology, Senses, RecurrentProcessor, Consciousness}
 import Ecto.Query
 
@@ -168,12 +168,14 @@ defmodule SentienceTest do
 
     {rec_sensory, rec_emotional, rec_bio, new_recurrent_ctx} =
       RecurrentProcessor.process_cycle(
-        new_sensory,
-        modulated_emotional,
-        state.consciousness,
-        bio_after_tick,
-        state.somatic,
-        personality,
+        %{
+          sensory: new_sensory,
+          emotional: modulated_emotional,
+          consciousness: state.consciousness,
+          bio: bio_after_tick,
+          somatic: state.somatic,
+          personality: personality
+        },
         state.recurrent_ctx
       )
 

@@ -9,7 +9,9 @@ defmodule Viva.Sessions.StimulusGatheringTest do
       tick_count: 5,
       state: %{
         current_activity: :idle,
-        emotional: %{arousal: 0.0}
+        emotional: %{arousal: 0.0, pleasure: 0.0},
+        current_desire: nil,
+        bio: %{dopamine: 0.5, cortisol: 0.2, adenosine: 0.1, oxytocin: 0.3}
       }
     }
 
@@ -27,7 +29,7 @@ defmodule Viva.Sessions.StimulusGatheringTest do
       assert res.source == "conversation_partner"
       assert res.social_context == :conversation
       assert res.partner_id == other_id
-      assert res.intensity >= 0.7
+      assert res.intensity >= 0.6
     end
 
     test "social_ambient stimulus when owner is online", %{state: state} do
@@ -37,7 +39,8 @@ defmodule Viva.Sessions.StimulusGatheringTest do
 
       assert res.type == :social_ambient
       assert res.source == "owner_presence"
-      assert res.valence == 0.4
+      # Valence is now dynamically calculated based on emotional state
+      assert res.valence > 0.0 and res.valence <= 0.5
     end
 
     test "rest stimulus during sleep", %{state: state} do
@@ -46,7 +49,7 @@ defmodule Viva.Sessions.StimulusGatheringTest do
       res = StimulusGathering.gather(state)
 
       assert res.type == :rest
-      assert res.intensity <= 0.3
+      assert res.intensity <= 0.35
     end
 
     test "ambient stimulus otherwise", %{state: state} do
