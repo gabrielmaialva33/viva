@@ -153,7 +153,7 @@ defmodule Viva.Sessions.GoalGenesis do
     %{
       genesis
       | active_goals: remaining,
-        goal_history: (completed ++ genesis.goal_history) |> Enum.take(10)
+        goal_history: Enum.take(completed ++ genesis.goal_history, 10)
     }
   end
 
@@ -166,45 +166,47 @@ defmodule Viva.Sessions.GoalGenesis do
   end
 
   defp collect_aspiration_seeds(genesis, consciousness, emotional, motivation) do
-    seeds = []
-
-    # High pleasure experiences plant seeds
-    seeds =
-      if emotional.pleasure > 0.6 do
-        seed = %{type: :pleasure_pattern, value: emotional.mood_label, strength: emotional.pleasure}
-        [seed | seeds]
-      else
-        seeds
-      end
-
-    # Strong meta-observations plant seeds
-    seeds =
-      if consciousness.meta_awareness > 0.6 and consciousness.meta_observation do
-        seed = %{
-          type: :self_insight,
-          value: consciousness.meta_observation,
-          strength: consciousness.meta_awareness
-        }
-
-        [seed | seeds]
-      else
-        seeds
-      end
-
-    # Urgent drives plant seeds
     urgent_drive = get_urgent_drive(motivation)
 
-    seeds =
-      if urgent_drive do
-        seed = %{type: :recurring_need, value: urgent_drive, strength: 0.7}
-        [seed | seeds]
-      else
-        seeds
-      end
+    new_seeds =
+      []
+      |> maybe_add_pleasure_seed(emotional)
+      |> maybe_add_insight_seed(consciousness)
+      |> maybe_add_drive_seed(urgent_drive)
+      |> Kernel.++(genesis.aspiration_seeds)
+      |> Enum.take(20)
 
-    # Keep only recent seeds (last 20)
-    new_seeds = (seeds ++ genesis.aspiration_seeds) |> Enum.take(20)
     %{genesis | aspiration_seeds: new_seeds}
+  end
+
+  defp maybe_add_pleasure_seed(seeds, emotional) do
+    if emotional.pleasure > 0.6 do
+      seed = %{type: :pleasure_pattern, value: emotional.mood_label, strength: emotional.pleasure}
+      [seed | seeds]
+    else
+      seeds
+    end
+  end
+
+  defp maybe_add_insight_seed(seeds, consciousness) do
+    if consciousness.meta_awareness > 0.6 and consciousness.meta_observation do
+      seed = %{
+        type: :self_insight,
+        value: consciousness.meta_observation,
+        strength: consciousness.meta_awareness
+      }
+
+      [seed | seeds]
+    else
+      seeds
+    end
+  end
+
+  defp maybe_add_drive_seed(seeds, nil), do: seeds
+
+  defp maybe_add_drive_seed(seeds, urgent_drive) do
+    seed = %{type: :recurring_need, value: urgent_drive, strength: 0.7}
+    [seed | seeds]
   end
 
   defp maybe_generate_goal(genesis, consciousness, emotional, motivation, personality, tick_count) do
@@ -262,7 +264,7 @@ defmodule Viva.Sessions.GoalGenesis do
 
   defp determine_source(genesis, consciousness, emotional, personality) do
     # Weight sources based on current state
-    weights = [
+    base_weights = [
       {:personality_aspiration, personality.openness * 0.3 + personality.conscientiousness * 0.2},
       {:experience_pattern, if(length(genesis.aspiration_seeds) > 3, do: 0.3, else: 0.1)},
       {:recurring_need, 0.25},
@@ -271,10 +273,10 @@ defmodule Viva.Sessions.GoalGenesis do
     ]
 
     # Emotional state modulates
-    weights =
+    final_weights =
       if emotional.pleasure < -0.3 do
         # When unhappy, more likely to seek change
-        Enum.map(weights, fn {source, w} ->
+        Enum.map(base_weights, fn {source, w} ->
           if source in [:self_improvement, :curiosity_spark] do
             {source, w * 1.5}
           else
@@ -282,15 +284,15 @@ defmodule Viva.Sessions.GoalGenesis do
           end
         end)
       else
-        weights
+        base_weights
       end
 
     # Weighted random selection
-    total = Enum.reduce(weights, 0.0, fn {_, w}, acc -> acc + w end)
+    total = Enum.reduce(final_weights, 0.0, fn {_, w}, acc -> acc + w end)
     roll = :rand.uniform() * total
 
     {source, _} =
-      Enum.reduce_while(weights, {nil, 0.0}, fn {source, w}, {_, cumulative} ->
+      Enum.reduce_while(final_weights, {nil, 0.0}, fn {source, w}, {_, cumulative} ->
         new_cumulative = cumulative + w
 
         if roll <= new_cumulative do
@@ -306,46 +308,50 @@ defmodule Viva.Sessions.GoalGenesis do
   defp generate_personality_goal(personality, tick_count) do
     # Goals based on Big Five traits
     goals =
-      [
-        if(personality.extraversion > 0.6,
-          do: {:social_expansion, "fazer novas conexões significativas", 0.7}
-        ),
-        if(personality.extraversion < 0.4,
-          do: {:solitude_mastery, "encontrar conforto na solidão", 0.6}
-        ),
-        if(personality.openness > 0.6,
-          do: {:creative_expression, "expressar algo único sobre mim", 0.75}
-        ),
-        if(personality.openness > 0.7,
-          do: {:knowledge_quest, "aprender algo profundamente novo", 0.8}
-        ),
-        if(personality.conscientiousness > 0.6,
-          do: {:self_discipline, "estabelecer uma rotina consistente", 0.65}
-        ),
-        if(personality.agreeableness > 0.6,
-          do: {:harmony_building, "criar harmonia nas relações", 0.7}
-        ),
-        if(personality.neuroticism > 0.6,
-          do: {:emotional_stability, "encontrar mais paz interior", 0.75}
-        )
-      ]
-      |> Enum.reject(&is_nil/1)
+      Enum.reject(
+        [
+          if(personality.extraversion > 0.6,
+            do: {:social_expansion, "fazer novas conexões significativas", 0.7}
+          ),
+          if(personality.extraversion < 0.4,
+            do: {:solitude_mastery, "encontrar conforto na solidão", 0.6}
+          ),
+          if(personality.openness > 0.6,
+            do: {:creative_expression, "expressar algo único sobre mim", 0.75}
+          ),
+          if(personality.openness > 0.7,
+            do: {:knowledge_quest, "aprender algo profundamente novo", 0.8}
+          ),
+          if(personality.conscientiousness > 0.6,
+            do: {:self_discipline, "estabelecer uma rotina consistente", 0.65}
+          ),
+          if(personality.agreeableness > 0.6,
+            do: {:harmony_building, "criar harmonia nas relações", 0.7}
+          ),
+          if(personality.neuroticism > 0.6,
+            do: {:emotional_stability, "encontrar mais paz interior", 0.75}
+          )
+        ],
+        &is_nil/1
+      )
 
-    if length(goals) > 0 do
-      {type, description, intensity} = Enum.random(goals)
+    case goals do
+      [] ->
+        nil
 
-      %{
-        id: "goal_#{tick_count}_#{:rand.uniform(1000)}",
-        type: type,
-        description: description,
-        source: :personality_aspiration,
-        intensity: intensity,
-        created_at: DateTime.utc_now(),
-        progress: 0.0,
-        active: true
-      }
-    else
-      nil
+      _ ->
+        {type, description, intensity} = Enum.random(goals)
+
+        %{
+          id: "goal_#{tick_count}_#{:rand.uniform(1000)}",
+          type: type,
+          description: description,
+          source: :personality_aspiration,
+          intensity: intensity,
+          created_at: DateTime.utc_now(),
+          progress: 0.0,
+          active: true
+        }
     end
   end
 
@@ -381,7 +387,7 @@ defmodule Viva.Sessions.GoalGenesis do
     end
   end
 
-  defp generate_need_goal(motivation, _personality, tick_count) do
+  defp generate_need_goal(motivation, _, tick_count) do
     urgent = get_urgent_drive(motivation)
 
     if urgent do

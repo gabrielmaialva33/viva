@@ -311,12 +311,14 @@ defmodule Viva.Sessions.LifeProcess do
 
     {recurrent_sensory, recurrent_emotional, recurrent_bio, new_recurrent_context} =
       RecurrentProcessor.process_cycle(
-        new_sensory,
-        new_emotional,
-        internal.consciousness,
-        regulated_bio,
-        updated_somatic,
-        avatar.personality,
+        %{
+          sensory: new_sensory,
+          emotional: new_emotional,
+          consciousness: internal.consciousness,
+          bio: regulated_bio,
+          somatic: updated_somatic,
+          personality: avatar.personality
+        },
         recurrent_ctx
       )
 
@@ -397,7 +399,7 @@ defmodule Viva.Sessions.LifeProcess do
     # 12.7. CRYSTALLIZATION EVENTS: Transformative moments (consciousness evolution)
     crystal_state = state.crystallization || CrystallizationEvents.init()
 
-    {new_crystallization, maybe_crystal, _updated_self_model} =
+    {new_crystallization, maybe_crystal, _} =
       CrystallizationEvents.process(
         crystal_state,
         metacog_consciousness,
@@ -470,76 +472,74 @@ defmodule Viva.Sessions.LifeProcess do
 
   # Gather social events from stimulus and current state for Theory of Mind processing
   defp gather_social_events(stimulus, state) do
-    events = []
+    []
+    |> maybe_add_stimulus_event(stimulus)
+    |> maybe_add_conversation_event(state)
+    |> maybe_add_owner_event(state)
+  end
 
-    # Check if stimulus has social content
-    events =
-      if stimulus && stimulus.type == :social do
-        other_id = stimulus.source || "unknown_avatar"
-        other_name = stimulus.data[:name] || "alguém"
+  defp maybe_add_stimulus_event(events, nil), do: events
 
-        event = %{
-          type: :message_received,
-          other_avatar_id: other_id,
-          content: %{
-            name: other_name,
-            sentiment: infer_sentiment(stimulus),
-            topic: stimulus.data[:topic],
-            significance: stimulus.intensity
-          },
-          timestamp: DateTime.utc_now()
-        }
+  defp maybe_add_stimulus_event(events, stimulus) do
+    if stimulus.type == :social do
+      other_id = stimulus.source || "unknown_avatar"
+      other_name = stimulus.data[:name] || "alguém"
 
-        [event | events]
-      else
-        events
-      end
+      event = %{
+        type: :message_received,
+        other_avatar_id: other_id,
+        content: %{
+          name: other_name,
+          sentiment: infer_sentiment(stimulus),
+          topic: stimulus.data[:topic],
+          significance: stimulus.intensity
+        },
+        timestamp: DateTime.utc_now()
+      }
 
-    # Check for observed emotions in context (e.g., from conversations)
-    events =
-      if state.current_conversation do
-        conv = state.current_conversation
-        other_id = conv[:other_avatar_id]
+      [event | events]
+    else
+      events
+    end
+  end
 
-        if other_id do
-          event = %{
-            type: :emotion_observed,
-            other_avatar_id: other_id,
-            content: %{
-              emotion: conv[:observed_emotion] || :calm,
-              arousal: conv[:observed_arousal] || 0.5
-            },
-            timestamp: DateTime.utc_now()
-          }
+  defp maybe_add_conversation_event(events, %{current_conversation: nil}), do: events
 
-          [event | events]
-        else
-          events
-        end
-      else
-        events
-      end
+  defp maybe_add_conversation_event(events, %{current_conversation: conv}) do
+    other_id = conv[:other_avatar_id]
 
-    # If owner is online, that's a social presence
-    events =
-      if state.owner_online? do
-        event = %{
-          type: :action_observed,
-          other_avatar_id: "owner",
-          content: %{
-            action: :approaching,
-            target: :self,
-            name: "meu dono"
-          },
-          timestamp: DateTime.utc_now()
-        }
+    if other_id do
+      event = %{
+        type: :emotion_observed,
+        other_avatar_id: other_id,
+        content: %{
+          emotion: conv[:observed_emotion] || :calm,
+          arousal: conv[:observed_arousal] || 0.5
+        },
+        timestamp: DateTime.utc_now()
+      }
 
-        [event | events]
-      else
-        events
-      end
+      [event | events]
+    else
+      events
+    end
+  end
 
-    events
+  defp maybe_add_owner_event(events, %{owner_online?: false}), do: events
+
+  defp maybe_add_owner_event(events, %{owner_online?: true}) do
+    event = %{
+      type: :action_observed,
+      other_avatar_id: "owner",
+      content: %{
+        action: :approaching,
+        target: :self,
+        name: "meu dono"
+      },
+      timestamp: DateTime.utc_now()
+    }
+
+    [event | events]
   end
 
   # Infer sentiment from stimulus for social processing
