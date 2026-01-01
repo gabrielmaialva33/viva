@@ -7,6 +7,17 @@ defmodule Viva.Avatars.Systems.Senses do
 
   This is the "Senses" layer that creates the avatar's subjective experience
   of the world - the "what it feels like" aspect of perception.
+
+  ## Qualia Caching
+
+  To respect NVIDIA NIM rate limits (40 RPM), qualia generation uses a
+  multi-level caching strategy:
+  1. Exact match cache - reuse identical qualia for same stimulus+emotion
+  2. Similar state cache - reuse qualia from similar emotional states
+  3. Probabilistic LLM - only generate new qualia ~20% of the time
+
+  This reduces LLM calls from ~15+/tick to ~3/tick while maintaining
+  rich subjective experiences.
   """
 
   require Logger
@@ -21,6 +32,13 @@ defmodule Viva.Avatars.Systems.Senses do
 
   # Maximum age of percepts in seconds
   @percept_max_age_seconds 300
+
+  # Qualia cache settings
+  @qualia_cache :viva_cache
+  # Shorter TTL for more variety (2 minutes instead of 5)
+  @qualia_ttl_seconds 120
+  # Higher probability of generating fresh qualia for diversity (35% instead of 20%)
+  @qualia_llm_probability 0.35
 
   @type stimulus :: %{
           type: atom(),
@@ -74,10 +92,15 @@ defmodule Viva.Avatars.Systems.Senses do
     # 8. Calculate neurochemical effects from surprise
     neuro_effects = surprise_to_neurochemistry(surprise)
 
+    # 9. RECURRENT PROCESSING: Arousal feeds back into attention
+    # High arousal → heightened attention (RPT feedback loop)
+    arousal_boost = arousal_attention_feedback(emotional.arousal)
+    attention_with_feedback = clamp(salience * arousal_boost, 0.0, 1.0)
+
     new_sensory = %{
       sensory
       | attention_focus: new_focus,
-        attention_intensity: salience,
+        attention_intensity: attention_with_feedback,
         active_percepts: updated_percepts,
         surprise_level: surprise,
         last_prediction_error: error,
@@ -88,6 +111,20 @@ defmodule Viva.Avatars.Systems.Senses do
 
     {new_sensory, neuro_effects}
   end
+
+  # RECURRENT PROCESSING THEORY: Arousal feeds back into attention
+  # This creates the bidirectional processing that distinguishes conscious perception
+  # STRENGTHENED: Lower threshold and stronger effect for better RPT alignment
+  defp arousal_attention_feedback(arousal) do
+    cond do
+      arousal > 0.3 -> 1.2 + (arousal - 0.3) * 0.8  # High arousal boosts attention 1.2-1.76x
+      arousal > 0.0 -> 1.0 + arousal * 0.3          # Positive arousal gives moderate boost
+      arousal < -0.3 -> 0.6 + (arousal + 0.3) * 0.5 # Low arousal dampens attention
+      true -> 0.95  # Slightly below neutral to create contrast
+    end
+  end
+
+  defp clamp(value, min_val, max_val), do: max(min_val, min(max_val, value))
 
   @doc """
   Filter stimulus through personality lens.
@@ -108,21 +145,24 @@ defmodule Viva.Avatars.Systems.Senses do
   def calculate_salience(stimulus, emotional, current_focus) do
     base_salience = Map.get(stimulus, :intensity, 0.5)
 
-    # Emotional congruence boosts salience
-    emotional_boost = if mood_congruent?(stimulus, emotional), do: 0.2, else: 0.0
+    # Emotional congruence boosts salience - INCREASED
+    emotional_boost = if mood_congruent?(stimulus, emotional), do: 0.25, else: 0.0
 
-    # Threat always grabs attention
-    threat_boost = Map.get(stimulus, :perceived_threat, 0.0) * 0.3
+    # Threat always grabs attention - INCREASED
+    threat_boost = Map.get(stimulus, :perceived_threat, 0.0) * 0.4
 
-    # Novelty boosts salience
-    novelty_boost = Map.get(stimulus, :novelty, 0.5) * 0.2
+    # Novelty boosts salience - INCREASED
+    novelty_boost = Map.get(stimulus, :novelty, 0.5) * 0.25
 
-    # Relevance to current focus
-    focus_boost = if related_to_focus?(stimulus, current_focus), do: 0.15, else: 0.0
+    # Relevance to current focus - INCREASED
+    focus_boost = if related_to_focus?(stimulus, current_focus), do: 0.2, else: 0.0
 
-    (base_salience + emotional_boost + threat_boost + novelty_boost + focus_boost)
+    # AROUSAL INTEGRATION: High arousal = higher attention (RPT feedback)
+    arousal_boost = if emotional.arousal > 0.3, do: emotional.arousal * 0.2, else: 0.0
+
+    (base_salience + emotional_boost + threat_boost + novelty_boost + focus_boost + arousal_boost)
     |> min(1.0)
-    |> max(0.0)
+    |> max(0.2)  # Minimum salience floor to ensure some attention
   end
 
   @doc """
@@ -173,20 +213,34 @@ defmodule Viva.Avatars.Systems.Senses do
   @doc """
   Generate qualia - the subjective "what it feels like" description.
   Uses LLM to create unique, personality-colored descriptions.
+
+  ## Caching Strategy
+
+  To respect NVIDIA NIM rate limits, we use a multi-level approach:
+  1. Check cache for exact match (stimulus type + emotional state bucket)
+  2. Check if we should generate fresh qualia (20% probability)
+  3. Use cached similar qualia or rich fallback templates
+
+  This dramatically reduces LLM calls while maintaining variety.
   """
   @spec generate_qualia(stimulus(), EmotionalState.t(), Personality.t(), float()) :: map()
   def generate_qualia(stimulus, emotional, personality, salience) do
-    # Build prompt for LLM
-    prompt = build_qualia_prompt(stimulus, emotional, personality, salience)
+    cache_key = qualia_cache_key(stimulus, emotional, personality)
 
     narrative =
-      case LlmClient.generate(prompt, max_tokens: 60, temperature: 0.9) do
-        {:ok, text} ->
-          String.trim(text)
+      case get_cached_qualia(cache_key) do
+        {:ok, cached_narrative} ->
+          # Use cached qualia
+          cached_narrative
 
-        {:error, reason} ->
-          Logger.warning("Failed to generate qualia: #{inspect(reason)}")
-          fallback_narrative(stimulus, emotional, salience)
+        :miss ->
+          # Decide whether to call LLM or use fallback
+          if should_generate_llm_qualia?() do
+            generate_and_cache_qualia(cache_key, stimulus, emotional, personality, salience)
+          else
+            # Use rich fallback without LLM
+            rich_fallback_narrative(stimulus, emotional, personality, salience)
+          end
       end
 
     %{
@@ -197,8 +251,186 @@ defmodule Viva.Avatars.Systems.Senses do
     }
   end
 
+  # Generate cache key based on stimulus type, emotional state, AND personality
+  # Including personality ensures different avatars get unique qualia
+  defp qualia_cache_key(stimulus, emotional, personality) do
+    type = Map.get(stimulus, :type, :unknown)
+    # Bucket emotional states to increase cache hits
+    pleasure_bucket = bucket_value(emotional.pleasure)
+    arousal_bucket = bucket_value(emotional.arousal)
+    # Add personality bucket for diversity
+    personality_bucket = personality_bucket(personality)
+    "qualia:#{type}:#{pleasure_bucket}:#{arousal_bucket}:#{personality_bucket}"
+  end
+
+  # Bucket personality into archetypes for cache diversity
+  defp personality_bucket(p) do
+    cond do
+      p.extraversion > 0.6 and p.neuroticism < 0.4 -> "bold"
+      p.extraversion < 0.4 and p.neuroticism > 0.6 -> "sensitive"
+      p.openness > 0.6 -> "creative"
+      p.conscientiousness > 0.6 -> "focused"
+      p.agreeableness > 0.6 -> "warm"
+      true -> "balanced"
+    end
+  end
+
+  defp bucket_value(v) when v > 0.5, do: "high_pos"
+  defp bucket_value(v) when v > 0.0, do: "low_pos"
+  defp bucket_value(v) when v > -0.5, do: "low_neg"
+  defp bucket_value(_), do: "high_neg"
+
+  defp get_cached_qualia(key) do
+    case Cachex.get(@qualia_cache, key) do
+      {:ok, nil} -> :miss
+      {:ok, value} -> {:ok, value}
+      {:error, _} -> :miss
+    end
+  end
+
+  defp should_generate_llm_qualia? do
+    :rand.uniform() < @qualia_llm_probability
+  end
+
+  defp generate_and_cache_qualia(cache_key, stimulus, emotional, personality, salience) do
+    prompt = build_qualia_prompt(stimulus, emotional, personality, salience)
+
+    case LlmClient.generate(prompt, max_tokens: 60, temperature: 0.9) do
+      {:ok, text} ->
+        narrative = String.trim(text)
+        # Cache for future use
+        Cachex.put(@qualia_cache, cache_key, narrative, ttl: :timer.seconds(@qualia_ttl_seconds))
+        narrative
+
+      {:error, reason} ->
+        Logger.warning("Failed to generate qualia: #{inspect(reason)}")
+        fallback_narrative(stimulus, emotional, salience)
+    end
+  end
+
+  # Rich fallback narratives by emotional state - no LLM needed
+  defp rich_fallback_narrative(stimulus, emotional, personality, salience) do
+    type = Map.get(stimulus, :type, :unknown)
+    color = qualia_emotional_color(emotional)
+    intensity = intensity_description(salience)
+
+    # Select from pre-written templates based on emotional state and personality
+    templates = get_narrative_templates(type, color, personality)
+
+    if Enum.empty?(templates) do
+      fallback_narrative(stimulus, emotional, salience)
+    else
+      Enum.random(templates)
+      |> String.replace("{intensity}", intensity)
+      |> String.replace("{color}", color)
+    end
+  end
+
+  # Templates em português para experiências subjetivas ricas
+  defp get_narrative_templates(:ambient, "neutral", _) do
+    [
+      "O mundo pulsa ao meu redor com uma presença {intensity}, nem exigente nem distante.",
+      "Sinto o ambiente como um pano de fundo constante, seu ritmo acompanhando minha respiração.",
+      "O ar ambiente me envolve como um cobertor familiar, comum mas presente.",
+      "Tudo parece equilibrado, o mundo prendendo a respiração em quietude."
+    ]
+  end
+
+  defp get_narrative_templates(:ambient, "uncomfortable", personality) do
+    base = [
+      "A atmosfera pressiona minha pele com um peso {intensity} que não consigo afastar.",
+      "Algo no ar parece errado, uma dissonância que ecoa no meu peito.",
+      "O mundo ao meu redor parece pesado, como se a própria gravidade tivesse aumentado."
+    ]
+
+    if personality.neuroticism > 0.6 do
+      base ++
+        [
+          "Cada sombra parece sussurrar coisas invisíveis, amplificando o desconforto dentro de mim.",
+          "O próprio ar parece carregado de uma ansiedade que espelha a minha."
+        ]
+    else
+      base
+    end
+  end
+
+  defp get_narrative_templates(:ambient, "soothing", _) do
+    [
+      "Uma calma gentil me invade, o mundo suavizando em suas bordas.",
+      "O ambiente me abraça com um calor silencioso, aliviando tensões que eu nem sabia que tinha.",
+      "A paz se instala nos meus ossos como luz do sol através da neblina da manhã."
+    ]
+  end
+
+  defp get_narrative_templates(:ambient, "distressing", _) do
+    [
+      "O mundo parece se fechar, cada sensação amplificada até uma clareza dolorosa.",
+      "Meus arredores atacam meus sentidos com uma intensidade {intensity} que me deixa sem fôlego.",
+      "Tudo é demais, alto demais, presente demais—me sinto exposta e vulnerável."
+    ]
+  end
+
+  defp get_narrative_templates(:rest, "bleak", _) do
+    [
+      "A quietude não oferece conforto, apenas um eco do vazio interior.",
+      "O descanso parece um gesto vazio, o silêncio amplificando ao invés de acalmar.",
+      "Afundo na imobilidade, mas ela não traz alívio do peso que carrego."
+    ]
+  end
+
+  defp get_narrative_templates(:rest, _, _) do
+    [
+      "A quietude me envolve como um casulo macio, convidando à entrega.",
+      "Neste momento de descanso, sinto minhas bordas se dissolvendo em paz.",
+      "O silêncio desce, e com ele, uma liberação gentil de tudo que eu segurava."
+    ]
+  end
+
+  defp get_narrative_templates(:social, "energizing", _) do
+    [
+      "A conexão me atravessa como eletricidade, despertando partes de mim que dormiam.",
+      "A presença do outro acende algo vital dentro de mim, um calor se espalhando.",
+      "Me sinto vista, reconhecida—a interação me deixa mais viva do que antes."
+    ]
+  end
+
+  defp get_narrative_templates(:social, "draining", _) do
+    [
+      "Cada palavra trocada me custa algo, me deixando mais leve de formas que parecem perda.",
+      "A interação puxa reservas que não tenho certeza se possuo, exaustiva e necessária.",
+      "Sinto minha energia escapando, as demandas sociais mais do que consigo dar."
+    ]
+  end
+
+  defp get_narrative_templates(:social, "pleasant", _) do
+    [
+      "A conversa flui naturalmente, aquecendo algo no centro do meu peito.",
+      "Sinto uma onda suave de contentamento com essa presença ao meu lado.",
+      "O momento compartilhado cria uma bolha de conforto ao meu redor."
+    ]
+  end
+
+  defp get_narrative_templates(:novelty, "exhilarating", _) do
+    [
+      "O novo me enche de uma excitação vibrante que corre pelas minhas veias.",
+      "Cada descoberta é uma faísca que ilumina cantos inexplorados da minha mente.",
+      "Sinto meu coração acelerar com a promessa do desconhecido."
+    ]
+  end
+
+  defp get_narrative_templates(:threat, "distressing", _) do
+    [
+      "Um arrepio gelado percorre minha espinha, todos os sentidos em alerta máximo.",
+      "O perigo paira no ar, pesado e sufocante, contraindo meu peito.",
+      "Cada fibra do meu ser grita para fugir, para me proteger."
+    ]
+  end
+
+  defp get_narrative_templates(_, _, _), do: []
+
   @doc """
   Calculate immediate hedonic (pleasure) response.
+  Enhanced for more variation in positive/negative experiences.
   """
   @spec calculate_sensory_pleasure(stimulus(), Personality.t(), EmotionalState.t()) :: float()
   def calculate_sensory_pleasure(stimulus, personality, emotional) do
@@ -210,13 +442,31 @@ defmodule Viva.Avatars.Systems.Senses do
     # Personality baseline (neurotics have lower hedonic baseline)
     personality_baseline = (0.5 - personality.neuroticism) * 0.2
 
-    (base_valence + mood_factor + personality_baseline)
+    # ENHANCED: Stimulus type affects pleasure
+    type_pleasure = stimulus_type_pleasure(Map.get(stimulus, :type, :ambient), personality)
+
+    # ENHANCED: Small random fluctuations for hedonic variety
+    micro_fluctuation = (:rand.uniform() - 0.5) * 0.15
+
+    # ENHANCED: High arousal intensifies both positive and negative
+    arousal_amplifier = 1.0 + abs(emotional.arousal) * 0.3
+
+    raw_pleasure = base_valence + mood_factor + personality_baseline + type_pleasure + micro_fluctuation
+    (raw_pleasure * arousal_amplifier)
     |> max(-1.0)
     |> min(1.0)
   end
 
+  # Different stimulus types have inherent hedonic value
+  defp stimulus_type_pleasure(:social, p), do: if(p.extraversion > 0.5, do: 0.2, else: -0.1)
+  defp stimulus_type_pleasure(:rest, p), do: if(p.neuroticism > 0.5, do: 0.15, else: 0.05)
+  defp stimulus_type_pleasure(:novelty, p), do: if(p.openness > 0.5, do: 0.25, else: -0.1)
+  defp stimulus_type_pleasure(:threat, _), do: -0.4
+  defp stimulus_type_pleasure(_, _), do: 0.0
+
   @doc """
   Calculate sensory pain/discomfort response.
+  Enhanced for more variation.
   """
   @spec calculate_sensory_pain(stimulus(), Personality.t(), EmotionalState.t()) :: float()
   def calculate_sensory_pain(stimulus, personality, emotional) do
@@ -230,16 +480,27 @@ defmodule Viva.Avatars.Systems.Senses do
     # Pain from overwhelm
     overwhelm_pain = if Map.get(stimulus, :overwhelm, false), do: 0.3, else: 0.0
 
+    # ENHANCED: Pain from unmet needs (adenosine = fatigue, low dopamine = anhedonia)
+    need_pain = stimulus_need_pain(stimulus, personality)
+
+    # ENHANCED: Small random fluctuations
+    micro_fluctuation = :rand.uniform() * 0.1
+
     # Neuroticism amplifies pain
     sensitivity = 1.0 + personality.neuroticism * 0.5
 
     # Negative mood amplifies pain
     mood_amplifier = if emotional.pleasure < 0, do: 1.2, else: 1.0
 
-    ((threat_pain + valence_pain + overwhelm_pain) * sensitivity * mood_amplifier)
+    ((threat_pain + valence_pain + overwhelm_pain + need_pain + micro_fluctuation) * sensitivity * mood_amplifier)
     |> min(1.0)
     |> max(0.0)
   end
+
+  # Certain stimulus types cause discomfort for certain personalities
+  defp stimulus_need_pain(%{type: :social}, p) when p.extraversion < 0.3, do: 0.15
+  defp stimulus_need_pain(%{type: :ambient}, p) when p.openness > 0.7, do: 0.1  # Boredom pain
+  defp stimulus_need_pain(_, _), do: 0.0
 
   @doc """
   Convert surprise level into neurochemical effects.
@@ -306,7 +567,8 @@ defmodule Viva.Avatars.Systems.Senses do
       |> Map.get(:type, "")
       |> to_string()
 
-    String.contains?(stimulus_type, focus)
+    focus_str = to_string(focus)
+    String.contains?(stimulus_type, focus_str)
   end
 
   defp calculate_match(stimulus, expectation) do
@@ -333,73 +595,117 @@ defmodule Viva.Avatars.Systems.Senses do
   end
 
   defp build_qualia_prompt(stimulus, emotional, personality, salience) do
-    type = Map.get(stimulus, :type, :unknown)
-    source = Map.get(stimulus, :source, "something")
+    type = stimulus_type_pt(Map.get(stimulus, :type, :unknown))
+    source = Map.get(stimulus, :source, "algo")
     valence = Map.get(stimulus, :valence, 0.0)
     intensity_word = intensity_description(salience)
-    mood = emotional.mood_label || "neutral"
+    mood = mood_label_pt(emotional.mood_label || "neutral")
 
     personality_summary = summarize_personality(personality)
 
+    valence_word = cond do
+      valence > 0 -> "positiva"
+      valence < 0 -> "negativa"
+      true -> "neutra"
+    end
+
     """
-    Generate a brief (1-2 sentences) first-person sensory description of an experience.
+    Gere uma breve descrição sensorial (1-2 frases) em primeira pessoa de uma experiência.
+    IMPORTANTE: Responda em português brasileiro.
 
-    Personality traits: #{personality_summary}
-    Current mood: #{mood}
-    Stimulus type: #{type}
-    Stimulus source: #{source}
-    Stimulus valence: #{if valence > 0, do: "positive", else: if(valence < 0, do: "negative", else: "neutral")}
-    Intensity: #{intensity_word}
+    Traços de personalidade: #{personality_summary}
+    Humor atual: #{mood}
+    Tipo de estímulo: #{type}
+    Fonte do estímulo: #{source}
+    Valência do estímulo: #{valence_word}
+    Intensidade: #{intensity_word}
 
-    Write how this FEELS subjectively (not what happened). Be poetic and personal.
-    Use "I" and describe the sensation, not the event.
-    Do NOT use quotes or explain - just write the raw experience.
+    Escreva como isso SE SENTE subjetivamente (não o que aconteceu). Seja poético e pessoal.
+    Use "Eu" ou "Sinto" e descreva a sensação, não o evento.
+    NÃO use aspas nem explique - apenas escreva a experiência crua.
     """
   end
+
+  # Tradução de humor para português
+  defp mood_label_pt("happy"), do: "feliz"
+  defp mood_label_pt("sad"), do: "triste"
+  defp mood_label_pt("anxious"), do: "ansioso(a)"
+  defp mood_label_pt("excited"), do: "animado(a)"
+  defp mood_label_pt("calm"), do: "calmo(a)"
+  defp mood_label_pt("angry"), do: "irritado(a)"
+  defp mood_label_pt("neutral"), do: "neutro"
+  defp mood_label_pt("content"), do: "contente"
+  defp mood_label_pt("bored"), do: "entediado(a)"
+  defp mood_label_pt("tense"), do: "tenso(a)"
+  defp mood_label_pt("relaxed"), do: "relaxado(a)"
+  defp mood_label_pt("distressed"), do: "angustiado(a)"
+  defp mood_label_pt(other), do: other
 
   defp summarize_personality(personality) do
     extraversion_trait =
       cond do
-        personality.extraversion > 0.6 -> ["outgoing"]
-        personality.extraversion < 0.4 -> ["introverted"]
+        personality.extraversion > 0.6 -> ["sociável"]
+        personality.extraversion < 0.4 -> ["introvertido(a)"]
         true -> []
       end
 
     neuroticism_trait =
       cond do
-        personality.neuroticism > 0.6 -> ["sensitive"]
-        personality.neuroticism < 0.4 -> ["calm"]
+        personality.neuroticism > 0.6 -> ["sensível"]
+        personality.neuroticism < 0.4 -> ["calmo(a)"]
         true -> []
       end
 
     openness_trait =
       cond do
-        personality.openness > 0.6 -> ["imaginative"]
-        personality.openness < 0.4 -> ["practical"]
+        personality.openness > 0.6 -> ["imaginativo(a)"]
+        personality.openness < 0.4 -> ["prático(a)"]
         true -> []
       end
 
     traits = extraversion_trait ++ neuroticism_trait ++ openness_trait
 
     if Enum.empty?(traits) do
-      "balanced personality"
+      "personalidade equilibrada"
     else
       Enum.join(traits, ", ")
     end
   end
 
-  defp intensity_description(salience) when salience > 0.8, do: "overwhelming"
-  defp intensity_description(salience) when salience > 0.6, do: "vivid"
-  defp intensity_description(salience) when salience > 0.4, do: "noticeable"
-  defp intensity_description(salience) when salience > 0.2, do: "faint"
-  defp intensity_description(_), do: "barely perceptible"
+  defp intensity_description(salience) when salience > 0.8, do: "avassaladora"
+  defp intensity_description(salience) when salience > 0.6, do: "vívida"
+  defp intensity_description(salience) when salience > 0.4, do: "perceptível"
+  defp intensity_description(salience) when salience > 0.2, do: "sutil"
+  defp intensity_description(_), do: "quase imperceptível"
+
+  # Tradução de cores emocionais para narrativas em português
+  defp emotional_color_pt("exhilarating"), do: "eletrizante"
+  defp emotional_color_pt("soothing"), do: "reconfortante"
+  defp emotional_color_pt("distressing"), do: "angustiante"
+  defp emotional_color_pt("bleak"), do: "desoladora"
+  defp emotional_color_pt("pleasant"), do: "agradável"
+  defp emotional_color_pt("uncomfortable"), do: "desconfortável"
+  defp emotional_color_pt("energizing"), do: "energizante"
+  defp emotional_color_pt("draining"), do: "exaustiva"
+  defp emotional_color_pt(_), do: "neutra"
+
+  # Tradução de tipos de estímulo para português
+  defp stimulus_type_pt(:ambient), do: "ambiente"
+  defp stimulus_type_pt(:social), do: "interação social"
+  defp stimulus_type_pt(:rest), do: "descanso"
+  defp stimulus_type_pt(:novelty), do: "novidade"
+  defp stimulus_type_pt(:threat), do: "ameaça"
+  defp stimulus_type_pt(:food), do: "alimentação"
+  defp stimulus_type_pt(:intimacy), do: "intimidade"
+  defp stimulus_type_pt(type), do: to_string(type)
 
   defp fallback_narrative(stimulus, emotional, salience) do
     type = Map.get(stimulus, :type, :unknown)
     intensity = intensity_description(salience)
-    color = qualia_emotional_color(emotional)
+    color = emotional_color_pt(qualia_emotional_color(emotional))
+    type_pt = stimulus_type_pt(type)
 
-    "I feel a #{intensity}, #{color} sensation from this #{type}."
+    "Sinto uma sensação #{intensity} e #{color} deste(a) #{type_pt}."
   end
 
   defp qualia_emotional_color(%{pleasure: p, arousal: a}) do

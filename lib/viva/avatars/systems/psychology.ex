@@ -14,8 +14,25 @@ defmodule Viva.Avatars.Systems.Psychology do
   @spec calculate_emotional_state(BioState.t(), Personality.t()) :: EmotionalState.t()
   def calculate_emotional_state(%BioState{} = bio, %Personality{} = personality) do
     # 1. Calculate raw PAD vectors from Hormones
-    pleasure = bio.dopamine + bio.oxytocin - bio.cortisol
-    arousal = bio.dopamine + bio.libido + bio.cortisol - bio.adenosine
+    raw_pleasure = bio.dopamine + bio.oxytocin - bio.cortisol
+
+    # HEDONIC AMPLIFICATION: Personality affects emotional sensitivity
+    # Neurotics have wider emotional swings, stable people more centered
+    emotional_sensitivity = 1.0 + personality.neuroticism * 0.5
+
+    # MACRO-FLUCTUATIONS: Larger random variations create hedonic variety
+    # This helps create both positive AND negative experiences over time
+    # Must be large enough to overcome Allostasis dampening
+    macro_fluctuation = (:rand.uniform() - 0.5) * 0.6
+
+    # Apply sensitivity and fluctuation
+    pleasure = (raw_pleasure * emotional_sensitivity) + macro_fluctuation
+
+    # Arousal calculation with amplification
+    raw_arousal = bio.dopamine + bio.libido + bio.cortisol - bio.adenosine
+    arousal = raw_arousal * (1.0 + personality.extraversion * 0.3) +
+              (:rand.uniform() - 0.5) * 0.15
+
     # Dominance is boosted by Testosterone (not yet impl) or Confidence (Low Cortisol)
     dominance = 1.0 - bio.cortisol + personality.extraversion * 0.5
 

@@ -340,9 +340,12 @@ defmodule Viva.Avatars.Systems.Consciousness do
     tempo_desc = tempo_description(consciousness.stream_tempo)
 
     focal_desc =
+      # Handle both atom and string keys (Ecto serialization converts atoms to strings)
       case consciousness.focal_content do
         %{content: %{narrative: n}} when is_binary(n) -> n
+        %{"content" => %{"narrative" => n}} when is_binary(n) -> n
         %{content: c} when is_binary(c) -> c
+        %{"content" => c} when is_binary(c) -> c
         _ -> "nothing in particular"
       end
 
@@ -391,25 +394,41 @@ defmodule Viva.Avatars.Systems.Consciousness do
 
   defp generate_meta_observation(emotional, focal) do
     mood_desc = emotional.mood_label || "something"
-    focus_desc = if focal.content, do: " while #{describe_focus(focal)}", else: ""
+    # Handle both atom and string keys (Ecto serialization converts atoms to strings)
+    content = focal[:content] || focal["content"]
+    focus_desc = if content, do: " while #{describe_focus(focal)}", else: ""
 
     "I notice I'm feeling #{mood_desc}#{focus_desc}."
   end
 
-  defp describe_focus(%{type: :perception, content: %{narrative: n}}) when is_binary(n) do
-    short = String.slice(n, 0, 40)
-    "experiencing: #{short}..."
-  end
+  # Handle both atom and string keys from Ecto serialization
+  defp describe_focus(focal) do
+    type = focal[:type] || focal["type"]
+    content = focal[:content] || focal["content"]
 
-  defp describe_focus(%{type: :thought, content: t}) when is_binary(t) do
-    "thinking about #{String.slice(t, 0, 30)}..."
-  end
+    case {type, content} do
+      {:perception, %{narrative: n}} when is_binary(n) ->
+        "experiencing: #{String.slice(n, 0, 40)}..."
 
-  defp describe_focus(%{type: :emotion, content: c}) when is_binary(c) do
-    "feeling #{c}"
-  end
+      {"perception", %{"narrative" => n}} when is_binary(n) ->
+        "experiencing: #{String.slice(n, 0, 40)}..."
 
-  defp describe_focus(_), do: "noticing my inner state"
+      {:thought, t} when is_binary(t) ->
+        "thinking about #{String.slice(t, 0, 30)}..."
+
+      {"thought", t} when is_binary(t) ->
+        "thinking about #{String.slice(t, 0, 30)}..."
+
+      {:emotion, c} when is_binary(c) ->
+        "feeling #{c}"
+
+      {"emotion", c} when is_binary(c) ->
+        "feeling #{c}"
+
+      _ ->
+        "noticing my inner state"
+    end
+  end
 
   defp presence_description(p) when p > 0.8, do: "fully present and grounded"
   defp presence_description(p) when p > 0.6, do: "mostly present"

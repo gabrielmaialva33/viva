@@ -48,6 +48,10 @@ defmodule Viva.Avatars.SensoryState do
     field :sensory_pleasure, :float, default: 0.0
     # Pain/discomfort level (0.0 to 1.0)
     field :sensory_pain, :float, default: 0.0
+
+    # === Recurrent Processing ===
+    # Sensitivity to novel stimuli (modulated by consciousness reentry)
+    field :novelty_sensitivity, :float, default: 0.5
   end
 
   @type t :: %__MODULE__{
@@ -60,7 +64,8 @@ defmodule Viva.Avatars.SensoryState do
           last_prediction_error: String.t() | nil,
           current_qualia: map(),
           sensory_pleasure: float(),
-          sensory_pain: float()
+          sensory_pain: float(),
+          novelty_sensitivity: float()
         }
 
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
@@ -76,7 +81,8 @@ defmodule Viva.Avatars.SensoryState do
       :last_prediction_error,
       :current_qualia,
       :sensory_pleasure,
-      :sensory_pain
+      :sensory_pain,
+      :novelty_sensitivity
     ])
     |> validate_number(:attention_intensity,
       greater_than_or_equal_to: 0.0,
@@ -95,6 +101,10 @@ defmodule Viva.Avatars.SensoryState do
       less_than_or_equal_to: 1.0
     )
     |> validate_number(:sensory_pain,
+      greater_than_or_equal_to: 0.0,
+      less_than_or_equal_to: 1.0
+    )
+    |> validate_number(:novelty_sensitivity,
       greater_than_or_equal_to: 0.0,
       less_than_or_equal_to: 1.0
     )
@@ -117,7 +127,8 @@ defmodule Viva.Avatars.SensoryState do
         narrative: nil
       },
       sensory_pleasure: 0.0,
-      sensory_pain: 0.0
+      sensory_pain: 0.0,
+      novelty_sensitivity: 0.5
     }
   end
 
