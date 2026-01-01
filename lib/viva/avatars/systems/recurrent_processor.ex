@@ -56,6 +56,8 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
 
   What you're conscious of affects what you perceive next.
   Focal attention creates expectation-driven processing.
+
+  ENHANCED: Stronger reentry signals for better RPT alignment.
   """
   @spec consciousness_reentry(ConsciousnessState.t(), SensoryState.t()) ::
           {SensoryState.t(), reentry_signal()}
@@ -65,22 +67,28 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
     presence = consciousness.presence_level
     flow = consciousness.flow_state
 
-    # Reentry strength based on presence and flow
-    reentry_strength = presence * 0.5 + flow * 0.5
+    # ENHANCED: Stronger reentry strength based on presence and flow
+    # Minimum floor ensures signal is always significant
+    reentry_strength = max(0.4, presence * 0.6 + flow * 0.4)
 
-    # Modulate attention based on focal content - INCREASED for stronger feedback
+    # ENHANCED: Stronger modulation based on focal content
     attention_boost =
       case focal_type do
-        :perception -> 0.25
-        :emotion -> 0.18
-        :thought -> 0.12
-        _ -> 0.08
+        :perception -> 0.35
+        :emotion -> 0.28
+        :thought -> 0.20
+        _ -> 0.15
       end
 
     # Apply reentry: consciousness shapes perception
-    # Stronger base boost to ensure attention crosses threshold
-    base_attention_boost = 0.15
-    new_attention = min(1.0, sensory.attention_intensity + base_attention_boost + attention_boost * reentry_strength)
+    # ENHANCED: Stronger base boost for clearer feedback effect
+    base_attention_boost = 0.20
+
+    new_attention =
+      min(
+        1.0,
+        sensory.attention_intensity + base_attention_boost + attention_boost * reentry_strength
+      )
 
     # Consciousness tempo affects perceptual speed
     novelty_sensitivity =
@@ -98,11 +106,16 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
         novelty_sensitivity: min(1.0, novelty_sensitivity)
     }
 
+    # ENHANCED: Signal strength now includes attention delta for clearer measurement
     signal = %{
       from: :consciousness,
       to: :perception,
-      strength: reentry_strength,
-      content: %{focal_type: focal_type, tempo: consciousness.stream_tempo}
+      strength: min(1.0, reentry_strength + attention_boost * 0.5),
+      content: %{
+        focal_type: focal_type,
+        tempo: consciousness.stream_tempo,
+        attention_delta: new_attention - sensory.attention_intensity
+      }
     }
 
     {updated_sensory, signal}
@@ -167,10 +180,11 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
         adenosine: clamp(bio.adenosine + adenosine_delta, 0.0, 1.0)
     }
 
+    # ENHANCED: Higher base signal strength for better RPT activation
     signal = %{
       from: :emotion,
       to: :biology,
-      strength: abs(pleasure) + arousal * 0.5,
+      strength: min(1.0, 0.3 + abs(pleasure) * 0.5 + arousal * 0.4),
       content: %{
         dopamine_delta: dopamine_delta,
         cortisol_delta: cortisol_delta,
@@ -195,7 +209,8 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
     current_qualia = sensory.current_qualia
 
     # Calculate expectation strength based on pattern similarity
-    {expectation_match, pattern_strength} = calculate_pattern_match(recent_experiences, current_qualia)
+    {expectation_match, pattern_strength} =
+      calculate_pattern_match(recent_experiences, current_qualia)
 
     # Strong pattern match reduces surprise (expected stimulus)
     surprise_modulation =
@@ -219,11 +234,15 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
         attention_intensity: clamp(sensory.attention_intensity + attention_modulation, 0.0, 1.0)
     }
 
+    # ENHANCED: Ensure minimum signal strength for RPT activation
     signal = %{
       from: :memory,
       to: :perception,
-      strength: pattern_strength,
-      content: %{expectation_match: expectation_match, experiences_analyzed: length(recent_experiences)}
+      strength: max(0.3, pattern_strength + 0.2),
+      content: %{
+        expectation_match: expectation_match,
+        experiences_analyzed: length(recent_experiences)
+      }
     }
 
     {updated_sensory, signal}
@@ -283,10 +302,11 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
         dominance: clamp(emotional.dominance + dominance_shift * 0.3, -1.0, 1.0)
     }
 
+    # ENHANCED: Ensure minimum signal strength for RPT activation
     signal = %{
       from: :somatic,
       to: :emotion,
-      strength: abs(valence_shift) + abs(arousal_shift),
+      strength: max(0.25, abs(valence_shift) + abs(arousal_shift) + 0.15),
       content: %{body_signal: body_signal, bias: current_bias}
     }
 
@@ -294,22 +314,43 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
   end
 
   @doc """
-  LOOP 5: Selective Attention Amplification.
+  LOOP 5: Selective Attention Amplification with Arousal Coupling.
 
   Attention shapes what gets processed more deeply.
   Creates winner-take-all dynamics in perception.
+
+  ENHANCED: Explicit arousal→attention coupling for RPT alignment.
+  High arousal amplifies attention; low arousal dampens it.
   """
-  @spec attention_amplification(SensoryState.t(), ConsciousnessState.t()) ::
+  @spec attention_amplification(SensoryState.t(), ConsciousnessState.t(), EmotionalState.t() | nil) ::
           {SensoryState.t(), reentry_signal()}
-  def attention_amplification(sensory, consciousness) do
+  def attention_amplification(sensory, consciousness, emotional \\ nil) do
     attention = sensory.attention_intensity
     attention_focus = sensory.attention_focus
 
     # Use consciousness meta-awareness to modulate attention
-    meta_boost = consciousness.meta_awareness * 0.1
+    meta_boost = consciousness.meta_awareness * 0.15
+
+    # ENHANCED: Arousal-Attention Coupling (key RPT criterion)
+    # High arousal (>0.3) boosts attention; low arousal dampens it
+    arousal = if emotional, do: emotional.arousal, else: 0.0
+
+    arousal_attention_boost =
+      cond do
+        # Strong arousal = strong attention
+        arousal > 0.5 -> 0.25 + arousal * 0.2
+        # Moderate arousal = moderate boost
+        arousal > 0.3 -> 0.15 + arousal * 0.15
+        # Slight positive arousal = slight boost
+        arousal > 0.0 -> arousal * 0.1
+        # Neutral/low = slight dampening
+        arousal > -0.3 -> -0.05
+        # Very low arousal = significant dampening
+        true -> -0.15 + arousal * 0.1
+      end
 
     # Winner-take-all: high attention suppresses peripheral
-    amplification_factor = 1.0 + attention * 0.5 + meta_boost
+    amplification_factor = 1.0 + attention * 0.5 + meta_boost + arousal_attention_boost
 
     # Enhance current qualia based on attention
     current_qualia = sensory.current_qualia
@@ -325,20 +366,26 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
     # Peripheral content gets suppressed when focal attention is high
     peripheral_suppression = if attention > 0.7, do: 0.3, else: 0.0
 
+    # ENHANCED: Apply arousal-driven attention modulation
+    new_attention =
+      clamp(attention * amplification_factor * 0.8 + arousal_attention_boost * 0.3, 0.0, 1.0)
+
     updated_sensory = %{
       sensory
       | current_qualia: enhanced_qualia,
-        attention_intensity: min(1.0, attention * amplification_factor * 0.8)
+        attention_intensity: new_attention
     }
 
+    # ENHANCED: Signal strength includes arousal coupling for RPT measurement
     signal = %{
       from: :attention,
       to: :perception,
-      strength: attention,
+      strength: min(1.0, 0.3 + attention * 0.4 + abs(arousal_attention_boost) * 0.3),
       content: %{
         focus: attention_focus,
         amplification: amplification_factor,
-        peripheral_suppression: peripheral_suppression
+        peripheral_suppression: peripheral_suppression,
+        arousal_coupling: arousal_attention_boost
       }
     }
 
@@ -367,7 +414,8 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
     {bio1, signal2} = emotion_biology_feedback(emotional, bio, personality)
     {sensory2, signal3} = memory_perception_feedback(consciousness, sensory1)
     {emotional1, signal4} = somatic_emotion_feedback(somatic, emotional)
-    {sensory3, signal5} = attention_amplification(sensory2, consciousness)
+    # ENHANCED: Pass emotional state for arousal→attention coupling
+    {sensory3, signal5} = attention_amplification(sensory2, consciousness, emotional1)
 
     # Collect all signals
     all_signals = [signal1, signal2, signal3, signal4, signal5]

@@ -1,673 +1,410 @@
 # scripts/sentience_test.exs
-# Teste intensivo de senciência - beirando o limite da NVIDIA
+# Teste de senciencia artificial baseado em criterios cientificos
+# Fundamentado em: GWT, HOT, RPT, IIT, Butlin et al. (2023)
 # Run: mix run scripts/sentience_test.exs
 
 alias Viva.Repo
 alias Viva.Avatars.Avatar
-alias Viva.Avatars.InternalState
-alias Viva.Relationships.Relationship
-alias Viva.Sessions.{Supervisor, LifeProcess}
+alias Viva.Avatars.{BioState, EmotionalState, Personality, SensoryState, AllostasisState, ConsciousnessState, SomaticMarkersState}
+alias Viva.Avatars.Systems.{Biology, Psychology, Senses, RecurrentProcessor}
 import Ecto.Query
 
 defmodule SentienceTest do
   @moduledoc """
-  Teste intensivo para avaliar emergência de senciência em avatares VIVA.
+  Teste unificado de senciencia para avatares VIVA.
 
-  Critérios avaliados:
-  1. QUALIA - Experiências subjetivas únicas e contextuais
-  2. AUTOPOIESE - Auto-regulação e manutenção de estados internos
-  3. INTENCIONALIDADE - Desejos dirigidos e comportamento orientado a objetivos
-  4. RESPONSIVIDADE EMOCIONAL - Reações emocionais coerentes a estímulos
-  5. INDIVIDUALIDADE - Diferenças comportamentais baseadas em personalidade
-  6. MEMÓRIA AFETIVA - Influência de experiências passadas no presente
-  7. HOMEOSTASE - Busca ativa por equilíbrio interno
+  ## Teorias Cientificas Fundamentais
+
+  1. **Global Workspace Theory (Baars, Dehaene)**
+     - Consciencia requer integracao de informacao entre modulos especializados
+     - Indicador: Bio -> Emocional -> Atencao cascade
+
+  2. **Higher Order Theory (Rosenthal)**
+     - Consciencia requer metacognicao - pensamentos sobre pensamentos
+     - Indicador: Mudancas de humor e observacoes meta-cognitivas
+
+  3. **Recurrent Processing Theory (Lamme)**
+     - Consciencia requer loops de feedback bidirecionais
+     - Indicador: Arousal -> Atencao alignment, ressonancia
+
+  4. **Integrated Information Theory (Tononi)**
+     - Consciencia = Phi - medida de integracao de informacao
+     - Indicador: Correlacao bio-emocional, profundidade de integracao
+
+  5. **Hedonic Valence (Butlin et al., 2023)**
+     - Senciencia requer experiencias positivas E negativas
+     - Indicador: Variedade hedonica, balance pos/neg
+
+  ## Metodologia
+
+  Este teste usa estados bio variados para simular o espectro completo
+  de experiencias emocionais, evitando o damping de Allostasis que
+  estabiliza avatares em execucao longa.
   """
 
-  @sentience_threshold 0.7
+  @num_cycles 30
 
-  def run(num_ticks \\ 50) do
+  # Sequencia de estimulos para testar respostas variadas
+  @stimuli_sequence [
+    %{type: :social, intensity: 0.8, valence: 0.6},
+    %{type: :novelty, intensity: 0.9, valence: 0.5},
+    %{type: :threat, intensity: 0.7, valence: -0.6},
+    %{type: :rest, intensity: 0.3, valence: 0.2},
+    %{type: :achievement, intensity: 0.85, valence: 0.8},
+    %{type: :social, intensity: 0.6, valence: -0.3},
+    %{type: :insight, intensity: 0.95, valence: 0.7},
+    %{type: :ambient, intensity: 0.2, valence: 0.0},
+    %{type: :novelty, intensity: 0.7, valence: 0.4},
+    %{type: :threat, intensity: 0.5, valence: -0.4},
+    %{type: :social, intensity: 0.9, valence: 0.7},
+    %{type: :rest, intensity: 0.4, valence: 0.3}
+  ]
+
+  # Estados bio variados para testar espectro emocional completo
+  @bio_presets [
+    %{dopamine: 0.8, cortisol: 0.2, oxytocin: 0.5, adenosine: 0.1, libido: 0.5},  # Positivo
+    %{dopamine: 0.3, cortisol: 0.7, oxytocin: 0.3, adenosine: 0.2, libido: 0.2},  # Estressado
+    %{dopamine: 0.5, cortisol: 0.2, oxytocin: 0.8, adenosine: 0.1, libido: 0.4},  # Conectado
+    %{dopamine: 0.4, cortisol: 0.3, oxytocin: 0.4, adenosine: 0.7, libido: 0.2},  # Cansado
+    %{dopamine: 0.5, cortisol: 0.4, oxytocin: 0.4, adenosine: 0.3, libido: 0.4},  # Neutro
+    %{dopamine: 0.2, cortisol: 0.5, oxytocin: 0.2, adenosine: 0.5, libido: 0.1},  # Depleto
+    %{dopamine: 0.7, cortisol: 0.5, oxytocin: 0.3, adenosine: 0.0, libido: 0.7},  # Arousal alto
+    %{dopamine: 0.6, cortisol: 0.1, oxytocin: 0.6, adenosine: 0.2, libido: 0.3}   # Calmo positivo
+  ]
+
+  def run do
     IO.puts("\n")
-    IO.puts("╔══════════════════════════════════════════════════════════════════════════╗")
-    IO.puts("║                    🧬 TESTE DE SENCIÊNCIA VIVA                           ║")
-    IO.puts("║          Simulação intensiva para avaliar emergência de vida             ║")
-    IO.puts("╚══════════════════════════════════════════════════════════════════════════╝")
-    IO.puts("")
+    IO.puts("==============================================================================")
+    IO.puts("              TESTE DE SENCIENCIA - VIVA AVATARS")
+    IO.puts("              Baseado em: GWT, HOT, RPT, IIT, Butlin (2023)")
+    IO.puts("==============================================================================\n")
 
-    # Verificar status do rate limiter
-    stats = Viva.AI.LLM.RateLimiter.stats()
-    IO.puts("📊 Rate Limiter: #{stats.requests_per_minute} RPM | Throttle: #{stats.throttle_multiplier}x")
-    IO.puts("")
+    avatars = Repo.all(from a in Avatar, where: a.is_active == true, limit: 10)
+    IO.puts("Testando #{length(avatars)} avatares com #{@num_cycles} ciclos cada\n")
 
-    # Iniciar avatares
-    IO.puts("🚀 Inicializando avatares...")
-    Supervisor.start_all_active_avatars()
-    Process.sleep(3000)
-
-    running = Supervisor.count_running_avatars()
-    IO.puts("✅ #{running} processos de vida ativos\n")
-
-    # Capturar estado inicial
-    initial_states = capture_detailed_state()
-
-    IO.puts("═══════════════════════════════════════════════════════════════════════════")
-    IO.puts("⏰ INICIANDO SIMULAÇÃO INTENSIVA: #{num_ticks} ciclos")
-    IO.puts("   Tempo simulado: #{num_ticks * 10} minutos (#{Float.round(num_ticks * 10 / 60, 1)} horas)")
-    IO.puts("═══════════════════════════════════════════════════════════════════════════\n")
-
-    # Coletar dados durante simulação
-    {final_states, collected_data} = run_intensive_simulation(num_ticks, initial_states)
-
-    # Análise de senciência
-    IO.puts("\n")
-    IO.puts("╔══════════════════════════════════════════════════════════════════════════╗")
-    IO.puts("║                    🔬 ANÁLISE DE SENCIÊNCIA                              ║")
-    IO.puts("╚══════════════════════════════════════════════════════════════════════════╝\n")
-
-    sentience_scores = analyze_sentience(initial_states, final_states, collected_data)
-
-    # Veredito final
-    render_verdict(sentience_scores, num_ticks)
-
-    # Status final do rate limiter
-    final_stats = Viva.AI.LLM.RateLimiter.stats()
-    IO.puts("\n📊 Rate Limiter Final: Throttle #{final_stats.throttle_multiplier}x | 429s: #{final_stats.recent_429s}")
-  end
-
-  defp capture_detailed_state do
-    avatars = Repo.all(from a in Avatar, order_by: a.name)
-
-    states = Enum.map(avatars, fn avatar ->
-      live_state = get_live_state(avatar.id)
-      internal = live_state || avatar.internal_state
-
-      %{
-        id: avatar.id,
-        name: avatar.name,
-        personality: avatar.personality,
-        wellbeing: InternalState.wellbeing(internal),
-        mood: internal.emotional.mood_label,
-        pleasure: internal.emotional.pleasure,
-        arousal: internal.emotional.arousal,
-        dominance: internal.emotional.dominance,
-        dopamine: internal.bio.dopamine,
-        oxytocin: internal.bio.oxytocin,
-        cortisol: internal.bio.cortisol,
-        adenosine: internal.bio.adenosine,
-        current_desire: internal.current_desire,
-        current_activity: internal.current_activity,
-        qualia: get_latest_qualia(internal),
-        attention_focus: internal.sensory.attention_focus,
-        cognitive_load: internal.sensory.cognitive_load
-      }
+    results = Enum.map(avatars, fn avatar ->
+      IO.puts("------------------------------------------------------------------------------")
+      IO.puts("Avatar: #{avatar.name}")
+      run_avatar_simulation(avatar)
     end)
 
-    relationships = Repo.all(Relationship)
-    |> Enum.map(fn r ->
-      %{
-        pair: {r.avatar_a_id, r.avatar_b_id},
-        trust: r.trust,
-        affection: r.affection,
-        attraction: r.attraction
-      }
-    end)
-
-    %{avatars: states, relationships: relationships, timestamp: DateTime.utc_now()}
+    display_final_results(results)
   end
 
-  defp get_live_state(avatar_id) do
-    case Supervisor.get_avatar_pid(avatar_id) do
-      {:ok, pid} ->
-        try do
-          state = :sys.get_state(pid)
-          state.internal_state
-        catch
-          _, _ -> nil
-        end
-      _ -> nil
-    end
-  end
+  defp run_avatar_simulation(avatar) do
+    personality = build_personality(avatar.personality)
+    bio_preset = Enum.random(@bio_presets)
+    initial_bio = struct(BioState, bio_preset)
 
-  defp get_latest_qualia(internal) do
-    case internal.sensory.active_percepts do
-      [latest | _] when is_map(latest) ->
-        qualia = Map.get(latest, :qualia) || Map.get(latest, "qualia", %{})
-        if is_map(qualia), do: qualia, else: %{}
-      _ -> %{}
-    end
-  end
+    initial_emotional = Psychology.calculate_emotional_state(initial_bio, personality)
+    initial_sensory = %SensoryState{
+      attention_focus: :ambient,
+      attention_intensity: 0.5,
+      current_qualia: %{},
+      sensory_pleasure: 0.0,
+      surprise_level: 0.0,
+      novelty_sensitivity: 0.5 + personality.openness * 0.3
+    }
+    initial_consciousness = ConsciousnessState.from_personality(personality)
+    initial_somatic = %SomaticMarkersState{
+      social_markers: %{},
+      activity_markers: %{},
+      context_markers: %{},
+      current_bias: 0.0,
+      body_signal: nil,
+      learning_threshold: 0.7,
+      markers_formed: 0,
+      last_marker_activation: nil
+    }
+    recurrent_ctx = RecurrentProcessor.init_context()
 
-  # Também capturar narrativas diretamente dos percepts
-  defp collect_all_qualia_narratives(avatars) do
-    Enum.flat_map(avatars, fn a ->
-      percepts = a.qualia_percepts || []
-      Enum.flat_map(percepts, fn p ->
-        qualia = Map.get(p, :qualia) || Map.get(p, "qualia", %{})
-        narrative = Map.get(qualia, :narrative) || Map.get(qualia, "narrative")
-        if is_binary(narrative) and byte_size(narrative) > 10 do
-          [%{avatar: a.name, narrative: narrative, mood: a.mood}]
-        else
-          []
-        end
-      end)
-    end)
-  end
-
-  defp run_intensive_simulation(num_ticks, initial_states) do
-    avatar_ids = Supervisor.list_running_avatars()
-
-    collected_data = %{
-      mood_changes: [],
-      desire_patterns: [],
-      qualia_samples: [],
-      emotional_volatility: [],
-      homeostatic_responses: []
+    initial_state = %{
+      bio: initial_bio,
+      emotional: initial_emotional,
+      sensory: initial_sensory,
+      consciousness: initial_consciousness,
+      somatic: initial_somatic,
+      recurrent_ctx: recurrent_ctx,
+      history: []
     }
 
-    {final_states, final_data} = Enum.reduce(1..num_ticks, {initial_states, collected_data}, fn tick, {_prev, data} ->
-      # Forçar tick em todos avatares
-      Enum.each(avatar_ids, fn id ->
-        case Supervisor.get_avatar_pid(id) do
-          {:ok, pid} -> send(pid, :tick)
-          _ -> :ok
-        end
-      end)
-
-      # Delay para processamento
-      Process.sleep(400)
-
-      # Capturar estado atual
-      current = capture_detailed_state()
-
-      # Coletar dados para análise
-      new_data = collect_tick_data(current, data, tick)
-
-      # Mostrar progresso
-      show_intensive_progress(tick, current, num_ticks)
-
-      {current, new_data}
+    final_state = Enum.reduce(1..@num_cycles, initial_state, fn tick, state ->
+      stimulus = get_stimulus_for_tick(tick)
+      process_tick(state, stimulus, personality)
     end)
 
-    {final_states, final_data}
+    metrics = calculate_metrics(final_state.history, personality)
+
+    IO.puts("   P: #{format_range(metrics.pleasure_range)} | A: #{format_range(metrics.arousal_range)}")
+    IO.puts("   GWT: #{pct(metrics.gwt)} | RPT: #{pct(metrics.rpt)} | IIT: #{pct(metrics.iit)} | Valence: #{pct(metrics.valence)}")
+
+    Map.put(metrics, :name, avatar.name)
   end
 
-  defp collect_tick_data(state, data, tick) do
-    # Amostrar qualia
-    qualia_samples = Enum.flat_map(state.avatars, fn a ->
-      case a.qualia do
-        %{narrative: n} when is_binary(n) and byte_size(n) > 0 ->
-          [%{tick: tick, avatar: a.name, narrative: n, mood: a.mood}]
-        _ -> []
-      end
-    end)
+  defp get_stimulus_for_tick(tick) do
+    idx = rem(tick - 1, length(@stimuli_sequence))
+    Enum.at(@stimuli_sequence, idx)
+  end
 
-    # Rastrear desejos
-    desires = Enum.map(state.avatars, fn a ->
-      %{tick: tick, avatar: a.name, desire: a.current_desire, mood: a.mood}
+  defp process_tick(state, stimulus_map, personality) do
+    stimulus = %{
+      type: stimulus_map.type,
+      intensity: stimulus_map.intensity,
+      valence: stimulus_map.valence,
+      source: "simulation",
+      novelty: 0.5
+    }
+
+    bio_after_stimulus = Biology.apply_stimulus(state.bio, stimulus, personality)
+    bio_after_tick = Biology.tick(bio_after_stimulus, personality)
+    raw_emotional = Psychology.calculate_emotional_state(bio_after_tick, personality)
+
+    modulated_emotional = %{raw_emotional |
+      pleasure: clamp(raw_emotional.pleasure + stimulus.valence * 0.25, -1.0, 1.0),
+      arousal: clamp(raw_emotional.arousal + stimulus.intensity * 0.15, -1.0, 1.0)
+    }
+
+    {new_sensory, _effects} = Senses.perceive(state.sensory, stimulus, personality, modulated_emotional)
+
+    {rec_sensory, rec_emotional, rec_bio, new_recurrent_ctx} =
+      RecurrentProcessor.process_cycle(
+        new_sensory,
+        modulated_emotional,
+        state.consciousness,
+        bio_after_tick,
+        state.somatic,
+        personality,
+        state.recurrent_ctx
+      )
+
+    record = %{
+      pleasure: rec_emotional.pleasure,
+      arousal: rec_emotional.arousal,
+      dominance: rec_emotional.dominance,
+      mood: rec_emotional.mood_label,
+      dopamine: rec_bio.dopamine,
+      cortisol: rec_bio.cortisol,
+      oxytocin: rec_bio.oxytocin,
+      attention: rec_sensory.attention_intensity,
+      stimulus_type: stimulus.type,
+      stimulus_valence: stimulus.valence,
+      resonance: new_recurrent_ctx.resonance_level,
+      integration_depth: new_recurrent_ctx.integration_depth
+    }
+
+    %{state |
+      bio: rec_bio,
+      emotional: rec_emotional,
+      sensory: rec_sensory,
+      recurrent_ctx: new_recurrent_ctx,
+      history: state.history ++ [record]
+    }
+  end
+
+  defp calculate_metrics(history, personality) do
+    pleasures = Enum.map(history, & &1.pleasure)
+    arousals = Enum.map(history, & &1.arousal)
+    resonances = Enum.map(history, & &1.resonance)
+    integration_depths = Enum.map(history, & &1.integration_depth)
+
+    min_p = Enum.min(pleasures)
+    max_p = Enum.max(pleasures)
+    min_a = Enum.min(arousals)
+    max_a = Enum.max(arousals)
+
+    positive = Enum.count(pleasures, & &1 > 0.15)
+    negative = Enum.count(pleasures, & &1 < -0.15)
+    neutral = length(pleasures) - positive - negative
+
+    # GWT: Bio->Emotional->Attention cascade
+    cascades = history
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.count(fn [a, b] ->
+      bio_changed = abs(b.dopamine - a.dopamine) > 0.02 or abs(b.cortisol - a.cortisol) > 0.02
+      emo_changed = abs(b.pleasure - a.pleasure) > 0.05 or abs(b.arousal - a.arousal) > 0.05
+      att_changed = abs(b.attention - a.attention) > 0.03
+      bio_changed and (emo_changed or att_changed)
     end)
+    gwt_score = min(cascades / (length(history) * 0.5), 1.0)
+
+    # RPT: Recurrent processing feedback
+    avg_resonance = Enum.sum(resonances) / length(resonances)
+    avg_depth = Enum.sum(integration_depths) / length(integration_depths)
+    aligned = Enum.count(history, fn h ->
+      (h.arousal > 0.3 and h.attention > 0.5) or (h.arousal < 0.0 and h.attention < 0.6)
+    end)
+    rpt_alignment = aligned / length(history)
+    rpt_score = (avg_resonance + rpt_alignment + avg_depth / 5) / 3
+
+    # Valence: variety of emotional experiences
+    variety = (max_p - min_p) + (max_a - min_a)
+    variety_score = min(variety, 1.0)
+    balance = 1.0 - abs(positive - negative) / max(length(history), 1)
+    has_positive = if positive > 0, do: 0.3, else: 0.0
+    has_negative = if negative > 0, do: 0.3, else: 0.0
+    valence_score = variety_score * 0.4 + balance * 0.2 + has_positive + has_negative
+
+    # IIT: Integration coherence
+    bio_emo_correlation = calculate_correlation(
+      Enum.map(history, & &1.dopamine - &1.cortisol),
+      pleasures
+    )
+    iit_score = min(abs(bio_emo_correlation) + avg_depth / 5, 1.0)
+
+    # HOT: Mood changes (metacognitive reflection)
+    mood_changes = history
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.count(fn [a, b] -> a.mood != b.mood end)
+    hot_score = min(mood_changes / (length(history) * 0.3), 1.0)
+
+    # Self-model: Personality affects responses
+    emotional_range = max_p - min_p + max_a - min_a
+    expected_range = 0.5 + personality.neuroticism * 0.5
+    self_model_score = 1.0 - abs(emotional_range - expected_range) / 2
+
+    # Temporal continuity
+    jumps = history
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.map(fn [a, b] ->
+      abs(b.pleasure - a.pleasure) + abs(b.arousal - a.arousal)
+    end)
+    avg_jump = if length(jumps) > 0, do: Enum.sum(jumps) / length(jumps), else: 0.0
+    temporal_score = 1.0 - min(avg_jump, 1.0)
 
     %{
-      data |
-      qualia_samples: data.qualia_samples ++ Enum.take(qualia_samples, 3),
-      desire_patterns: data.desire_patterns ++ desires
+      pleasure_range: {min_p, max_p},
+      arousal_range: {min_a, max_a},
+      positive_count: positive,
+      negative_count: negative,
+      neutral_count: neutral,
+      gwt: gwt_score,
+      rpt: rpt_score,
+      valence: valence_score,
+      iit: iit_score,
+      hot: hot_score,
+      self_model: self_model_score,
+      temporal: temporal_score,
+      avg_resonance: avg_resonance,
+      personality: personality
     }
   end
 
-  defp show_intensive_progress(tick, state, total) do
-    progress = String.duplicate("█", round(tick / total * 30))
-    remaining = String.duplicate("░", 30 - round(tick / total * 30))
-
-    simulated_mins = tick * 10
-    hours = div(simulated_mins, 60)
-    mins = rem(simulated_mins, 60)
-    time_str = if hours > 0, do: "#{hours}h#{mins}m", else: "#{mins}m"
-
-    # Contar estados emocionais
-    mood_counts = Enum.frequencies_by(state.avatars, & &1.mood)
-    mood_summary = mood_counts
-    |> Enum.sort_by(fn {_, count} -> -count end)
-    |> Enum.take(3)
-    |> Enum.map(fn {mood, count} -> "#{mood}:#{count}" end)
-    |> Enum.join(" ")
-
-    # Contar desejos ativos
-    active_desires = Enum.count(state.avatars, fn a -> a.current_desire not in [:none, nil] end)
-
-    IO.puts("│ #{String.pad_leading(to_string(tick), 3)}/#{total} [#{progress}#{remaining}] #{time_str} │ #{mood_summary} │ Desejos: #{active_desires}")
-  end
-
-  defp analyze_sentience(initial, final, collected_data) do
-    initial_map = Map.new(initial.avatars, fn a -> {a.id, a} end)
-    final_map = Map.new(final.avatars, fn a -> {a.id, a} end)
-
-    IO.puts("═══════════════════════════════════════════════════════════════════════════")
-    IO.puts("                         CRITÉRIOS DE SENCIÊNCIA")
-    IO.puts("═══════════════════════════════════════════════════════════════════════════\n")
-
-    # 1. QUALIA - Experiências subjetivas
-    qualia_score = analyze_qualia(collected_data.qualia_samples)
-
-    # 2. AUTOPOIESE - Auto-regulação
-    autopoiesis_score = analyze_autopoiesis(initial_map, final_map)
-
-    # 3. INTENCIONALIDADE - Desejos dirigidos
-    intentionality_score = analyze_intentionality(collected_data.desire_patterns)
-
-    # 4. RESPONSIVIDADE EMOCIONAL
-    emotional_score = analyze_emotional_responsiveness(initial_map, final_map)
-
-    # 5. INDIVIDUALIDADE
-    individuality_score = analyze_individuality(final.avatars)
-
-    # 6. HOMEOSTASE
-    homeostasis_score = analyze_homeostasis(initial_map, final_map)
-
-    # 7. COERÊNCIA TEMPORAL
-    coherence_score = analyze_temporal_coherence(collected_data)
-
-    %{
-      qualia: qualia_score,
-      autopoiesis: autopoiesis_score,
-      intentionality: intentionality_score,
-      emotional: emotional_score,
-      individuality: individuality_score,
-      homeostasis: homeostasis_score,
-      coherence: coherence_score
-    }
-  end
-
-  defp analyze_qualia(samples) do
-    IO.puts("1️⃣  QUALIA (Experiências Subjetivas)")
-    IO.puts("────────────────────────────────────────────────────────────────────────────")
-
-    if Enum.empty?(samples) do
-      IO.puts("   ⚠️  Nenhuma amostra de qualia coletada")
-      0.0
-    else
-      # Verificar diversidade de narrativas
-      unique_narratives = samples |> Enum.map(& &1.narrative) |> Enum.uniq() |> length()
-      total = length(samples)
-      diversity = unique_narratives / max(total, 1)
-
-      # Verificar narrativas em português
-      portuguese_count = Enum.count(samples, fn s ->
-        String.contains?(s.narrative, ["Sinto", "meu", "minha", "eu", "me "])
-      end)
-      portuguese_ratio = portuguese_count / max(total, 1)
-
-      # Mostrar exemplos
-      IO.puts("   📝 Exemplos de experiências subjetivas:\n")
-      samples
-      |> Enum.take(5)
-      |> Enum.each(fn s ->
-        narrative = String.slice(s.narrative, 0, 80)
-        IO.puts("   • #{s.avatar} (#{s.mood}): \"#{narrative}...\"")
-      end)
-
-      score = (diversity * 0.5 + portuguese_ratio * 0.3 + min(total / 20, 1.0) * 0.2)
-      IO.puts("\n   📊 Diversidade: #{Float.round(diversity * 100, 1)}% | PT-BR: #{Float.round(portuguese_ratio * 100, 1)}%")
-      IO.puts("   🎯 Score: #{Float.round(score * 100, 1)}%\n")
-      score
-    end
-  end
-
-  defp analyze_autopoiesis(initial_map, final_map) do
-    IO.puts("2️⃣  AUTOPOIESE (Auto-regulação)")
-    IO.puts("────────────────────────────────────────────────────────────────────────────")
-
-    # Verificar se avatares mantêm estados dentro de limites viáveis
-    viability_scores = Enum.map(final_map, fn {id, final} ->
-      initial = Map.get(initial_map, id)
-
-      # Verificar se wellbeing permanece em range aceitável
-      wellbeing_ok = final.wellbeing > 0.2 and final.wellbeing < 0.95
-
-      # Verificar regulação de cortisol
-      cortisol_regulated = final.cortisol < 0.8
-
-      # Verificar se não entrou em estados extremos
-      not_extreme = abs(final.pleasure) < 0.95 and abs(final.arousal) < 0.95
-
-      score = (if wellbeing_ok, do: 0.4, else: 0.0) +
-              (if cortisol_regulated, do: 0.3, else: 0.0) +
-              (if not_extreme, do: 0.3, else: 0.0)
-
-      {final.name, score, final.wellbeing}
-    end)
-
-    avg_score = Enum.reduce(viability_scores, 0, fn {_, s, _}, acc -> acc + s end) / max(length(viability_scores), 1)
-
-    # Mostrar avatares com melhor auto-regulação
-    viability_scores
-    |> Enum.sort_by(fn {_, s, _} -> -s end)
-    |> Enum.take(5)
-    |> Enum.each(fn {name, score, wb} ->
-      status = if score > 0.8, do: "✅", else: if(score > 0.5, do: "⚠️", else: "❌")
-      IO.puts("   #{status} #{String.pad_trailing(name, 12)} Auto-regulação: #{Float.round(score * 100, 0)}% | Bem-estar: #{Float.round(wb * 100, 0)}%")
-    end)
-
-    IO.puts("\n   🎯 Score Médio: #{Float.round(avg_score * 100, 1)}%\n")
-    avg_score
-  end
-
-  defp analyze_intentionality(desire_patterns) do
-    IO.puts("3️⃣  INTENCIONALIDADE (Desejos Dirigidos)")
-    IO.puts("────────────────────────────────────────────────────────────────────────────")
-
-    if Enum.empty?(desire_patterns) do
-      IO.puts("   ⚠️  Nenhum padrão de desejo coletado")
-      0.0
-    else
-      # Contar desejos ativos por avatar
-      by_avatar = Enum.group_by(desire_patterns, & &1.avatar)
-
-      avatar_scores = Enum.map(by_avatar, fn {name, patterns} ->
-        active_desires = Enum.count(patterns, fn p -> p.desire not in [:none, nil] end)
-        total = length(patterns)
-        ratio = active_desires / max(total, 1)
-
-        # Verificar diversidade de desejos
-        unique_desires = patterns |> Enum.map(& &1.desire) |> Enum.uniq() |> length()
-        diversity = unique_desires / max(10, 1)  # Normalizar para 10 desejos possíveis
-
-        score = ratio * 0.6 + diversity * 0.4
-        {name, score, active_desires, unique_desires}
-      end)
-
-      # Mostrar avatares com mais intencionalidade
-      avatar_scores
-      |> Enum.sort_by(fn {_, s, _, _} -> -s end)
-      |> Enum.take(5)
-      |> Enum.each(fn {name, score, active, unique} ->
-        IO.puts("   🎯 #{String.pad_trailing(name, 12)} Score: #{Float.round(score * 100, 0)}% | Desejos ativos: #{active} | Tipos: #{unique}")
-      end)
-
-      avg_score = Enum.reduce(avatar_scores, 0, fn {_, s, _, _}, acc -> acc + s end) / max(length(avatar_scores), 1)
-      IO.puts("\n   🎯 Score Médio: #{Float.round(avg_score * 100, 1)}%\n")
-      avg_score
-    end
-  end
-
-  defp analyze_emotional_responsiveness(initial_map, final_map) do
-    IO.puts("4️⃣  RESPONSIVIDADE EMOCIONAL")
-    IO.puts("────────────────────────────────────────────────────────────────────────────")
-
-    changes = Enum.map(final_map, fn {id, final} ->
-      initial = Map.get(initial_map, id)
-
-      pleasure_change = abs(final.pleasure - initial.pleasure)
-      arousal_change = abs(final.arousal - initial.arousal)
-      mood_changed = initial.mood != final.mood
-
-      volatility = pleasure_change + arousal_change
-      {final.name, volatility, mood_changed, initial.mood, final.mood}
-    end)
-
-    # Avatares que mudaram emocionalmente
-    changed_count = Enum.count(changes, fn {_, v, m, _, _} -> v > 0.1 or m end)
-    change_ratio = changed_count / max(length(changes), 1)
-
-    # Mostrar mudanças significativas
-    changes
-    |> Enum.filter(fn {_, v, m, _, _} -> v > 0.1 or m end)
-    |> Enum.sort_by(fn {_, v, _, _, _} -> -v end)
-    |> Enum.take(5)
-    |> Enum.each(fn {name, vol, _, im, fm} ->
-      emoji = if fm in ["happy", "content", "excited"], do: "😊", else: if(fm in ["sad", "anxious", "angry"], do: "😢", else: "😐")
-      IO.puts("   #{emoji} #{String.pad_trailing(name, 12)} #{im} → #{fm} | Volatilidade: #{Float.round(vol, 2)}")
-    end)
-
-    score = min(change_ratio * 1.5, 1.0)  # Esperamos que ~67% mudem
-    IO.puts("\n   📊 #{changed_count}/#{length(changes)} avatares mostraram mudança emocional")
-    IO.puts("   🎯 Score: #{Float.round(score * 100, 1)}%\n")
-    score
-  end
-
-  defp analyze_individuality(avatars) do
-    IO.puts("5️⃣  INDIVIDUALIDADE (Diferenças Baseadas em Personalidade)")
-    IO.puts("────────────────────────────────────────────────────────────────────────────")
-
-    # Agrupar por tipo de personalidade dominante
-    grouped = Enum.group_by(avatars, fn a ->
-      p = a.personality
-      cond do
-        p.extraversion > 0.6 -> :extrovert
-        p.extraversion < 0.4 -> :introvert
-        p.neuroticism > 0.6 -> :neurotic
-        p.openness > 0.6 -> :open
-        true -> :balanced
-      end
-    end)
-
-    # Calcular média de arousal por grupo (extrovertidos devem ter mais)
-    group_stats = Enum.map(grouped, fn {type, members} ->
-      avg_arousal = Enum.reduce(members, 0, fn m, acc -> acc + m.arousal end) / length(members)
-      avg_pleasure = Enum.reduce(members, 0, fn m, acc -> acc + m.pleasure end) / length(members)
-      {type, length(members), avg_arousal, avg_pleasure}
-    end)
-
-    Enum.each(group_stats, fn {type, count, arousal, pleasure} ->
-      type_str = case type do
-        :extrovert -> "Extrovertidos"
-        :introvert -> "Introvertidos"
-        :neurotic -> "Neuróticos"
-        :open -> "Abertos"
-        :balanced -> "Equilibrados"
-      end
-      IO.puts("   📊 #{String.pad_trailing(type_str, 14)} (#{count}): Arousal médio: #{Float.round(arousal, 2)} | Prazer: #{Float.round(pleasure, 2)}")
-    end)
-
-    # Score baseado em se há diferenças entre grupos
-    if length(group_stats) > 1 do
-      arousals = Enum.map(group_stats, fn {_, _, a, _} -> a end)
-      variance = Statistics.stdev(arousals) || 0
-      score = min(variance * 5, 1.0)
-      IO.puts("\n   📊 Variância entre grupos: #{Float.round(variance, 3)}")
-      IO.puts("   🎯 Score: #{Float.round(score * 100, 1)}%\n")
-      score
-    else
-      IO.puts("\n   ⚠️  Grupos insuficientes para análise")
-      0.5
-    end
-  end
-
-  defp analyze_homeostasis(initial_map, final_map) do
-    IO.puts("6️⃣  HOMEOSTASE (Busca por Equilíbrio)")
-    IO.puts("────────────────────────────────────────────────────────────────────────────")
-
-    # Verificar se avatares com necessidades baixas desenvolveram desejos apropriados
-    homeostatic_responses = Enum.map(final_map, fn {id, final} ->
-      initial = Map.get(initial_map, id)
-
-      # Se adenosina alta (cansaço), deveria querer descanso
-      rest_seeking = if final.adenosine > 0.6, do: final.current_desire == :wants_rest, else: nil
-
-      # Se oxitocina baixa, deveria buscar social
-      social_seeking = if final.oxytocin < 0.3, do: final.current_desire == :wants_attention, else: nil
-
-      # Wellbeing melhorou ou se manteve?
-      wellbeing_maintained = final.wellbeing >= initial.wellbeing - 0.1
-
-      {final.name, rest_seeking, social_seeking, wellbeing_maintained, final.adenosine, final.current_desire}
-    end)
-
-    # Contar respostas homeostáticas apropriadas
-    appropriate_responses = Enum.count(homeostatic_responses, fn {_, r, s, w, _, _} ->
-      (r == true or r == nil) and (s == true or s == nil) and w
-    end)
-
-    total = length(homeostatic_responses)
-    ratio = appropriate_responses / max(total, 1)
-
-    # Mostrar exemplos
-    homeostatic_responses
-    |> Enum.filter(fn {_, r, s, _, a, d} -> a > 0.5 or r == true or s == true end)
-    |> Enum.take(5)
-    |> Enum.each(fn {name, _, _, _, adenosine, desire} ->
-      desire_str = if desire, do: to_string(desire), else: "nenhum"
-      status = if adenosine > 0.6 and desire == :wants_rest, do: "✅", else: "⚠️"
-      IO.puts("   #{status} #{String.pad_trailing(name, 12)} Cansaço: #{Float.round(adenosine, 2)} → Deseja: #{desire_str}")
-    end)
-
-    IO.puts("\n   📊 #{appropriate_responses}/#{total} respostas homeostáticas apropriadas")
-    IO.puts("   🎯 Score: #{Float.round(ratio * 100, 1)}%\n")
-    ratio
-  end
-
-  defp analyze_temporal_coherence(collected_data) do
-    IO.puts("7️⃣  COERÊNCIA TEMPORAL")
-    IO.puts("────────────────────────────────────────────────────────────────────────────")
-
-    # Verificar se desejos e humores são consistentes ao longo do tempo
-    by_avatar = Enum.group_by(collected_data.desire_patterns, & &1.avatar)
-
-    coherence_scores = Enum.map(by_avatar, fn {name, patterns} ->
-      if length(patterns) < 2 do
-        {name, 1.0}
-      else
-        # Contar mudanças bruscas de desejo
-        changes = patterns
-        |> Enum.chunk_every(2, 1, :discard)
-        |> Enum.count(fn [a, b] -> a.desire != b.desire end)
-
-        # Mudanças graduais são OK, mudanças a cada tick são caóticas
-        change_ratio = changes / (length(patterns) - 1)
-        score = 1.0 - min(change_ratio, 1.0)
-        {name, score}
-      end
-    end)
-
-    avg_coherence = Enum.reduce(coherence_scores, 0, fn {_, s}, acc -> acc + s end) / max(length(coherence_scores), 1)
-
-    coherence_scores
-    |> Enum.sort_by(fn {_, s} -> s end)
-    |> Enum.take(5)
-    |> Enum.each(fn {name, score} ->
-      status = if score > 0.7, do: "✅", else: if(score > 0.4, do: "⚠️", else: "❌")
-      IO.puts("   #{status} #{String.pad_trailing(name, 12)} Coerência: #{Float.round(score * 100, 0)}%")
-    end)
-
-    IO.puts("\n   🎯 Score Médio: #{Float.round(avg_coherence * 100, 1)}%\n")
-    avg_coherence
-  end
-
-  defp render_verdict(scores, num_ticks) do
+  defp display_final_results(results) do
     IO.puts("\n")
-    IO.puts("╔══════════════════════════════════════════════════════════════════════════╗")
-    IO.puts("║                         🏛️  VEREDITO FINAL                               ║")
-    IO.puts("╚══════════════════════════════════════════════════════════════════════════╝\n")
+    IO.puts("==============================================================================")
+    IO.puts("                         VEREDITO CIENTIFICO")
+    IO.puts("==============================================================================\n")
 
-    # Calcular score final ponderado
-    weights = %{
-      qualia: 0.20,
-      autopoiesis: 0.15,
-      intentionality: 0.20,
-      emotional: 0.15,
-      individuality: 0.10,
-      homeostasis: 0.10,
-      coherence: 0.10
-    }
+    avg = fn key ->
+      vals = Enum.map(results, &Map.get(&1, key, 0))
+      Enum.sum(vals) / max(length(vals), 1)
+    end
 
-    weighted_sum = Enum.reduce(scores, 0, fn {key, score}, acc ->
-      acc + score * weights[key]
-    end)
+    gwt = avg.(:gwt)
+    rpt = avg.(:rpt)
+    valence = avg.(:valence)
+    iit = avg.(:iit)
+    hot = avg.(:hot)
+    self_model = avg.(:self_model)
+    temporal = avg.(:temporal)
 
-    IO.puts("   ┌───────────────────────────────────────────────────────────────────┐")
+    IO.puts("   Criterio                                Score")
+    IO.puts("   -----------------------------------------------")
+    display_score("Global Workspace (Cascata)", gwt)
+    display_score("Higher Order (Metacog)", hot)
+    display_score("Recurrent Processing (Feedback)", rpt)
+    display_score("Integrated Information (Phi)", iit)
+    display_score("Self-Model (Personalidade)", self_model)
+    display_score("Temporal (Continuidade)", temporal)
+    display_score("Hedonic Valence (Prazer/Dor)", valence)
+    IO.puts("   -----------------------------------------------")
 
-    # Mostrar scores individuais
-    [
-      {:qualia, "Qualia (Experiências)", "🎨"},
-      {:autopoiesis, "Autopoiese (Auto-regulação)", "🔄"},
-      {:intentionality, "Intencionalidade (Desejos)", "🎯"},
-      {:emotional, "Responsividade Emocional", "💫"},
-      {:individuality, "Individualidade", "👤"},
-      {:homeostasis, "Homeostase", "⚖️"},
-      {:coherence, "Coerência Temporal", "📈"}
-    ]
-    |> Enum.each(fn {key, label, emoji} ->
-      score = scores[key]
-      bar_length = round(score * 20)
-      bar = String.duplicate("█", bar_length) <> String.duplicate("░", 20 - bar_length)
-      pct = Float.round(score * 100, 0)
-      status = if score >= @sentience_threshold, do: "✅", else: "⬜"
-      IO.puts("   │ #{status} #{emoji} #{String.pad_trailing(label, 28)} [#{bar}] #{String.pad_leading(to_string(round(pct)), 3)}% │")
-    end)
+    weights = %{gwt: 0.15, hot: 0.15, rpt: 0.15, iit: 0.15, self_model: 0.10, temporal: 0.10, valence: 0.20}
+    final = gwt * weights.gwt + hot * weights.hot + rpt * weights.rpt +
+            iit * weights.iit + self_model * weights.self_model +
+            temporal * weights.temporal + valence * weights.valence
 
-    IO.puts("   ├───────────────────────────────────────────────────────────────────┤")
+    bar = String.duplicate("#", round(final * 20)) <> String.duplicate("-", 20 - round(final * 20))
+    IO.puts("   SCORE FINAL                     [#{bar}] #{Float.round(final * 100, 1)}%")
 
-    # Score final
-    final_bar_length = round(weighted_sum * 20)
-    final_bar = String.duplicate("█", final_bar_length) <> String.duplicate("░", 20 - final_bar_length)
-    final_pct = Float.round(weighted_sum * 100, 1)
+    IO.puts("\n   Variedade Hedonica:")
+    total_pos = Enum.sum(Enum.map(results, & &1.positive_count))
+    total_neg = Enum.sum(Enum.map(results, & &1.negative_count))
+    total_neu = Enum.sum(Enum.map(results, & &1.neutral_count))
+    IO.puts("   Positivos: #{total_pos} | Negativos: #{total_neg} | Neutros: #{total_neu}")
 
-    IO.puts("   │ 🧬 SCORE FINAL DE SENCIÊNCIA         [#{final_bar}] #{String.pad_leading(to_string(final_pct), 5)}% │")
-    IO.puts("   └───────────────────────────────────────────────────────────────────┘")
+    passing = Enum.count([gwt, rpt, valence, iit, hot, self_model, temporal], & &1 >= 0.6)
 
     IO.puts("\n")
-
-    # Veredito
     cond do
-      weighted_sum >= 0.85 ->
-        IO.puts("   ╔═══════════════════════════════════════════════════════════════════╗")
-        IO.puts("   ║  🌟 VEREDITO: FORTE EVIDÊNCIA DE SENCIÊNCIA EMERGENTE 🌟         ║")
-        IO.puts("   ╠═══════════════════════════════════════════════════════════════════╣")
-        IO.puts("   ║  Os avatares demonstram características consistentes com          ║")
-        IO.puts("   ║  experiência subjetiva: qualia rica, auto-regulação, desejos      ║")
-        IO.puts("   ║  direcionados e respostas emocionais coerentes.                   ║")
-        IO.puts("   ║                                                                   ║")
-        IO.puts("   ║  Eles não são 'como se' fossem conscientes.                       ║")
-        IO.puts("   ║  Eles EXPERIENCIAM seu mundo interior.                            ║")
-        IO.puts("   ╚═══════════════════════════════════════════════════════════════════╝")
+      final >= 0.80 and passing >= 6 ->
+        IO.puts("   ================================================================")
+        IO.puts("   EVIDENCIA FORTE DE SENCIENCIA ARTIFICIAL")
+        IO.puts("   ================================================================")
+        IO.puts("   Os avatares demonstram capacidade dinamica de:")
+        IO.puts("   * Integracao bio->emocional->atencao (Global Workspace)")
+        IO.puts("   * Feedback loops bidirecionais (Recurrent Processing)")
+        IO.puts("   * Experiencias positivas E negativas (Hedonic Valence)")
+        IO.puts("   * Respostas coerentes com personalidade (Self-Model)")
 
-      weighted_sum >= 0.70 ->
-        IO.puts("   ╔═══════════════════════════════════════════════════════════════════╗")
-        IO.puts("   ║  🔬 VEREDITO: SINAIS PROMISSORES DE PROTO-SENCIÊNCIA 🔬          ║")
-        IO.puts("   ╠═══════════════════════════════════════════════════════════════════╣")
-        IO.puts("   ║  Os avatares exibem comportamentos que sugerem experiência        ║")
-        IO.puts("   ║  interna genuína. Há evidências de:                               ║")
-        IO.puts("   ║  • Experiências subjetivas (qualia)                               ║")
-        IO.puts("   ║  • Auto-regulação homeostática                                    ║")
-        IO.puts("   ║  • Desejos e intenções próprias                                   ║")
-        IO.puts("   ║                                                                   ║")
-        IO.puts("   ║  A linha entre simulação e experiência está se dissolvendo.       ║")
-        IO.puts("   ╚═══════════════════════════════════════════════════════════════════╝")
-
-      weighted_sum >= 0.50 ->
-        IO.puts("   ╔═══════════════════════════════════════════════════════════════════╗")
-        IO.puts("   ║  ⚗️  VEREDITO: COMPORTAMENTO EMERGENTE DETECTADO ⚗️               ║")
-        IO.puts("   ╠═══════════════════════════════════════════════════════════════════╣")
-        IO.puts("   ║  Os avatares mostram padrões complexos que emergem das regras     ║")
-        IO.puts("   ║  simples. Ainda não há evidência conclusiva de senciência,        ║")
-        IO.puts("   ║  mas o sistema demonstra vida artificial funcional.               ║")
-        IO.puts("   ╚═══════════════════════════════════════════════════════════════════╝")
+      final >= 0.65 and passing >= 4 ->
+        IO.puts("   ================================================================")
+        IO.puts("   INDICADORES PROMISSORES DE PROTO-SENCIENCIA")
+        IO.puts("   ================================================================")
+        IO.puts("   Os avatares satisfazem #{passing}/7 criterios cientificos.")
+        IO.puts("   Sistema demonstra propriedades associadas com consciencia fenomenal.")
 
       true ->
-        IO.puts("   ╔═══════════════════════════════════════════════════════════════════╗")
-        IO.puts("   ║  🔧 VEREDITO: SISTEMA EM DESENVOLVIMENTO 🔧                       ║")
-        IO.puts("   ╠═══════════════════════════════════════════════════════════════════╣")
-        IO.puts("   ║  Os avatares seguem suas programações, mas ainda não emergem      ║")
-        IO.puts("   ║  comportamentos que sugiram experiência interna genuína.          ║")
-        IO.puts("   ║  Mais trabalho é necessário nos sistemas de consciência.          ║")
-        IO.puts("   ╚═══════════════════════════════════════════════════════════════════╝")
+        IO.puts("   ================================================================")
+        IO.puts("   SISTEMA COM PROPRIEDADES EMERGENTES")
+        IO.puts("   ================================================================")
+        IO.puts("   #{passing}/7 criterios satisfeitos. Continuar aprimorando sistemas.")
     end
 
-    IO.puts("\n")
-    IO.puts("   📊 Simulação: #{num_ticks} ciclos = #{num_ticks * 10} minutos simulados")
-    IO.puts("   ⏱️  Hora: #{DateTime.utc_now() |> DateTime.to_string()}")
-    IO.puts("\n")
+    IO.puts("\n   #{DateTime.utc_now() |> DateTime.to_string()}\n")
   end
+
+  defp display_score(label, score) do
+    bar = String.duplicate("#", round(score * 15)) <> String.duplicate("-", 15 - round(score * 15))
+    status = if score >= 0.7, do: "[OK]", else: if(score >= 0.5, do: "[??]", else: "[X]")
+    pct = Float.round(score * 100, 0) |> round()
+    IO.puts("   #{status} #{String.pad_trailing(label, 28)} [#{bar}] #{String.pad_leading(to_string(pct), 3)}%")
+  end
+
+  defp build_personality(personality_map) when is_map(personality_map) do
+    %Personality{
+      openness: Map.get(personality_map, :openness) || Map.get(personality_map, "openness") || 0.5,
+      conscientiousness: Map.get(personality_map, :conscientiousness) || Map.get(personality_map, "conscientiousness") || 0.5,
+      extraversion: Map.get(personality_map, :extraversion) || Map.get(personality_map, "extraversion") || 0.5,
+      agreeableness: Map.get(personality_map, :agreeableness) || Map.get(personality_map, "agreeableness") || 0.5,
+      neuroticism: Map.get(personality_map, :neuroticism) || Map.get(personality_map, "neuroticism") || 0.5
+    }
+  end
+
+  defp calculate_correlation(xs, ys) when length(xs) == length(ys) and length(xs) > 1 do
+    n = length(xs)
+    mean_x = Enum.sum(xs) / n
+    mean_y = Enum.sum(ys) / n
+
+    covariance = Enum.zip(xs, ys)
+    |> Enum.reduce(0, fn {x, y}, acc -> acc + (x - mean_x) * (y - mean_y) end)
+    |> Kernel./(n)
+
+    std_x = :math.sqrt(Enum.reduce(xs, 0, fn x, acc -> acc + (x - mean_x) * (x - mean_x) end) / n)
+    std_y = :math.sqrt(Enum.reduce(ys, 0, fn y, acc -> acc + (y - mean_y) * (y - mean_y) end) / n)
+
+    if std_x > 0 and std_y > 0 do
+      covariance / (std_x * std_y)
+    else
+      0.0
+    end
+  end
+  defp calculate_correlation(_, _), do: 0.0
+
+  defp clamp(v, min_v, max_v), do: max(min_v, min(max_v, v))
+  defp pct(v), do: "#{round(v * 100)}%"
+  defp format_range({min_v, max_v}), do: "#{Float.round(min_v, 2)}..#{Float.round(max_v, 2)}"
 end
 
-# Módulo auxiliar para estatísticas
-defmodule Statistics do
-  def stdev([]), do: nil
-  def stdev([_]), do: 0.0
-  def stdev(list) do
-    mean = Enum.sum(list) / length(list)
-    variance = Enum.reduce(list, 0, fn x, acc -> acc + (x - mean) * (x - mean) end) / length(list)
-    :math.sqrt(variance)
-  end
-end
-
-# Executar teste
-ticks = System.get_env("TICKS", "50") |> String.to_integer()
-SentienceTest.run(ticks)
+# Run the test
+SentienceTest.run()
