@@ -18,6 +18,20 @@ config :viva, :nim,
   api_key: System.get_env("NIM_API_KEY"),
   timeout: 120_000,
 
+  # Rate Limiting - NVIDIA trial API limit is 40 RPM
+  # See: https://forums.developer.nvidia.com/t/model-limits/331075
+  requests_per_minute: 40,
+  burst_size: 5,
+  rate_limit_wait_ms: 10_000,
+
+  # Circuit Breaker
+  circuit_failure_threshold: 5,
+  circuit_reset_timeout_ms: 30_000,
+
+  # Retry Configuration
+  max_retries: 3,
+  retry_base_delay_ms: 1_500,
+
   # Models - Maximum Quality Selection
   models: %{
     # Primary LLM - Best reasoning, tool calling, instruction following

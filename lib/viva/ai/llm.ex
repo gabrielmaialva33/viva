@@ -303,11 +303,17 @@ defmodule Viva.AI.LLM do
     jitter_max = round(base * 0.3)
     jitter = :rand.uniform(jitter_max)
 
+    # Record 429s for adaptive throttling
+    if is_429?(reason), do: RateLimiter.record_429()
+
     # Respect Retry-After header for 429s
     retry_after = extract_retry_after(reason)
 
     round(max(base + jitter, retry_after))
   end
+
+  defp is_429?({:http_error, 429, _}), do: true
+  defp is_429?(_), do: false
 
   defp extract_retry_after({:http_error, 429, body}) when is_map(body) do
     case Map.get(body, "retry_after") do
