@@ -12,10 +12,6 @@ defmodule Viva.Avatars.Systems.Simulation.PredictiveSimulator do
 
   alias Viva.Avatars.InternalState
   alias Viva.Avatars.Personality
-  alias Viva.Avatars.SelfModel
-
-  # Look 3 steps ahead (simplified for MVP)
-  @simulation_depth 3
 
   @type action_plan :: %{
           action: atom(),
@@ -90,7 +86,7 @@ defmodule Viva.Avatars.Systems.Simulation.PredictiveSimulator do
     end
   end
 
-  defp predict_social_impact(option, _state) do
+  defp predict_social_impact(option, _) do
     # Placeholder for recursive social prediction
     # "If I say X, they will likely feel Y"
     case option.action do
