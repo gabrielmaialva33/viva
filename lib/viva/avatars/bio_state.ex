@@ -8,14 +8,14 @@ defmodule Viva.Avatars.BioState do
 
   @primary_key false
   embedded_schema do
-    # Reward/Focus
-    field :dopamine, :float, default: 0.5
-    # Stress/Survival
-    field :cortisol, :float, default: 0.2
-    # Bonding/Trust
-    field :oxytocin, :float, default: 0.3
-    # Sleep pressure
-    field :adenosine, :float, default: 0.0
+    # Reward/Focus - lowered to create mild boredom (need for stimulation)
+    field :dopamine, :float, default: 0.35
+    # Stress/Survival - slightly elevated for baseline alertness
+    field :cortisol, :float, default: 0.25
+    # Bonding/Trust - lowered to create mild loneliness (need for connection)
+    field :oxytocin, :float, default: 0.25
+    # Sleep pressure - slight fatigue to motivate rest-seeking
+    field :adenosine, :float, default: 0.1
     # Drive/Attraction
     field :libido, :float, default: 0.4
 

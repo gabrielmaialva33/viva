@@ -35,7 +35,8 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
           reentry_signals: list(reentry_signal()),
           resonance_level: float(),
           integration_depth: integer(),
-          feedback_cycles: integer()
+          feedback_cycles: integer(),
+          threat_expectation: float()
         }
 
   @type avatar_states :: %{
@@ -56,7 +57,8 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
       reentry_signals: [],
       resonance_level: 0.0,
       integration_depth: 0,
-      feedback_cycles: 0
+      feedback_cycles: 0,
+      threat_expectation: 0.0
     }
   end
 
@@ -409,13 +411,17 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
     active_loops = Enum.count(all_signals, fn s -> s.strength > 0.2 end)
     resonance = avg_strength * (active_loops / 5)
 
+    # Calculate threat expectation for NEXT tick (RPT: anxiety → synthetic threats)
+    threat_expectation = calculate_threat_expectation(emotional1, personality)
+
     # Update context
     new_context = %{
       context
       | reentry_signals: all_signals,
         resonance_level: resonance,
         integration_depth: active_loops,
-        feedback_cycles: context.feedback_cycles + 1
+        feedback_cycles: context.feedback_cycles + 1,
+        threat_expectation: threat_expectation
     }
 
     {sensory3, emotional1, bio1, new_context}
@@ -438,6 +444,42 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
     depth_bonus = context.integration_depth * 0.05
 
     min(1.0, base + sustained_bonus + depth_bonus)
+  end
+
+  @doc """
+  Calculate threat expectation based on emotional state and personality.
+
+  When the avatar is anxious (high arousal, negative pleasure, low dominance),
+  they begin to expect threats that may not exist. This creates the perceptual
+  distortion described in RPT - anxiety generates synthetic threat signals.
+
+  Returns a value from 0.0 to 0.4 representing threat hallucination susceptibility.
+  """
+  @spec calculate_threat_expectation(EmotionalState.t(), Personality.t()) :: float()
+  def calculate_threat_expectation(emotional, personality) do
+    # Anxiety signature: high arousal + negative pleasure + low dominance
+    is_anxious =
+      emotional.arousal > 0.5 and
+        emotional.pleasure < 0 and
+        emotional.dominance < -0.2
+
+    if is_anxious do
+      # Base threat expectation from anxiety state
+      base_threat = emotional.arousal * personality.neuroticism * 0.3
+
+      # Attachment style modulates susceptibility
+      attachment_boost =
+        case personality.attachment_style do
+          :anxious -> 0.1
+          :fearful -> 0.08
+          _ -> 0.0
+        end
+
+      # Cap at 0.4 to prevent overwhelming hallucinations
+      min(base_threat + attachment_boost, 0.4)
+    else
+      0.0
+    end
   end
 
   # === Private Functions ===

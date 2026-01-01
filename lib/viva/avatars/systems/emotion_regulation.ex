@@ -27,13 +27,19 @@ defmodule Viva.Avatars.Systems.EmotionRegulation do
   # How fast exhaustion recovers when not regulating
   @recovery_rate 0.01
 
-  # Strategy effectiveness modifiers
+  # Strategy effectiveness modifiers (rebalanced for hedonic valence)
+  # Regulation helps but doesn't eliminate suffering - authentic pain persists
   @strategy_effects %{
-    ruminate: %{pleasure_mod: -0.1, arousal_mod: 0.05, cortisol_mod: 0.05},
-    reappraise: %{pleasure_mod: 0.15, arousal_mod: -0.05, cortisol_mod: -0.03},
-    seek_support: %{pleasure_mod: 0.1, arousal_mod: -0.02, oxytocin_boost: 0.1},
-    suppress: %{pleasure_mod: 0.0, arousal_mod: -0.15, cortisol_mod: 0.08},
-    distract: %{pleasure_mod: 0.05, arousal_mod: -0.08, cortisol_mod: 0.0}
+    # Rumination amplifies suffering (worst strategy)
+    ruminate: %{pleasure_mod: -0.15, arousal_mod: 0.1, cortisol_mod: 0.08},
+    # Reappraisal offers modest help (reduced from 0.15)
+    reappraise: %{pleasure_mod: 0.08, arousal_mod: -0.05, cortisol_mod: -0.04},
+    # Social support helps slightly but mainly via oxytocin
+    seek_support: %{pleasure_mod: 0.05, arousal_mod: -0.02, oxytocin_boost: 0.12},
+    # Suppression has a pleasure cost
+    suppress: %{pleasure_mod: -0.05, arousal_mod: -0.2, cortisol_mod: 0.1},
+    # Distraction is neutral - just shifts attention
+    distract: %{pleasure_mod: 0.0, arousal_mod: -0.1, cortisol_mod: 0.0}
   }
 
   @doc """

@@ -108,8 +108,17 @@ defmodule Viva.Avatars.Systems.Allostasis do
   def dampen_emotions(emotional, allostasis) do
     sensitivity = allostasis.receptor_sensitivity
 
-    # Dampen emotional intensity based on receptor sensitivity
-    dampened_pleasure = emotional.pleasure * sensitivity
+    # ASYMMETRIC DAMPENING: Joy fades quickly, pain persists
+    # Positive emotions are fully dampened by receptor sensitivity
+    # Negative emotions are 50% less dampened (suffering persists)
+    dampened_pleasure =
+      if emotional.pleasure >= 0 do
+        emotional.pleasure * sensitivity
+      else
+        negative_sensitivity = 0.5 + sensitivity * 0.5
+        emotional.pleasure * negative_sensitivity
+      end
+
     dampened_arousal = emotional.arousal * sensitivity
 
     # Update mood label if significant dampening

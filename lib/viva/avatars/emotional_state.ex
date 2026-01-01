@@ -10,7 +10,8 @@ defmodule Viva.Avatars.EmotionalState do
   @primary_key false
   embedded_schema do
     # -1.0 (Unhappy) to 1.0 (Happy)
-    field :pleasure, :float, default: 0.2
+    # Default slightly negative to create mild discomfort that motivates action
+    field :pleasure, :float, default: -0.1
     # -1.0 (Calm) to 1.0 (Excited)
     field :arousal, :float, default: 0.0
     # -1.0 (Submissive) to 1.0 (Influential)

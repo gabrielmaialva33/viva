@@ -13,26 +13,34 @@ defmodule Viva.Avatars.Systems.Psychology do
   """
   @spec calculate_emotional_state(BioState.t(), Personality.t()) :: EmotionalState.t()
   def calculate_emotional_state(%BioState{} = bio, %Personality{} = personality) do
-    # 1. Calculate raw PAD vectors from Hormones
-    # REBALANCED: Normalize to neutral center (0.0) instead of positive bias
-    # Positive chemicals: average of reward signals
-    positive_chemicals = (bio.dopamine + bio.oxytocin) / 2.0
+    # 1. SATISFACTION SIGNALS (capped contribution - harder to feel good)
+    # Positive chemicals contribute to well-being but are capped
+    satisfaction_raw = bio.dopamine * 0.4 + bio.oxytocin * 0.4
+    satisfaction_signal = min(0.5, satisfaction_raw)
 
-    # Negative chemicals: stress + fatigue contribution
-    negative_chemicals = bio.cortisol + bio.adenosine * 0.5
+    # 2. DISTRESS SIGNALS (amplified - easier to feel bad)
+    # Stress and fatigue contribute more strongly to displeasure
+    stress_signal = bio.cortisol * 1.2
+    fatigue_signal = bio.adenosine * 0.5
 
-    # Raw pleasure centered at 0.0 with defaults:
-    # (0.5 + 0.3)/2 - (0.2 + 0.0) - 0.2 = 0.4 - 0.2 - 0.2 = 0.0
-    raw_pleasure = positive_chemicals - negative_chemicals - 0.2
+    # 3. NEED DEPRIVATION PAIN (drives action through discomfort)
+    # When needs fall below threshold, creates negative valence
+    # This is the critical mechanism for authentic suffering
+    dopamine_deprivation = max(0.0, 0.4 - bio.dopamine) * 0.5
+    oxytocin_deprivation = max(0.0, 0.35 - bio.oxytocin) * 0.6
+    deprivation_pain = dopamine_deprivation + oxytocin_deprivation
+
+    # 4. RAW PLEASURE (asymmetric: positive 0.8x, negative 1.0x)
+    # Satisfaction is dampened, distress is at full strength
+    raw_pleasure =
+      satisfaction_signal * 0.8 -
+        (stress_signal + fatigue_signal + deprivation_pain) - 0.1
 
     # HEDONIC AMPLIFICATION: Personality affects emotional sensitivity
-    # Neurotics have wider emotional swings, stable people more centered
     emotional_sensitivity = 1.0 + personality.neuroticism * 0.5
 
-    # MACRO-FLUCTUATIONS: Larger random variations create hedonic variety
-    # This helps create both positive AND negative experiences over time
-    # Must be large enough to overcome Allostasis dampening
-    macro_fluctuation = (:rand.uniform() - 0.5) * 0.6
+    # MACRO-FLUCTUATIONS: Reduced from 0.6 to 0.25 for more stable valence
+    macro_fluctuation = (:rand.uniform() - 0.5) * 0.25
 
     # Apply sensitivity and fluctuation
     pleasure = raw_pleasure * emotional_sensitivity + macro_fluctuation
@@ -44,17 +52,17 @@ defmodule Viva.Avatars.Systems.Psychology do
       raw_arousal * (1.0 + personality.extraversion * 0.3) +
         (:rand.uniform() - 0.5) * 0.15
 
-    # Dominance is boosted by Testosterone (not yet impl) or Confidence (Low Cortisol)
+    # Dominance: low cortisol = confidence, high stress = submissive
     dominance = 1.0 - bio.cortisol + personality.extraversion * 0.5
 
-    # 2. Normalize to -1.0 to 1.0 range
+    # Normalize to -1.0 to 1.0 range
     pad = %{
       pleasure: clamp(pleasure, -1.0, 1.0),
       arousal: clamp(arousal, -1.0, 1.0),
       dominance: clamp(dominance, -1.0, 1.0)
     }
 
-    # 3. Determine label
+    # Determine mood label from PAD values
     label = classify_mood(pad)
 
     %EmotionalState{
@@ -65,15 +73,35 @@ defmodule Viva.Avatars.Systems.Psychology do
     }
   end
 
-  defp classify_mood(%{pleasure: p, arousal: a, dominance: _}) do
+  defp classify_mood(%{pleasure: p, arousal: a, dominance: d}) do
     cond do
-      p > 0.5 -> if a > 0.5, do: "excited", else: "relaxed"
-      p > 0.0 -> "happy"
-      p < -0.5 -> if a > 0.5, do: "angry", else: "depressed"
-      p < 0.0 -> if a > 0.0, do: "anxious", else: "sad"
-      true -> "neutral"
+      p > 0.15 -> classify_positive_mood(p, a)
+      p >= -0.15 -> "neutral"
+      p > -0.4 -> classify_mild_negative_mood(a)
+      p > -0.65 -> classify_moderate_negative_mood(a, d)
+      true -> classify_severe_negative_mood(a)
     end
   end
+
+  # Positive states (p > 0.15)
+  defp classify_positive_mood(p, a) when p > 0.5 and a > 0.5, do: "excited"
+  defp classify_positive_mood(p, _) when p > 0.5, do: "content"
+  defp classify_positive_mood(_, a) when a > 0.4, do: "energized"
+  defp classify_positive_mood(_, _), do: "pleasant"
+
+  # Mild negative states (-0.4 < p <= -0.15)
+  defp classify_mild_negative_mood(a) when a > 0.4, do: "restless"
+  defp classify_mild_negative_mood(_), do: "uncomfortable"
+
+  # Moderate negative states (-0.65 < p <= -0.4)
+  defp classify_moderate_negative_mood(a, _) when a > 0.5, do: "anxious"
+  defp classify_moderate_negative_mood(_, d) when d < -0.2, do: "defeated"
+  defp classify_moderate_negative_mood(_, _), do: "sad"
+
+  # Severe negative states (p <= -0.65)
+  defp classify_severe_negative_mood(a) when a > 0.6, do: "distressed"
+  defp classify_severe_negative_mood(a) when a < -0.2, do: "depressed"
+  defp classify_severe_negative_mood(_), do: "suffering"
 
   defp clamp(n, min, max), do: max(min, min(n, max))
 end

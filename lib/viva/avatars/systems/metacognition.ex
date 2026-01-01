@@ -48,6 +48,13 @@ defmodule Viva.Avatars.Systems.Metacognition do
   # Maximum patterns to store per category
   @max_patterns 10
 
+  # Event-driven trigger thresholds (Phase 2: HOT enhancement)
+  @surprise_trigger_threshold 0.7
+  @pain_trigger_threshold 0.6
+  @crisis_combined_threshold 1.2
+
+  @type trigger_type :: :timer | :surprise | :pain | :crisis
+
   @type pattern :: %{
           trigger: String.t(),
           response: String.t(),
@@ -65,27 +72,52 @@ defmodule Viva.Avatars.Systems.Metacognition do
           patterns_detected: list(pattern()),
           alignment: alignment(),
           insight: String.t() | nil,
-          self_congruence_delta: float()
+          self_congruence_delta: float(),
+          trigger: trigger_type(),
+          crisis_mode: boolean()
         }
 
   @doc """
-  Main metacognition processing function.
-  Called periodically (not every tick) to analyze patterns and self-alignment.
+  Main metacognition processing function with event-driven triggers.
+
+  Accepts sensory_signals map with:
+  - :surprise_level - how unexpected the current experience is (0.0-1.0)
+  - :sensory_pain - current pain/discomfort level (0.0-1.0)
+
+  Metacognition is triggered by:
+  - Timer: every N ticks (traditional)
+  - Surprise: unexpected events force reflection
+  - Pain: discomfort demands attention
+  - Crisis: combined surprise + pain
+  """
+  @spec process(
+          ConsciousnessState.t(),
+          EmotionalState.t(),
+          Personality.t(),
+          non_neg_integer(),
+          map()
+        ) :: {ConsciousnessState.t(), metacognition_result()}
+  def process(consciousness, emotional, personality, tick_count, sensory_signals) do
+    surprise_level = Map.get(sensory_signals, :surprise_level, 0.0)
+    sensory_pain = Map.get(sensory_signals, :sensory_pain, 0.0)
+
+    {should_run, trigger, crisis_mode} =
+      determine_trigger(tick_count, consciousness.meta_awareness, surprise_level, sensory_pain)
+
+    if should_run do
+      do_process(consciousness, emotional, personality, trigger, crisis_mode)
+    else
+      {consciousness, empty_result(:timer, false)}
+    end
+  end
+
+  @doc """
+  Backward-compatible 4-arity version (timer-based only).
   """
   @spec process(ConsciousnessState.t(), EmotionalState.t(), Personality.t(), non_neg_integer()) ::
           {ConsciousnessState.t(), metacognition_result()}
   def process(consciousness, emotional, personality, tick_count) do
-    if should_run_metacognition?(tick_count, consciousness.meta_awareness) do
-      do_process(consciousness, emotional, personality)
-    else
-      {consciousness,
-       %{
-         patterns_detected: [],
-         alignment: %{ideal_alignment: 0.0, feared_alignment: 0.0, dominant_direction: :neutral},
-         insight: nil,
-         self_congruence_delta: 0.0
-       }}
-    end
+    process(consciousness, emotional, personality, tick_count, %{})
   end
 
   @doc """
@@ -233,7 +265,32 @@ defmodule Viva.Avatars.Systems.Metacognition do
 
   # === Private Functions ===
 
-  defp should_run_metacognition?(tick_count, meta_awareness) do
+  defp determine_trigger(tick_count, meta_awareness, surprise_level, sensory_pain) do
+    combined_intensity = surprise_level + sensory_pain
+
+    cond do
+      # Crisis mode: both surprise and pain are high
+      combined_intensity >= @crisis_combined_threshold ->
+        {true, :crisis, true}
+
+      # Surprise triggers immediate reflection
+      surprise_level >= @surprise_trigger_threshold ->
+        {true, :surprise, false}
+
+      # Pain demands attention
+      sensory_pain >= @pain_trigger_threshold ->
+        {true, :pain, false}
+
+      # Fall back to timer-based triggering
+      timer_triggered?(tick_count, meta_awareness) ->
+        {true, :timer, false}
+
+      true ->
+        {false, :timer, false}
+    end
+  end
+
+  defp timer_triggered?(tick_count, meta_awareness) do
     # Run more often if meta_awareness is high
     interval =
       if meta_awareness > 0.6, do: @metacognition_interval - 3, else: @metacognition_interval
@@ -241,7 +298,18 @@ defmodule Viva.Avatars.Systems.Metacognition do
     rem(tick_count, max(interval, 1)) == 0
   end
 
-  defp do_process(consciousness, emotional, personality) do
+  defp empty_result(trigger, crisis_mode) do
+    %{
+      patterns_detected: [],
+      alignment: %{ideal_alignment: 0.0, feared_alignment: 0.0, dominant_direction: :neutral},
+      insight: nil,
+      self_congruence_delta: 0.0,
+      trigger: trigger,
+      crisis_mode: crisis_mode
+    }
+  end
+
+  defp do_process(consciousness, emotional, personality, trigger, crisis_mode) do
     self_model = consciousness.self_model
 
     # 1. Detect patterns in experience stream
@@ -250,8 +318,13 @@ defmodule Viva.Avatars.Systems.Metacognition do
     # 2. Check alignment with ideal/feared self
     alignment = check_alignment(emotional, self_model)
 
-    # 3. Maybe generate insight
-    insight = maybe_generate_insight(consciousness, patterns, alignment, personality)
+    # 3. Generate insight - crisis/event triggers may override normal insight
+    insight =
+      if trigger in [:surprise, :pain, :crisis] do
+        generate_crisis_insight(consciousness, emotional, personality, trigger)
+      else
+        maybe_generate_insight(consciousness, patterns, alignment, personality)
+      end
 
     # 4. Update self-model with new patterns
     updated_self_model =
@@ -261,8 +334,9 @@ defmodule Viva.Avatars.Systems.Metacognition do
         self_model
       end
 
-    # 5. Calculate congruence delta
-    congruence_delta = calculate_congruence_delta(alignment)
+    # 5. Calculate congruence delta (enhanced by crisis)
+    base_congruence_delta = calculate_congruence_delta(alignment)
+    congruence_delta = if crisis_mode, do: base_congruence_delta * 1.5, else: base_congruence_delta
 
     new_congruence =
       (consciousness.self_congruence + congruence_delta)
@@ -282,10 +356,36 @@ defmodule Viva.Avatars.Systems.Metacognition do
       patterns_detected: patterns,
       alignment: alignment,
       insight: insight,
-      self_congruence_delta: congruence_delta
+      self_congruence_delta: congruence_delta,
+      trigger: trigger,
+      crisis_mode: crisis_mode
     }
 
     {updated_consciousness, result}
+  end
+
+  defp generate_crisis_insight(_, _, personality, :surprise) do
+    if personality.openness > 0.6 do
+      "Algo inesperado aconteceu. Preciso processar essa novidade."
+    else
+      "Isso foi surpreendente. Preciso entender o que aconteceu."
+    end
+  end
+
+  defp generate_crisis_insight(_, _, personality, :pain) do
+    if personality.neuroticism > 0.6 do
+      "Noto um desconforto intenso. O que está me afetando tanto?"
+    else
+      "Há algo me incomodando. Preciso entender sua origem."
+    end
+  end
+
+  defp generate_crisis_insight(_, _, _, :crisis) do
+    "Momento de crise - surpresa e desconforto juntos. Preciso me centrar."
+  end
+
+  defp generate_crisis_insight(consciousness, _, _, :timer) do
+    consciousness.meta_observation
   end
 
   defp calculate_ideal_alignment(_, %SelfModel{ideal_self: nil}), do: 0.0

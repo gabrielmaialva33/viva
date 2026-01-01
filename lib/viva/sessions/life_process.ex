@@ -251,7 +251,19 @@ defmodule Viva.Sessions.LifeProcess do
     raw_stimulus = StimulusGathering.gather(state)
 
     # 2. ATTACHMENT BIAS: Filter stimulus through attachment style lens
-    {stimulus, _} = AttachmentBias.interpret(raw_stimulus, avatar.personality)
+    {stimulus_after_attachment, _} = AttachmentBias.interpret(raw_stimulus, avatar.personality)
+
+    # 2.5. RPT THREAT HALLUCINATION: Apply anxiety-driven threat expectation
+    # Previous tick's anxiety creates expectation of threats that shapes current perception
+    threat_expectation =
+      (state.recurrent_context || RecurrentProcessor.init_context()).threat_expectation
+
+    stimulus =
+      Senses.apply_threat_expectation(
+        stimulus_after_attachment,
+        threat_expectation,
+        avatar.personality
+      )
 
     # 3. SENSES: Process perception through subjective filter
     {new_sensory, neuro_effects} =
@@ -335,12 +347,19 @@ defmodule Viva.Sessions.LifeProcess do
       )
 
     # 10.5. METACOGNITION: Process self-reflection and pattern detection
+    # Now event-driven: surprise and pain can trigger immediate reflection
+    sensory_signals = %{
+      surprise_level: recurrent_sensory.surprise_level,
+      sensory_pain: recurrent_sensory.sensory_pain
+    }
+
     {metacog_consciousness, _} =
       Metacognition.process(
         new_consciousness,
         recurrent_emotional,
         avatar.personality,
-        tick_count
+        tick_count,
+        sensory_signals
       )
 
     # 10.7. QUALIA SYNTHESIS: Generate rich multi-stream phenomenal experience

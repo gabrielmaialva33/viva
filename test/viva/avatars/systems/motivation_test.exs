@@ -55,7 +55,8 @@ defmodule Viva.Avatars.Systems.MotivationTest do
       personality: personality
     } do
       # Safety boost threshold: 0.6
-      bio = %{bio | cortisol: 0.8}
+      # Also set oxytocin above threshold to isolate cortisol effect
+      bio = %{bio | cortisol: 0.8, oxytocin: 0.5}
       updated = Motivation.tick(motivation, bio, emotional, personality)
 
       assert updated.safety_urgency > motivation.safety_urgency

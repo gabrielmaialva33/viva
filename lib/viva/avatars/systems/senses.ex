@@ -125,6 +125,37 @@ defmodule Viva.Avatars.Systems.Senses do
   end
 
   @doc """
+  Apply threat expectation from anxiety state (RPT: synthetic threat hallucinations).
+
+  When the avatar is anxious, they begin to perceive threats that don't exist.
+  The threat_expectation value comes from RecurrentProcessor.calculate_threat_expectation.
+
+  This implements the RPT principle that internal states shape perception -
+  anxiety literally makes you see danger where there is none.
+  """
+  @spec apply_threat_expectation(stimulus(), float(), Personality.t()) :: stimulus()
+  def apply_threat_expectation(stimulus, threat_expectation, personality)
+      when threat_expectation > 0.01 do
+    existing_threat = Map.get(stimulus, :threat_level, 0.0)
+
+    # Susceptibility: high neuroticism = more susceptible to hallucinated threats
+    susceptibility = 0.5 + personality.neuroticism * 0.5
+    effective_synthetic = threat_expectation * susceptibility
+
+    # Add synthetic threat to existing threat
+    new_threat = min(existing_threat + effective_synthetic, 1.0)
+
+    # Mark whether this is a hallucinated threat (for debugging/analysis)
+    is_hallucinated = existing_threat < 0.1 and effective_synthetic > 0.1
+
+    stimulus
+    |> Map.put(:threat_level, new_threat)
+    |> Map.put(:is_hallucinated_threat, is_hallucinated)
+  end
+
+  def apply_threat_expectation(stimulus, _, _), do: stimulus
+
+  @doc """
   Calculate how salient (attention-grabbing) a stimulus is.
   """
   @spec calculate_salience(stimulus(), EmotionalState.t(), String.t() | nil) :: float()
