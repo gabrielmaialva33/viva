@@ -14,7 +14,16 @@ defmodule Viva.Avatars.Systems.Psychology do
   @spec calculate_emotional_state(BioState.t(), Personality.t()) :: EmotionalState.t()
   def calculate_emotional_state(%BioState{} = bio, %Personality{} = personality) do
     # 1. Calculate raw PAD vectors from Hormones
-    raw_pleasure = bio.dopamine + bio.oxytocin - bio.cortisol
+    # REBALANCED: Normalize to neutral center (0.0) instead of positive bias
+    # Positive chemicals: average of reward signals
+    positive_chemicals = (bio.dopamine + bio.oxytocin) / 2.0
+
+    # Negative chemicals: stress + fatigue contribution
+    negative_chemicals = bio.cortisol + bio.adenosine * 0.5
+
+    # Raw pleasure centered at 0.0 with defaults:
+    # (0.5 + 0.3)/2 - (0.2 + 0.0) - 0.2 = 0.4 - 0.2 - 0.2 = 0.0
+    raw_pleasure = positive_chemicals - negative_chemicals - 0.2
 
     # HEDONIC AMPLIFICATION: Personality affects emotional sensitivity
     # Neurotics have wider emotional swings, stable people more centered

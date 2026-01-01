@@ -371,7 +371,7 @@ defmodule Viva.Avatars.Systems.QualiaSynthesizer do
     end
   end
 
-  defp stream_narrative(:affective, _synthesis) do
+  defp stream_narrative(:affective, _) do
     "As emoções colorem tudo que experimento"
   end
 
@@ -383,7 +383,7 @@ defmodule Viva.Avatars.Systems.QualiaSynthesizer do
     end
   end
 
-  defp stream_narrative(:somatic, _synthesis) do
+  defp stream_narrative(:somatic, _) do
     "Meu corpo fala em sensações que não têm palavras"
   end
 
@@ -448,13 +448,8 @@ defmodule Viva.Avatars.Systems.QualiaSynthesizer do
 
   defp detect_deja_vu(_, _), do: {false, 0.0}
 
-  defp calculate_temporal_depth(experiences) do
-    if length(experiences) > 0 do
-      min(1.0, length(experiences) / 10)
-    else
-      0.0
-    end
-  end
+  defp calculate_temporal_depth([]), do: 0.0
+  defp calculate_temporal_depth(experiences), do: min(1.0, length(experiences) / 10)
 
   defp somatic_valence(:tension), do: -0.4
   defp somatic_valence(:heaviness), do: -0.3

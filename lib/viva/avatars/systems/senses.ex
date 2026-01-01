@@ -112,24 +112,6 @@ defmodule Viva.Avatars.Systems.Senses do
     {new_sensory, neuro_effects}
   end
 
-  # RECURRENT PROCESSING THEORY: Arousal feeds back into attention
-  # This creates the bidirectional processing that distinguishes conscious perception
-  # STRENGTHENED: Lower threshold and stronger effect for better RPT alignment
-  defp arousal_attention_feedback(arousal) do
-    cond do
-      # High arousal boosts attention 1.2-1.76x
-      arousal > 0.3 -> 1.2 + (arousal - 0.3) * 0.8
-      # Positive arousal gives moderate boost
-      arousal > 0.0 -> 1.0 + arousal * 0.3
-      # Low arousal dampens attention
-      arousal < -0.3 -> 0.6 + (arousal + 0.3) * 0.5
-      # Slightly below neutral to create contrast
-      true -> 0.95
-    end
-  end
-
-  defp clamp(value, min_val, max_val), do: max(min_val, min(max_val, value))
-
   @doc """
   Filter stimulus through personality lens.
   Different personalities notice different aspects.
@@ -256,6 +238,100 @@ defmodule Viva.Avatars.Systems.Senses do
     }
   end
 
+  @doc """
+  Calculate immediate hedonic (pleasure) response.
+  Enhanced for more variation in positive/negative experiences.
+  """
+  @spec calculate_sensory_pleasure(stimulus(), Personality.t(), EmotionalState.t()) :: float()
+  def calculate_sensory_pleasure(stimulus, personality, emotional) do
+    base_valence = Map.get(stimulus, :valence, 0.0)
+
+    # Current mood affects hedonic response (mood congruence)
+    mood_factor = emotional.pleasure * 0.3
+
+    # Personality baseline (neurotics have lower hedonic baseline)
+    personality_baseline = (0.5 - personality.neuroticism) * 0.2
+
+    # ENHANCED: Stimulus type affects pleasure
+    type_pleasure = stimulus_type_pleasure(Map.get(stimulus, :type, :ambient), personality)
+
+    # ENHANCED: Small random fluctuations for hedonic variety
+    micro_fluctuation = (:rand.uniform() - 0.5) * 0.15
+
+    # ENHANCED: High arousal intensifies both positive and negative
+    arousal_amplifier = 1.0 + abs(emotional.arousal) * 0.3
+
+    raw_pleasure =
+      base_valence + mood_factor + personality_baseline + type_pleasure + micro_fluctuation
+
+    (raw_pleasure * arousal_amplifier)
+    |> max(-1.0)
+    |> min(1.0)
+  end
+
+  @doc """
+  Calculate sensory pain/discomfort response.
+  Enhanced for more variation.
+  """
+  @spec calculate_sensory_pain(stimulus(), Personality.t(), EmotionalState.t()) :: float()
+  def calculate_sensory_pain(stimulus, personality, emotional) do
+    # Pain from threat
+    threat_pain = Map.get(stimulus, :perceived_threat, 0.0) * 0.5
+
+    # Pain from negative valence
+    valence = Map.get(stimulus, :valence, 0.0)
+    valence_pain = if valence < 0, do: abs(valence) * 0.3, else: 0.0
+
+    # Pain from overwhelm
+    overwhelm_pain = if Map.get(stimulus, :overwhelm, false), do: 0.3, else: 0.0
+
+    # ENHANCED: Pain from unmet needs (adenosine = fatigue, low dopamine = anhedonia)
+    need_pain = stimulus_need_pain(stimulus, personality)
+
+    # ENHANCED: Small random fluctuations
+    micro_fluctuation = :rand.uniform() * 0.1
+
+    # Neuroticism amplifies pain
+    sensitivity = 1.0 + personality.neuroticism * 0.5
+
+    # Negative mood amplifies pain
+    mood_amplifier = if emotional.pleasure < 0, do: 1.2, else: 1.0
+
+    ((threat_pain + valence_pain + overwhelm_pain + need_pain + micro_fluctuation) * sensitivity *
+       mood_amplifier)
+    |> min(1.0)
+    |> max(0.0)
+  end
+
+  @doc """
+  Convert surprise level into neurochemical effects.
+  """
+  @spec surprise_to_neurochemistry(float()) :: list(neuro_effect())
+  def surprise_to_neurochemistry(surprise) when surprise > 0.7 do
+    # High surprise = dopamine + cortisol (arousing)
+    [:surprise_high]
+  end
+
+  def surprise_to_neurochemistry(surprise) when surprise > 0.4 do
+    # Moderate surprise = just dopamine (interesting)
+    [:surprise_moderate]
+  end
+
+  def surprise_to_neurochemistry(_), do: []
+
+  @doc """
+  Tick function for passive sensory updates (background processing).
+  """
+  @spec tick(SensoryState.t(), Personality.t()) :: SensoryState.t()
+  def tick(sensory, _) do
+    sensory
+    |> decay_attention()
+    |> decay_surprise()
+    |> age_percepts()
+  end
+
+  # === Private Functions ===
+
   # Generate cache key based on stimulus type, emotional state, AND personality
   # Including personality ensures different avatars get unique qualia
   defp qualia_cache_key(stimulus, emotional, personality) do
@@ -313,6 +389,22 @@ defmodule Viva.Avatars.Systems.Senses do
     end
   end
 
+  # RECURRENT PROCESSING THEORY: Arousal feeds back into attention
+  # This creates the bidirectional processing that distinguishes conscious perception
+  # STRENGTHENED: Lower threshold and stronger effect for better RPT alignment
+  defp arousal_attention_feedback(arousal) do
+    cond do
+      # High arousal boosts attention 1.2-1.76x
+      arousal > 0.3 -> 1.2 + (arousal - 0.3) * 0.8
+      # Positive arousal gives moderate boost
+      arousal > 0.0 -> 1.0 + arousal * 0.3
+      # Low arousal dampens attention
+      arousal < -0.3 -> 0.6 + (arousal + 0.3) * 0.5
+      # Slightly below neutral to create contrast
+      true -> 0.95
+    end
+  end
+
   # Rich fallback narratives by emotional state - no LLM needed
   defp rich_fallback_narrative(stimulus, emotional, personality, salience) do
     type = Map.get(stimulus, :type, :unknown)
@@ -325,7 +417,8 @@ defmodule Viva.Avatars.Systems.Senses do
     if Enum.empty?(templates) do
       fallback_narrative(stimulus, emotional, salience)
     else
-      Enum.random(templates)
+      templates
+      |> Enum.random()
       |> String.replace("{intensity}", intensity)
       |> String.replace("{color}", color)
     end
@@ -433,37 +526,6 @@ defmodule Viva.Avatars.Systems.Senses do
 
   defp get_narrative_templates(_, _, _), do: []
 
-  @doc """
-  Calculate immediate hedonic (pleasure) response.
-  Enhanced for more variation in positive/negative experiences.
-  """
-  @spec calculate_sensory_pleasure(stimulus(), Personality.t(), EmotionalState.t()) :: float()
-  def calculate_sensory_pleasure(stimulus, personality, emotional) do
-    base_valence = Map.get(stimulus, :valence, 0.0)
-
-    # Current mood affects hedonic response (mood congruence)
-    mood_factor = emotional.pleasure * 0.3
-
-    # Personality baseline (neurotics have lower hedonic baseline)
-    personality_baseline = (0.5 - personality.neuroticism) * 0.2
-
-    # ENHANCED: Stimulus type affects pleasure
-    type_pleasure = stimulus_type_pleasure(Map.get(stimulus, :type, :ambient), personality)
-
-    # ENHANCED: Small random fluctuations for hedonic variety
-    micro_fluctuation = (:rand.uniform() - 0.5) * 0.15
-
-    # ENHANCED: High arousal intensifies both positive and negative
-    arousal_amplifier = 1.0 + abs(emotional.arousal) * 0.3
-
-    raw_pleasure =
-      base_valence + mood_factor + personality_baseline + type_pleasure + micro_fluctuation
-
-    (raw_pleasure * arousal_amplifier)
-    |> max(-1.0)
-    |> min(1.0)
-  end
-
   # Different stimulus types have inherent hedonic value
   defp stimulus_type_pleasure(:social, p), do: if(p.extraversion > 0.5, do: 0.2, else: -0.1)
   defp stimulus_type_pleasure(:rest, p), do: if(p.neuroticism > 0.5, do: 0.15, else: 0.05)
@@ -471,74 +533,13 @@ defmodule Viva.Avatars.Systems.Senses do
   defp stimulus_type_pleasure(:threat, _), do: -0.4
   defp stimulus_type_pleasure(_, _), do: 0.0
 
-  @doc """
-  Calculate sensory pain/discomfort response.
-  Enhanced for more variation.
-  """
-  @spec calculate_sensory_pain(stimulus(), Personality.t(), EmotionalState.t()) :: float()
-  def calculate_sensory_pain(stimulus, personality, emotional) do
-    # Pain from threat
-    threat_pain = Map.get(stimulus, :perceived_threat, 0.0) * 0.5
-
-    # Pain from negative valence
-    valence = Map.get(stimulus, :valence, 0.0)
-    valence_pain = if valence < 0, do: abs(valence) * 0.3, else: 0.0
-
-    # Pain from overwhelm
-    overwhelm_pain = if Map.get(stimulus, :overwhelm, false), do: 0.3, else: 0.0
-
-    # ENHANCED: Pain from unmet needs (adenosine = fatigue, low dopamine = anhedonia)
-    need_pain = stimulus_need_pain(stimulus, personality)
-
-    # ENHANCED: Small random fluctuations
-    micro_fluctuation = :rand.uniform() * 0.1
-
-    # Neuroticism amplifies pain
-    sensitivity = 1.0 + personality.neuroticism * 0.5
-
-    # Negative mood amplifies pain
-    mood_amplifier = if emotional.pleasure < 0, do: 1.2, else: 1.0
-
-    ((threat_pain + valence_pain + overwhelm_pain + need_pain + micro_fluctuation) * sensitivity *
-       mood_amplifier)
-    |> min(1.0)
-    |> max(0.0)
-  end
-
   # Certain stimulus types cause discomfort for certain personalities
   defp stimulus_need_pain(%{type: :social}, p) when p.extraversion < 0.3, do: 0.15
   # Boredom pain
   defp stimulus_need_pain(%{type: :ambient}, p) when p.openness > 0.7, do: 0.1
   defp stimulus_need_pain(_, _), do: 0.0
 
-  @doc """
-  Convert surprise level into neurochemical effects.
-  """
-  @spec surprise_to_neurochemistry(float()) :: list(neuro_effect())
-  def surprise_to_neurochemistry(surprise) when surprise > 0.7 do
-    # High surprise = dopamine + cortisol (arousing)
-    [:surprise_high]
-  end
-
-  def surprise_to_neurochemistry(surprise) when surprise > 0.4 do
-    # Moderate surprise = just dopamine (interesting)
-    [:surprise_moderate]
-  end
-
-  def surprise_to_neurochemistry(_), do: []
-
-  @doc """
-  Tick function for passive sensory updates (background processing).
-  """
-  @spec tick(SensoryState.t(), Personality.t()) :: SensoryState.t()
-  def tick(sensory, _) do
-    sensory
-    |> decay_attention()
-    |> decay_surprise()
-    |> age_percepts()
-  end
-
-  # === Private Functions ===
+  defp clamp(value, min_val, max_val), do: max(min_val, min(max_val, value))
 
   defp apply_openness_filter(stimulus, openness) do
     # High openness = notice more details, abstract qualities

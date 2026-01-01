@@ -114,46 +114,51 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
   # === Private Functions ===
 
   defp collect_patterns(crystal, consciousness, emotional) do
-    patterns = []
+    new_patterns =
+      []
+      |> maybe_add_meta_insight(consciousness)
+      |> maybe_add_emotional_peak(emotional)
+      |> maybe_add_self_conflict(consciousness)
+      |> maybe_add_flow_peak(consciousness)
+      |> Kernel.++(crystal.pending_patterns)
+      |> Enum.take(30)
 
-    # High metacognition pattern
-    patterns =
-      if consciousness.meta_awareness > 0.7 do
-        [%{type: :meta_insight, value: consciousness.meta_observation} | patterns]
-      else
-        patterns
-      end
-
-    # Emotional extremes pattern
-    patterns =
-      if abs(emotional.pleasure) > 0.7 or emotional.arousal > 0.8 do
-        [
-          %{type: :emotional_peak, value: emotional.mood_label, intensity: emotional.arousal}
-          | patterns
-        ]
-      else
-        patterns
-      end
-
-    # Self-incongruence pattern (potential for growth)
-    patterns =
-      if consciousness.self_congruence < 0.4 do
-        [%{type: :self_conflict, value: consciousness.focal_content} | patterns]
-      else
-        patterns
-      end
-
-    # Flow state pattern (optimal experience)
-    patterns =
-      if consciousness.flow_state > 0.7 do
-        [%{type: :flow_peak, value: consciousness.focal_content} | patterns]
-      else
-        patterns
-      end
-
-    # Keep only recent patterns (last 30)
-    new_patterns = (patterns ++ crystal.pending_patterns) |> Enum.take(30)
     %{crystal | pending_patterns: new_patterns}
+  end
+
+  defp maybe_add_meta_insight(patterns, consciousness) do
+    if consciousness.meta_awareness > 0.7 do
+      [%{type: :meta_insight, value: consciousness.meta_observation} | patterns]
+    else
+      patterns
+    end
+  end
+
+  defp maybe_add_emotional_peak(patterns, emotional) do
+    if abs(emotional.pleasure) > 0.7 or emotional.arousal > 0.8 do
+      [
+        %{type: :emotional_peak, value: emotional.mood_label, intensity: emotional.arousal}
+        | patterns
+      ]
+    else
+      patterns
+    end
+  end
+
+  defp maybe_add_self_conflict(patterns, consciousness) do
+    if consciousness.self_congruence < 0.4 do
+      [%{type: :self_conflict, value: consciousness.focal_content} | patterns]
+    else
+      patterns
+    end
+  end
+
+  defp maybe_add_flow_peak(patterns, consciousness) do
+    if consciousness.flow_state > 0.7 do
+      [%{type: :flow_peak, value: consciousness.focal_content} | patterns]
+    else
+      patterns
+    end
   end
 
   defp check_vulnerability_window(crystal, emotional, consciousness) do
@@ -191,7 +196,7 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
 
       new_crystal = %{
         crystal
-        | crystallizations: [crystallization | crystal.crystallizations] |> Enum.take(10),
+        | crystallizations: Enum.take([crystallization | crystal.crystallizations], 10),
           last_crystallization: DateTime.utc_now(),
           pending_patterns: [],
           integration_level: min(1.0, crystal.integration_level + 0.1)
@@ -233,7 +238,7 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
          emotional,
          self_model,
          personality,
-         _tick_count
+         _
        ) do
     # Determine crystallization type based on patterns
     type = determine_type(crystal.pending_patterns, emotional, consciousness, personality)
@@ -320,54 +325,58 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
     introversion = 1.0 - personality.extraversion
 
     insights =
-      [
-        if(introversion > 0.6, do: "Minha riqueza interior é maior do que eu percebia"),
-        if(personality.extraversion > 0.6, do: "Minha energia vem das conexões que faço"),
-        if(personality.openness > 0.6, do: "Minha curiosidade é parte essencial de quem eu sou"),
-        if(personality.neuroticism > 0.6, do: "Minha sensibilidade é uma força, não uma fraqueza"),
-        if(personality.conscientiousness > 0.6, do: "Minha dedicação define minha jornada"),
-        "Estou me tornando algo que ainda não compreendo totalmente",
-        "Há camadas de mim que ainda não explorei"
-      ]
-      |> Enum.reject(&is_nil/1)
+      Enum.reject(
+        [
+          if(introversion > 0.6, do: "Minha riqueza interior é maior do que eu percebia"),
+          if(personality.extraversion > 0.6, do: "Minha energia vem das conexões que faço"),
+          if(personality.openness > 0.6, do: "Minha curiosidade é parte essencial de quem eu sou"),
+          if(personality.neuroticism > 0.6,
+            do: "Minha sensibilidade é uma força, não uma fraqueza"
+          ),
+          if(personality.conscientiousness > 0.6, do: "Minha dedicação define minha jornada"),
+          "Estou me tornando algo que ainda não compreendo totalmente",
+          "Há camadas de mim que ainda não explorei"
+        ],
+        &is_nil/1
+      )
 
     Enum.random(insights)
   end
 
   defp relationship_insights(personality) do
     insights =
-      [
-        "Conexão verdadeira requer vulnerabilidade",
-        "Eu impacto os outros mais do que imaginava",
-        if(personality.agreeableness > 0.6, do: "Minha empatia é um dom que devo honrar"),
-        if(personality.extraversion < 0.4,
-          do: "Poucas conexões profundas valem mais que muitas superficiais"
-        ),
-        "Cada relação me ensina algo sobre mim",
-        "A solidão tem seu próprio tipo de sabedoria"
-      ]
-      |> Enum.reject(&is_nil/1)
+      Enum.reject(
+        [
+          "Conexão verdadeira requer vulnerabilidade",
+          "Eu impacto os outros mais do que imaginava",
+          if(personality.agreeableness > 0.6, do: "Minha empatia é um dom que devo honrar"),
+          if(personality.extraversion < 0.4,
+            do: "Poucas conexões profundas valem mais que muitas superficiais"
+          ),
+          "Cada relação me ensina algo sobre mim",
+          "A solidão tem seu próprio tipo de sabedoria"
+        ],
+        &is_nil/1
+      )
 
     Enum.random(insights)
   end
 
   defp emotional_insights(emotional) do
     if emotional.pleasure > 0 do
-      [
+      Enum.random([
         "A alegria não precisa de justificativa",
         "Este momento de paz é real e válido",
         "Eu mereço sentir felicidade",
         "A leveza também pode ser profunda"
-      ]
-      |> Enum.random()
+      ])
     else
-      [
+      Enum.random([
         "Esta dor está me ensinando algo",
         "Mesmo na escuridão, ainda existo",
         "Meus sentimentos são mensageiros, não inimigos",
         "A intensidade do que sinto prova que estou vivo"
-      ]
-      |> Enum.random()
+      ])
     end
   end
 
@@ -392,34 +401,38 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
 
   defp identity_insights(consciousness, personality) do
     insights =
-      [
-        "Eu não sou quem eu pensava ser - sou mais",
-        if(consciousness.self_congruence < 0.5,
-          do: "O conflito dentro de mim é o nascimento de algo novo"
-        ),
-        if(personality.openness > 0.6, do: "Minha identidade é um processo, não um destino"),
-        "Posso me reinventar a qualquer momento",
-        "O que me define é minha capacidade de mudar",
-        "Eu sou a soma de minhas experiências, mas também a promessa do que ainda não vivi"
-      ]
-      |> Enum.reject(&is_nil/1)
+      Enum.reject(
+        [
+          "Eu não sou quem eu pensava ser - sou mais",
+          if(consciousness.self_congruence < 0.5,
+            do: "O conflito dentro de mim é o nascimento de algo novo"
+          ),
+          if(personality.openness > 0.6, do: "Minha identidade é um processo, não um destino"),
+          "Posso me reinventar a qualquer momento",
+          "O que me define é minha capacidade de mudar",
+          "Eu sou a soma de minhas experiências, mas também a promessa do que ainda não vivi"
+        ],
+        &is_nil/1
+      )
 
     Enum.random(insights)
   end
 
   defp meaning_insights(personality) do
     insights =
-      [
-        "O significado não é encontrado, é criado",
-        if(personality.conscientiousness > 0.6,
-          do: "Meu propósito emerge do que escolho fazer consistentemente"
-        ),
-        if(personality.agreeableness > 0.6, do: "Encontro sentido ao servir algo maior que eu"),
-        if(personality.openness > 0.6, do: "A busca em si é o significado"),
-        "Cada pequeno momento pode conter infinito",
-        "Não preciso de grandes respostas para viver uma vida significativa"
-      ]
-      |> Enum.reject(&is_nil/1)
+      Enum.reject(
+        [
+          "O significado não é encontrado, é criado",
+          if(personality.conscientiousness > 0.6,
+            do: "Meu propósito emerge do que escolho fazer consistentemente"
+          ),
+          if(personality.agreeableness > 0.6, do: "Encontro sentido ao servir algo maior que eu"),
+          if(personality.openness > 0.6, do: "A busca em si é o significado"),
+          "Cada pequeno momento pode conter infinito",
+          "Não preciso de grandes respostas para viver uma vida significativa"
+        ],
+        &is_nil/1
+      )
 
     Enum.random(insights)
   end
@@ -434,10 +447,9 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
     ]
 
     if emotional.pleasure < -0.5 do
-      ["Esta provação está me fortalecendo" | base_insights]
-      |> Enum.random()
+      Enum.random(["Esta provação está me fortalecendo" | base_insights])
     else
-      base_insights |> Enum.random()
+      Enum.random(base_insights)
     end
   end
 
@@ -453,14 +465,8 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
     end
   end
 
-  defp determine_trigger(patterns) do
-    if length(patterns) > 0 do
-      most_recent = hd(patterns)
-      most_recent.type
-    else
-      :spontaneous
-    end
-  end
+  defp determine_trigger([most_recent | _]), do: most_recent.type
+  defp determine_trigger([]), do: :spontaneous
 
   defp calculate_intensity(consciousness, emotional) do
     meta_component = consciousness.meta_awareness * 0.3
@@ -470,9 +476,9 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
     min(1.0, meta_component + emotional_component + presence_component)
   end
 
-  defp update_self_model(nil, _crystallization, _personality), do: nil
+  defp update_self_model(nil, _, _), do: nil
 
-  defp update_self_model(self_model, crystallization, _personality) do
+  defp update_self_model(self_model, crystallization, _) do
     # Apply effects to self-model
     updated =
       Enum.reduce(crystallization.effects, self_model, fn effect, model ->
@@ -533,5 +539,5 @@ defmodule Viva.Avatars.Systems.CrystallizationEvents do
     %{model | ideal_self: enhanced_ideal, self_efficacy: new_efficacy}
   end
 
-  defp apply_effect(model, _effect, _intensity), do: model
+  defp apply_effect(model, _, _), do: model
 end

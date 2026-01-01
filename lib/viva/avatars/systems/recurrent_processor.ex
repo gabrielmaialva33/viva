@@ -38,6 +38,15 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
           feedback_cycles: integer()
         }
 
+  @type avatar_states :: %{
+          sensory: SensoryState.t(),
+          emotional: EmotionalState.t(),
+          consciousness: ConsciousnessState.t(),
+          bio: BioState.t(),
+          somatic: SomaticState.t(),
+          personality: Personality.t()
+        }
+
   @doc """
   Initialize recurrent processing context.
   """
@@ -397,18 +406,21 @@ defmodule Viva.Avatars.Systems.RecurrentProcessor do
 
   Executes all feedback loops and calculates integration metrics.
   Returns updated states and recurrent context with resonance level.
+
+  Accepts states as a map to keep arity manageable.
   """
-  @spec process_cycle(
-          sensory :: SensoryState.t(),
-          emotional :: EmotionalState.t(),
-          consciousness :: ConsciousnessState.t(),
-          bio :: BioState.t(),
-          somatic :: SomaticState.t(),
-          personality :: Personality.t(),
-          context :: recurrent_context()
-        ) ::
+  @spec process_cycle(avatar_states(), recurrent_context()) ::
           {SensoryState.t(), EmotionalState.t(), BioState.t(), recurrent_context()}
-  def process_cycle(sensory, emotional, consciousness, bio, somatic, personality, context) do
+  def process_cycle(states, context) do
+    %{
+      sensory: sensory,
+      emotional: emotional,
+      consciousness: consciousness,
+      bio: bio,
+      somatic: somatic,
+      personality: personality
+    } = states
+
     # Execute all feedback loops
     {sensory1, signal1} = consciousness_reentry(consciousness, sensory)
     {bio1, signal2} = emotion_biology_feedback(emotional, bio, personality)

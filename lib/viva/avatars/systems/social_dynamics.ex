@@ -159,7 +159,7 @@ defmodule Viva.Avatars.Systems.SocialDynamics do
   Generate a narrative about our social understanding.
   """
   @spec social_narrative(social_state(), Personality.t()) :: String.t() | nil
-  def social_narrative(%{mental_models: models}, _personality) when map_size(models) == 0 do
+  def social_narrative(%{mental_models: models}, _) when map_size(models) == 0 do
     nil
   end
 
@@ -212,7 +212,7 @@ defmodule Viva.Avatars.Systems.SocialDynamics do
     %{social | mental_models: updated_models}
   end
 
-  defp process_social_events(social, [], _emotional, _personality), do: social
+  defp process_social_events(social, [], _, _), do: social
 
   defp process_social_events(social, [event | rest], emotional, personality) do
     social
@@ -260,7 +260,7 @@ defmodule Viva.Avatars.Systems.SocialDynamics do
     end
   end
 
-  defp update_from_message(model, event, _emotional, personality) do
+  defp update_from_message(model, event, _, personality) do
     content = event.content
     sentiment = content[:sentiment] || :neutral
     topic = content[:topic]
@@ -577,44 +577,43 @@ defmodule Viva.Avatars.Systems.SocialDynamics do
   end
 
   defp generate_predictions_for_model(avatar_id, model, personality) do
-    predictions = []
+    []
+    |> maybe_add_action_prediction(avatar_id, model)
+    |> maybe_add_emotion_prediction(avatar_id, model)
+    |> maybe_add_relationship_prediction(avatar_id, model, personality)
+  end
 
-    # Predict their next likely action toward us
-    predictions =
-      if model.model_confidence > 0.5 do
-        action_prediction = %{
-          type: :action_prediction,
-          avatar_id: avatar_id,
-          predicted_action: predict_action_from_model(model),
-          confidence: model.model_confidence * model.predictability
-        }
+  defp maybe_add_action_prediction(predictions, avatar_id, model) do
+    if model.model_confidence > 0.5 do
+      action_prediction = %{
+        type: :action_prediction,
+        avatar_id: avatar_id,
+        predicted_action: predict_action_from_model(model),
+        confidence: model.model_confidence * model.predictability
+      }
 
-        [action_prediction | predictions]
-      else
-        predictions
-      end
+      [action_prediction | predictions]
+    else
+      predictions
+    end
+  end
 
-    # Predict emotional trajectory
-    predictions =
-      if model.believed_arousal > 0.6 do
-        emotion_prediction = %{
-          type: :emotion_prediction,
-          avatar_id: avatar_id,
-          predicted_change:
-            if model.believed_arousal > 0.8 do
-              :calming
-            else
-              :stable
-            end,
-          confidence: model.model_confidence * 0.7
-        }
+  defp maybe_add_emotion_prediction(predictions, avatar_id, model) do
+    if model.believed_arousal > 0.6 do
+      emotion_prediction = %{
+        type: :emotion_prediction,
+        avatar_id: avatar_id,
+        predicted_change: if(model.believed_arousal > 0.8, do: :calming, else: :stable),
+        confidence: model.model_confidence * 0.7
+      }
 
-        [emotion_prediction | predictions]
-      else
-        predictions
-      end
+      [emotion_prediction | predictions]
+    else
+      predictions
+    end
+  end
 
-    # Predict relationship trajectory based on personality
+  defp maybe_add_relationship_prediction(predictions, avatar_id, model, personality) do
     if personality.openness > 0.6 and model.trust_level > 0.4 do
       relationship_prediction = %{
         type: :relationship_prediction,
@@ -630,54 +629,58 @@ defmodule Viva.Avatars.Systems.SocialDynamics do
   end
 
   defp generate_insights(social, consciousness, personality) do
-    insights = []
-
-    # Insight about belonging
     insights =
-      if social.belonging_sense < 0.3 and consciousness.meta_awareness > 0.5 do
+      []
+      |> maybe_add_belonging_insight(social, consciousness)
+      |> maybe_add_relationship_insight(social, personality)
+      |> maybe_add_pattern_insight(social, personality)
+
+    {social, insights}
+  end
+
+  defp maybe_add_belonging_insight(insights, social, consciousness) do
+    if social.belonging_sense < 0.3 and consciousness.meta_awareness > 0.5 do
+      insight = %{
+        type: :social_insight,
+        content: :loneliness_awareness,
+        description: "Percebo que me sinto desconectado dos outros"
+      }
+
+      [insight | insights]
+    else
+      insights
+    end
+  end
+
+  defp maybe_add_relationship_insight(insights, social, personality) do
+    case find_significant_relationship(social.mental_models) do
+      nil ->
+        insights
+
+      {_, model} ->
         insight = %{
-          type: :social_insight,
-          content: :loneliness_awareness,
-          description: "Percebo que me sinto desconectado dos outros"
+          type: :relationship_insight,
+          content: categorize_relationship(model),
+          name: model.name,
+          description: describe_relationship(model, personality)
         }
 
         [insight | insights]
+    end
+  end
+
+  defp maybe_add_pattern_insight(insights, social, personality) do
+    if map_size(social.mental_models) >= 3 and personality.openness > 0.5 do
+      pattern = detect_social_pattern(social.mental_models)
+
+      if pattern do
+        [pattern | insights]
       else
         insights
       end
-
-    # Insight about a specific relationship
-    insights =
-      case find_significant_relationship(social.mental_models) do
-        nil ->
-          insights
-
-        {_id, model} ->
-          insight = %{
-            type: :relationship_insight,
-            content: categorize_relationship(model),
-            name: model.name,
-            description: describe_relationship(model, personality)
-          }
-
-          [insight | insights]
-      end
-
-    # Insight about social pattern
-    insights =
-      if map_size(social.mental_models) >= 3 and personality.openness > 0.5 do
-        pattern = detect_social_pattern(social.mental_models)
-
-        if pattern do
-          [pattern | insights]
-        else
-          insights
-        end
-      else
-        insights
-      end
-
-    {social, insights}
+    else
+      insights
+    end
   end
 
   # === Helper Functions ===
