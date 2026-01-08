@@ -19,6 +19,34 @@ env =
 # Helper to get environment variables
 env_get = fn key, default -> Map.get(env, key, default) end
 
+# =========================================================================
+# Nx/EXLA Configuration - GPU Backend for Quantum World Simulation
+# =========================================================================
+
+# Use EXLA as default backend for GPU acceleration
+# Set NX_BACKEND=binary to disable GPU (useful for testing)
+nx_backend = env_get.("NX_BACKEND", "exla")
+
+if nx_backend == "exla" do
+  config :nx, :default_backend, EXLA.Backend
+
+  # EXLA client configuration
+  # Default to host (CPU), set EXLA_CLIENT=cuda when CUDA is available
+  exla_client = env_get.("EXLA_CLIENT", "host")
+
+  config :exla, :default_client, String.to_atom(exla_client)
+
+  # Only configure cuda client if explicitly requested
+  if exla_client == "cuda" do
+    config :exla, :clients,
+      cuda: [platform: :cuda, memory_fraction: 0.8],
+      host: [platform: :host]
+  else
+    config :exla, :clients,
+      host: [platform: :host]
+  end
+end
+
 # ## Using releases
 #
 # If you use `mix release`, you need to explicitly enable the server

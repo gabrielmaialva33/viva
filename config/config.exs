@@ -11,6 +11,23 @@ config :viva,
   ecto_repos: [Viva.Repo],
   generators: [timestamp_type: :utc_datetime, binary_id: true]
 
+# =========================================================================
+# Nx/EXLA Configuration - GPU Acceleration for Quantum World
+# =========================================================================
+
+# Set EXLA as the default backend for Nx (uses GPU via XLA when available)
+config :nx, :default_backend, EXLA.Backend
+
+# EXLA compiler options - use host (CPU) by default
+# For GPU: set EXLA_TARGET=cuda and reinstall: mix deps.compile exla --force
+config :exla, :clients,
+  host: [
+    platform: :host
+  ]
+
+# Default to host client (CPU) - change to :cuda when GPU is available
+config :exla, :default_client, :host
+
 # NVIDIA NIM Configuration
 config :viva, :nim,
   # API Configuration

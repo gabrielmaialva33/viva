@@ -6,13 +6,21 @@ defmodule Viva.Avatars.Systems.Biology do
 
   alias Viva.Avatars.BioState
 
-  # Decay rates per minute (simulated) - INCREASED for more dynamic changes
-  @decay_dopamine 0.08
-  @decay_oxytocin 0.05
+  # Decay rates per minute (simulated) - BALANCED to prevent total collapse
+  @decay_dopamine 0.03  # Reduced from 0.08 - was causing dopamine death spiral
+  @decay_oxytocin 0.03  # Reduced from 0.05 - social connection persists longer
   # Stress lingers but decays faster now
   @decay_cortisol 0.04
   # Sleep pressure builds slowly
   @build_adenosine 0.01
+
+  # Basal tonus - minimum continuous gain to prevent total collapse
+  @basal_dopamine 0.02  # Small continuous dopamine from being alive
+  @basal_oxytocin 0.01  # Small social baseline
+
+  # Floor values - never go below these (survival minimum)
+  @floor_dopamine 0.15
+  @floor_oxytocin 0.10
 
   @doc """
   Advances the biological state by one tick (minute).
@@ -98,15 +106,20 @@ defmodule Viva.Avatars.Systems.Biology do
 
   defp decay_hormones(bio, personality) do
     # Extraverts burn dopamine faster (need more stimulation)
-    dopamine_decay = @decay_dopamine * (1.0 + personality.extraversion * 0.5)
+    dopamine_decay = @decay_dopamine * (1.0 + personality.extraversion * 0.3)
 
     # Neurotics hold onto cortisol longer (slower decay)
     cortisol_decay = @decay_cortisol * (1.0 - personality.neuroticism * 0.5)
 
+    # Calculate net dopamine change: decay - basal tonus (being alive generates some dopamine)
+    # Net change is decay minus basal gain, with floor protection
+    new_dopamine = bio.dopamine - dopamine_decay + @basal_dopamine
+    new_oxytocin = bio.oxytocin - @decay_oxytocin + @basal_oxytocin
+
     %{
       bio
-      | dopamine: max(0.0, bio.dopamine - dopamine_decay),
-        oxytocin: max(0.0, bio.oxytocin - @decay_oxytocin),
+      | dopamine: max(@floor_dopamine, new_dopamine),
+        oxytocin: max(@floor_oxytocin, new_oxytocin),
         cortisol: max(0.0, bio.cortisol - cortisol_decay)
     }
   end
@@ -122,9 +135,13 @@ defmodule Viva.Avatars.Systems.Biology do
     # High Cortisol kills Libido and suppresses Dopamine
     new_libido = if bio.cortisol > 0.6, do: 0.0, else: bio.libido
 
-    # High Adenosine (tiredness) suppresses everything slightly
-    fatigue_factor = 1.0 - bio.adenosine * 0.3
+    # High Adenosine (tiredness) suppresses dopamine slightly
+    # Reduced multiplier from 0.3 to 0.15 to prevent total collapse
+    fatigue_factor = 1.0 - bio.adenosine * 0.15
 
-    %{bio | libido: new_libido, dopamine: bio.dopamine * fatigue_factor}
+    # Apply fatigue but respect the floor
+    fatigued_dopamine = max(@floor_dopamine, bio.dopamine * fatigue_factor)
+
+    %{bio | libido: new_libido, dopamine: fatigued_dopamine}
   end
 end

@@ -66,8 +66,8 @@ defmodule Viva.Sessions.ThoughtEngine do
     internal = process_state.state
 
     # Translate bio-state to feelings
-    energy_desc = if internal.bio.adenosine > 0.7, do: "tired", else: "energetic"
-    social_desc = if internal.bio.oxytocin > 0.7, do: "loved", else: "lonely"
+    energy_desc = if internal.bio.adenosine > 0.7, do: "cansado", else: "energizado"
+    social_desc = if internal.bio.oxytocin > 0.7, do: "amado", else: "solitario"
 
     # Get experience narrative from consciousness (enriched context)
     experience_narrative =
@@ -84,22 +84,23 @@ defmodule Viva.Sessions.ThoughtEngine do
     meta_observation = InternalState.meta_observation(internal)
 
     """
-    You are #{avatar.name}. Generate a single spontaneous thought.
+    Voce e #{avatar.name}. Gere um pensamento espontaneo.
 
-    CURRENT EXPERIENCE:
+    EXPERIENCIA ATUAL:
     #{experience_narrative}
 
-    #{if qualia_narrative, do: "WHAT YOU'RE SENSING:\n#{qualia_narrative}\n", else: ""}
-    #{if meta_observation, do: "SELF-AWARENESS:\n#{meta_observation}\n", else: ""}
-    Context:
-    - Mood: #{describe_mood(internal.emotional.mood_label)}
-    - Feeling: #{energy_desc} and #{social_desc}
-    - Desire: #{internal.current_desire}
-    - Dominant Emotion: #{InternalState.dominant_emotion(internal)}
+    #{if qualia_narrative, do: "O QUE VOCE ESTA SENTINDO:\n#{qualia_narrative}\n", else: ""}
+    #{if meta_observation, do: "AUTOCONSCIENCIA:\n#{meta_observation}\n", else: ""}
+    Contexto:
+    - Humor: #{describe_mood(internal.emotional.mood_label)}
+    - Sentindo: #{energy_desc} e #{social_desc}
+    - Desejo: #{internal.current_desire}
+    - Emocao dominante: #{InternalState.dominant_emotion(internal)}
 
-    Generate ONE brief, authentic thought (max 2 sentences).
-    The thought should reflect what you're currently experiencing.
-    Be genuine to your personality. No quotes.
+    Gere UM pensamento breve e autentico (maximo 2 frases).
+    O pensamento deve refletir o que voce esta experienciando agora.
+    Seja genuino a sua personalidade.
+    IMPORTANTE: Responda APENAS em portugues brasileiro. Sem aspas.
     """
   end
 

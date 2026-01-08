@@ -72,6 +72,123 @@ services:
       timeout: 10s
       retries: 5
 
+  # =============================================================================
+  # NVIDIA NIM - AI MICROSERVICES (GPU Required: RTX 4090)
+  # =============================================================================
+  # Prerequisites:
+  #   1. Install NVIDIA Container Toolkit: sudo nvidia-ctk runtime configure --runtime=docker
+  #   2. Set NGC_API_KEY in .env file (get from https://ngc.nvidia.com)
+  #   3. First run downloads models (~30 min per service)
+  #
+  # To run GPU services: docker compose --profile gpu up -d
+
+  # Audio2Face-3D - Real-time facial animation from audio
+  # Generates blendshapes, head movement, and emotions for 3D avatars
+  audio2face-3d:
+    image: nvcr.io/nim/nvidia/audio2face-3d:1.3.16
+    profiles: ["gpu"]
+    ports:
+      - "52000:52000"
+    environment:
+      - NGC_API_KEY=${NGC_API_KEY}
+    volumes:
+      - audio2face_cache:/tmp/a2x
+    networks:
+      - viva-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:52000/v1/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+
+  # Riva TTS - Text-to-Speech synthesis
+  # Converts text to natural speech for avatar voices
+  riva-tts:
+    image: nvcr.io/nim/nvidia/magpie-tts-multilingual:latest
+    profiles: ["gpu"]
+    ports:
+      - "9000:9000"
+      - "50051:50051"
+    environment:
+      - NGC_API_KEY=${NGC_API_KEY}
+      - NIM_TAGS_SELECTOR=name=magpie-tts-multilingual,model_type=prebuilt
+    volumes:
+      - riva_tts_cache:/opt/nim/.cache
+    networks:
+      - viva-network
+    shm_size: "8gb"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/v1/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+
+  # Riva ASR - Automatic Speech Recognition
+  # Converts speech to text for avatar interactions
+  riva-asr:
+    image: nvcr.io/nim/nvidia/parakeet-ctc-1.1b-asr:latest
+    profiles: ["gpu"]
+    ports:
+      - "9001:9000"
+      - "50052:50051"
+    environment:
+      - NGC_API_KEY=${NGC_API_KEY}
+    volumes:
+      - riva_asr_cache:/opt/nim/.cache
+    networks:
+      - viva-network
+    shm_size: "8gb"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/v1/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+
+  # NeMo LLM - Local LLM for avatar conversations (optional)
+  # Use this instead of cloud NIM API for offline/private deployments
+  # nemo-llm:
+  #   image: nvcr.io/nim/meta/llama-3.1-8b-instruct:latest
+  #   profiles: ["gpu", "llm"]
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - NGC_API_KEY=${NGC_API_KEY}
+  #   volumes:
+  #     - nemo_cache:/opt/nim/.cache
+  #   networks:
+  #     - viva-network
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+
 networks:
   viva-network:
     driver: bridge
@@ -83,3 +200,8 @@ volumes:
   rabbitmq_data:
   deps:
   build:
+  # NIM model caches (persist to avoid re-downloading)
+  audio2face_cache:
+  riva_tts_cache:
+  riva_asr_cache:
+  # nemo_cache:

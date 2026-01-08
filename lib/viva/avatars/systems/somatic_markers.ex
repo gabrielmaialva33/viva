@@ -521,10 +521,16 @@ defmodule Viva.Avatars.Systems.SomaticMarkers do
   defp decay_marker_map(markers) do
     markers
     |> Enum.map(fn {key, marker} ->
-      new_strength = marker.strength - @decay_rate
-      {key, %{marker | strength: new_strength}}
+      # Handle both atom and string keys (from DB/JSON)
+      current_strength = Map.get(marker, :strength) || Map.get(marker, "strength") || 1.0
+      new_strength = current_strength - @decay_rate
+      updated_marker = Map.put(marker, :strength, new_strength) |> Map.put("strength", new_strength)
+      {key, updated_marker}
     end)
-    |> Enum.filter(fn {_, marker} -> marker.strength >= @min_strength end)
+    |> Enum.filter(fn {_, marker} ->
+      strength = Map.get(marker, :strength) || Map.get(marker, "strength") || 0.0
+      strength >= @min_strength
+    end)
     |> Map.new()
   end
 

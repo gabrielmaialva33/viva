@@ -116,6 +116,25 @@ defmodule Viva.MixProject do
       {:dotenvy, "~> 0.8"},
 
       # =========================================================================
+      # ML/GPU Stack - Quantum World Simulation
+      # =========================================================================
+
+      # Numerical computing (tensors)
+      {:nx, "~> 0.9"},
+
+      # GPU backend via XLA (CUDA support for RTX 4090)
+      {:exla, "~> 0.9"},
+
+      # Neural networks and RL
+      {:axon, "~> 0.7"},
+
+      # Classical ML algorithms
+      {:scholar, "~> 0.3"},
+
+      # Optimizers for Axon (PPO, Adam, etc.)
+      {:polaris, "~> 0.1"},
+
+      # =========================================================================
       # Development & Code Quality Tools
       # =========================================================================
 

@@ -427,7 +427,7 @@ defmodule Viva.Avatars.Systems.QualiaSynthesizer do
 
     matches =
       Enum.count(experiences, fn exp ->
-        exp_qualia = exp.qualia || %{}
+        exp_qualia = Map.get(exp, :qualia) || Map.get(exp, "qualia") || %{}
         exp_type = Map.get(exp_qualia, :type) || Map.get(exp_qualia, "type")
         exp_type == current_type
       end)

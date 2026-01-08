@@ -13,28 +13,34 @@ defmodule Viva.Avatars.Systems.Psychology do
   """
   @spec calculate_emotional_state(BioState.t(), Personality.t()) :: EmotionalState.t()
   def calculate_emotional_state(%BioState{} = bio, %Personality{} = personality) do
-    # 1. SATISFACTION SIGNALS (capped contribution - harder to feel good)
-    # Positive chemicals contribute to well-being but are capped
+    # 1. SATISFACTION SIGNALS (balanced contribution)
+    # Positive chemicals contribute to well-being with a reasonable cap
+    # BALANCED: Increased cap from 0.5 to 0.75 for fairer positive emotions
     satisfaction_raw = bio.dopamine * 0.4 + bio.oxytocin * 0.4
-    satisfaction_signal = min(0.5, satisfaction_raw)
+    satisfaction_signal = min(0.75, satisfaction_raw)
 
-    # 2. DISTRESS SIGNALS (amplified - easier to feel bad)
-    # Stress and fatigue contribute more strongly to displeasure
-    stress_signal = bio.cortisol * 1.2
+    # 2. DISTRESS SIGNALS (balanced - no longer amplified)
+    # Stress and fatigue contribute proportionally to displeasure
+    # BALANCED: Reduced stress multiplier from 1.2 to 1.0 for symmetry
+    stress_signal = bio.cortisol * 1.0
     fatigue_signal = bio.adenosine * 0.5
 
     # 3. NEED DEPRIVATION PAIN (drives action through discomfort)
     # When needs fall below threshold, creates negative valence
     # This is the critical mechanism for authentic suffering
-    dopamine_deprivation = max(0.0, 0.4 - bio.dopamine) * 0.5
-    oxytocin_deprivation = max(0.0, 0.35 - bio.oxytocin) * 0.6
+    # BALANCED: Reduced deprivation multipliers for less punitive experience
+    # - dopamine_deprivation: 0.5 -> 0.3 (less harsh)
+    # - oxytocin_deprivation: 0.6 -> 0.4 (less harsh)
+    dopamine_deprivation = max(0.0, 0.4 - bio.dopamine) * 0.3
+    oxytocin_deprivation = max(0.0, 0.35 - bio.oxytocin) * 0.4
     deprivation_pain = dopamine_deprivation + oxytocin_deprivation
 
-    # 4. RAW PLEASURE (asymmetric: positive 0.8x, negative 1.0x)
-    # Satisfaction is dampened, distress is at full strength
+    # 4. RAW PLEASURE (symmetric: both positive and negative at full strength)
+    # BALANCED: Satisfaction multiplier increased from 0.8 to 1.0
+    # BALANCED: Removed -0.1 baseline bias that unfairly pushed toward negativity
     raw_pleasure =
-      satisfaction_signal * 0.8 -
-        (stress_signal + fatigue_signal + deprivation_pain) - 0.1
+      satisfaction_signal * 1.0 -
+        (stress_signal + fatigue_signal + deprivation_pain)
 
     # HEDONIC AMPLIFICATION: Personality affects emotional sensitivity
     emotional_sensitivity = 1.0 + personality.neuroticism * 0.5

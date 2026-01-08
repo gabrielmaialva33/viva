@@ -39,22 +39,31 @@ defmodule Viva.Application do
       # Avatar Sessions Supervisor (includes Registry, DynamicSupervisor, World Clock)
       Viva.Sessions.Supervisor,
 
+      # Metrics Collector for real-time simulation monitoring
+      Viva.Metrics.Collector,
+
+      # Quantum World Engine (GPU-accelerated RL simulation)
+      {Viva.Quantum.WorldEngine, training_enabled: true, auto_tick: true},
+
       # Phoenix Endpoint (must be last)
       VivaWeb.Endpoint
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Viva.Supervisor]
 
-    result = Supervisor.start_link(children, opts)
+    case Supervisor.start_link(children, opts) do
+      {:ok, pid} ->
+        # Schedule avatar startup via Oban (only if supervisor started successfully)
+        if Application.get_env(:viva, :start_active_avatars, true) do
+          schedule_avatar_startup()
+        end
 
-    # Schedule avatar startup via Oban (replaces Process.sleep anti-pattern)
-    if Application.get_env(:viva, :start_active_avatars, true) do
-      schedule_avatar_startup()
+        {:ok, pid}
+
+      {:error, _reason} = error ->
+        error
     end
-
-    result
   end
 
   # Tell Phoenix to update the endpoint configuration

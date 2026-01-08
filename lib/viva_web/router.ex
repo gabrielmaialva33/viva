@@ -21,10 +21,15 @@ defmodule VivaWeb.Router do
     pipe_through :browser
 
     live "/", IndexLive
+    live "/metrics", MetricsLive
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", VivaWeb do
-  #   pipe_through :api
-  # end
+  # API para controle da simulação
+  scope "/api", VivaWeb do
+    pipe_through :api
+
+    post "/simulation/start", SimulationController, :start
+    post "/simulation/stop", SimulationController, :stop
+    get "/simulation/status", SimulationController, :status
+  end
 end

@@ -26,8 +26,8 @@ config :viva, :nim,
   api_key: System.get_env("NIM_API_KEY"),
   timeout: 60_000
 
-# Oban dev config (inline mode for testing)
-config :viva, Oban, testing: :manual
+# Oban dev config - usando configuração normal para executar jobs
+# config :viva, Oban, testing: :manual  # comentado para permitir execução real
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
