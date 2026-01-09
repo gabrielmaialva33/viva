@@ -52,3 +52,6 @@ config :exla, :default_client, :host
 
 # Disable GPU-dependent services in tests (WorldEngine, HiveMind)
 config :viva, start_gpu_services: false
+
+# Disable Mortality system in tests (needs to be started manually per test)
+config :viva, start_mortality_system: false

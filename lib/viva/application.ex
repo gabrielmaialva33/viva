@@ -49,6 +49,14 @@ defmodule Viva.Application do
       VivaWeb.Endpoint
     ]
 
+    # Add Mortality system if enabled (disabled in test env for controlled testing)
+    children =
+      if Application.get_env(:viva, :start_mortality_system, true) do
+        children ++ [Viva.Mortality.Supervisor]
+      else
+        children
+      end
+
     # Add GPU-dependent services only if enabled (disabled in test env)
     children =
       if Application.get_env(:viva, :start_gpu_services, true) do
