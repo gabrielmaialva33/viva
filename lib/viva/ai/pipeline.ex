@@ -12,6 +12,7 @@ defmodule Viva.AI.Pipeline do
 
   alias Viva.AI.LLM.LlmClient
   alias Viva.Sessions.LifeProcess
+  alias Viva.Collective.HiveMind
 
   @spec start_link(any()) :: GenServer.on_start()
   def start_link(_) do
@@ -90,6 +91,12 @@ defmodule Viva.AI.Pipeline do
         # Send result back to the avatar
         life_process.set_thought(avatar_id, content)
 
+        # Seed thought to HiveMind for collective propagation (1→2→4→8...)
+        # Only strong thoughts (>20 chars, not too generic) propagate
+        if should_propagate?(content) do
+          HiveMind.seed_thought(avatar_id, content)
+        end
+
       {:error, reason} ->
         Logger.warning("LLM generation failed: #{inspect(reason)}")
         raise "LLM Error"
@@ -99,4 +106,13 @@ defmodule Viva.AI.Pipeline do
   defp process_thought(payload) do
     Logger.warning("Unknown payload type: #{inspect(payload)}")
   end
+
+  # Filter which thoughts propagate to the collective
+  defp should_propagate?(content) when is_binary(content) do
+    # Thoughts must be substantive to propagate
+    String.length(content) > 20 and
+      not String.contains?(String.downcase(content), ["teste", "test", "debug", "erro"])
+  end
+
+  defp should_propagate?(_), do: false
 end

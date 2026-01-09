@@ -1,6 +1,6 @@
 defmodule Viva.AI.LLM.LlmClient do
   @moduledoc """
-  HTTP client for NVIDIA NIM LLM services.
+  HTTP client for NVIDIA NIM LLM services with intelligent routing.
 
   Uses `nvidia/llama-3.1-nemotron-ultra-253b-v1` - the highest quality model
   for reasoning, tool calling, chat, and instruction following.
@@ -12,6 +12,18 @@ defmodule Viva.AI.LLM.LlmClient do
   - Tool/function calling
   - Conversation analysis
   - Avatar response generation with personality context
+  - **Intelligent routing**: Local (Ollama) vs Cloud (NIM) based on task type
+
+  ## Routing Strategy
+
+  By default, high-frequency avatar thoughts use local LLM (Ollama) to avoid
+  rate limits, while complex reasoning uses cloud NIM for quality.
+
+  Configure routing in config:
+
+      config :viva, Viva.AI.LLM.LlmClient,
+        use_local_for_thoughts: true,  # Use Ollama for generate_thought
+        use_router: true               # Enable intelligent routing
   """
   @behaviour Viva.AI.Pipeline.Stage
   @behaviour Viva.AI.LLM.ClientBehaviour
@@ -20,6 +32,7 @@ defmodule Viva.AI.LLM.LlmClient do
 
   alias Viva.AI.LLM
   alias Viva.AI.LLM.LlmClient, as: Client
+  alias Viva.AI.LLM.Backends.GroqBackend
   alias Viva.Avatars.Avatar
   alias Viva.Avatars.InternalState
 
@@ -195,9 +208,16 @@ defmodule Viva.AI.LLM.LlmClient do
 
   @doc """
   Generate a spontaneous thought for an avatar based on their state.
+
+  Uses local LLM (Ollama) by default to avoid rate limits and reduce latency.
+  Falls back to cloud NIM if local is unavailable.
+
+  ## Options
+    * `:force_cloud` - Force using cloud NIM (default: false)
+    * `:use_local` - Force using local Ollama (default: true)
   """
-  @spec generate_thought(Avatar.t(), InternalState.t()) :: generate_response()
-  def generate_thought(avatar, internal_state) do
+  @spec generate_thought(Avatar.t(), InternalState.t(), keyword()) :: generate_response()
+  def generate_thought(avatar, internal_state, opts \\ []) do
     prompt = """
     Você é #{avatar.name}. Gere um pensamento espontâneo baseado no seu estado atual.
 
@@ -213,7 +233,32 @@ defmodule Viva.AI.LLM.LlmClient do
     Não use aspas ao redor do pensamento.
     """
 
-    generate(prompt, max_tokens: 100, temperature: 0.9)
+    use_local = Keyword.get(opts, :use_local, use_local_for_thoughts?())
+    force_cloud = Keyword.get(opts, :force_cloud, false)
+
+    cond do
+      force_cloud ->
+        generate(prompt, max_tokens: 100, temperature: 0.9)
+
+      use_local ->
+        # Usa Groq (fast cloud) para evitar rate limits do NIM
+        case GroqBackend.generate_thought(prompt, max_tokens: 100, temperature: 0.9) do
+          {:ok, _} = result ->
+            result
+
+          {:error, reason} ->
+            Logger.warning("[LlmClient] Local thought failed: #{inspect(reason)}, falling back to cloud")
+            generate(prompt, max_tokens: 100, temperature: 0.9)
+        end
+
+      true ->
+        generate(prompt, max_tokens: 100, temperature: 0.9)
+    end
+  end
+
+  defp use_local_for_thoughts? do
+    Application.get_env(:viva, __MODULE__, [])
+    |> Keyword.get(:use_local_for_thoughts, true)
   end
 
   @doc """
