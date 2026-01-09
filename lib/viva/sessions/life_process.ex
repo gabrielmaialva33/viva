@@ -80,6 +80,22 @@ defmodule Viva.Sessions.LifeProcess do
     |> GenServer.call(:get_state)
   end
 
+  @doc """
+  Returns just the internal state (emotions, bio, etc) for a given avatar.
+  Used by HiveMind/Mutator for thought mutation context.
+  """
+  @spec get_internal_state(avatar_id()) :: {:ok, map()} | {:error, term()}
+  def get_internal_state(avatar_id) do
+    try do
+      state = get_state(avatar_id)
+      {:ok, Map.take(state.state, [:emotional, :bio, :sensory, :consciousness])}
+    rescue
+      _ -> {:error, :not_found}
+    catch
+      :exit, _ -> {:error, :not_found}
+    end
+  end
+
   @spec owner_connected(avatar_id()) :: :ok
   def owner_connected(avatar_id) do
     avatar_id

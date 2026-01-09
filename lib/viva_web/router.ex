@@ -22,6 +22,9 @@ defmodule VivaWeb.Router do
 
     live "/", IndexLive
     live "/metrics", MetricsLive
+    live "/grid", GridLive
+    live "/hivemind", HiveMindLive
+    live "/avatar/:id", AvatarLive
   end
 
   # API para controle da simulação
