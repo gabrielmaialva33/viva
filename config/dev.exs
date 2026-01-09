@@ -106,3 +106,31 @@ config :phoenix_live_view,
   debug_attributes: true,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
+
+# Groq Cloud LLM Backend (ultra-fast ~700ms inference)
+config :viva, Viva.AI.LLM.Backends.GroqBackend,
+  api_key: System.get_env("GROQ_API_KEY"),
+  model: "llama-3.3-70b-versatile",
+  timeout: 30_000
+
+# Gemini CLI Backend (fallback) - Auto Gemini 3
+config :viva, Viva.AI.LLM.Backends.GeminiCliBackend,
+  executable: "gemini",
+  # model: nil = Auto (Gemini 3 Flash + Pro)
+  timeout: 30_000
+
+# LLM Router Strategy
+config :viva, Viva.AI.LLM.Backends.Router,
+  strategy: :local_first,  # :local_first | :cloud_first | :local_only | :cloud_only
+  local_max_tokens: 500,
+  fallback_on_error: true
+
+# LLM Queue Settings
+config :viva, Viva.AI.LLM.Backends.Queue,
+  max_concurrent: 4,
+  max_queue_size: 1000,
+  default_timeout: 30_000
+
+# LlmClient - use local LLM for avatar thoughts
+config :viva, Viva.AI.LLM.LlmClient,
+  use_local_for_thoughts: true
