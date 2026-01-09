@@ -42,3 +42,13 @@ config :viva, :llm_client, Viva.AI.LLM.MockClient
 
 # Use Mock EventBus in tests
 config :viva, :event_bus, Viva.Infrastructure.MockEventBus
+
+# Nx/EXLA: Use Binary backend in tests (no GPU required)
+config :nx, :default_backend, Nx.BinaryBackend
+
+# Disable EXLA clients in test
+config :exla, :clients, []
+config :exla, :default_client, :host
+
+# Disable GPU-dependent services in tests (WorldEngine, HiveMind)
+config :viva, start_gpu_services: false
