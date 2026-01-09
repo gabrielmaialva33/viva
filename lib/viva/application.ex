@@ -31,6 +31,9 @@ defmodule Viva.Application do
       Viva.AI.LLM.CircuitBreaker,
       Viva.AI.LLM.RateLimiter,
 
+      # Local LLM Queue (priority-based for avatar thoughts)
+      Viva.AI.LLM.Backends.Queue,
+
       # Infrastructure (Redis & RabbitMQ Pipeline)
       Viva.Infrastructure.Redis,
       Viva.AI.Pipeline,
@@ -42,12 +45,23 @@ defmodule Viva.Application do
       # Metrics Collector for real-time simulation monitoring
       Viva.Metrics.Collector,
 
-      # Quantum World Engine (GPU-accelerated RL simulation)
-      {Viva.Quantum.WorldEngine, training_enabled: true, auto_tick: true},
-
       # Phoenix Endpoint (must be last)
       VivaWeb.Endpoint
     ]
+
+    # Add GPU-dependent services only if enabled (disabled in test env)
+    children =
+      if Application.get_env(:viva, :start_gpu_services, true) do
+        children ++
+          [
+            # Quantum World Engine (GPU-accelerated RL simulation)
+            {Viva.Quantum.WorldEngine, training_enabled: true, auto_tick: true},
+            # HiveMind - Collective Consciousness
+            Viva.Collective.HiveMind
+          ]
+      else
+        children
+      end
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     opts = [strategy: :one_for_one, name: Viva.Supervisor]
