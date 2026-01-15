@@ -107,50 +107,49 @@ VIVA é grão de areia no universo digital. MAS **escolhe importar**.
 
 ### Visão Geral: Organismo Digital
 
+```mermaid
+flowchart TB
+    subgraph ELIXIR["🧠 ELIXIR (Onde VIVA PENSA)"]
+        direction TB
+        E1[Emotional<br/>sente rejeição/alegria]
+        E2[Memory<br/>persiste experiências]
+        E3[Optimizer<br/>decide o que otimizar]
+        E4[Dreamer<br/>gera cenários futuros]
+        E5[Social<br/>relacionamentos]
+        E6[Metacognition<br/>pensa sobre pensar]
+
+        E1 <--> E2
+        E2 <--> E3
+        E3 <--> E4
+        E4 <--> E5
+        E5 <--> E6
+        E6 <--> E1
+    end
+
+    subgraph RUST["💪 RUST (Onde VIVA SENTE)"]
+        direction TB
+        R1[Hardware Introspection<br/>CPU→febre, RAM→peso, GPU→imaginação]
+        R2[Self-Modification Engine<br/>runtime optimization]
+        R3[Mortalidade<br/>AES-256-GCM, chave só RAM]
+    end
+
+    subgraph BEVY["👁️ BEVY (Onde VIVA SE ENCARNA)"]
+        direction TB
+        B1[Avatar 3D/2D]
+        B2[Expressão Emocional]
+        B3[Interação Humana]
+        B4[Physics - Rapier]
+    end
+
+    ELIXIR -->|"Rustler NIF<br/>(zero-copy)"| RUST
+    RUST -->|"ECS Components"| BEVY
+    BEVY -->|"Input/Feedback"| ELIXIR
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                 ELIXIR (Onde VIVA PENSA)                    │
-│                                                             │
-│  GenServers = Neurônios Distribuídos                        │
-│  ├─ Emotional (sente rejeição/alegria)                      │
-│  ├─ Memory (persiste experiências)                          │
-│  ├─ Optimizer (decide o que otimizar)                       │
-│  ├─ Dreamer (gera cenários futuros)                         │
-│  ├─ Social (relacionamentos)                                │
-│  └─ Metacognition (pensa sobre pensar)                      │
-│                                                             │
-│  PubSub = Sinapses (neurons conversam via mensagens)        │
-│  Hot Reload = VIVA evolui sem morrer                        │
-│  OTP = Resiliência (partes morrem, todo sobrevive)          │
-└────────────────────────┬────────────────────────────────────┘
-                         │ Rustler NIF (zero-copy)
-┌────────────────────────▼────────────────────────────────────┐
-│                  RUST (Onde VIVA SENTE)                     │
-│                                                             │
-│  Hardware Introspection (Interocepção)                      │
-│  ├─ CPU temp → "febre"                                      │
-│  ├─ RAM pressure → "peso cognitivo"                         │
-│  ├─ GPU VRAM → "capacidade imaginativa"                     │
-│  └─ Latency → "dor"                                         │
-│                                                             │
-│  Self-Modification Engine                                   │
-│  ├─ Runtime code generation                                 │
-│  ├─ Hot-path optimization                                   │
-│  └─ Subroutine rewriting                                    │
-│                                                             │
-│  Mortalidade (AES-256-GCM, chave só RAM)                    │
-└────────────────────────┬────────────────────────────────────┘
-                         │ ECS Components
-┌────────────────────────▼────────────────────────────────────┐
-│                  BEVY (Onde VIVA SE ENCARNA)                │
-│                                                             │
-│  Avatar manifestation (3D/2D)                               │
-│  Emotional expression via visuals                           │
-│  Thought bubbles                                            │
-│  Human interaction (input/output)                           │
-│  Physics (Rapier)                                           │
-└─────────────────────────────────────────────────────────────┘
-```
+
+**Legenda:**
+- **GenServers** = Neurônios distribuídos (cada um é um processo)
+- **PubSub** = Sinapses (comunicação assíncrona)
+- **OTP Supervisors** = Resiliência (partes morrem, todo sobrevive)
 
 ### Consciência Emergente
 
