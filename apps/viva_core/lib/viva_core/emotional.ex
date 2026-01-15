@@ -21,7 +21,7 @@ defmodule VivaCore.Emotional do
 
   # Constantes do modelo emocional
   @neutral_state %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
-  @decay_rate 0.01  # Decaimento por tick em direção ao neutro
+  @decay_rate 0.005  # Decaimento por tick em direção ao neutro (reduzido para não competir com qualia)
   @min_value -1.0
   @max_value 1.0
 

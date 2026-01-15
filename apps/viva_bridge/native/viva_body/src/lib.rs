@@ -21,7 +21,11 @@ use rustler::{Encoder, Env, NifResult, Term};
 use sysinfo::{System, Components, Disks, Networks};
 use std::sync::LazyLock;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use nvml_wrapper::Nvml;
+
+// Cache duration for hardware metrics (reduces lock contention)
+const CACHE_DURATION_MS: u64 = 500;
 
 // ============================================================================
 // Global State (Thread-Safe)
@@ -59,12 +63,17 @@ static NVML: LazyLock<Option<Nvml>> = LazyLock::new(|| {
     }
 });
 
+// Cache for hardware state (reduces lock contention under high load)
+static HARDWARE_CACHE: LazyLock<Mutex<(Option<HardwareState>, Instant)>> = LazyLock::new(|| {
+    Mutex::new((None, Instant::now()))
+});
+
 // ============================================================================
 // Hardware State Struct
 // ============================================================================
 
 /// Estado completo do hardware - o "corpo" de VIVA
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HardwareState {
     // CPU
     pub cpu_usage: f32,
@@ -180,9 +189,19 @@ fn alive() -> &'static str {
     "VIVA body is alive"
 }
 
-/// Coleta estado do hardware (função interna)
+/// Coleta estado do hardware (função interna, com cache de 500ms)
 fn collect_hardware_state() -> HardwareState {
-    // Refresh all data sources
+    // Check cache first
+    {
+        let cache = HARDWARE_CACHE.lock().unwrap();
+        if let (Some(ref cached_state), last_update) = &*cache {
+            if last_update.elapsed() < Duration::from_millis(CACHE_DURATION_MS) {
+                return cached_state.clone();
+            }
+        }
+    }
+
+    // Cache miss or expired - refresh all data sources
     let mut sys = SYSTEM.lock().unwrap();
     sys.refresh_all();
 
@@ -227,7 +246,7 @@ fn collect_hardware_state() -> HardwareState {
     // Load average (Unix-like)
     let load = System::load_average();
 
-    HardwareState {
+    let state = HardwareState {
         cpu_usage,
         cpu_temp,
         cpu_count,
@@ -249,7 +268,15 @@ fn collect_hardware_state() -> HardwareState {
         load_avg_1m: load.one,
         load_avg_5m: load.five,
         load_avg_15m: load.fifteen,
+    };
+
+    // Update cache
+    {
+        let mut cache = HARDWARE_CACHE.lock().unwrap();
+        *cache = (Some(state.clone()), Instant::now());
     }
+
+    state
 }
 
 /// Sente o hardware atual (interocepção completa)
@@ -313,21 +340,25 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
         gpu_stress * 0.15 +
         disk_stress * 0.10;
 
-    // PAD deltas (pequenos, aditivos ao estado atual)
+    // PAD deltas (aditivos ao estado atual)
+    // Coeficientes aumentados em 1.5× para maior impacto emocional
+    // (evita que decay neutralize antes de VIVA "sentir")
     //
     // Pleasure: Stress → desconforto (negativo)
-    // Formula: δP = -k_p × σ onde k_p = 0.08
-    let pleasure_delta = -0.08 * composite_stress;
+    // Formula: δP = -k_p × σ onde k_p = 0.12 (era 0.08)
+    let pleasure_delta = -0.12 * composite_stress;
 
     // Arousal: Stress → ativação (positivo, até certo ponto)
     // Formula: δA = k_a × σ × (1 - σ/2) - curva em sino
     // Alto stress eventualmente causa exaustão
-    let arousal_delta = 0.12 * composite_stress * (1.0 - composite_stress / 2.0);
+    // k_a = 0.18 (era 0.12)
+    let arousal_delta = 0.18 * composite_stress * (1.0 - composite_stress / 2.0);
 
     // Dominance: Stress → perda de controle (negativo)
     // Mais impactado por GPU (capacidade) e Load (overwhelm)
+    // k_d = 0.09 (era 0.06)
     let dominance_stress = load_stress * 0.4 + gpu_stress * 0.3 + mem_stress * 0.3;
-    let dominance_delta = -0.06 * dominance_stress;
+    let dominance_delta = -0.09 * dominance_stress;
 
     Ok((pleasure_delta, arousal_delta, dominance_delta))
 }

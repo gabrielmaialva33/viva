@@ -28,7 +28,10 @@ defmodule VivaCore.Application do
       {VivaCore.Emotional, name: VivaCore.Emotional},
 
       # Neurônio de Memória - armazena experiências
-      {VivaCore.Memory, name: VivaCore.Memory}
+      {VivaCore.Memory, name: VivaCore.Memory},
+
+      # Sistema Nervoso - heartbeat corpo→alma (sensing contínuo)
+      {VivaCore.Senses, name: VivaCore.Senses}
 
       # Futuros neurônios:
       # {VivaCore.Optimizer, name: VivaCore.Optimizer},
