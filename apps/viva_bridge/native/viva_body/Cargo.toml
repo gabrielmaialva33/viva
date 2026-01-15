@@ -1,0 +1,15 @@
+[package]
+name = "viva_body"
+version = "0.1.0"
+authors = ["Gabriel Maia <gabriel@viva.ai>"]
+edition = "2021"
+description = "VIVA's body - hardware sensing and interoception"
+
+[lib]
+name = "viva_body"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.35"
+sysinfo = "0.32"
