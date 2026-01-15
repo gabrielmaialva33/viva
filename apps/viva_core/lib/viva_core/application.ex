@@ -41,7 +41,9 @@ defmodule VivaCore.Application do
       # {VivaCore.GlobalWorkspace, name: VivaCore.GlobalWorkspace}
     ]
 
-    opts = [strategy: :one_for_one, name: VivaCore.Supervisor]
+    # :rest_for_one - Se Emotional crashar, Senses também reinicia
+    # (Senses depende de Emotional estar registrado)
+    opts = [strategy: :rest_for_one, name: VivaCore.Supervisor]
 
     case Supervisor.start_link(children, opts) do
       {:ok, pid} ->

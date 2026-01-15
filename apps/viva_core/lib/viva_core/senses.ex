@@ -109,12 +109,18 @@ defmodule VivaCore.Senses do
 
     Logger.info("[Senses] Sistema nervoso iniciando. Heartbeat: #{interval_ms}ms")
 
-    # Primeiro heartbeat imediato para ter leitura inicial
-    if enabled do
-      send(self(), :heartbeat)
-    end
+    # Usa handle_continue para evitar race condition no startup
+    # (aguarda Emotional estar registrado antes de enviar qualia)
+    {:ok, state, {:continue, {:start_heartbeat, enabled}}}
+  end
 
-    {:ok, state}
+  @impl true
+  def handle_continue({:start_heartbeat, true}, state) do
+    send(self(), :heartbeat)
+    {:noreply, state}
+  end
+  def handle_continue({:start_heartbeat, false}, state) do
+    {:noreply, state}
   end
 
   @impl true
@@ -215,4 +221,13 @@ defmodule VivaCore.Senses do
 
   defp format_delta(value) when value >= 0, do: "+#{Float.round(value, 4)}"
   defp format_delta(value), do: "#{Float.round(value, 4)}"
+
+  # ============================================================================
+  # Code Change (Hot Reload)
+  # ============================================================================
+
+  @impl true
+  def code_change(_old_vsn, state, _extra) do
+    {:ok, state}
+  end
 end

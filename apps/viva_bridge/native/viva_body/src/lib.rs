@@ -349,10 +349,10 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
     let pleasure_delta = -0.12 * composite_stress;
 
     // Arousal: Stress → ativação (positivo, até certo ponto)
-    // Formula: δA = k_a × σ × (1 - σ/2) - curva em sino
-    // Alto stress eventualmente causa exaustão
-    // k_a = 0.18 (era 0.12)
-    let arousal_delta = 0.18 * composite_stress * (1.0 - composite_stress / 2.0);
+    // Formula corrigida: δA = k_a × (2σ - σ²) - parábola que sempre fica em [0, max]
+    // Pico em σ=1, depois decresce (exaustão)
+    // k_a = 0.15 (ajustado para nova fórmula)
+    let arousal_delta = 0.15 * (2.0 * composite_stress - composite_stress.powi(2));
 
     // Dominance: Stress → perda de controle (negativo)
     // Mais impactado por GPU (capacidade) e Load (overwhelm)

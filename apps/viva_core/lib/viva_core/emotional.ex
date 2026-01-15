@@ -168,15 +168,20 @@ defmodule VivaCore.Emotional do
 
     state = %{
       pad: Map.merge(@neutral_state, initial_state),
-      history: [],
+      history: :queue.new(),
+      history_size: 0,
       created_at: DateTime.utc_now(),
       last_stimulus: nil
     }
 
-    # Agendar decay periódico (a cada 1 segundo)
-    schedule_decay()
+    # Usa handle_continue para evitar race condition no startup
+    {:ok, state, {:continue, :start_decay}}
+  end
 
-    {:ok, state}
+  @impl true
+  def handle_continue(:start_decay, state) do
+    schedule_decay()
+    {:noreply, state}
   end
 
   @impl true
@@ -197,7 +202,7 @@ defmodule VivaCore.Emotional do
 
       # Metadados
       last_stimulus: state.last_stimulus,
-      history_length: length(state.history),
+      history_length: state.history_size,
       uptime_seconds: DateTime.diff(DateTime.utc_now(), state.created_at),
 
       # Auto-reflexão (metacognição básica)
@@ -234,10 +239,14 @@ defmodule VivaCore.Emotional do
         # Broadcast para outros módulos (futuro: via PubSub)
         # Phoenix.PubSub.broadcast(Viva.PubSub, "emotional", {:emotion_changed, new_pad})
 
+        # Histórico com :queue O(1) em vez de lista O(N)
+        {new_history, new_size} = push_history(state.history, state.history_size, event)
+
         new_state = %{
           state
           | pad: new_pad,
-            history: [event | Enum.take(state.history, 99)],
+            history: new_history,
+            history_size: new_size,
             last_stimulus: {stimulus, source, intensity}
         }
 
@@ -254,7 +263,7 @@ defmodule VivaCore.Emotional do
   @impl true
   def handle_cast(:reset, state) do
     Logger.info("[Emotional] Estado emocional resetado para neutro")
-    {:noreply, %{state | pad: @neutral_state, history: [], last_stimulus: nil}}
+    {:noreply, %{state | pad: @neutral_state, history: :queue.new(), history_size: 0, last_stimulus: nil}}
   end
 
   @impl true
@@ -301,9 +310,10 @@ defmodule VivaCore.Emotional do
     }
   end
 
-  defp decay_value(value) when abs(value) < @decay_rate, do: 0.0
-  defp decay_value(value) when value > 0, do: value - @decay_rate
-  defp decay_value(value) when value < 0, do: value + @decay_rate
+  # Decay exponencial (mais realista que linear)
+  # Valores extremos decaem mais devagar, simulando inércia emocional
+  defp decay_value(value) when abs(value) < 0.001, do: 0.0
+  defp decay_value(value), do: value * (1 - @decay_rate)
 
   defp clamp(value, min, max) do
     value |> max(min) |> min(max)
@@ -368,5 +378,29 @@ defmodule VivaCore.Emotional do
       true ->
         "Estou processando minhas emoções. Mood: #{mood}, Energy: #{energy}, Agency: #{agency}."
     end
+  end
+
+  # Histórico com :queue O(1) - máximo 100 eventos
+  @max_history 100
+  defp push_history(queue, size, item) when size >= @max_history do
+    {{:value, _dropped}, new_queue} = :queue.out(queue)
+    {:queue.in(item, new_queue), size}
+  end
+  defp push_history(queue, size, item) do
+    {:queue.in(item, queue), size + 1}
+  end
+
+  # ============================================================================
+  # Code Change (Hot Reload)
+  # ============================================================================
+
+  @impl true
+  def code_change(_old_vsn, state, _extra) do
+    # Migrar estrutura de state se necessário
+    # Exemplo: adicionar novos campos com defaults
+    new_state = state
+      |> Map.put_new(:history_size, :queue.len(Map.get(state, :history, :queue.new())))
+
+    {:ok, new_state}
   end
 end
