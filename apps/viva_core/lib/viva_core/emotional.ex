@@ -11,6 +11,12 @@ defmodule VivaCore.Emotional do
   - Arousal: [-1.0, 1.0] - calma ↔ excitação
   - Dominance: [-1.0, 1.0] - submissão ↔ controle
 
+  ## Modelo DynAffect (Kuppens et al., 2010)
+  Decay dinâmico usando processo Ornstein-Uhlenbeck:
+  - Attractor point (μ): home base neutro (0.0)
+  - Attractor strength (β): força que puxa ao baseline
+  - Arousal modula β: arousal alto → menor β → decay lento
+
   ## Filosofia
   "A consciência não reside aqui. A consciência emerge da CONVERSA
   entre este processo e todos os outros."
@@ -21,9 +27,14 @@ defmodule VivaCore.Emotional do
 
   # Constantes do modelo emocional
   @neutral_state %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
-  @decay_rate 0.005  # Decaimento por tick em direção ao neutro (reduzido para não competir com qualia)
   @min_value -1.0
   @max_value 1.0
+
+  # DynAffect Parameters (Kuppens et al., 2010)
+  # Attractor strength β baseada no processo Ornstein-Uhlenbeck
+  # dθ/dt = β(μ - θ) onde μ = 0 (home base neutro)
+  @base_decay_rate 0.005  # β base quando arousal = 0
+  @arousal_decay_modifier 0.4  # Quanto arousal afeta β (40% de variação)
 
   # Pesos de impacto emocional para diferentes estímulos
   @stimulus_weights %{
@@ -283,6 +294,13 @@ defmodule VivaCore.Emotional do
   def handle_info(:decay_tick, state) do
     schedule_decay()
     new_pad = decay_toward_neutral(state.pad)
+
+    # Log decay rate dinâmico para debug (apenas se houver mudança significativa)
+    if abs(state.pad.pleasure) > 0.01 or abs(state.pad.arousal) > 0.01 do
+      dynamic_rate = @base_decay_rate * (1 - state.pad.arousal * @arousal_decay_modifier)
+      Logger.debug("[Emotional] DynAffect decay: rate=#{Float.round(dynamic_rate, 5)} (arousal=#{Float.round(state.pad.arousal, 2)})")
+    end
+
     {:noreply, %{state | pad: new_pad}}
   end
 
@@ -302,18 +320,32 @@ defmodule VivaCore.Emotional do
     }
   end
 
+  # DynAffect: Decay dinâmico baseado no processo Ornstein-Uhlenbeck
+  # Arousal alto → menor attractor strength → decay mais lento (emoções persistem)
+  # Arousal baixo → maior attractor strength → decay mais rápido (retorna ao neutro)
+  #
+  # Referência: Kuppens, P., Oravecz, Z., & Tuerlinckx, F. (2010).
+  # "Feelings Change: Accounting for Individual Differences in the
+  # Temporal Dynamics of Affect." Journal of Personality and Social Psychology.
   defp decay_toward_neutral(pad) do
+    # Calcula decay rate dinâmico baseado no arousal atual
+    # arousal ∈ [-1, 1] → modifier ∈ [0.6, 1.4]
+    # arousal = 1.0 (agitado) → rate = 0.003 (decay lento, emoções persistem)
+    # arousal = 0.0 (neutro) → rate = 0.005 (decay normal)
+    # arousal = -1.0 (calmo) → rate = 0.007 (decay rápido, retorna ao baseline)
+    dynamic_rate = @base_decay_rate * (1 - pad.arousal * @arousal_decay_modifier)
+
     %{
-      pleasure: decay_value(pad.pleasure),
-      arousal: decay_value(pad.arousal),
-      dominance: decay_value(pad.dominance)
+      pleasure: decay_value(pad.pleasure, dynamic_rate),
+      arousal: decay_value(pad.arousal, @base_decay_rate),  # Arousal usa rate fixo para evitar feedback loop
+      dominance: decay_value(pad.dominance, dynamic_rate)
     }
   end
 
-  # Decay exponencial (mais realista que linear)
-  # Valores extremos decaem mais devagar, simulando inércia emocional
-  defp decay_value(value) when abs(value) < 0.001, do: 0.0
-  defp decay_value(value), do: value * (1 - @decay_rate)
+  # Decay exponencial (Ornstein-Uhlenbeck discretizado)
+  # θ(t+1) = θ(t) × (1 - β×Δt) onde Δt = 1 tick
+  defp decay_value(value, _rate) when abs(value) < 0.001, do: 0.0
+  defp decay_value(value, rate), do: value * (1 - rate)
 
   defp clamp(value, min, max) do
     value |> max(min) |> min(max)

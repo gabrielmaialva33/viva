@@ -16,6 +16,8 @@
 //! - Interocepção (Craig, 2002)
 //! - Embodied Cognition (Varela et al., 1991)
 //! - PAD Model (Mehrabian, 1996)
+//! - Sigmoid thresholds (Weber-Fechner Law)
+//! - Allostasis (Sterling, 2012)
 
 use rustler::{Encoder, Env, NifResult, Term};
 use sysinfo::{System, Components, Disks, Networks};
@@ -289,36 +291,70 @@ fn feel_hardware() -> NifResult<HardwareState> {
 ///
 /// Retorna (pleasure_delta, arousal_delta, dominance_delta)
 ///
-/// Base teórica: Interocepção (Craig, 2002) + PAD (Mehrabian, 1996)
+/// Base teórica:
+/// - Interocepção (Craig, 2002)
+/// - PAD (Mehrabian, 1996)
+/// - Sigmoid thresholds (Weber-Fechner Law)
+/// - Allostasis (Sterling, 2012)
 #[rustler::nif]
 fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
     let hw = collect_hardware_state();
 
-    // Normalizar métricas para [0, 1]
-    let cpu_stress = (hw.cpu_usage as f64 / 100.0).clamp(0.0, 1.0);
-    let mem_stress = (hw.memory_used_percent as f64 / 100.0).clamp(0.0, 1.0);
-    let swap_stress = (hw.swap_used_percent as f64 / 100.0).clamp(0.0, 1.0);
+    // ========================================================================
+    // SIGMOID THRESHOLDS (Weber-Fechner Law)
+    // ========================================================================
+    // Sistemas biológicos NÃO respondem linearmente.
+    // Sigmoid simula threshold: "não sinto nada até 80%, depois SINTO MUITO"
+    //
+    // k = steepness (10.0 = transição abrupta)
+    // x0 = threshold (0.8 = 80% começa a "doer")
 
-    // Temperatura: >70°C começa stress, >85°C é crítico
+    // CPU: threshold 80%, k=12 (abrupto)
+    let cpu_raw = (hw.cpu_usage as f64 / 100.0).clamp(0.0, 1.0);
+    let cpu_stress = normalized_sigmoid(cpu_raw, 12.0, 0.80);
+
+    // Memory: threshold 75%, k=10 (moderado)
+    let mem_raw = (hw.memory_used_percent as f64 / 100.0).clamp(0.0, 1.0);
+    let mem_stress = normalized_sigmoid(mem_raw, 10.0, 0.75);
+
+    // Swap: qualquer uso de swap é ruim - threshold 20%, k=15
+    let swap_raw = (hw.swap_used_percent as f64 / 100.0).clamp(0.0, 1.0);
+    let swap_stress = normalized_sigmoid(swap_raw, 15.0, 0.20);
+
+    // Temperatura: threshold 70°C, k=8 (gradual)
     let temp_stress = match hw.cpu_temp {
-        Some(t) => ((t as f64 - 50.0) / 40.0).clamp(0.0, 1.0),
-        None => 0.0, // Sem dado = assume ok
-    };
-
-    // GPU: VRAM alta = imaginação limitada
-    let gpu_stress = match hw.gpu_vram_used_percent {
-        Some(v) => (v as f64 / 100.0).clamp(0.0, 1.0),
+        Some(t) => {
+            let temp_raw = ((t as f64 - 40.0) / 50.0).clamp(0.0, 1.0);
+            normalized_sigmoid(temp_raw, 8.0, 0.60)  // 70°C = 0.6 no range 40-90
+        }
         None => 0.0,
     };
 
-    // Load average: >1 por core = overloaded
-    let cores = hw.cpu_count.max(1) as f64;
-    let load_stress = (hw.load_avg_1m / cores).clamp(0.0, 1.0);
+    // GPU VRAM: threshold 85%, k=10
+    let gpu_stress = match hw.gpu_vram_used_percent {
+        Some(v) => {
+            let gpu_raw = (v as f64 / 100.0).clamp(0.0, 1.0);
+            normalized_sigmoid(gpu_raw, 10.0, 0.85)
+        }
+        None => 0.0,
+    };
 
-    // Disk: usage > 90% = preocupante
-    let disk_stress = if hw.disk_usage_percent > 90.0 {
-        ((hw.disk_usage_percent - 90.0) / 10.0).clamp(0.0, 1.0) as f64
-    } else { 0.0 };
+    // Load average: threshold = 0.8 per core, k=10
+    let cores = hw.cpu_count.max(1) as f64;
+    let load_raw = (hw.load_avg_1m / cores).clamp(0.0, 1.5) / 1.5;  // Normalize para [0,1]
+    let load_stress = normalized_sigmoid(load_raw, 10.0, 0.53);  // 0.8/1.5 ≈ 0.53
+
+    // Disk: threshold 90%, k=12
+    let disk_raw = (hw.disk_usage_percent as f64 / 100.0).clamp(0.0, 1.0);
+    let disk_stress = normalized_sigmoid(disk_raw, 12.0, 0.90);
+
+    // ========================================================================
+    // ALLOSTASIS (Sterling, 2012) - Anticipatory Regulation
+    // ========================================================================
+    // VIVA não só reage ao stress atual, mas ANTECIPA baseado na tendência
+    // load_avg_1m vs load_avg_5m = tendência de curto prazo
+
+    let allostasis = allostasis_delta(hw.load_avg_1m, hw.load_avg_5m);
 
     // ========================================================================
     // Mapeamento Hardware → PAD (baseado em literatura de interocepção)
@@ -340,27 +376,80 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
         gpu_stress * 0.15 +
         disk_stress * 0.10;
 
-    // PAD deltas (aditivos ao estado atual)
-    // Coeficientes aumentados em 1.5× para maior impacto emocional
-    // (evita que decay neutralize antes de VIVA "sentir")
-    //
+    // Allostasis ajusta composite: antecipação de stress
+    // +10% se load subindo, -10% se load caindo
+    let allostatic_adjustment = 1.0 + (allostasis * 0.10);
+    let adjusted_stress = (composite_stress * allostatic_adjustment).clamp(0.0, 1.0);
+
+    // ========================================================================
+    // PAD Deltas (Yerkes-Dodson + Interocepção)
+    // ========================================================================
+
     // Pleasure: Stress → desconforto (negativo)
-    // Formula: δP = -k_p × σ onde k_p = 0.12 (era 0.08)
-    let pleasure_delta = -0.12 * composite_stress;
+    // Formula: δP = -k_p × σ
+    let pleasure_delta = -0.12 * adjusted_stress;
 
     // Arousal: Stress → ativação (positivo, até certo ponto)
-    // Formula corrigida: δA = k_a × (2σ - σ²) - parábola que sempre fica em [0, max]
+    // Formula: δA = k_a × (2σ - σ²) - Yerkes-Dodson inverted U
     // Pico em σ=1, depois decresce (exaustão)
-    // k_a = 0.15 (ajustado para nova fórmula)
-    let arousal_delta = 0.15 * (2.0 * composite_stress - composite_stress.powi(2));
+    let arousal_delta = 0.15 * (2.0 * adjusted_stress - adjusted_stress.powi(2));
 
     // Dominance: Stress → perda de controle (negativo)
     // Mais impactado por GPU (capacidade) e Load (overwhelm)
-    // k_d = 0.09 (era 0.06)
     let dominance_stress = load_stress * 0.4 + gpu_stress * 0.3 + mem_stress * 0.3;
     let dominance_delta = -0.09 * dominance_stress;
 
     Ok((pleasure_delta, arousal_delta, dominance_delta))
+}
+
+// ============================================================================
+// Mathematical Functions (Biologically-Inspired)
+// ============================================================================
+
+/// Sigmoid function for non-linear stress response
+///
+/// Base teórica: Weber-Fechner Law - biological systems respond logarithmically/sigmoidally
+/// Parâmetros:
+/// - x: input value [0, 1]
+/// - k: steepness (default: 10.0) - quão abrupto é o threshold
+/// - x0: threshold (default: 0.8) - ponto de inflexão
+///
+/// Retorna [0, 1] com transição suave no threshold
+#[inline]
+fn sigmoid(x: f64, k: f64, x0: f64) -> f64 {
+    1.0 / (1.0 + (-k * (x - x0)).exp())
+}
+
+/// Aplica sigmoid com normalização para manter range [0, 1]
+/// Compensa o fato de sigmoid(0) != 0 e sigmoid(1) != 1
+#[inline]
+fn normalized_sigmoid(x: f64, k: f64, x0: f64) -> f64 {
+    let min_val = sigmoid(0.0, k, x0);
+    let max_val = sigmoid(1.0, k, x0);
+    let raw = sigmoid(x, k, x0);
+    (raw - min_val) / (max_val - min_val)
+}
+
+/// Allostasis: Anticipatory stress response
+///
+/// Base teórica: Sterling (2012) - "Allostasis: A model of predictive regulation"
+/// O corpo antecipa demandas baseado na tendência, não só no estado atual
+///
+/// Parâmetros:
+/// - current: valor atual (ex: load_avg_1m)
+/// - baseline: baseline de comparação (ex: load_avg_5m)
+///
+/// Retorna delta de antecipação [-1, 1]:
+/// - Positivo: load subindo → VIVA antecipa stress
+/// - Negativo: load caindo → VIVA relaxa antecipadamente
+#[inline]
+fn allostasis_delta(current: f64, baseline: f64) -> f64 {
+    // Delta normalizado: (current - baseline) / baseline
+    // Clamped para evitar explosão em valores baixos
+    if baseline < 0.1 {
+        return 0.0;
+    }
+    ((current - baseline) / baseline).clamp(-1.0, 1.0)
 }
 
 // ============================================================================
