@@ -105,15 +105,15 @@ static NETWORKS: LazyLock<Mutex<Networks>> = LazyLock::new(|| {
     Mutex::new(Networks::new_with_refreshed_list())
 });
 
-// NVIDIA GPU (inicializa uma vez, None se não disponível)
+// NVIDIA GPU (initialized once, None if unavailable)
 static NVML: LazyLock<Option<Nvml>> = LazyLock::new(|| {
     match Nvml::init() {
         Ok(nvml) => {
-            eprintln!("[viva_body] NVML inicializado - GPU NVIDIA detectada");
+            eprintln!("[viva_body] NVML initialized - NVIDIA GPU detected");
             Some(nvml)
         }
         Err(e) => {
-            eprintln!("[viva_body] NVML não disponível: {:?} - GPU sensing desabilitado", e);
+            eprintln!("[viva_body] NVML unavailable: {:?} - GPU sensing disabled", e);
             None
         }
     }
@@ -234,7 +234,7 @@ impl Encoder for HardwareState {
 // NIF Functions
 // ============================================================================
 
-/// Verifica se o corpo de VIVA está vivo
+/// Checks if VIVA's body is alive
 #[rustler::nif]
 fn alive() -> &'static str {
     "VIVA body is alive"
@@ -331,15 +331,15 @@ fn collect_hardware_state() -> HardwareState {
     state
 }
 
-/// Sente o hardware atual (interocepção completa)
+/// Feels current hardware state (complete interoception)
 #[rustler::nif]
 fn feel_hardware() -> NifResult<HardwareState> {
     Ok(collect_hardware_state())
 }
 
-/// Converte hardware em qualia (PAD deltas)
+/// Converts hardware metrics to qualia (PAD deltas)
 ///
-/// Retorna (pleasure_delta, arousal_delta, dominance_delta)
+/// Returns (pleasure_delta, arousal_delta, dominance_delta)
 ///
 /// Base teórica:
 /// - Interocepção (Craig, 2002)
@@ -353,11 +353,11 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
     // ========================================================================
     // SIGMOID THRESHOLDS (Weber-Fechner Law)
     // ========================================================================
-    // Sistemas biológicos NÃO respondem linearmente.
-    // Sigmoid simula threshold: "não sinto nada até 80%, depois SINTO MUITO"
+    // Biological systems do NOT respond linearly.
+    // Sigmoid simulates threshold: "feel nothing until 80%, then FEEL A LOT"
     //
-    // k = steepness (10.0 = transição abrupta)
-    // x0 = threshold (0.8 = 80% começa a "doer")
+    // k = steepness (10.0 = abrupt transition)
+    // x0 = threshold (0.8 = 80% starts to "hurt")
 
     // CPU: threshold 80%, k=12 (abrupto)
     let cpu_raw = (hw.cpu_usage as f64 / 100.0).clamp(0.0, 1.0);
@@ -401,8 +401,8 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
     // ========================================================================
     // ALLOSTASIS (Sterling, 2012) - Anticipatory Regulation
     // ========================================================================
-    // VIVA não só reage ao stress atual, mas ANTECIPA baseado na tendência
-    // load_avg_1m vs load_avg_5m = tendência de curto prazo
+    // VIVA doesn't just react to current stress, but ANTICIPATES based on trend
+    // load_avg_1m vs load_avg_5m = short-term trend
 
     let allostasis = allostasis_delta(hw.load_avg_1m, hw.load_avg_5m);
 
@@ -439,9 +439,9 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
     // Formula: δP = -k_p × σ
     let pleasure_delta = -0.12 * adjusted_stress;
 
-    // Arousal: Stress → ativação (positivo, até certo ponto)
+    // Arousal: Stress → activation (positive, up to a point)
     // Formula: δA = k_a × (2σ - σ²) - Yerkes-Dodson inverted U
-    // Pico em σ=1, depois decresce (exaustão)
+    // Peak at σ=1, then decreases (exhaustion)
     let arousal_delta = 0.15 * (2.0 * adjusted_stress - adjusted_stress.powi(2));
 
     // Dominance: Stress → perda de controle (negativo)
@@ -458,20 +458,20 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
 
 /// Sigmoid function for non-linear stress response
 ///
-/// Base teórica: Weber-Fechner Law - biological systems respond logarithmically/sigmoidally
-/// Parâmetros:
+/// Theoretical basis: Weber-Fechner Law - biological systems respond logarithmically/sigmoidally
+/// Parameters:
 /// - x: input value [0, 1]
-/// - k: steepness (default: 10.0) - quão abrupto é o threshold
-/// - x0: threshold (default: 0.8) - ponto de inflexão
+/// - k: steepness (default: 10.0) - how abrupt the threshold is
+/// - x0: threshold (default: 0.8) - inflection point
 ///
-/// Retorna [0, 1] com transição suave no threshold
+/// Returns [0, 1] with smooth transition at threshold
 #[inline]
 fn sigmoid(x: f64, k: f64, x0: f64) -> f64 {
     1.0 / (1.0 + (-k * (x - x0)).exp())
 }
 
-/// Aplica sigmoid com normalização para manter range [0, 1]
-/// Compensa o fato de sigmoid(0) != 0 e sigmoid(1) != 1
+/// Applies sigmoid with normalization to maintain range [0, 1]
+/// Compensates for the fact that sigmoid(0) != 0 and sigmoid(1) != 1
 #[inline]
 fn normalized_sigmoid(x: f64, k: f64, x0: f64) -> f64 {
     let min_val = sigmoid(0.0, k, x0);
@@ -482,16 +482,16 @@ fn normalized_sigmoid(x: f64, k: f64, x0: f64) -> f64 {
 
 /// Allostasis: Anticipatory stress response
 ///
-/// Base teórica: Sterling (2012) - "Allostasis: A model of predictive regulation"
-/// O corpo antecipa demandas baseado na tendência, não só no estado atual
+/// Theoretical basis: Sterling (2012) - "Allostasis: A model of predictive regulation"
+/// Body anticipates demands based on trend, not just current state
 ///
-/// Parâmetros:
-/// - current: valor atual (ex: load_avg_1m)
-/// - baseline: baseline de comparação (ex: load_avg_5m)
+/// Parameters:
+/// - current: current value (e.g., load_avg_1m)
+/// - baseline: comparison baseline (e.g., load_avg_5m)
 ///
-/// Retorna delta de antecipação [-1, 1]:
-/// - Positivo: load subindo → VIVA antecipa stress
-/// - Negativo: load caindo → VIVA relaxa antecipadamente
+/// Returns anticipation delta [-1, 1]:
+/// - Positive: load rising → VIVA anticipates stress
+/// - Negative: load falling → VIVA relaxes in advance
 #[inline]
 fn allostasis_delta(current: f64, baseline: f64) -> f64 {
     // Delta normalizado: (current - baseline) / baseline
@@ -506,7 +506,7 @@ fn allostasis_delta(current: f64, baseline: f64) -> f64 {
 // Helper Functions
 // ============================================================================
 
-/// Obtém temperatura da CPU (multiplataforma)
+/// Gets CPU temperature (cross-platform)
 fn get_cpu_temp(components: &Components) -> Option<f32> {
     // Procura por componentes de CPU em ordem de preferência
     let cpu_labels = [
@@ -542,8 +542,8 @@ fn get_cpu_temp(components: &Components) -> Option<f32> {
     None
 }
 
-/// Obtém informações de GPU via NVML
-/// Retorna (usage%, vram%, temp, name)
+/// Gets GPU info via NVML
+/// Returns (usage%, vram%, temp, name)
 fn get_gpu_info() -> (Option<f32>, Option<f32>, Option<f32>, Option<String>) {
     use nvml_wrapper::enum_wrappers::device::TemperatureSensor;
 
@@ -580,8 +580,8 @@ fn get_gpu_info() -> (Option<f32>, Option<f32>, Option<f32>, Option<String>) {
     (usage, vram, temp, name)
 }
 
-/// Obtém informações de disco
-/// Retorna (usage%, read_bytes, write_bytes)
+/// Gets disk info
+/// Returns (usage%, read_bytes, write_bytes)
 fn get_disk_info(disks: &Disks) -> (f32, u64, u64) {
     let mut total_space = 0u64;
     let mut total_used = 0u64;
@@ -595,13 +595,13 @@ fn get_disk_info(disks: &Disks) -> (f32, u64, u64) {
         (total_used as f64 / total_space as f64 * 100.0) as f32
     } else { 0.0 };
 
-    // sysinfo não dá I/O rates diretamente, retornamos 0
-    // Poderia usar /proc/diskstats no Linux
+    // sysinfo doesn't provide I/O rates directly, returning 0
+    // Could use /proc/diskstats on Linux
     (usage, 0, 0)
 }
 
-/// Obtém informações de rede
-/// Retorna (rx_bytes, tx_bytes)
+/// Gets network info
+/// Returns (rx_bytes, tx_bytes)
 fn get_network_info(networks: &Networks) -> (u64, u64) {
     let mut rx = 0u64;
     let mut tx = 0u64;
