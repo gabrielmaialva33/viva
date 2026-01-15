@@ -1,0 +1,84 @@
+name: Bug Report
+description: Reportar um bug em VIVA
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar! Preencha o máximo possível para nos ajudar.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descrição do Bug
+      description: O que aconteceu?
+      placeholder: Descreva o bug de forma clara e concisa
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento Esperado
+      description: O que você esperava que acontecesse?
+      placeholder: Descreva o que deveria ter acontecido
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Passos para Reproduzir
+      description: Como podemos reproduzir o bug?
+      placeholder: |
+        1. Inicie com 'iex -S mix'
+        2. Execute '...'
+        3. Veja o erro
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Componente Afetado
+      description: Qual parte de VIVA está afetada?
+      options:
+        - viva_core (Emotional GenServer)
+        - viva_core (Memory)
+        - viva_bridge (Rust NIF)
+        - viva_bridge (Body)
+        - Outro
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Ambiente
+      description: Informações do seu ambiente
+      placeholder: |
+        - OS: Ubuntu 22.04
+        - Elixir: 1.17.0
+        - Erlang/OTP: 27.0
+        - Rust: 1.80.0
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Stack Trace
+      description: Cole logs ou stack traces relevantes
+      render: shell
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: Pesquisei issues existentes e não encontrei duplicata
+          required: true
+        - label: Estou usando a versão mais recente
+          required: false

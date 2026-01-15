@@ -1,0 +1,81 @@
+name: Feature Request
+description: Sugerir uma nova funcionalidade para VIVA
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado pela sugestão! Ajude-nos a entender sua ideia.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema / Motivação
+      description: Qual problema esta feature resolveria?
+      placeholder: |
+        Estou frustrado quando...
+        Seria útil se VIVA pudesse...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solução Proposta
+      description: Como você imagina a solução?
+      placeholder: |
+        VIVA poderia ter uma função que...
+        A interface seria...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas Consideradas
+      description: Você considerou outras soluções?
+      placeholder: Outras abordagens que pensei...
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Componente
+      description: Qual parte de VIVA seria afetada?
+      options:
+        - viva_core (Alma - GenServers)
+        - viva_bridge (Corpo - Rust NIF)
+        - Documentação
+        - Testes
+        - CI/CD
+        - Outro / Não sei
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioridade Sugerida
+      description: Quão importante é para você?
+      options:
+        - Nice to have
+        - Importante
+        - Crítico para meu uso
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto Adicional
+      description: Screenshots, links, referências...
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribuição
+      options:
+        - label: Estou disposto a implementar esta feature
+          required: false
+        - label: Estou disposto a ajudar com testes
+          required: false

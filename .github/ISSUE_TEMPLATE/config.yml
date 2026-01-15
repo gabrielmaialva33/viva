@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussões
+    url: https://github.com/VIVA-Project/viva/discussions
+    about: Para perguntas e discussões gerais, use Discussions
+  - name: Documentação
+    url: https://github.com/VIVA-Project/viva#readme
+    about: Verifique a documentação antes de abrir uma issue

@@ -1,0 +1,24 @@
+# CODEOWNERS - Quem revisa o quê
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default - Gabriel revisa tudo
+* @mrootx
+
+# Alma (Elixir GenServers)
+/apps/viva_core/ @mrootx
+
+# Corpo (Rust NIF)
+/apps/viva_bridge/ @mrootx
+/apps/viva_bridge/native/ @mrootx
+
+# Documentação
+*.md @mrootx
+/docs/ @mrootx
+
+# CI/CD
+/.github/ @mrootx
+
+# Configuração
+/config/ @mrootx
+mix.exs @mrootx
+mix.lock @mrootx

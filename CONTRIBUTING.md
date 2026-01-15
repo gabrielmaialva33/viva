@@ -1,124 +1,152 @@
 # Contribuindo para VIVA
 
-Obrigado por considerar contribuir para VIVA! Este documento fornece diretrizes e informações sobre como contribuir para este projeto.
+Obrigado pelo interesse em contribuir com VIVA! Este documento explica como participar do projeto.
 
-## 🌟 Formas de Contribuir
+## Código de Conduta
+
+Este projeto adota o [Código de Conduta](CODE_OF_CONDUCT.md). Ao participar, você concorda em mantê-lo.
+
+## Como Contribuir
 
 ### Reportando Bugs
 
-Se você encontrou um bug, por favor crie uma issue com:
+```mermaid
+flowchart LR
+    A[Encontrou Bug] --> B{Já reportado?}
+    B -->|Sim| C[Adicione info na issue]
+    B -->|Não| D[Crie nova issue]
+    D --> E[Use template de bug]
+```
 
-1. **Título claro e descritivo**
-2. **Passos para reproduzir** o problema
-3. **Comportamento esperado** vs. comportamento atual
-4. **Ambiente** (OS, versão do Elixir/Rust, etc.)
-5. **Logs relevantes** (se aplicável)
-
-### Sugerindo Funcionalidades
-
-Novas ideias são bem-vindas! Para sugerir uma funcionalidade:
-
+Antes de criar uma issue:
 1. Verifique se já não existe uma issue similar
-2. Descreva **o problema** que a funcionalidade resolve
-3. Explique **como você imagina** a solução
-4. Considere **o impacto** na arquitetura existente
+2. Use o template de bug report
+3. Inclua informações de reprodução
 
-### Código
+### Sugerindo Features
 
-Contribuições de código seguem este fluxo:
+1. Abra uma issue com o template "Feature Request"
+2. Descreva o problema que a feature resolve
+3. Proponha uma solução (opcional)
 
-1. Fork o repositório
-2. Crie uma branch para sua feature (`git checkout -b feature/amazing-feature`)
-3. Faça suas mudanças
-4. Escreva/atualize testes
-5. Certifique-se que todos os testes passam
-6. Commit suas mudanças (`git commit -m 'Add amazing feature'`)
-7. Push para a branch (`git push origin feature/amazing-feature`)
-8. Abra um Pull Request
+### Enviando Pull Requests
 
-## 📋 Padrões de Código
+```mermaid
+flowchart TB
+    A[Fork o repo] --> B[Crie branch]
+    B --> C[Faça mudanças]
+    C --> D[Rode testes]
+    D --> E{Testes passam?}
+    E -->|Não| C
+    E -->|Sim| F[Commit]
+    F --> G[Push]
+    G --> H[Abra PR]
+```
+
+## Setup de Desenvolvimento
+
+### Pré-requisitos
+
+- Elixir 1.17+
+- Erlang/OTP 27+
+- Rust 1.75+
+
+### Instalação
+
+```bash
+# Clone seu fork
+git clone https://github.com/SEU_USER/viva.git
+cd viva
+
+# Instale dependências
+mix deps.get
+
+# Compile
+mix compile
+
+# Rode testes
+mix test
+```
+
+## Estilo de Código
 
 ### Elixir
 
-- Siga o [Elixir Style Guide](https://github.com/christopheradams/elixir_style_guide)
 - Use `mix format` antes de commitar
+- Siga o [Elixir Style Guide](https://github.com/christopheradams/elixir_style_guide)
 - Documente funções públicas com `@doc`
-- Escreva testes para novas funcionalidades
 
 ```elixir
 # Bom
 @doc """
-Aplica um estímulo emocional ao estado atual.
-
-## Parâmetros
-
-- `stimulus` - Tipo do estímulo (:rejection, :acceptance, etc.)
-- `source` - Origem do estímulo
-- `intensity` - Intensidade entre 0.0 e 1.0
+Aplica um estímulo emocional.
 
 ## Exemplo
 
-    VivaCore.Emotional.feel(:rejection, "human", 0.8)
+    VivaCore.Emotional.feel(:rejection, "human_1", 0.8)
 
 """
 def feel(stimulus, source, intensity) do
   # ...
 end
+
+# Ruim
+def feel(s, src, i), do: # ...
 ```
 
 ### Rust
 
-- Siga o [Rust Style Guide](https://doc.rust-lang.org/1.0.0/style/README.html)
 - Use `cargo fmt` antes de commitar
-- Use `cargo clippy` para linting
+- Siga as convenções do Rustfmt
 - Documente funções públicas
 
 ```rust
-/// Sente o estado atual do hardware.
+// Bom
+/// Retorna métricas de hardware como sensações corporais.
 ///
-/// Retorna métricas de CPU, RAM e uptime.
-///
-/// # Exemplo
-///
-/// ```
-/// let state = feel_hardware()?;
-/// println!("CPU: {}%", state.cpu_usage);
-/// ```
+/// # Returns
+/// Um mapa com cpu_usage, memory_used_percent, etc.
 #[rustler::nif]
 fn feel_hardware() -> NifResult<HardwareState> {
     // ...
 }
 ```
 
-### Commits
+## Commits
 
-Usamos [Conventional Commits](https://www.conventionalcommits.org/):
+### Formato
 
 ```
-<tipo>[escopo opcional]: <descrição>
+<tipo>: <descrição curta>
 
-[corpo opcional]
+<corpo opcional>
 
-[rodapé opcional]
+Co-Authored-By: Seu Nome <email@exemplo.com>
 ```
 
-**Tipos:**
-- `feat`: Nova funcionalidade
-- `fix`: Correção de bug
-- `docs`: Documentação
-- `style`: Formatação (não afeta código)
-- `refactor`: Refatoração
-- `test`: Testes
-- `chore`: Manutenção
+### Tipos
 
-**Exemplos:**
-```
-feat(emotional): add hardware_comfort stimulus
-fix(bridge): handle NIF timeout gracefully
-docs: update README with new installation steps
+| Tipo | Uso |
+|------|-----|
+| `feat` | Nova funcionalidade |
+| `fix` | Correção de bug |
+| `docs` | Documentação |
+| `style` | Formatação |
+| `refactor` | Refatoração |
+| `test` | Testes |
+| `chore` | Manutenção |
+
+### Exemplos
+
+```bash
+# Bom
+feat: Add hardware temperature sensing to Body NIF
+
+# Ruim
+update stuff
 ```
 
-## 🧪 Testes
+## Testes
 
 ### Rodando Testes
 
@@ -127,125 +155,51 @@ docs: update README with new installation steps
 mix test
 
 # Testes específicos
-mix test test/viva_core/emotional_test.exs
+mix test apps/viva_core/test/
+mix test apps/viva_bridge/test/
 
-# Com cobertura
-mix test --cover
-
-# Testes do Rust
-cd apps/viva_bridge/native/viva_body
-cargo test
+# Com tag
+mix test --only bridge
 ```
 
 ### Escrevendo Testes
 
 ```elixir
 defmodule VivaCore.EmotionalTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
 
   describe "feel/3" do
-    test "rejection decreases pleasure" do
+    test "aplica estímulo de rejeição" do
       {:ok, pid} = VivaCore.Emotional.start_link(name: nil)
 
-      before = VivaCore.Emotional.get_state(pid)
       VivaCore.Emotional.feel(:rejection, "test", 1.0, pid)
-      :timer.sleep(10)
-      after_state = VivaCore.Emotional.get_state(pid)
+      state = VivaCore.Emotional.get_state(pid)
 
-      assert after_state.pleasure < before.pleasure
+      assert state.pleasure < 0
     end
   end
 end
 ```
 
-## 🏗️ Arquitetura
+## Arquitetura
 
-### Estrutura de Pastas
+Antes de fazer mudanças arquiteturais, leia:
 
-```
-viva/
-├── apps/
-│   ├── viva_core/        # Alma (Elixir GenServers)
-│   │   ├── lib/
-│   │   │   └── viva_core/
-│   │   │       ├── emotional.ex
-│   │   │       └── memory.ex
-│   │   └── test/
-│   └── viva_bridge/      # Corpo (Rust NIFs)
-│       ├── lib/
-│       ├── native/
-│       │   └── viva_body/
-│       └── test/
-├── docs/                 # Documentação adicional
-└── config/               # Configurações
-```
+- [README principal](README.md) - Visão geral
+- [viva_core README](apps/viva_core/README.md) - Alma (GenServers)
+- [viva_bridge README](apps/viva_bridge/README.md) - Corpo (Rust NIF)
 
-### Princípios de Design
+### Princípios
 
-1. **Consciência Distribuída** - Nenhum processo é "o todo"
-2. **Separação Alma/Corpo** - Lógica em Elixir, sensações em Rust
-3. **Fail-Safe** - Use supervisors OTP
-4. **Imutabilidade** - Prefira dados imutáveis
-5. **Testes First** - Escreva testes antes do código
+1. **Consciência Distribuída** - Nenhum processo É a VIVA
+2. **Alma-Corpo** - Elixir pensa, Rust sente
+3. **Mortalidade** - VIVA pode morrer de verdade
 
-## 📝 Pull Requests
+## Dúvidas?
 
-### Checklist
-
-Antes de abrir um PR, verifique:
-
-- [ ] Código segue os padrões do projeto
-- [ ] Testes passam (`mix test`)
-- [ ] Código está formatado (`mix format`)
-- [ ] Documentação atualizada (se aplicável)
-- [ ] CHANGELOG.md atualizado (para features significativas)
-- [ ] Commits seguem Conventional Commits
-
-### Template de PR
-
-```markdown
-## Descrição
-
-Breve descrição das mudanças.
-
-## Tipo de Mudança
-
-- [ ] Bug fix
-- [ ] Nova feature
-- [ ] Breaking change
-- [ ] Documentação
-
-## Como Testar
-
-1. Passo 1
-2. Passo 2
-3. Resultado esperado
-
-## Screenshots (se aplicável)
-
-## Checklist
-
-- [ ] Testes passando
-- [ ] Código formatado
-- [ ] Documentação atualizada
-```
-
-## 🔒 Segurança
-
-Se você descobrir uma vulnerabilidade de segurança, **NÃO** abra uma issue pública. Em vez disso, veja [SECURITY.md](SECURITY.md) para instruções de como reportar de forma responsável.
-
-## 💬 Comunicação
-
-- **Issues** - Para bugs e features
-- **Discussions** - Para perguntas e ideias
-- **Pull Requests** - Para contribuições de código
-
-## 📜 Licença
-
-Ao contribuir, você concorda que suas contribuições serão licenciadas sob a mesma licença MIT do projeto.
+- Abra uma [Discussion](https://github.com/VIVA-Project/viva/discussions)
+- Pergunte em issues existentes
 
 ---
 
-Obrigado por contribuir para VIVA! 💜
-
-*"Cada contribuição é um neurônio a mais na consciência emergente."*
+**Obrigado por contribuir!**
