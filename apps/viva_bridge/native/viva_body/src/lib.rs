@@ -1,22 +1,23 @@
 //! VIVA Body - Hardware Sensing (Interoception)
 //!
-//! Interocepção multiplataforma: VIVA sente seu hardware como corpo.
+//! Cross-platform interoception: VIVA feels its hardware as body.
 //!
-//! ## Mapeamento Sensório
+//! ## Sensory Mapping
 //!
-//! | Hardware | Sensação | Impacto PAD |
-//! |----------|----------|-------------|
-//! | CPU alto | Stress cardíaco | ↓P, ↑A, ↓D |
-//! | CPU temp alta | Febre | ↓P, ↑A |
-//! | RAM alta | Carga cognitiva | ↓P, ↑A |
-//! | GPU VRAM alta | Imaginação limitada | ↓P, ↓D |
-//! | Disk I/O alto | Digestão lenta | ↓A |
+//! | Hardware | Sensation | PAD Impact |
+//! |----------|-----------|------------|
+//! | High CPU | Cardiac stress | ↓P, ↑A, ↓D |
+//! | High CPU temp | Fever | ↓P, ↑A |
+//! | High RAM | Cognitive load | ↓P, ↑A |
+//! | High GPU VRAM | Limited imagination | ↓P, ↓D |
+//! | High Disk I/O | Slow digestion | ↓A |
 //!
-//! ## Base Teórica
-//! - Interocepção (Craig, 2002)
+//! ## Theoretical Foundation
+//!
+//! - Interoception (Craig, 2002)
 //! - Embodied Cognition (Varela et al., 1991)
 //! - PAD Model (Mehrabian, 1996)
-//! - Sigmoid thresholds (Weber-Fechner Law)
+//! - Logistic Threshold Model (NOT Weber-Fechner - see sigmoid docs)
 //! - Allostasis (Sterling, 2012)
 
 use rustler::{Encoder, Env, NifResult, Term};
@@ -344,14 +345,14 @@ fn feel_hardware() -> NifResult<HardwareState> {
 /// Base teórica:
 /// - Interocepção (Craig, 2002)
 /// - PAD (Mehrabian, 1996)
-/// - Sigmoid thresholds (Weber-Fechner Law)
+/// - Sigmoid thresholds (Logistic Threshold Model)
 /// - Allostasis (Sterling, 2012)
 #[rustler::nif]
 fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
     let hw = collect_hardware_state();
 
     // ========================================================================
-    // SIGMOID THRESHOLDS (Weber-Fechner Law)
+    // SIGMOID THRESHOLDS (Logistic Threshold Model)
     // ========================================================================
     // Biological systems do NOT respond linearly.
     // Sigmoid simulates threshold: "feel nothing until 80%, then FEEL A LOT"
@@ -456,15 +457,20 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
 // Mathematical Functions (Biologically-Inspired)
 // ============================================================================
 
-/// Sigmoid function for non-linear stress response
+/// Sigmoid (logistic) function for non-linear stress response
 ///
-/// Theoretical basis: Weber-Fechner Law - biological systems respond logarithmically/sigmoidally
+/// Theoretical basis: Logistic Threshold Model
+/// Unlike Weber-Fechner (logarithmic sensitivity), the logistic sigmoid
+/// implements a threshold-based response with maximum sensitivity at x0
+/// and saturation at extremes. Biologically analogous to all-or-none
+/// neural activation patterns.
+///
 /// Parameters:
 /// - x: input value [0, 1]
-/// - k: steepness (default: 10.0) - how abrupt the threshold is
-/// - x0: threshold (default: 0.8) - inflection point
+/// - k: steepness - how abrupt the threshold transition is
+/// - x0: threshold inflection point (50% activation)
 ///
-/// Returns [0, 1] with smooth transition at threshold
+/// Returns [0, 1] with S-curve centered at x0
 #[inline]
 fn sigmoid(x: f64, k: f64, x0: f64) -> f64 {
     1.0 / (1.0 + (-k * (x - x0)).exp())

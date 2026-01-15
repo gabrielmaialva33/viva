@@ -31,10 +31,12 @@ defmodule VivaCore.Emotional do
   @max_value 1.0
 
   # DynAffect Parameters (Kuppens et al., 2010)
-  # Attractor strength β baseada no processo Ornstein-Uhlenbeck
-  # dθ/dt = β(μ - θ) onde μ = 0 (home base neutro)
-  @base_decay_rate 0.005  # β base quando arousal = 0
-  @arousal_decay_modifier 0.4  # Quanto arousal afeta β (40% de variação)
+  # Full Ornstein-Uhlenbeck stochastic process:
+  # dX = θ(μ - X)dt + σdW
+  # Where: θ = attractor strength, μ = equilibrium (0), σ = volatility, dW = Wiener noise
+  @base_decay_rate 0.005  # θ base when arousal = 0
+  @arousal_decay_modifier 0.4  # How much arousal affects θ (40% variation)
+  @stochastic_volatility 0.002  # σ - emotional noise/variability (small for stability)
 
   # Pesos de impacto emocional para diferentes estímulos
   @stimulus_weights %{
@@ -320,32 +322,47 @@ defmodule VivaCore.Emotional do
     }
   end
 
-  # DynAffect: Decay dinâmico baseado no processo Ornstein-Uhlenbeck
-  # Arousal alto → menor attractor strength → decay mais lento (emoções persistem)
-  # Arousal baixo → maior attractor strength → decay mais rápido (retorna ao neutro)
+  # DynAffect: Full Ornstein-Uhlenbeck stochastic process
+  # High arousal → lower attractor strength → slower decay (emotions persist)
+  # Low arousal → higher attractor strength → faster decay (returns to neutral)
   #
-  # Referência: Kuppens, P., Oravecz, Z., & Tuerlinckx, F. (2010).
+  # Reference: Kuppens, P., Oravecz, Z., & Tuerlinckx, F. (2010).
   # "Feelings Change: Accounting for Individual Differences in the
   # Temporal Dynamics of Affect." Journal of Personality and Social Psychology.
+  #
+  # Mathematical formulation: dX = θ(μ - X)dt + σdW
+  # Discretized: X(t+1) = X(t) + θ*(μ - X(t))*Δt + σ*√Δt*ε
+  # Where ε ~ N(0,1) is Gaussian noise
   defp decay_toward_neutral(pad) do
-    # Calcula decay rate dinâmico baseado no arousal atual
+    # Dynamic attractor strength based on current arousal
     # arousal ∈ [-1, 1] → modifier ∈ [0.6, 1.4]
-    # arousal = 1.0 (agitado) → rate = 0.003 (decay lento, emoções persistem)
-    # arousal = 0.0 (neutro) → rate = 0.005 (decay normal)
-    # arousal = -1.0 (calmo) → rate = 0.007 (decay rápido, retorna ao baseline)
+    # arousal = 1.0 (excited) → rate = 0.003 (slow decay, emotions persist)
+    # arousal = 0.0 (neutral) → rate = 0.005 (normal decay)
+    # arousal = -1.0 (calm) → rate = 0.007 (fast decay, returns to baseline)
     dynamic_rate = @base_decay_rate * (1 - pad.arousal * @arousal_decay_modifier)
 
     %{
-      pleasure: decay_value(pad.pleasure, dynamic_rate),
-      arousal: decay_value(pad.arousal, @base_decay_rate),  # Arousal usa rate fixo para evitar feedback loop
-      dominance: decay_value(pad.dominance, dynamic_rate)
+      pleasure: ou_step(pad.pleasure, dynamic_rate),
+      arousal: ou_step(pad.arousal, @base_decay_rate),  # Arousal uses fixed rate to avoid feedback loop
+      dominance: ou_step(pad.dominance, dynamic_rate)
     }
   end
 
-  # Decay exponencial (Ornstein-Uhlenbeck discretizado)
-  # θ(t+1) = θ(t) × (1 - β×Δt) onde Δt = 1 tick
-  defp decay_value(value, _rate) when abs(value) < 0.001, do: 0.0
-  defp decay_value(value, rate), do: value * (1 - rate)
+  # Full Ornstein-Uhlenbeck step with stochastic noise
+  # X(t+1) = X(t) + θ*(μ - X(t))*Δt + σ*√Δt*ε
+  # μ = 0 (neutral equilibrium), Δt = 1 (normalized tick)
+  defp ou_step(value, _rate) when abs(value) < 0.001, do: 0.0
+  defp ou_step(value, rate) do
+    # Deterministic mean-reversion: θ*(μ - X)*Δt = -rate*value (since μ=0, Δt=1)
+    deterministic = value * (1 - rate)
+
+    # Stochastic Wiener increment: σ*√Δt*ε where ε ~ N(0,1)
+    # Using Box-Muller transform via :rand.normal/0
+    noise = @stochastic_volatility * :rand.normal()
+
+    # Full O-U step with clamp to maintain [-1, 1] range
+    clamp(deterministic + noise, @min_value, @max_value)
+  end
 
   defp clamp(value, min, max) do
     value |> max(min) |> min(max)
