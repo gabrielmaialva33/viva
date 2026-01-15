@@ -26,8 +26,62 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use nvml_wrapper::Nvml;
 
+// ============================================================================
+// Pre-defined Atoms (rustler::atoms! macro for performance + panic safety)
+// ============================================================================
+
+rustler::atoms! {
+    nil,
+    // CPU
+    cpu_usage,
+    cpu_temp,
+    cpu_count,
+    // Memory
+    memory_used_percent,
+    memory_available_gb,
+    memory_total_gb,
+    swap_used_percent,
+    // GPU
+    gpu_usage,
+    gpu_vram_used_percent,
+    gpu_temp,
+    gpu_name,
+    // Disk
+    disk_usage_percent,
+    disk_read_bytes,
+    disk_write_bytes,
+    // Network
+    net_rx_bytes,
+    net_tx_bytes,
+    // System
+    uptime_seconds,
+    process_count,
+    load_avg_1m,
+    load_avg_5m,
+    load_avg_15m,
+}
+
 // Cache duration for hardware metrics (reduces lock contention)
 const CACHE_DURATION_MS: u64 = 500;
+
+// ============================================================================
+// Panic-Safe Lock Helper
+// ============================================================================
+
+/// Acquires a lock safely, recovering from poison if necessary.
+///
+/// Mutex poisoning occurs when a thread panics while holding the lock.
+/// Instead of propagating the panic (which would crash the BEAM scheduler),
+/// we recover the inner MutexGuard - data may be inconsistent, but the
+/// system keeps running.
+///
+/// For NIFs, returning potentially stale data is better than crashing.
+fn safe_lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(|poisoned| {
+        eprintln!("[viva_body] WARN: Mutex was poisoned, recovering...");
+        poisoned.into_inner()
+    })
+}
 
 // ============================================================================
 // Global State (Thread-Safe)
@@ -113,69 +167,64 @@ pub struct HardwareState {
 
 impl Encoder for HardwareState {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        use rustler::types::atom::Atom;
         use rustler::types::map::map_new;
 
-        let nil = Atom::from_str(env, "nil").unwrap();
-
-        let mut map = map_new(env);
-
-        // Helper para adicionar ao mapa
-        fn put_val<'a, T: Encoder>(env: Env<'a>, map: Term<'a>, key: &str, val: T) -> Term<'a> {
-            map.map_put(
-                Atom::from_str(env, key).unwrap(),
-                val.encode(env),
-            ).unwrap()
+        // Helper: put value with pre-defined atom key (no unwrap, uses expect for map_put)
+        fn put<'a, T: Encoder>(map: Term<'a>, key: rustler::Atom, val: T, env: Env<'a>) -> Term<'a> {
+            map.map_put(key.encode(env), val.encode(env))
+                .expect("map_put should not fail for valid terms")
         }
 
-        fn put_opt_f32<'a>(env: Env<'a>, map: Term<'a>, key: &str, val: Option<f32>, nil: Term<'a>) -> Term<'a> {
+        // Helper: put optional f32 (nil if None)
+        fn put_opt_f32<'a>(map: Term<'a>, key: rustler::Atom, val: Option<f32>, env: Env<'a>) -> Term<'a> {
             match val {
-                Some(v) => put_val(env, map, key, v),
-                None => map.map_put(Atom::from_str(env, key).unwrap(), nil).unwrap(),
+                Some(v) => put(map, key, v, env),
+                None => put(map, key, nil(), env),
             }
         }
 
-        fn put_opt_str<'a>(env: Env<'a>, map: Term<'a>, key: &str, val: &Option<String>, nil: Term<'a>) -> Term<'a> {
+        // Helper: put optional String (nil if None)
+        fn put_opt_str<'a>(map: Term<'a>, key: rustler::Atom, val: &Option<String>, env: Env<'a>) -> Term<'a> {
             match val {
-                Some(v) => put_val(env, map, key, v.as_str()),
-                None => map.map_put(Atom::from_str(env, key).unwrap(), nil).unwrap(),
+                Some(v) => put(map, key, v.as_str(), env),
+                None => put(map, key, nil(), env),
             }
         }
 
-        let nil_term = nil.encode(env);
+        let map = map_new(env);
 
-        // CPU
-        let map = put_val(env, map, "cpu_usage", self.cpu_usage);
-        let map = put_opt_f32(env, map, "cpu_temp", self.cpu_temp, nil_term);
-        let map = put_val(env, map, "cpu_count", self.cpu_count);
+        // CPU (using pre-defined atoms from rustler::atoms! macro)
+        let map = put(map, cpu_usage(), self.cpu_usage, env);
+        let map = put_opt_f32(map, cpu_temp(), self.cpu_temp, env);
+        let map = put(map, cpu_count(), self.cpu_count, env);
 
         // Memory
-        let map = put_val(env, map, "memory_used_percent", self.memory_used_percent);
-        let map = put_val(env, map, "memory_available_gb", self.memory_available_gb);
-        let map = put_val(env, map, "memory_total_gb", self.memory_total_gb);
-        let map = put_val(env, map, "swap_used_percent", self.swap_used_percent);
+        let map = put(map, memory_used_percent(), self.memory_used_percent, env);
+        let map = put(map, memory_available_gb(), self.memory_available_gb, env);
+        let map = put(map, memory_total_gb(), self.memory_total_gb, env);
+        let map = put(map, swap_used_percent(), self.swap_used_percent, env);
 
         // GPU
-        let map = put_opt_f32(env, map, "gpu_usage", self.gpu_usage, nil_term);
-        let map = put_opt_f32(env, map, "gpu_vram_used_percent", self.gpu_vram_used_percent, nil_term);
-        let map = put_opt_f32(env, map, "gpu_temp", self.gpu_temp, nil_term);
-        let map = put_opt_str(env, map, "gpu_name", &self.gpu_name, nil_term);
+        let map = put_opt_f32(map, gpu_usage(), self.gpu_usage, env);
+        let map = put_opt_f32(map, gpu_vram_used_percent(), self.gpu_vram_used_percent, env);
+        let map = put_opt_f32(map, gpu_temp(), self.gpu_temp, env);
+        let map = put_opt_str(map, gpu_name(), &self.gpu_name, env);
 
         // Disk
-        let map = put_val(env, map, "disk_usage_percent", self.disk_usage_percent);
-        let map = put_val(env, map, "disk_read_bytes", self.disk_read_bytes);
-        let map = put_val(env, map, "disk_write_bytes", self.disk_write_bytes);
+        let map = put(map, disk_usage_percent(), self.disk_usage_percent, env);
+        let map = put(map, disk_read_bytes(), self.disk_read_bytes, env);
+        let map = put(map, disk_write_bytes(), self.disk_write_bytes, env);
 
         // Network
-        let map = put_val(env, map, "net_rx_bytes", self.net_rx_bytes);
-        let map = put_val(env, map, "net_tx_bytes", self.net_tx_bytes);
+        let map = put(map, net_rx_bytes(), self.net_rx_bytes, env);
+        let map = put(map, net_tx_bytes(), self.net_tx_bytes, env);
 
         // System
-        let map = put_val(env, map, "uptime_seconds", self.uptime_seconds);
-        let map = put_val(env, map, "process_count", self.process_count);
-        let map = put_val(env, map, "load_avg_1m", self.load_avg_1m);
-        let map = put_val(env, map, "load_avg_5m", self.load_avg_5m);
-        let map = put_val(env, map, "load_avg_15m", self.load_avg_15m);
+        let map = put(map, uptime_seconds(), self.uptime_seconds, env);
+        let map = put(map, process_count(), self.process_count, env);
+        let map = put(map, load_avg_1m(), self.load_avg_1m, env);
+        let map = put(map, load_avg_5m(), self.load_avg_5m, env);
+        let map = put(map, load_avg_15m(), self.load_avg_15m, env);
 
         map
     }
@@ -191,11 +240,11 @@ fn alive() -> &'static str {
     "VIVA body is alive"
 }
 
-/// Coleta estado do hardware (função interna, com cache de 500ms)
+/// Collects hardware state (internal function, with 500ms cache)
 fn collect_hardware_state() -> HardwareState {
-    // Check cache first
+    // Check cache first (using safe_lock to avoid panic on poison)
     {
-        let cache = HARDWARE_CACHE.lock().unwrap();
+        let cache = safe_lock(&HARDWARE_CACHE);
         if let (Some(ref cached_state), last_update) = &*cache {
             if last_update.elapsed() < Duration::from_millis(CACHE_DURATION_MS) {
                 return cached_state.clone();
@@ -204,16 +253,17 @@ fn collect_hardware_state() -> HardwareState {
     }
 
     // Cache miss or expired - refresh all data sources
-    let mut sys = SYSTEM.lock().unwrap();
+    // Using safe_lock to recover from poison instead of crashing
+    let mut sys = safe_lock(&SYSTEM);
     sys.refresh_all();
 
-    let mut components = COMPONENTS.lock().unwrap();
+    let mut components = safe_lock(&COMPONENTS);
     components.refresh();
 
-    let mut disks = DISKS.lock().unwrap();
+    let mut disks = safe_lock(&DISKS);
     disks.refresh();
 
-    let mut networks = NETWORKS.lock().unwrap();
+    let mut networks = safe_lock(&NETWORKS);
     networks.refresh();
 
     // CPU
@@ -272,9 +322,9 @@ fn collect_hardware_state() -> HardwareState {
         load_avg_15m: load.fifteen,
     };
 
-    // Update cache
+    // Update cache (using safe_lock)
     {
-        let mut cache = HARDWARE_CACHE.lock().unwrap();
+        let mut cache = safe_lock(&HARDWARE_CACHE);
         *cache = (Some(state.clone()), Instant::now());
     }
 
