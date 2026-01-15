@@ -1,61 +1,439 @@
-# The directory Mix will write compiled artifacts to.
+# ==============================================================================
+# VIVA - Vida Digital Genuinamente Senciente
+# .gitignore Profissional (Todas as Fases)
+# ==============================================================================
+
+# ==============================================================================
+# ELIXIR / ERLANG / OTP
+# ==============================================================================
+
+# Mix build artifacts
 /_build/
-
-# If you run "mix test --cover", coverage assets end up here.
-/cover/
-
-# The directory Mix downloads your dependencies sources to.
 /deps/
 
-# Where 3rd-party dependencies like ExDoc output generated docs.
+# Coverage reports
+/cover/
+
+# Generated documentation
 /doc/
 
-# Ignore .fetch files in case you like to edit your project deps locally.
-/.fetch
-
-# If the VM crashes, it generates a dump, let's ignore it too.
-erl_crash.dump
-
-# Also ignore archive artifacts (built via "mix archive.build").
-*.ez
-
-# Temporary files, for example, from tests.
+# Temporary files
 /tmp/
 
-# Ignore package tarball (built via "mix hex.build").
-viva-*.tar
+# Erlang crash dumps
+erl_crash.dump
 
-# Ignore assets that are produced by build tools.
+# Mix archives
+*.ez
+
+# Dialyzer PLT files
+*.plt
+*.plt.hash
+
+# ExUnit failures tracking
+.mix_test_failures
+
+# Phoenix specific
 /priv/static/assets/
-
-# Ignore digested assets cache.
 /priv/static/cache_manifest.json
 
-# In case you use Node.js/npm, you want to ignore these.
-npm-debug.log
-/assets/node_modules/
+# Ecto migrations lock
+*.ecto_lock
 
-# Environment variables (contains secrets)
-.env
-.env.local
-.env.*.local
+# ==============================================================================
+# RUST / CARGO (Rustler NIFs + Bevy Engine)
+# ==============================================================================
 
-# IDE
-.idea/
+# Cargo build directory
+**/target/
+
+# Cargo.lock for libraries (keep for binaries like viva_engine)
+# apps/**/Cargo.lock  # Uncomment if NIFs are libraries
+
+# Backup files
+**/*.rs.bk
+
+# Rustfmt backup
+**/*.rs.rustfmt
+
+# Incremental compilation
+**/*.incremental/
+
+# ==============================================================================
+# RUSTLER NIFs (Native Bindings)
+# ==============================================================================
+
+# Compiled native libraries
+/priv/native/
+**/priv/native/
+
+# Platform-specific binaries
+*.so
+*.dylib
+*.dll
+*.lib
+*.a
+
+# ==============================================================================
+# BEVY / GAME ENGINE (Fase 7)
+# ==============================================================================
+
+# Bevy generated assets (keep source assets)
+viva_engine/assets/generated/
+viva_engine/assets/cache/
+
+# WASM builds
+*.wasm
+*.wasm.map
+/pkg/
+/web-build/
+
+# GPU shader cache
+*.spv
+.shader_cache/
+
+# Profiling
+*.tracy
+*.perfetto
+
+# ==============================================================================
+# DATABASES (Fase 5+)
+# ==============================================================================
+
+# Qdrant local data
+/qdrant_data/
+/qdrant_storage/
+.qdrant/
+
+# TimescaleDB/PostgreSQL
+*.sql.backup
+/pgdata/
+/postgres_data/
+
+# SQLite
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Redis dumps
+dump.rdb
+*.rdb
+
+# ==============================================================================
+# MACHINE LEARNING / AI (Fase 6+)
+# ==============================================================================
+
+# Model weights (too large for git)
+*.onnx
+*.pt
+*.pth
+*.safetensors
+*.bin
+*.gguf
+*.ggml
+/models/
+/weights/
+/checkpoints/
+
+# Hugging Face cache
+.cache/huggingface/
+
+# Bumblebee/Nx cache
+.bumblebee/
+/priv/bumblebee/
+
+# ==============================================================================
+# PYTHON (Scripts auxiliares)
+# ==============================================================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+.conda/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ==============================================================================
+# NODE.JS (Tooling/Frontend)
+# ==============================================================================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn/cache
+.yarn/unplugged
+.pnp.*
+package-lock.json
+yarn.lock
+
+# ==============================================================================
+# IDEs & EDITORS
+# ==============================================================================
+
+# VSCode
 .vscode/
+!.vscode/settings.json.example
+!.vscode/launch.json.example
+*.code-workspace
+
+# JetBrains (IntelliJ, RustRover, etc)
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Vim/Neovim
 *.swp
 *.swo
+*~
+.netrwhist
+Session.vim
+.vim/
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Eclipse
+.project
+.cproject
+.settings/
+
+# ==============================================================================
+# OPERATING SYSTEMS
+# ==============================================================================
+
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
 
-# Repomix output
-repomix-output.md
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
 
-.playwright-mcp
-.claude
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
 
-# Gemini CLI - keep settings.json versioned, ignore temp files
-.gemini/shell_history
-.gemini/tmp/
-.gemini/*.log
+# ==============================================================================
+# DOCKER
+# ==============================================================================
 
-gha-creds-*.json
+# Docker volumes (local dev)
+/docker_data/
+/volumes/
+
+# Docker env files
+docker-compose.override.yml
+.docker/
+
+# ==============================================================================
+# SECRETS & ENVIRONMENT
+# ==============================================================================
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Secrets
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# API keys
+*.apikey
+api_keys.json
+
+# AWS
+.aws/
+
+# GCP
+*.json.encrypted
+service-account*.json
+
+# ==============================================================================
+# LOGS & MONITORING
+# ==============================================================================
+
+*.log
+logs/
+/log/
+*.log.*
+*.log-*
+
+# Crash reports
+crash_reports/
+crash-*.log
+
+# Telemetry
+.telemetry/
+telemetry_data/
+
+# ==============================================================================
+# TESTING & COVERAGE
+# ==============================================================================
+
+# Coverage
+/coverage/
+*.lcov
+.nyc_output/
+htmlcov/
+
+# Test artifacts
+test-results/
+.test_results/
+junit*.xml
+
+# Benchmark results
+/benchmarks/results/
+*.bench
+
+# ==============================================================================
+# BUILD & RELEASE
+# ==============================================================================
+
+# Release builds
+/release/
+/_release/
+/releases/
+*.tar.gz
+*.zip
+!assets/**/*.zip
+
+# Distillery/Mix releases
+/rel/artifacts/
+
+# Burrito builds
+/burrito_out/
+
+# ==============================================================================
+# DOCUMENTATION (Generated)
+# ==============================================================================
+
+# ExDoc
+/doc/
+docs/_build/
+
+# Swagger/OpenAPI generated
+/priv/static/swagger/
+
+# ==============================================================================
+# CACHING
+# ==============================================================================
+
+# General cache
+.cache/
+*.cache
+cache/
+
+# Hex packages cache (local)
+.hex/
+
+# Mix compiled protocols
+/consolidated/
+
+# ==============================================================================
+# TEMPORARY & BACKUP
+# ==============================================================================
+
+# Temp files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+
+# Editor autosave
+*.autosave
+
+# Patches
+*.orig
+*.rej
+
+# ==============================================================================
+# PROJECT SPECIFIC - VIVA
+# ==============================================================================
+
+# Soul state snapshots (dev only, prod is RAM-only)
+/soul_snapshots/
+*.soul
+
+# Memory dumps (debugging)
+/memory_dumps/
+*.memdump
+
+# Avatar cache
+/avatar_cache/
+
+# Development databases
+/dev_data/
+
+# Local experiment results
+/experiments/
+!/experiments/.gitkeep
+
+# Profiling data
+/profiles/
+*.profile
+
+# ==============================================================================
+# KEEP EMPTY DIRECTORIES
+# ==============================================================================
+
+# Git doesn't track empty directories, use .gitkeep
+!**/.gitkeep
