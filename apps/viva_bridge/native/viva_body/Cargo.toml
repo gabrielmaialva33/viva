@@ -12,4 +12,15 @@ crate-type = ["cdylib"]
 
 [dependencies]
 rustler = "0.35"
-sysinfo = "0.32"
+sysinfo = { version = "0.32", features = ["component"] }
+
+# GPU sensing (optional - só compila se disponível)
+[target.'cfg(target_os = "linux")'.dependencies]
+nvml-wrapper = { version = "0.10", optional = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+nvml-wrapper = { version = "0.10", optional = true }
+
+[features]
+default = []
+nvidia = ["nvml-wrapper"]
