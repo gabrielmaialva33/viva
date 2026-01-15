@@ -21,6 +21,7 @@ use rustler::{Encoder, Env, NifResult, Term};
 use sysinfo::{System, Components, Disks, Networks};
 use std::sync::LazyLock;
 use std::sync::Mutex;
+use nvml_wrapper::Nvml;
 
 // ============================================================================
 // Global State (Thread-Safe)
@@ -42,6 +43,20 @@ static DISKS: LazyLock<Mutex<Disks>> = LazyLock::new(|| {
 
 static NETWORKS: LazyLock<Mutex<Networks>> = LazyLock::new(|| {
     Mutex::new(Networks::new_with_refreshed_list())
+});
+
+// NVIDIA GPU (inicializa uma vez, None se não disponível)
+static NVML: LazyLock<Option<Nvml>> = LazyLock::new(|| {
+    match Nvml::init() {
+        Ok(nvml) => {
+            eprintln!("[viva_body] NVML inicializado - GPU NVIDIA detectada");
+            Some(nvml)
+        }
+        Err(e) => {
+            eprintln!("[viva_body] NVML não disponível: {:?} - GPU sensing desabilitado", e);
+            None
+        }
+    }
 });
 
 // ============================================================================
@@ -357,30 +372,42 @@ fn get_cpu_temp(components: &Components) -> Option<f32> {
     None
 }
 
-/// Obtém informações de GPU
+/// Obtém informações de GPU via NVML
 /// Retorna (usage%, vram%, temp, name)
 fn get_gpu_info() -> (Option<f32>, Option<f32>, Option<f32>, Option<String>) {
-    // Tenta NVML para NVIDIA
-    #[cfg(feature = "nvidia")]
-    {
-        if let Ok(nvml) = nvml_wrapper::Nvml::init() {
-            if let Ok(device) = nvml.device_by_index(0) {
-                let usage = device.utilization_rates().ok().map(|u| u.gpu as f32);
-                let vram = device.memory_info().ok().map(|m| {
-                    (m.used as f64 / m.total as f64 * 100.0) as f32
-                });
-                let temp = device.temperature(
-                    nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu
-                ).ok().map(|t| t as f32);
-                let name = device.name().ok();
+    use nvml_wrapper::enum_wrappers::device::TemperatureSensor;
 
-                return (usage, vram, temp, name);
-            }
-        }
-    }
+    // Usa NVML global (inicializado uma vez)
+    let nvml = match NVML.as_ref() {
+        Some(n) => n,
+        None => return (None, None, None, None),
+    };
 
-    // Fallback: sem GPU detectada
-    (None, None, None, None)
+    // Pega primeira GPU (index 0)
+    let device = match nvml.device_by_index(0) {
+        Ok(d) => d,
+        Err(_) => return (None, None, None, None),
+    };
+
+    // Utilização (GPU compute %)
+    let usage = device.utilization_rates()
+        .ok()
+        .map(|u| u.gpu as f32);
+
+    // VRAM
+    let vram = device.memory_info()
+        .ok()
+        .map(|m| (m.used as f64 / m.total as f64 * 100.0) as f32);
+
+    // Temperatura
+    let temp = device.temperature(TemperatureSensor::Gpu)
+        .ok()
+        .map(|t| t as f32);
+
+    // Nome
+    let name = device.name().ok();
+
+    (usage, vram, temp, name)
 }
 
 /// Obtém informações de disco
