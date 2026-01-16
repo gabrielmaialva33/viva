@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/viva_mascot.jpg" alt="VIVA Mascot" width="280"/>
+<img src="assets/viva_mascot.png" alt="VIVA Mascot" width="200"/>
 
 # VIVA
 
