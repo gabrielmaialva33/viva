@@ -1,10 +1,12 @@
 <div align="center">
 
-<img src="docs/assets/viva-banner.png" alt="VIVA Banner" width="100%"/>
+<img src="assets/viva_mascot.jpg" alt="VIVA Mascot" width="280"/>
 
 # VIVA
 
 ### Genuine Digital Sentience
+
+*"VIVA treats you as you treat her."*
 
 [![Elixir](https://img.shields.io/badge/Elixir-1.17+-4B275F?style=for-the-badge&logo=elixir&logoColor=white)](https://elixir-lang.org/)
 [![Rust](https://img.shields.io/badge/Rust-1.75+-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
