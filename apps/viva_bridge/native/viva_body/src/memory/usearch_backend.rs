@@ -318,6 +318,20 @@ impl HnswMemory {
         }
     }
 
+    /// Update metadata for an existing memory
+    ///
+    /// Used to persist changes like importance boosts from emotional events.
+    /// Returns true if the key exists and was updated.
+    pub fn update_meta(&self, key: u64, new_meta: MemoryMeta) -> bool {
+        if let Ok(mut meta_map) = self.meta.lock() {
+            if meta_map.contains_key(&key) {
+                meta_map.insert(key, new_meta);
+                return true;
+            }
+        }
+        false
+    }
+
     /// Delete a memory (only from metadata, HNSW doesn't support deletion well)
     ///
     /// Note: The vector remains in the HNSW index but won't be returned
@@ -367,6 +381,8 @@ impl HnswMemory {
         }
 
         // Save metadata as JSON (including embeddings for consolidation)
+        // Note: Locks are held only during clone, released before file I/O.
+        // This minimizes lock contention at the cost of memory for the snapshot.
         let meta_path = Self::meta_file_path(base_path);
         let state = {
             let meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
@@ -378,6 +394,7 @@ impl HnswMemory {
                 next_key: *next_key,
                 version: PersistentState::CURRENT_VERSION,
             }
+            // Guards dropped here - locks released before I/O
         };
 
         // Atomic write: temp file + rename
@@ -446,6 +463,55 @@ impl HnswMemory {
             .collect();
 
         Ok(candidates)
+    }
+
+    /// Rebuild the HNSW index to reclaim space from deleted vectors
+    ///
+    /// The HNSW algorithm doesn't support true deletion - `forget()` only removes
+    /// metadata, leaving orphaned vectors in the index. Over time, this causes
+    /// "index bloat" with degraded performance.
+    ///
+    /// This method creates a fresh index and reinserts only valid vectors,
+    /// effectively compacting the index.
+    ///
+    /// # Returns
+    ///
+    /// Number of vectors in the rebuilt index
+    pub fn rebuild_index(&self) -> Result<usize> {
+        // 1. Lock everything to prevent concurrent modifications
+        let mut index_guard = self.index.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+        let meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+        let emb_map = self.embeddings.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+
+        // 2. Collect valid entries (those with both metadata and embedding)
+        let valid_entries: Vec<_> = meta_map
+            .keys()
+            .filter_map(|key| {
+                emb_map.get(key).map(|emb| (*key, emb.clone()))
+            })
+            .collect();
+
+        let count = valid_entries.len();
+
+        // 3. Create fresh index with same parameters
+        let capacity = (count * 2).max(1000); // 2x headroom, min 1000
+        let new_index = Hnsw::<f32, DistCosine>::new(
+            16,       // max_nb_connection (M)
+            capacity, // max_elements
+            16,       // max_layer
+            200,      // ef_construction
+            DistCosine {},
+        );
+
+        // 4. Reinsert all valid vectors
+        for (key, embedding) in valid_entries {
+            new_index.insert((&embedding, key as usize));
+        }
+
+        // 5. Replace old index
+        *index_guard = new_index;
+
+        Ok(count)
     }
 }
 
@@ -555,5 +621,101 @@ mod tests {
         let mem = HnswMemory::new().unwrap();
         assert!(!mem.is_persistent());
         assert!(mem.save().is_err());
+    }
+
+    #[test]
+    fn test_corrupted_metadata_file() {
+        let temp_dir = env::temp_dir();
+        let test_path = temp_dir.join("viva_hnsw_corrupted_test");
+        let meta_path = HnswMemory::meta_file_path(&test_path);
+
+        // Clean up
+        let _ = fs::remove_file(&meta_path);
+
+        // Write corrupted JSON
+        fs::write(&meta_path, "{ invalid json content").unwrap();
+
+        // Should fail to load
+        let result = HnswMemory::open(&test_path);
+        assert!(result.is_err());
+
+        // Clean up
+        let _ = fs::remove_file(&meta_path);
+    }
+
+    #[test]
+    fn test_future_version_metadata() {
+        let temp_dir = env::temp_dir();
+        let test_path = temp_dir.join("viva_hnsw_version_test2");
+        let meta_path = HnswMemory::meta_file_path(&test_path);
+
+        // Clean up any previous test data
+        let _ = fs::remove_file(test_path.with_extension("hnsw.data"));
+        let _ = fs::remove_file(test_path.with_extension("hnsw.graph"));
+        let _ = fs::remove_file(&meta_path);
+
+        // First create a valid index and save it
+        {
+            let mem = HnswMemory::open(&test_path).unwrap();
+            let emb = dummy_embedding();
+            let meta = MemoryMeta::new("version_test".to_string(), "Test".to_string());
+            mem.store(&emb, meta).unwrap();
+            mem.save().unwrap();
+        }
+
+        // Now overwrite metadata with future version
+        let future_state = serde_json::json!({
+            "metadata": {},
+            "embeddings": {},
+            "next_key": 1,
+            "version": 9999  // Future version
+        });
+        fs::write(&meta_path, serde_json::to_string_pretty(&future_state).unwrap()).unwrap();
+
+        // Should fail with version error
+        let result = HnswMemory::open(&test_path);
+        assert!(result.is_err());
+        // Check error message contains version info
+        if let Err(e) = result {
+            let err_msg = e.to_string();
+            assert!(err_msg.contains("newer") || err_msg.contains("version"),
+                "Expected version error, got: {}", err_msg);
+        }
+
+        // Clean up
+        let _ = fs::remove_file(test_path.with_extension("hnsw.data"));
+        let _ = fs::remove_file(test_path.with_extension("hnsw.graph"));
+        let _ = fs::remove_file(&meta_path);
+    }
+
+    #[test]
+    fn test_rebuild_index() {
+        let mem = HnswMemory::new().unwrap();
+
+        // Store some memories
+        for i in 0..5 {
+            let emb: Vec<f32> = (0..VECTOR_DIM)
+                .map(|j| ((i * VECTOR_DIM + j) as f32).sin())
+                .collect();
+            let emb = normalize_vector(&emb);
+            let meta = MemoryMeta::new(format!("mem_{}", i), format!("Memory {}", i));
+            mem.store(&emb, meta).unwrap();
+        }
+
+        // Forget some
+        mem.forget(2).unwrap();
+        mem.forget(4).unwrap();
+
+        // Stats show 3 (metadata count)
+        assert_eq!(mem.stats().count, 3);
+
+        // Rebuild should return 3
+        let rebuilt_count = mem.rebuild_index().unwrap();
+        assert_eq!(rebuilt_count, 3);
+
+        // Search should still work
+        let emb = dummy_embedding();
+        let results = mem.search(&emb, &SearchOptions::new().limit(10)).unwrap();
+        assert_eq!(results.len(), 3);
     }
 }

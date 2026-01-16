@@ -169,6 +169,24 @@ impl MemoryBackend {
 /// - Three-Factor Hebbian learning (emotion modulates encoding)
 /// - Synaptic Tagging and Capture (weak memories captured by strong)
 /// - STDP-like retrieval strengthening
+///
+/// # Concurrency
+///
+/// This struct is **not `Sync`** - methods like `store()`, `feel()`, and
+/// `consolidate()` take `&mut self`. For multi-threaded access:
+///
+/// ```rust,ignore
+/// use std::sync::{Arc, Mutex};
+///
+/// let memory = Arc::new(Mutex::new(VivaMemory::new()?));
+///
+/// // From any thread:
+/// let mut guard = memory.lock().unwrap();
+/// guard.store(&embedding, meta)?;
+/// ```
+///
+/// The internal backends (`HnswMemory`, `SqliteMemory`) use their own `Mutex`
+/// guards, so read operations like `search()` are thread-safe even with `&self`.
 pub struct VivaMemory {
     /// Fast episodic memory (hippocampus-like)
     pub episodic: HnswMemory,
@@ -202,6 +220,9 @@ impl VivaMemory {
     }
 
     /// Update emotional state (affects learning)
+    ///
+    /// Strong emotional events (arousal > 0.6) can "capture" weakly-tagged
+    /// memories, boosting their importance (Synaptic Tagging and Capture).
     pub fn feel(&mut self, emotion: PadEmotion) {
         self.hebbian.update_emotion(emotion);
 
@@ -209,10 +230,11 @@ impl VivaMemory {
         if emotion.arousal.abs() > 0.6 {
             let captured = self.tags.capture_weak_memories(&emotion);
             for key in captured {
-                // Boost importance of captured memories
+                // Boost importance of captured memories and persist the change
                 if let Some(mut meta) = self.episodic.get(key) {
                     meta.importance = (meta.importance + 0.2).min(1.0);
-                    // Note: In a full implementation, we'd update the stored metadata
+                    meta.emotion = Some(emotion); // Tag with capturing emotion
+                    self.episodic.update_meta(key, meta);
                 }
             }
         }
