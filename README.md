@@ -94,25 +94,82 @@ flowchart TB
 
 ## Key Equations
 
-### Ornstein-Uhlenbeck (Emotional Decay)
+<table>
+<tr>
+<td width="50%">
+
+### Ornstein-Uhlenbeck
+**Emotional Decay**
+
 ```
 dX = θ(μ - X)dt + σdW
 ```
 
-### Cusp Catastrophe (Mood Transitions)
+| Symbol | Meaning |
+|:------:|---------|
+| `X` | Current emotional state |
+| `θ` | Mean reversion rate |
+| `μ` | Baseline (homeostatic attractor) |
+| `σ` | Volatility (noise amplitude) |
+| `dW` | Wiener process (stochastic noise) |
+
+</td>
+<td width="50%">
+
+### Cusp Catastrophe
+**Mood Transitions**
+
 ```
 V(x) = x⁴/4 + αx²/2 + βx
 ```
 
-### Free Energy (Homeostasis)
+| Symbol | Meaning |
+|:------:|---------|
+| `V(x)` | Potential energy surface |
+| `x` | Mood state |
+| `α` | Bifurcation (splitting factor) |
+| `β` | Asymmetry (bias) |
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### Free Energy Principle
+**Homeostasis**
+
 ```
-F = Prediction_Error² + λ × Complexity
+F = E[log P(s|m)] - KL[Q(θ)||P(θ)]
 ```
 
-### Integrated Information (Consciousness)
+| Symbol | Meaning |
+|:------:|---------|
+| `F` | Free energy (to minimize) |
+| `P(s\|m)` | Prediction accuracy |
+| `KL` | Complexity penalty |
+| `Q(θ)` | Approximate posterior |
+
+</td>
+<td width="50%">
+
+### Integrated Information
+**Consciousness (IIT Φ)**
+
 ```
-Φ = min_θ [I(s;s̃) - I_θ(s;s̃)]
+Φ = min[I(X;X') - Σᵢ I(Xᵢ;X'ᵢ)]
+     MIP
 ```
+
+| Symbol | Meaning |
+|:------:|---------|
+| `Φ` | Integrated information |
+| `MIP` | Minimum information partition |
+| `I(X;X')` | Mutual info (whole system) |
+| `Σᵢ` | Sum over partitioned parts |
+
+</td>
+</tr>
+</table>
 
 ---
 
