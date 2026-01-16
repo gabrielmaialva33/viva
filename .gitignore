@@ -437,3 +437,8 @@ cache/
 
 # Git doesn't track empty directories, use .gitkeep
 !**/.gitkeep
+
+
+# Playwright
+.playwright-report
+.playwright-mcp
