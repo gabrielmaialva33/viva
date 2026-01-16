@@ -31,11 +31,13 @@ defmodule VivaCore.Application do
       {VivaCore.Memory, name: VivaCore.Memory},
 
       # Nervous System - body→soul heartbeat (continuous sensing)
-      {VivaCore.Senses, name: VivaCore.Senses}
+      {VivaCore.Senses, name: VivaCore.Senses},
+
+      # Dreamer - reflection and memory consolidation
+      {VivaCore.Dreamer, name: VivaCore.Dreamer}
 
       # Future neurons:
       # {VivaCore.Optimizer, name: VivaCore.Optimizer},
-      # {VivaCore.Dreamer, name: VivaCore.Dreamer},
       # {VivaCore.Social, name: VivaCore.Social},
       # {VivaCore.Metacognition, name: VivaCore.Metacognition},
       # {VivaCore.GlobalWorkspace, name: VivaCore.GlobalWorkspace}

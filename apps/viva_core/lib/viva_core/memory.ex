@@ -241,10 +241,14 @@ defmodule VivaCore.Memory do
     case result do
       {:ok, id} ->
         Logger.debug("[Memory] Stored: #{String.slice(content, 0, 50)}...")
+        # Notify Dreamer of new memory
+        notify_dreamer(id, metadata[:importance] || 0.5)
         {:reply, {:ok, id}, %{state | store_count: state.store_count + 1}}
 
       {:ok, id, new_state} ->
         Logger.debug("[Memory] Stored (in-memory): #{String.slice(content, 0, 50)}...")
+        # Notify Dreamer of new memory
+        notify_dreamer(id, metadata[:importance] || 0.5)
         {:reply, {:ok, id}, %{new_state | store_count: new_state.store_count + 1}}
 
       {:error, reason} ->
@@ -367,6 +371,27 @@ defmodule VivaCore.Memory do
 
   defp generate_id do
     "mem_" <> (:crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower))
+  end
+
+  # Notify Dreamer of new memory (non-blocking)
+  defp notify_dreamer(memory_id, importance) do
+    # Check if Dreamer is running before sending
+    case Process.whereis(VivaCore.Dreamer) do
+      nil ->
+        :ok  # Dreamer not running, skip notification
+
+      _pid ->
+        # Don't block the Memory process - fire and forget
+        spawn(fn ->
+          try do
+            VivaCore.Dreamer.on_memory_stored(memory_id, importance)
+          rescue
+            _ -> :ok  # Ignore errors
+          catch
+            :exit, _ -> :ok
+          end
+        end)
+    end
   end
 
   defp build_filter(nil, min_importance) when min_importance <= 0, do: nil
