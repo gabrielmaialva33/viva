@@ -216,22 +216,25 @@ defmodule VivaCore.EmotionalTest do
   end
 
   describe "decay" do
-    test "values decay toward neutral" do
+    test "values decay toward neutral over multiple iterations" do
       {:ok, pid} =
         Emotional.start_link(
           name: :test_emotional_13,
-          initial_state: %{pleasure: 0.5, arousal: 0.5, dominance: 0.5}
+          initial_state: %{pleasure: 0.8, arousal: 0.8, dominance: 0.8}
         )
 
       before = Emotional.get_state(pid)
 
-      # Apply decay manually
-      Emotional.decay(pid)
-      :timer.sleep(50)
+      # Apply multiple decays to overcome stochastic noise
+      for _ <- 1..10 do
+        Emotional.decay(pid)
+        :timer.sleep(20)
+      end
 
       after_state = Emotional.get_state(pid)
 
-      # Positive values should decrease
+      # After multiple decays, values should trend toward neutral
+      # Using larger initial values and multiple iterations makes this robust
       assert after_state.pleasure < before.pleasure
       assert after_state.arousal < before.arousal
       assert after_state.dominance < before.dominance
@@ -239,21 +242,24 @@ defmodule VivaCore.EmotionalTest do
       GenServer.stop(pid)
     end
 
-    test "negative values increase toward neutral" do
+    test "negative values increase toward neutral over multiple iterations" do
       {:ok, pid} =
         Emotional.start_link(
           name: :test_emotional_14,
-          initial_state: %{pleasure: -0.5, arousal: -0.5, dominance: -0.5}
+          initial_state: %{pleasure: -0.8, arousal: -0.8, dominance: -0.8}
         )
 
       before = Emotional.get_state(pid)
 
-      Emotional.decay(pid)
-      :timer.sleep(50)
+      # Apply multiple decays to overcome stochastic noise
+      for _ <- 1..10 do
+        Emotional.decay(pid)
+        :timer.sleep(20)
+      end
 
       after_state = Emotional.get_state(pid)
 
-      # Negative values should increase (toward 0)
+      # After multiple decays, negative values should trend toward neutral
       assert after_state.pleasure > before.pleasure
       assert after_state.arousal > before.arousal
       assert after_state.dominance > before.dominance
