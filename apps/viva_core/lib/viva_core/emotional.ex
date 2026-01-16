@@ -164,9 +164,28 @@ defmodule VivaCore.Emotional do
   @doc """
   Applies emotional decay toward neutral state.
   Called periodically to simulate natural emotional regulation.
+
+  NOTE: When BodyServer is running, decay is handled by Rust O-U dynamics.
+  This function is kept for backwards compatibility and manual testing.
   """
   def decay(server \\ __MODULE__) do
     GenServer.cast(server, :decay)
+  end
+
+  @doc """
+  Syncs PAD state from BodyServer.
+
+  This is called by Senses when BodyServer is running.
+  Unlike apply_hardware_qualia (which adds deltas), this sets absolute values.
+
+  ## Example
+
+      VivaCore.Emotional.sync_pad(0.1, 0.2, 0.3)
+
+  """
+  def sync_pad(pleasure, arousal, dominance, server \\ __MODULE__)
+      when is_number(pleasure) and is_number(arousal) and is_number(dominance) do
+    GenServer.cast(server, {:sync_pad, pleasure, arousal, dominance})
   end
 
   @doc """
@@ -376,7 +395,9 @@ defmodule VivaCore.Emotional do
       history: :queue.new(),
       history_size: 0,
       created_at: DateTime.utc_now(),
-      last_stimulus: nil
+      last_stimulus: nil,
+      # When true, O-U decay is handled by Rust BodyServer
+      body_server_active: false
     }
 
     # Use handle_continue to avoid race condition on startup
@@ -535,20 +556,42 @@ defmodule VivaCore.Emotional do
   end
 
   @impl true
+  def handle_cast({:sync_pad, p, a, d}, state) do
+    # Sync from BodyServer - absolute values (BodyServer handles O-U dynamics)
+    new_pad = %{
+      pleasure: clamp(p, @min_value, @max_value),
+      arousal: clamp(a, @min_value, @max_value),
+      dominance: clamp(d, @min_value, @max_value)
+    }
+
+    # Disable internal decay when syncing from BodyServer
+    # (BodyServer already does O-U + Cusp dynamics)
+    new_state = %{state | pad: new_pad, body_server_active: true}
+    {:noreply, new_state}
+  end
+
+  @impl true
   def handle_info(:decay_tick, state) do
     schedule_decay()
-    new_pad = decay_toward_neutral(state.pad)
 
-    # Log dynamic decay rate for debug (only if significant change)
-    if abs(state.pad.pleasure) > 0.01 or abs(state.pad.arousal) > 0.01 do
-      dynamic_rate = @base_decay_rate * (1 - state.pad.arousal * @arousal_decay_modifier)
+    # When BodyServer is active, it handles O-U dynamics in Rust
+    # We skip internal decay to avoid duplication
+    if state.body_server_active do
+      {:noreply, state}
+    else
+      new_pad = decay_toward_neutral(state.pad)
 
-      Logger.debug(
-        "[Emotional] DynAffect decay: rate=#{Float.round(dynamic_rate, 5)} (arousal=#{Float.round(state.pad.arousal, 2)})"
-      )
+      # Log dynamic decay rate for debug (only if significant change)
+      if abs(state.pad.pleasure) > 0.01 or abs(state.pad.arousal) > 0.01 do
+        dynamic_rate = @base_decay_rate * (1 - state.pad.arousal * @arousal_decay_modifier)
+
+        Logger.debug(
+          "[Emotional] DynAffect decay: rate=#{Float.round(dynamic_rate, 5)} (arousal=#{Float.round(state.pad.arousal, 2)})"
+        )
+      end
+
+      {:noreply, %{state | pad: new_pad}}
     end
-
-    {:noreply, %{state | pad: new_pad}}
   end
 
   # ============================================================================
@@ -738,10 +781,10 @@ defmodule VivaCore.Emotional do
   @impl true
   def code_change(_old_vsn, state, _extra) do
     # Migrate state structure if necessary
-    # Example: add new fields with defaults
     new_state =
       state
       |> Map.put_new(:history_size, :queue.len(Map.get(state, :history, :queue.new())))
+      |> Map.put_new(:body_server_active, false)
 
     {:ok, new_state}
   end

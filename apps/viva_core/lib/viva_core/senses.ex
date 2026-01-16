@@ -176,24 +176,56 @@ defmodule VivaCore.Senses do
     Process.send_after(self(), :heartbeat, interval_ms)
   end
 
+  # Try to get state from BodyServer, fallback to direct NIF if not available
+  defp get_body_state_or_fallback(state) do
+    # Check if BodyServer is alive
+    case Process.whereis(VivaBridge.BodyServer) do
+      nil ->
+        # BodyServer not running - use direct NIF
+        fallback_direct_nif(state)
+
+      _pid ->
+        # BodyServer running - try to get state
+        try do
+          case VivaBridge.BodyServer.get_state() do
+            nil ->
+              # BodyServer hasn't ticked yet
+              fallback_direct_nif(state)
+
+            %{pleasure: p, arousal: a, dominance: d, hardware: hardware} ->
+              # BodyServer is running - sync PAD to Emotional
+              VivaCore.Emotional.sync_pad(p, a, d, state.emotional_server)
+              {p, a, d, hardware}
+          end
+        catch
+          :exit, _ ->
+            # BodyServer crashed or timed out
+            fallback_direct_nif(state)
+        end
+    end
+  end
+
+  defp fallback_direct_nif(state) do
+    # Direct NIF call when BodyServer is not available
+    {p, a, d} = VivaBridge.hardware_to_qualia()
+    hardware = VivaBridge.feel_hardware()
+    VivaCore.Emotional.apply_hardware_qualia(p, a, d, state.emotional_server)
+    {p, a, d, hardware}
+  end
+
   defp do_heartbeat(state) do
     try do
-      # 1. Read qualia from hardware via Rust NIF
-      {p, a, d} = VivaBridge.hardware_to_qualia()
+      # Try to get body state from BodyServer (includes hardware + PAD dynamics)
+      # Falls back to direct NIF if BodyServer is not running
+      {p, a, d, hardware} = get_body_state_or_fallback(state)
 
-      # 2. Apply to Emotional GenServer
-      VivaCore.Emotional.apply_hardware_qualia(p, a, d, state.emotional_server)
-
-      # 3. Optionally, read full metrics for logging/debug
-      hardware = VivaBridge.feel_hardware()
-
-      # 4. Summary log (debug level to avoid noise)
+      # Summary log (debug level to avoid noise)
       Logger.debug(
         "[Senses] Heartbeat ##{state.heartbeat_count + 1}: " <>
-          "CPU=#{format_percent(hardware.cpu_usage)}% " <>
-          "RAM=#{format_percent(hardware.memory_used_percent)}% " <>
-          "GPU=#{format_gpu(hardware.gpu_usage)} " <>
-          "Qualia=(P#{format_delta(p)}, A#{format_delta(a)}, D#{format_delta(d)})"
+          "CPU=#{format_percent(hardware[:cpu_usage])}% " <>
+          "RAM=#{format_percent(hardware[:memory_used_percent])}% " <>
+          "GPU=#{format_gpu(hardware[:gpu_usage])} " <>
+          "PAD=(P#{format_delta(p)}, A#{format_delta(a)}, D#{format_delta(d)})"
       )
 
       new_state = %{
