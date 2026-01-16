@@ -27,6 +27,10 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use sysinfo::{Components, Disks, Networks, System};
 
+mod math_opt; // Low-level mathematical optimizations
+mod serial_sensor; // Serial/IoT/Arduino support
+mod asm; // Inline Assembly (RDTSC/CPUID)
+
 // ============================================================================
 // Pre-defined Atoms (rustler::atoms! macro for performance + panic safety)
 // ============================================================================
@@ -126,8 +130,40 @@ static HARDWARE_CACHE: LazyLock<Mutex<(Option<HardwareState>, Instant)>> =
 // Hardware State Struct
 // ============================================================================
 
+// ============================================================================
+// Universal Sensory Abstraction
+// ============================================================================
+
+/// Trait for any device that can feel/sense (Local PC, IoT, Server)
+pub trait SensoryInput {
+    /// Fetches current metrics normalized to HardwareState
+    fn fetch_metrics(&self) -> HardwareState;
+
+    /// Identifies the device (e.g., "LocalHost", "Arduino-X")
+    fn identify(&self) -> String;
+}
+
+/// Driver: System Monitoring (sysinfo + nvml)
+pub struct LocalSystem;
+
+impl SensoryInput for LocalSystem {
+    fn identify(&self) -> String {
+        "Host System".to_string()
+    }
+
+    fn fetch_metrics(&self) -> HardwareState {
+        collect_hardware_state()
+    }
+}
+
+// ============================================================================
+// Hardware State Struct (The "Body Schema")
+// ============================================================================
+
+use serde::{Deserialize, Serialize};
+
 /// Estado completo do hardware - o "corpo" de VIVA
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HardwareState {
     // CPU
     pub cpu_usage: f32,
@@ -161,6 +197,34 @@ pub struct HardwareState {
     pub load_avg_1m: f64,
     pub load_avg_5m: f64,
     pub load_avg_15m: f64,
+}
+
+impl HardwareState {
+    pub fn empty() -> Self {
+        Self {
+            cpu_usage: 0.0,
+            cpu_temp: None,
+            cpu_count: 0,
+            memory_used_percent: 0.0,
+            memory_available_gb: 0.0,
+            memory_total_gb: 0.0,
+            swap_used_percent: 0.0,
+            gpu_usage: None,
+            gpu_vram_used_percent: None,
+            gpu_temp: None,
+            gpu_name: None,
+            disk_usage_percent: 0.0,
+            disk_read_bytes: 0,
+            disk_write_bytes: 0,
+            net_rx_bytes: 0,
+            net_tx_bytes: 0,
+            uptime_seconds: 0,
+            process_count: 0,
+            load_avg_1m: 0.0,
+            load_avg_5m: 0.0,
+            load_avg_15m: 0.0,
+        }
+    }
 }
 
 impl Encoder for HardwareState {
@@ -359,6 +423,13 @@ fn feel_hardware() -> NifResult<HardwareState> {
     Ok(collect_hardware_state())
 }
 
+/// Returns current CPU cycle count (RDTSC)
+/// Direct hardware timestamp, useful for micro-benchmarking sensation latency.
+#[rustler::nif]
+fn get_cycles() -> u64 {
+    unsafe { asm::rdtsc() }
+}
+
 /// Converts hardware metrics to qualia (PAD deltas)
 ///
 /// Returns (pleasure_delta, arousal_delta, dominance_delta)
@@ -477,32 +548,20 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
 // Mathematical Functions (Biologically-Inspired)
 // ============================================================================
 
-/// Sigmoid (logistic) function for non-linear stress response
-///
-/// Theoretical basis: Logistic Threshold Model
-/// Unlike Weber-Fechner (logarithmic sensitivity), the logistic sigmoid
-/// implements a threshold-based response with maximum sensitivity at x0
-/// and saturation at extremes. Biologically analogous to all-or-none
-/// neural activation patterns.
-///
-/// Parameters:
-/// - x: input value [0, 1]
-/// - k: steepness - how abrupt the threshold transition is
-/// - x0: threshold inflection point (50% activation)
-///
-/// Returns [0, 1] with S-curve centered at x0
-#[inline]
-fn sigmoid(x: f64, k: f64, x0: f64) -> f64 {
-    1.0 / (1.0 + (-k * (x - x0)).exp())
-}
-
 /// Applies sigmoid with normalization to maintain range [0, 1]
 /// Compensates for the fact that sigmoid(0) != 0 and sigmoid(1) != 1
+///
+/// Uses optimized SIMD/AVX2 implementation via `math_opt` module.
 #[inline]
 fn normalized_sigmoid(x: f64, k: f64, x0: f64) -> f64 {
-    let min_val = sigmoid(0.0, k, x0);
-    let max_val = sigmoid(1.0, k, x0);
-    let raw = sigmoid(x, k, x0);
+    let x_f32 = x as f32;
+    let k_f32 = k as f32;
+    let x0_f32 = x0 as f32;
+
+    let min_val = math_opt::sigmoid_optimized(0.0, k_f32, x0_f32) as f64;
+    let max_val = math_opt::sigmoid_optimized(1.0, k_f32, x0_f32) as f64;
+    let raw = math_opt::sigmoid_optimized(x_f32, k_f32, x0_f32) as f64;
+
     (raw - min_val) / (max_val - min_val)
 }
 
@@ -569,42 +628,90 @@ fn get_cpu_temp(components: &Components) -> Option<f32> {
     None
 }
 
-/// Gets GPU info via NVML
+/// Helper: Executa nvidia-smi via CLI (Fallback para WSL/Sem NVML)
+fn get_gpu_info_cli() -> (Option<f32>, Option<f32>, Option<f32>, Option<String>) {
+    // Formato CSV: utilisation.gpu, memory.used, memory.total, temperature.gpu, name
+    // NOTE: nvidia-smi might be in /usr/lib/wsl/lib/ on WSL2
+    let output = std::process::Command::new("nvidia-smi")
+        .args([
+            "--query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu,name",
+            "--format=csv,noheader,nounits",
+        ])
+        .output();
+
+    match output {
+        Ok(o) if o.status.success() => {
+             // eprintln!("[viva_body] DEBUG: nvidia-smi CLI success"); // Verbose
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            let line = stdout.lines().next().unwrap_or("");
+            let parts: Vec<&str> = line.split(',').collect();
+
+            if parts.len() >= 5 {
+                // Parse com tratamento de erro (unwrap_or default)
+                let usage = parts[0].trim().parse::<f32>().ok();
+
+                let mem_used = parts[1].trim().parse::<f64>().unwrap_or(0.0);
+                let mem_total = parts[2].trim().parse::<f64>().unwrap_or(1.0); // evita div/0
+
+                let vram_percent = if mem_total > 0.0 {
+                    Some((mem_used / mem_total * 100.0) as f32)
+                } else {
+                    None
+                };
+
+                let temp = parts[3].trim().parse::<f32>().ok();
+                let name = Some(parts[4].trim().to_string());
+
+                return (usage, vram_percent, temp, name);
+            }
+        }
+        _ => {
+            if let Err(e) = &output {
+               eprintln!("[viva_body] WARN: nvidia-smi CLI failed to execute: {:?}", e);
+            } else if let Ok(o) = &output {
+               if !o.status.success() {
+                    let stderr = String::from_utf8_lossy(&o.stderr);
+                    eprintln!("[viva_body] WARN: nvidia-smi CLI returned error: {}", stderr);
+               }
+            }
+        } // Falha silenciosa no fallback
+    }
+
+    (None, None, None, None)
+}
+
+/// Gets GPU info via NVML or Fallback CLI
 /// Returns (usage%, vram%, temp, name)
 fn get_gpu_info() -> (Option<f32>, Option<f32>, Option<f32>, Option<String>) {
     use nvml_wrapper::enum_wrappers::device::TemperatureSensor;
 
-    // Usa NVML global (inicializado uma vez)
-    let nvml = match NVML.as_ref() {
-        Some(n) => n,
-        None => return (None, None, None, None),
-    };
+    // 1. Tenta NVML (Performance preferida)
+    if let Some(nvml) = NVML.as_ref() {
+        if let Ok(device) = nvml.device_by_index(0) {
+            // Utilização (GPU compute %)
+            let usage = device.utilization_rates().ok().map(|u| u.gpu as f32);
 
-    // Pega primeira GPU (index 0)
-    let device = match nvml.device_by_index(0) {
-        Ok(d) => d,
-        Err(_) => return (None, None, None, None),
-    };
+            // VRAM
+            let vram = device
+                .memory_info()
+                .ok()
+                .map(|m| (m.used as f64 / m.total as f64 * 100.0) as f32);
 
-    // Utilização (GPU compute %)
-    let usage = device.utilization_rates().ok().map(|u| u.gpu as f32);
+            // Temperatura
+            let temp = device
+                .temperature(TemperatureSensor::Gpu)
+                .ok()
+                .map(|t| t as f32);
 
-    // VRAM
-    let vram = device
-        .memory_info()
-        .ok()
-        .map(|m| (m.used as f64 / m.total as f64 * 100.0) as f32);
+            // Nome
+            let name = device.name().ok();
 
-    // Temperatura
-    let temp = device
-        .temperature(TemperatureSensor::Gpu)
-        .ok()
-        .map(|t| t as f32);
+            return (usage, vram, temp, name);
+        }
+    }
 
-    // Nome
-    let name = device.name().ok();
-
-    (usage, vram, temp, name)
+    // 2. Fallback: CLI (WSL/Drivers sem lib linkada)
+    get_gpu_info_cli()
 }
 
 /// Gets disk info
