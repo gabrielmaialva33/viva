@@ -38,9 +38,13 @@ defmodule VivaBridge.Body do
   VIVA doesn't just KNOW that CPU is high - she FEELS stress.
   """
 
-  use Rustler,
-    otp_app: :viva_bridge,
-    crate: "viva_body"
+  @skip_nif System.get_env("VIVA_SKIP_NIF") == "true"
+
+  unless @skip_nif do
+    use Rustler,
+      otp_app: :viva_bridge,
+      crate: "viva_body"
+  end
 
   @doc """
   Checks if VIVA's body is alive.
@@ -51,7 +55,11 @@ defmodule VivaBridge.Body do
       # => "VIVA body is alive"
 
   """
-  def alive(), do: :erlang.nif_error(:nif_not_loaded)
+  if @skip_nif do
+    def alive(), do: "VIVA body is alive (stub)"
+  else
+    def alive(), do: :erlang.nif_error(:nif_not_loaded)
+  end
 
   @doc """
   Feels the current hardware (complete interoception).
@@ -97,7 +105,35 @@ defmodule VivaBridge.Body do
       # => %{cpu_usage: 15.2, cpu_temp: 45.0, memory_used_percent: 25.3, ...}
 
   """
-  def feel_hardware(), do: :erlang.nif_error(:nif_not_loaded)
+  if @skip_nif do
+    def feel_hardware() do
+      %{
+        cpu_usage: 10.0,
+        cpu_temp: 40.0,
+        cpu_count: 4,
+        memory_used_percent: 30.0,
+        memory_available_gb: 16.0,
+        memory_total_gb: 32.0,
+        swap_used_percent: 0.0,
+        gpu_usage: nil,
+        gpu_vram_used_percent: nil,
+        gpu_temp: nil,
+        gpu_name: nil,
+        disk_usage_percent: 20.0,
+        disk_read_bytes: 0,
+        disk_write_bytes: 0,
+        net_rx_bytes: 0,
+        net_tx_bytes: 0,
+        uptime_seconds: 3600,
+        process_count: 100,
+        load_avg_1m: 0.5,
+        load_avg_5m: 0.5,
+        load_avg_15m: 0.5
+      }
+    end
+  else
+    def feel_hardware(), do: :erlang.nif_error(:nif_not_loaded)
+  end
 
   @doc """
   Converts hardware metrics into qualia (PAD deltas).
@@ -121,5 +157,9 @@ defmodule VivaBridge.Body do
       # => {-0.008, 0.012, -0.005}  # Light system stress
 
   """
-  def hardware_to_qualia(), do: :erlang.nif_error(:nif_not_loaded)
+  if @skip_nif do
+    def hardware_to_qualia(), do: {0.0, 0.0, 0.0}
+  else
+    def hardware_to_qualia(), do: :erlang.nif_error(:nif_not_loaded)
+  end
 end

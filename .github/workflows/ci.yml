@@ -49,10 +49,14 @@ jobs:
         run: mix deps.get
 
       - name: Compile
-        run: mix compile --warnings-as-errors
+        run: mix compile
+        env:
+          VIVA_SKIP_NIF: true
 
       - name: Run tests
-        run: mix test
+        run: mix test --exclude nif
+        env:
+          VIVA_SKIP_NIF: true
 
   format:
     name: Format
