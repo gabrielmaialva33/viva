@@ -77,6 +77,12 @@ rustler::atoms! {
     // Bio Rhythm
     system_entropy,
     os_jitter,
+    // Dynamics (PAD)
+    pleasure,
+    arousal,
+    dominance,
+    equilibria,
+    is_bifurcation,
 }
 
 // Cache duration for hardware metrics (reduces lock contention)
@@ -972,7 +978,122 @@ fn memory_backend_name(resource: ResourceArc<MemoryResource>) -> String {
 }
 
 // ============================================================================
+// Dynamics NIFs (Stochastic Emotional Dynamics)
+// ============================================================================
+
+/// Default O-U parameters for PAD model (empirically calibrated)
+/// Based on emotional dynamics literature (Kuppens et al., 2010)
+fn default_ou_params() -> [dynamics::OUParams; 3] {
+    [
+        // Pleasure: slower reversion, moderate volatility
+        dynamics::OUParams { theta: 0.3, mu: 0.0, sigma: 0.15 },
+        // Arousal: faster reversion, higher volatility
+        dynamics::OUParams { theta: 0.5, mu: 0.0, sigma: 0.25 },
+        // Dominance: slowest reversion, low volatility
+        dynamics::OUParams { theta: 0.2, mu: 0.0, sigma: 0.10 },
+    ]
+}
+
+/// Single O-U step for PAD state
+///
+/// Input: (p, a, d) current state, dt timestep, (n1, n2, n3) gaussian noises
+/// Output: (p', a', d') new state (bounded to [-1, 1])
+#[rustler::nif]
+fn dynamics_ou_step(
+    p: f64, a: f64, d: f64,
+    dt: f64,
+    noise_p: f64, noise_a: f64, noise_d: f64,
+) -> (f64, f64, f64) {
+    let params = default_ou_params();
+    let mut pad = [p, a, d];
+    let noises = [noise_p, noise_a, noise_d];
+
+    dynamics::ou_step_pad_bounded(&mut pad, &params, dt, &noises);
+
+    (pad[0], pad[1], pad[2])
+}
+
+/// Cusp catastrophe equilibria finder
+///
+/// Returns list of equilibrium points for given control parameters (c, y)
+/// - c: "splitting factor" (bifurcation control)
+/// - y: "normal factor" (asymmetry)
+#[rustler::nif]
+fn dynamics_cusp_equilibria(c: f64, y: f64) -> Vec<f64> {
+    dynamics::cusp_equilibria(c, y)
+}
+
+/// Check if (c, y) is in bifurcation region
+///
+/// Bifurcation region: 27y² < 4c³ (cusp catastrophe surface)
+#[rustler::nif]
+fn dynamics_cusp_is_bifurcation(c: f64, y: f64) -> bool {
+    dynamics::cusp_is_bifurcation(c, y)
+}
+
+/// Cusp-modulated mood step
+///
+/// Applies cusp catastrophe dynamics to pleasure (mood) based on arousal
+/// This creates sudden mood transitions at bifurcation boundaries
+///
+/// Input: mood, arousal, external_bias, dt
+/// Output: new_mood (arousal unchanged)
+#[rustler::nif]
+fn dynamics_cusp_mood_step(
+    mood: f64, arousal: f64,
+    external_bias: f64, dt: f64,
+) -> f64 {
+    let mut new_mood = mood;
+    dynamics::cusp_mood_step(&mut new_mood, arousal, external_bias, dt);
+    new_mood
+}
+
+/// Full DynAffect step (O-U + optional Cusp)
+///
+/// Combines mean-reverting stochastic dynamics with catastrophe theory
+/// for realistic emotional transitions including sudden mood shifts.
+///
+/// Input: (p, a, d), dt, noises, cusp_enabled, cusp_sensitivity, external_bias
+/// Output: (p', a', d') bounded to [-1, 1]
+#[rustler::nif]
+fn dynamics_step(
+    p: f64, a: f64, d: f64,
+    dt: f64,
+    noise_p: f64, noise_a: f64, noise_d: f64,
+    cusp_enabled: bool,
+    cusp_sensitivity: f64,
+    external_bias: f64,
+) -> (f64, f64, f64) {
+    let dynaffect = dynamics::DynAffect {
+        ou_params: default_ou_params(),
+        cusp_enabled,
+        cusp_sensitivity,
+    };
+
+    let mut pad = [p, a, d];
+    let noises = [noise_p, noise_a, noise_d];
+    dynaffect.step(&mut pad, dt, &noises, external_bias);
+
+    (pad[0], pad[1], pad[2])
+}
+
+// ============================================================================
 // NIF Registration
 // ============================================================================
 
-rustler::init!("Elixir.VivaBridge.Body");
+rustler::init!(
+    "Elixir.VivaBridge.Body",
+    [
+        // Core sensing
+        alive,
+        feel_hardware,
+        get_cycles,
+        hardware_to_qualia,
+        // Dynamics (emotional state evolution)
+        dynamics_ou_step,
+        dynamics_cusp_equilibria,
+        dynamics_cusp_is_bifurcation,
+        dynamics_cusp_mood_step,
+        dynamics_step,
+    ]
+);
