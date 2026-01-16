@@ -62,6 +62,13 @@ impl PersistentState {
 ///
 /// The SQLite backend serves as the "neocortex" - slower but more
 /// persistent semantic memory.
+///
+/// ## Memory Note
+///
+/// When loading from disk via [`HnswMemory::open()`], there is a small
+/// intentional memory leak (~200 bytes) due to `hnsw_rs` API constraints.
+/// See [`load_from_path()`] documentation for full details and alternatives.
+/// This does NOT affect in-memory usage via [`HnswMemory::new()`].
 pub struct HnswMemory {
     /// HNSW index for vector search
     index: Mutex<Hnsw<'static, f32, DistCosine>>,
@@ -124,6 +131,35 @@ impl HnswMemory {
     }
 
     /// Load existing HNSW index from disk
+    ///
+    /// ## Box::leak Explanation
+    ///
+    /// The `hnsw_rs` crate's `HnswIo::load_hnsw()` returns `Hnsw<'b>` with a lifetime
+    /// constraint `'a: 'b` (where `'a` is the `HnswIo`'s lifetime). This means the
+    /// returned `Hnsw` cannot outlive the `HnswIo` that loaded it.
+    ///
+    /// To store `Hnsw` with `'static` lifetime in our struct, we use `Box::leak` to
+    /// give `HnswIo` a `'static` lifetime. This is an **intentional, bounded leak**:
+    ///
+    /// - **Memory cost**: ~200 bytes per `open()` call (PathBuf, String, Arc)
+    /// - **When**: Only happens when loading persistent index, not for in-memory
+    /// - **Frequency**: Once per `HnswMemory::open()`, typically once at startup
+    ///
+    /// ### Alternatives Considered
+    ///
+    /// 1. **ouroboros crate**: Self-referential struct that owns both `HnswIo` and
+    ///    `Hnsw`. Would eliminate leak but adds dependency and macro complexity.
+    ///    Enable `ouroboros-hnsw` feature to use this approach in the future.
+    ///
+    /// 2. **Store HnswIo in struct**: Doesn't work - lifetime constraints prevent
+    ///    `Hnsw<'a>` from being stored alongside `HnswIo` in safe Rust.
+    ///
+    /// 3. **Upstream PR**: Propose API change to `hnsw_rs` for owned `Hnsw` return.
+    ///
+    /// For now, the ~200 byte leak per load is acceptable given:
+    /// - Single-digit KB even with 10+ index reloads
+    /// - Index typically loaded once at application startup
+    /// - Memory is still tracked (not lost), just not freed
     fn load_from_path(base_path: &Path) -> Result<Self> {
         let dir = base_path
             .parent()
@@ -133,11 +169,9 @@ impl HnswMemory {
             .and_then(|n| n.to_str())
             .context("Invalid path: no filename")?;
 
-        // Load HNSW index
-        // Note: Box::leak is used because HnswIo::load_hnsw returns Hnsw<'a>
-        // with lifetime tied to the reloader. Since we only load once per
-        // open() call and the index lives for the program's lifetime, this
-        // is an acceptable tradeoff (small one-time memory cost).
+        // Load HNSW index - see docstring above for Box::leak rationale
+        // Leak size: HnswIo { PathBuf, String, ReloadOptions, Option<DataMap>, Arc<AtomicUsize> }
+        // Approximately 150-200 bytes depending on path length
         let reloader = Box::leak(Box::new(HnswIo::new(dir, name)));
         let index: Hnsw<'static, f32, DistCosine> = reloader
             .load_hnsw()
