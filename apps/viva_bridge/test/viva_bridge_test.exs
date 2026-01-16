@@ -4,6 +4,7 @@ defmodule VivaBridgeTest do
   @moduletag :bridge
 
   describe "Body NIF - Basic" do
+    @tag :nif
     test "alive/0 returns confirmation" do
       assert VivaBridge.Body.alive() == "VIVA body is alive"
     end
@@ -125,6 +126,7 @@ defmodule VivaBridgeTest do
   end
 
   describe "Body NIF - Qualia (Hardware -> PAD)" do
+    @tag :nif
     test "hardware_to_qualia/0 returns tuple of PAD deltas" do
       {p, a, d} = VivaBridge.Body.hardware_to_qualia()
 
@@ -162,6 +164,7 @@ defmodule VivaBridgeTest do
   end
 
   describe "VivaBridge integration" do
+    @tag :nif
     test "alive?/0 returns true when NIF loaded" do
       assert VivaBridge.alive?() == true
     end
