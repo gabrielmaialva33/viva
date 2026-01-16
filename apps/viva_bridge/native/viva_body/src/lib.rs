@@ -21,7 +21,7 @@
 //! - Allostasis (Sterling, 2012)
 
 use nvml_wrapper::Nvml;
-use rustler::{Encoder, Env, NifResult, Term};
+use rustler::{Encoder, Env, NifResult, Resource, ResourceArc, Term};
 use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -33,6 +33,7 @@ mod asm; // Inline Assembly (RDTSC/CPUID)
 mod cpu_topology; // Cache/Vendor info
 mod os_stats; // Kernel metrics (Context Switches)
 mod bio_rhythm; // Temporal analysis (Entropy/Jitter)
+mod memory; // Vector memory backends (usearch, SQLite)
 
 // ============================================================================
 // Pre-defined Atoms (rustler::atoms! macro for performance + panic safety)
@@ -875,7 +876,107 @@ fn get_network_info(networks: &Networks) -> (u64, u64) {
 }
 
 // ============================================================================
+// Memory System NIFs
+// ============================================================================
+
+use memory::{MemoryBackend, MemoryMeta, MemorySearchResult, MemoryType, SearchOptions};
+
+/// Wrapper for MemoryBackend as Rustler Resource
+pub struct MemoryResource {
+    backend: Mutex<MemoryBackend>,
+}
+
+impl Resource for MemoryResource {}
+
+/// Create HNSW-based memory backend (fast ANN search)
+// TODO: Enable when VivaBridge.Body declares memory functions
+// #[rustler::nif]
+fn memory_new_hnsw() -> NifResult<ResourceArc<MemoryResource>> {
+    let backend = MemoryBackend::usearch()
+        .map_err(|e| rustler::Error::Term(Box::new(format!("Failed to create HNSW backend: {}", e))))?;
+    Ok(ResourceArc::new(MemoryResource { backend: Mutex::new(backend) }))
+}
+
+/// Create SQLite-based memory backend (portable, brute-force)
+// #[rustler::nif]
+fn memory_new_sqlite() -> NifResult<ResourceArc<MemoryResource>> {
+    let backend = MemoryBackend::sqlite()
+        .map_err(|e| rustler::Error::Term(Box::new(format!("Failed to create SQLite backend: {}", e))))?;
+    Ok(ResourceArc::new(MemoryResource { backend: Mutex::new(backend) }))
+}
+
+/// Store a memory with embedding
+/// Returns the internal key (u64)
+// #[rustler::nif]
+#[allow(dead_code)]
+fn memory_store(
+    resource: ResourceArc<MemoryResource>,
+    embedding: Vec<f32>,
+    id: String,
+    content: String,
+    memory_type: String,
+    importance: f32,
+) -> NifResult<u64> {
+    let backend = resource.backend.lock().unwrap();
+
+    let meta = MemoryMeta::new(id, content)
+        .with_type(MemoryType::from_str(&memory_type))
+        .with_importance(importance);
+
+    backend.store(&embedding, meta)
+        .map_err(|e| rustler::Error::Term(Box::new(e)))
+}
+
+/// Search for similar memories
+/// Returns list of (id, content, similarity, decayed_score)
+// #[rustler::nif]
+#[allow(dead_code)]
+fn memory_search(
+    resource: ResourceArc<MemoryResource>,
+    query: Vec<f32>,
+    limit: usize,
+    memory_type: Option<String>,
+    apply_decay: bool,
+) -> NifResult<Vec<(String, String, f32, f32)>> {
+    let backend = resource.backend.lock().unwrap();
+
+    let mut options = SearchOptions::new().limit(limit);
+
+    if let Some(ref t) = memory_type {
+        options = options.of_type(MemoryType::from_str(t));
+    }
+
+    if !apply_decay {
+        options = options.no_decay();
+    }
+
+    let results = backend.search(&query, &options)
+        .map_err(|e| rustler::Error::Term(Box::new(e)))?;
+
+    Ok(results
+        .into_iter()
+        .map(|r| (r.meta.id, r.meta.content, r.similarity, r.decayed_score))
+        .collect())
+}
+
+/// Get backend name
+// #[rustler::nif]
+#[allow(dead_code)]
+fn memory_backend_name(resource: ResourceArc<MemoryResource>) -> String {
+    let backend = resource.backend.lock().unwrap();
+    backend.backend_name().to_string()
+}
+
+// ============================================================================
 // NIF Registration
 // ============================================================================
 
-rustler::init!("Elixir.VivaBridge.Body");
+rustler::init!(
+    "Elixir.VivaBridge.Body",
+    [
+        alive,
+        feel_hardware,
+        get_cycles,
+        hardware_to_qualia
+    ]
+);
