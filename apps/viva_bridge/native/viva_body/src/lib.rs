@@ -20,12 +20,12 @@
 //! - Logistic Threshold Model (NOT Weber-Fechner - see sigmoid docs)
 //! - Allostasis (Sterling, 2012)
 
+use nvml_wrapper::Nvml;
 use rustler::{Encoder, Env, NifResult, Term};
-use sysinfo::{System, Components, Disks, Networks};
 use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use nvml_wrapper::Nvml;
+use sysinfo::{Components, Disks, Networks, System};
 
 // ============================================================================
 // Pre-defined Atoms (rustler::atoms! macro for performance + panic safety)
@@ -94,36 +94,33 @@ static SYSTEM: LazyLock<Mutex<System>> = LazyLock::new(|| {
     Mutex::new(sys)
 });
 
-static COMPONENTS: LazyLock<Mutex<Components>> = LazyLock::new(|| {
-    Mutex::new(Components::new_with_refreshed_list())
-});
+static COMPONENTS: LazyLock<Mutex<Components>> =
+    LazyLock::new(|| Mutex::new(Components::new_with_refreshed_list()));
 
-static DISKS: LazyLock<Mutex<Disks>> = LazyLock::new(|| {
-    Mutex::new(Disks::new_with_refreshed_list())
-});
+static DISKS: LazyLock<Mutex<Disks>> =
+    LazyLock::new(|| Mutex::new(Disks::new_with_refreshed_list()));
 
-static NETWORKS: LazyLock<Mutex<Networks>> = LazyLock::new(|| {
-    Mutex::new(Networks::new_with_refreshed_list())
-});
+static NETWORKS: LazyLock<Mutex<Networks>> =
+    LazyLock::new(|| Mutex::new(Networks::new_with_refreshed_list()));
 
 // NVIDIA GPU (initialized once, None if unavailable)
-static NVML: LazyLock<Option<Nvml>> = LazyLock::new(|| {
-    match Nvml::init() {
-        Ok(nvml) => {
-            eprintln!("[viva_body] NVML initialized - NVIDIA GPU detected");
-            Some(nvml)
-        }
-        Err(e) => {
-            eprintln!("[viva_body] NVML unavailable: {:?} - GPU sensing disabled", e);
-            None
-        }
+static NVML: LazyLock<Option<Nvml>> = LazyLock::new(|| match Nvml::init() {
+    Ok(nvml) => {
+        eprintln!("[viva_body] NVML initialized - NVIDIA GPU detected");
+        Some(nvml)
+    }
+    Err(e) => {
+        eprintln!(
+            "[viva_body] NVML unavailable: {:?} - GPU sensing disabled",
+            e
+        );
+        None
     }
 });
 
 // Cache for hardware state (reduces lock contention under high load)
-static HARDWARE_CACHE: LazyLock<Mutex<(Option<HardwareState>, Instant)>> = LazyLock::new(|| {
-    Mutex::new((None, Instant::now()))
-});
+static HARDWARE_CACHE: LazyLock<Mutex<(Option<HardwareState>, Instant)>> =
+    LazyLock::new(|| Mutex::new((None, Instant::now())));
 
 // ============================================================================
 // Hardware State Struct
@@ -134,7 +131,7 @@ static HARDWARE_CACHE: LazyLock<Mutex<(Option<HardwareState>, Instant)>> = LazyL
 pub struct HardwareState {
     // CPU
     pub cpu_usage: f32,
-    pub cpu_temp: Option<f32>,        // °C - None se indisponível
+    pub cpu_temp: Option<f32>, // °C - None se indisponível
     pub cpu_count: usize,
 
     // Memory
@@ -144,7 +141,7 @@ pub struct HardwareState {
     pub swap_used_percent: f32,
 
     // GPU (opcional)
-    pub gpu_usage: Option<f32>,       // % - None se sem GPU/driver
+    pub gpu_usage: Option<f32>, // % - None se sem GPU/driver
     pub gpu_vram_used_percent: Option<f32>,
     pub gpu_temp: Option<f32>,
     pub gpu_name: Option<String>,
@@ -171,13 +168,23 @@ impl Encoder for HardwareState {
         use rustler::types::map::map_new;
 
         // Helper: put value with pre-defined atom key (no unwrap, uses expect for map_put)
-        fn put<'a, T: Encoder>(map: Term<'a>, key: rustler::Atom, val: T, env: Env<'a>) -> Term<'a> {
+        fn put<'a, T: Encoder>(
+            map: Term<'a>,
+            key: rustler::Atom,
+            val: T,
+            env: Env<'a>,
+        ) -> Term<'a> {
             map.map_put(key.encode(env), val.encode(env))
                 .expect("map_put should not fail for valid terms")
         }
 
         // Helper: put optional f32 (nil if None)
-        fn put_opt_f32<'a>(map: Term<'a>, key: rustler::Atom, val: Option<f32>, env: Env<'a>) -> Term<'a> {
+        fn put_opt_f32<'a>(
+            map: Term<'a>,
+            key: rustler::Atom,
+            val: Option<f32>,
+            env: Env<'a>,
+        ) -> Term<'a> {
             match val {
                 Some(v) => put(map, key, v, env),
                 None => put(map, key, nil(), env),
@@ -185,7 +192,12 @@ impl Encoder for HardwareState {
         }
 
         // Helper: put optional String (nil if None)
-        fn put_opt_str<'a>(map: Term<'a>, key: rustler::Atom, val: &Option<String>, env: Env<'a>) -> Term<'a> {
+        fn put_opt_str<'a>(
+            map: Term<'a>,
+            key: rustler::Atom,
+            val: &Option<String>,
+            env: Env<'a>,
+        ) -> Term<'a> {
             match val {
                 Some(v) => put(map, key, v.as_str(), env),
                 None => put(map, key, nil(), env),
@@ -207,7 +219,12 @@ impl Encoder for HardwareState {
 
         // GPU
         let map = put_opt_f32(map, gpu_usage(), self.gpu_usage, env);
-        let map = put_opt_f32(map, gpu_vram_used_percent(), self.gpu_vram_used_percent, env);
+        let map = put_opt_f32(
+            map,
+            gpu_vram_used_percent(),
+            self.gpu_vram_used_percent,
+            env,
+        );
         let map = put_opt_f32(map, gpu_temp(), self.gpu_temp, env);
         let map = put_opt_str(map, gpu_name(), &self.gpu_name, env);
 
@@ -281,11 +298,15 @@ fn collect_hardware_state() -> HardwareState {
 
     let memory_used_percent = if total_memory > 0.0 {
         ((used_memory / total_memory) * 100.0) as f32
-    } else { 0.0 };
+    } else {
+        0.0
+    };
 
     let swap_used_percent = if total_swap > 0.0 {
         ((used_swap / total_swap) * 100.0) as f32
-    } else { 0.0 };
+    } else {
+        0.0
+    };
 
     // GPU (tenta NVML se disponível)
     let (gpu_usage, gpu_vram, gpu_temp, gpu_name) = get_gpu_info();
@@ -376,7 +397,7 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
     let temp_stress = match hw.cpu_temp {
         Some(t) => {
             let temp_raw = ((t as f64 - 40.0) / 50.0).clamp(0.0, 1.0);
-            normalized_sigmoid(temp_raw, 8.0, 0.60)  // 70°C = 0.6 no range 40-90
+            normalized_sigmoid(temp_raw, 8.0, 0.60) // 70°C = 0.6 no range 40-90
         }
         None => 0.0,
     };
@@ -392,8 +413,8 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
 
     // Load average: threshold = 0.8 per core, k=10
     let cores = hw.cpu_count.max(1) as f64;
-    let load_raw = (hw.load_avg_1m / cores).clamp(0.0, 1.5) / 1.5;  // Normalize para [0,1]
-    let load_stress = normalized_sigmoid(load_raw, 10.0, 0.53);  // 0.8/1.5 ≈ 0.53
+    let load_raw = (hw.load_avg_1m / cores).clamp(0.0, 1.5) / 1.5; // Normalize para [0,1]
+    let load_stress = normalized_sigmoid(load_raw, 10.0, 0.53); // 0.8/1.5 ≈ 0.53
 
     // Disk: threshold 90%, k=12
     let disk_raw = (hw.disk_usage_percent as f64 / 100.0).clamp(0.0, 1.0);
@@ -418,14 +439,13 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
     // - GPU: 15% (capacidade imaginativa)
     // - Disk/Swap: 10% (digestão/armazenamento)
 
-    let composite_stress =
-        cpu_stress * 0.15 +
-        load_stress * 0.15 +
-        mem_stress * 0.20 +
-        swap_stress * 0.05 +
-        temp_stress * 0.20 +
-        gpu_stress * 0.15 +
-        disk_stress * 0.10;
+    let composite_stress = cpu_stress * 0.15
+        + load_stress * 0.15
+        + mem_stress * 0.20
+        + swap_stress * 0.05
+        + temp_stress * 0.20
+        + gpu_stress * 0.15
+        + disk_stress * 0.10;
 
     // Allostasis ajusta composite: antecipação de stress
     // +10% se load subindo, -10% se load caindo
@@ -516,13 +536,13 @@ fn allostasis_delta(current: f64, baseline: f64) -> f64 {
 fn get_cpu_temp(components: &Components) -> Option<f32> {
     // Procura por componentes de CPU em ordem de preferência
     let cpu_labels = [
-        "coretemp",      // Intel Linux
-        "k10temp",       // AMD Linux
-        "cpu",           // Genérico
-        "CPU",           // Windows
-        "Core",          // Intel per-core
-        "Tctl",          // AMD Ryzen
-        "Package",       // Intel package
+        "coretemp", // Intel Linux
+        "k10temp",  // AMD Linux
+        "cpu",      // Genérico
+        "CPU",      // Windows
+        "Core",     // Intel per-core
+        "Tctl",     // AMD Ryzen
+        "Package",  // Intel package
     ];
 
     for component in components.iter() {
@@ -530,7 +550,8 @@ fn get_cpu_temp(components: &Components) -> Option<f32> {
         for cpu_label in &cpu_labels {
             if label.contains(&cpu_label.to_lowercase()) {
                 let temp = component.temperature();
-                if temp > 0.0 && temp < 150.0 { // Sanity check
+                if temp > 0.0 && temp < 150.0 {
+                    // Sanity check
                     return Some(temp);
                 }
             }
@@ -566,17 +587,17 @@ fn get_gpu_info() -> (Option<f32>, Option<f32>, Option<f32>, Option<String>) {
     };
 
     // Utilização (GPU compute %)
-    let usage = device.utilization_rates()
-        .ok()
-        .map(|u| u.gpu as f32);
+    let usage = device.utilization_rates().ok().map(|u| u.gpu as f32);
 
     // VRAM
-    let vram = device.memory_info()
+    let vram = device
+        .memory_info()
         .ok()
         .map(|m| (m.used as f64 / m.total as f64 * 100.0) as f32);
 
     // Temperatura
-    let temp = device.temperature(TemperatureSensor::Gpu)
+    let temp = device
+        .temperature(TemperatureSensor::Gpu)
         .ok()
         .map(|t| t as f32);
 
@@ -599,7 +620,9 @@ fn get_disk_info(disks: &Disks) -> (f32, u64, u64) {
 
     let usage = if total_space > 0 {
         (total_used as f64 / total_space as f64 * 100.0) as f32
-    } else { 0.0 };
+    } else {
+        0.0
+    };
 
     // sysinfo doesn't provide I/O rates directly, returning 0
     // Could use /proc/diskstats on Linux
