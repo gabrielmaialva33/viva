@@ -895,6 +895,7 @@ pub struct MemoryResource {
     backend: Mutex<MemoryBackend>,
 }
 
+#[rustler::resource_impl]
 impl Resource for MemoryResource {}
 
 /// Create HNSW-based memory backend (fast ANN search)
@@ -1089,6 +1090,7 @@ pub struct BodyEngineResource {
     engine: Mutex<BodyEngine>,
 }
 
+#[rustler::resource_impl]
 impl Resource for BodyEngineResource {}
 
 /// Create a new body engine with default config
@@ -1216,6 +1218,11 @@ impl Encoder for BodyState {
 // NIF Registration
 // ============================================================================
 
+fn load(_env: Env, _info: Term) -> bool {
+    // Resources are registered automatically via #[derive(Resource)]
+    true
+}
+
 rustler::init!(
     "Elixir.VivaBridge.Body",
     [
@@ -1237,5 +1244,6 @@ rustler::init!(
         body_engine_get_pad,
         body_engine_set_pad,
         body_engine_apply_stimulus,
-    ]
+    ],
+    load = load
 );

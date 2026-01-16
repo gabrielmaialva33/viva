@@ -250,12 +250,20 @@ defmodule VivaBridge.BodyServer do
     # Execute tick in Rust
     body_state = Body.body_engine_tick(state.engine)
 
-    # Broadcast if configured
-    if state.pubsub do
-      Phoenix.PubSub.broadcast(state.pubsub, state.topic, {:body_state, body_state})
-    end
+    # Broadcast if configured and PubSub module is available
+    maybe_broadcast(state.pubsub, state.topic, body_state)
 
     {%{state | last_state: body_state}, body_state}
+  end
+
+  defp maybe_broadcast(nil, _topic, _body_state), do: :ok
+
+  defp maybe_broadcast(pubsub, topic, body_state) do
+    if Code.ensure_loaded?(Phoenix.PubSub) do
+      Phoenix.PubSub.broadcast(pubsub, topic, {:body_state, body_state})
+    else
+      :ok
+    end
   end
 
   defp schedule_tick(interval) do
