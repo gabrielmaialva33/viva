@@ -1,62 +1,62 @@
 name: Bug Report
-description: Reportar um bug em VIVA
+description: Report a bug in VIVA
 title: "[Bug]: "
 labels: ["bug", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Obrigado por reportar! Preencha o máximo possível para nos ajudar.
+        Thanks for reporting! Please fill out as much as possible to help us.
 
   - type: textarea
     id: description
     attributes:
-      label: Descrição do Bug
-      description: O que aconteceu?
-      placeholder: Descreva o bug de forma clara e concisa
+      label: Bug Description
+      description: What happened?
+      placeholder: Describe the bug clearly and concisely
     validations:
       required: true
 
   - type: textarea
     id: expected
     attributes:
-      label: Comportamento Esperado
-      description: O que você esperava que acontecesse?
-      placeholder: Descreva o que deveria ter acontecido
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe what should have happened
     validations:
       required: true
 
   - type: textarea
     id: reproduction
     attributes:
-      label: Passos para Reproduzir
-      description: Como podemos reproduzir o bug?
+      label: Steps to Reproduce
+      description: How can we reproduce the bug?
       placeholder: |
-        1. Inicie com 'iex -S mix'
-        2. Execute '...'
-        3. Veja o erro
+        1. Start with 'iex -S mix'
+        2. Run '...'
+        3. See the error
     validations:
       required: true
 
   - type: dropdown
     id: component
     attributes:
-      label: Componente Afetado
-      description: Qual parte de VIVA está afetada?
+      label: Affected Component
+      description: Which part of VIVA is affected?
       options:
         - viva_core (Emotional GenServer)
         - viva_core (Memory)
         - viva_bridge (Rust NIF)
         - viva_bridge (Body)
-        - Outro
+        - Other
     validations:
       required: true
 
   - type: textarea
     id: environment
     attributes:
-      label: Ambiente
-      description: Informações do seu ambiente
+      label: Environment
+      description: Information about your environment
       placeholder: |
         - OS: Ubuntu 22.04
         - Elixir: 1.17.0
@@ -70,7 +70,7 @@ body:
     id: logs
     attributes:
       label: Logs / Stack Trace
-      description: Cole logs ou stack traces relevantes
+      description: Paste relevant logs or stack traces
       render: shell
 
   - type: checkboxes
@@ -78,7 +78,7 @@ body:
     attributes:
       label: Checklist
       options:
-        - label: Pesquisei issues existentes e não encontrei duplicata
+        - label: I have searched existing issues and found no duplicate
           required: true
-        - label: Estou usando a versão mais recente
+        - label: I am using the latest version
           required: false

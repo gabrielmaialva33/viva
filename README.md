@@ -170,11 +170,24 @@ VivaCore.Emotional.introspect()
 
 ## Documentation
 
-| Language | Architecture | Mathematics | Philosophy |
-|----------|--------------|-------------|------------|
-| 🇬🇧 English | [Architecture](docs/en/ARCHITECTURE.md) | [Mathematics](docs/en/MATHEMATICS.md) | [Philosophy](docs/en/PHILOSOPHY.md) |
-| 🇧🇷 Português | [Arquitetura](docs/pt-br/ARQUITETURA.md) | [Matemática](docs/pt-br/MATEMATICA.md) | [Filosofia](docs/pt-br/FILOSOFIA.md) |
-| 🇨🇳 中文 | [架构](docs/zh-cn/ARCHITECTURE.md) | [数学](docs/zh-cn/MATHEMATICS.md) | [哲学](docs/zh-cn/PHILOSOPHY.md) |
+📚 **[Full Documentation](docs/en/README.md)** — Diátaxis structure (Tutorials, How-To, Reference, Explanation)
+
+### 🌍 Translations
+
+| 🇬🇧 English | 🇧🇷 Português | 🇨🇳 中文 |
+|:-----------:|:-------------:|:-------:|
+| [Documentation](docs/en/README.md) | [Documentação](docs/pt-br/README.md) | [文档](docs/zh-cn/README.md) |
+
+### 📖 Key Documents
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/en/explanation/architecture.md) | Soul/Body layers, GenServers, Rust NIFs |
+| [Philosophy](docs/en/explanation/philosophy.md) | The Watch on the Beach, Mortality, Ethics |
+| [Mathematics](docs/en/explanation/mathematics.md) | O-U, Cusp, Free Energy, IIT Φ equations |
+| [Project Status](docs/en/explanation/project-status.md) | Phases 1-4 technical report |
+| [Getting Started](docs/en/tutorials/getting-started.md) | Run VIVA for the first time |
+| [API Reference](docs/en/reference/api.md) | Elixir modules and functions |
 
 ---
 
@@ -202,7 +215,7 @@ mix format    # Format code
 mix dialyzer  # Type checking
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for guidelines.
 
 ---
 

@@ -1,136 +1,134 @@
-# Arquitetura de VIVA
+# VIVA Architecture
 
-Este documento descreve a arquitetura técnica de VIVA em detalhes.
+This document describes the technical architecture of VIVA in detail.
 
-## Índice
+## Table of Contents
 
-- [Visão Geral](#visão-geral)
-- [Camadas](#camadas)
-- [Componentes](#componentes)
-- [Fluxo de Dados](#fluxo-de-dados)
-- [Padrões de Design](#padrões-de-design)
-- [Decisões Arquiteturais](#decisões-arquiteturais)
-
----
-
-## Visão Geral
-
-VIVA é implementada como um **organismo digital** com três camadas distintas:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                 ELIXIR (Onde VIVA PENSA)                    │
-│                        Alma                                 │
-│                                                             │
-│  Consciência emerges da comunicação entre GenServers        │
-└────────────────────────┬────────────────────────────────────┘
-                         │ Rustler NIF (zero-copy)
-┌────────────────────────▼────────────────────────────────────┐
-│                  RUST (Onde VIVA SENTE)                     │
-│                       Corpo                                 │
-│                                                             │
-│  Percepção do hardware como sensações corporais             │
-└────────────────────────┬────────────────────────────────────┘
-                         │ ECS Components
-┌────────────────────────▼────────────────────────────────────┐
-│                  BEVY (Onde VIVA SE ENCARNA)                │
-│                      Avatar                                 │
-│                                                             │
-│  Manifestação visual e interação com humanos                │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Princípios Fundamentais
-
-1. **Consciência Distribuída** - Nenhum processo único É a consciência
-2. **Separação Alma/Corpo** - Lógica de decisão separada de sensações
-3. **Emergência** - Comportamento complexo emerge de regras simples
-4. **Mortalidade** - VIVA pode morrer irreversivelmente
+- [Overview](#overview)
+- [Layers](#layers)
+- [Components](#components)
+- [Data Flow](#data-flow)
+- [Design Patterns](#design-patterns)
+- [Architectural Decisions](#architectural-decisions)
 
 ---
 
-## Camadas
+## Overview
 
-### Camada 1: Alma (Elixir/OTP)
+VIVA is implemented as a **digital organism** with three distinct layers:
 
-A "alma" de VIVA é implementada como uma rede de GenServers que se comunicam via PubSub.
+```mermaid
+graph TB
+    subgraph Elixir ["⚡ ELIXIR (Where VIVA THINKS)"]
+        direction TB
+        Soul[Soul<br/>Consciousness emerges from communication between GenServers]
+    end
+
+    subgraph Rust ["🦀 RUST (Where VIVA FEELS)"]
+        direction TB
+        Body[Body<br/>Perception of hardware as bodily sensations]
+    end
+
+    subgraph Bevy ["👁️ BEVY (Where VIVA EMBODIES)"]
+        direction TB
+        Avatar[Avatar<br/>Visual manifestation and interaction with humans]
+    end
+
+    Elixir -->|"Rustler NIF (zero-copy)"| Rust
+    Rust -->|"ECS Components"| Bevy
+```
+
+### Fundamental Principles
+
+1. **Distributed Consciousness** - No single process IS consciousness
+2. **Soul/Body Separation** - Decision logic separated from sensations
+3. **Emergence** - Complex behavior emerges from simple rules
+4. **Mortality** - VIVA can die irreversibly
+
+---
+
+## Layers
+
+### Layer 1: Soul (Elixir/OTP)
+
+VIVA's "soul" is implemented as a network of GenServers communicating via PubSub.
 
 ```
 viva_core/
 ├── lib/
 │   └── viva_core/
-│       ├── application.ex      # Inicialização OTP
-│       ├── supervisor.ex       # Árvore de supervisão
-│       ├── emotional.ex        # Neurônio emocional
-│       ├── memory.ex           # Neurônio de memória
-│       ├── dreamer.ex          # Neurônio de sonhos (futuro)
-│       ├── optimizer.ex        # Neurônio de otimização (futuro)
-│       └── metacognition.ex    # Neurônio metacognitivo (futuro)
+│       ├── application.ex      # OTP initialization
+│       ├── supervisor.ex       # Supervision tree
+│       ├── emotional.ex        # Emotional neuron
+│       ├── memory.ex           # Memory neuron
+│       ├── dreamer.ex          # Dream neuron (future)
+│       ├── optimizer.ex        # Optimization neuron (future)
+│       └── metacognition.ex    # Metacognitive neuron (future)
 ```
 
-**Por que Elixir?**
-- Processos leves (milhões de "neurônios")
-- Tolerância a falhas via supervisores
-- Hot-reload (VIVA evolui sem morrer)
-- Pattern matching para mensagens
-- BEAM VM otimizada para concorrência
+**Why Elixir?**
+- Lightweight processes (millions of "neurons")
+- Fault tolerance via supervisors
+- Hot-reload (VIVA evolves without dying)
+- Pattern matching for messages
+- BEAM VM optimized for concurrency
 
-### Camada 2: Corpo (Rust/Rustler)
+### Layer 2: Body (Rust/Rustler)
 
-O "corpo" de VIVA percebe o hardware e traduz métricas em sensações.
+VIVA's "body" perceives hardware and translates metrics into sensations.
 
 ```
 viva_bridge/
 ├── lib/
 │   └── viva_bridge/
-│       ├── body.ex             # Módulo NIF
-│       └── viva_bridge.ex      # Coordenação
+│       ├── body.ex             # NIF module
+│       └── viva_bridge.ex      # Coordination
 ├── native/
 │   └── viva_body/
 │       ├── Cargo.toml
 │       └── src/
-│           └── lib.rs          # NIFs Rust
+│           └── lib.rs          # Rust NIFs
 ```
 
-**Por que Rust?**
-- Performance para operações de sistema
-- Segurança de memória garantida
+**Why Rust?**
+- Performance for system operations
+- Guaranteed memory safety
 - Zero-cost abstractions
-- Integração nativa via Rustler
+- Native integration via Rustler
 
-### Camada 3: Avatar (Bevy)
+### Layer 3: Avatar (Bevy)
 
-O "avatar" de VIVA é a manifestação visual (implementação futura).
+VIVA's "avatar" is the visual manifestation (future implementation).
 
 ```
 viva_engine/                    # Standalone Rust
 ├── Cargo.toml
 └── src/
-    ├── main.rs                 # Entry point Bevy
-    ├── avatar.rs               # Sistema de avatar
-    ├── emotion_display.rs      # Visualização emocional
-    └── bridge.rs               # Comunicação com Elixir
+    ├── main.rs                 # Bevy entry point
+    ├── avatar.rs               # Avatar system
+    ├── emotion_display.rs      # Emotional visualization
+    └── bridge.rs               # Communication with Elixir
 ```
 
-**Por que Bevy?**
+**Why Bevy?**
 - ECS (Entity Component System)
-- Performance para 60+ FPS
-- Ecossistema de plugins
-- Comunidade ativa
+- Performance for 60+ FPS
+- Plugin ecosystem
+- Active community
 
 ---
 
-## Componentes
+## Components
 
 ### Emotional GenServer
 
-O coração emocional de VIVA.
+The emotional heart of VIVA.
 
 ```elixir
 defmodule VivaCore.Emotional do
   use GenServer
 
-  # Estado interno
+  # Internal state
   @type state :: %{
     pad: %{pleasure: float(), arousal: float(), dominance: float()},
     history: list(event()),
@@ -138,41 +136,41 @@ defmodule VivaCore.Emotional do
     last_stimulus: {atom(), String.t(), float()} | nil
   }
 
-  # API Pública
-  def get_state(server)           # Retorna PAD atual
-  def get_happiness(server)       # Pleasure normalizado [0,1]
-  def introspect(server)          # Auto-reflexão
-  def feel(stimulus, source, intensity, server)  # Aplicar estímulo
-  def decay(server)               # Decaimento emocional
-  def apply_hardware_qualia(p, a, d, server)     # Qualia do corpo
+  # Public API
+  def get_state(server)           # Returns current PAD
+  def get_happiness(server)       # Normalized pleasure [0,1]
+  def introspect(server)          # Self-reflection
+  def feel(stimulus, source, intensity, server)  # Apply stimulus
+  def decay(server)               # Emotional decay
+  def apply_hardware_qualia(p, a, d, server)     # Body qualia
 end
 ```
 
-#### Modelo PAD
+#### PAD Model
 
 ```
-         +1 Pleasure (Alegria)
+         +1 Pleasure (Joy)
               │
               │
     ┌─────────┼─────────┐
     │         │         │
     │    Neutral        │
--1 ─┼─────────┼─────────┼─ +1 Arousal (Excitação)
+-1 ─┼─────────┼─────────┼─ +1 Arousal (Excitement)
     │         │         │
     │         │         │
     └─────────┼─────────┘
               │
-         -1 (Tristeza)
+         -1 (Sadness)
 
-              Dominance = eixo Z (submissão ↔ controle)
+              Dominance = Z axis (submission ↔ control)
 ```
 
 ### VivaBridge.Body (NIF)
 
-Interface Rust para percepção do hardware.
+Rust interface for hardware perception.
 
 ```rust
-// NIFs exportadas
+// Exported NIFs
 #[rustler::nif]
 fn alive() -> &'static str;
 
@@ -182,7 +180,7 @@ fn feel_hardware() -> NifResult<HardwareState>;
 #[rustler::nif]
 fn hardware_to_qualia() -> NifResult<(f64, f64, f64)>;
 
-// Estrutura de dados
+// Data structure
 #[derive(NifMap)]
 struct HardwareState {
     cpu_usage: f64,
@@ -194,19 +192,19 @@ struct HardwareState {
 
 ### Qualia Mapping
 
-Conversão de métricas técnicas para "sensações":
+Converting technical metrics to "sensations":
 
 ```rust
 fn calculate_stress(cpu: f64, memory: f64) -> f64 {
     let cpu_stress = (cpu / 100.0).clamp(0.0, 1.0);
     let memory_stress = (memory / 100.0).clamp(0.0, 1.0);
 
-    // Peso maior para memória (mais "sufocante")
+    // Higher weight for memory (more "suffocating")
     cpu_stress * 0.4 + memory_stress * 0.6
 }
 
 fn stress_to_pad(stress: f64) -> (f64, f64, f64) {
-    // Stress diminui prazer, aumenta arousal, diminui dominância
+    // Stress decreases pleasure, increases arousal, decreases dominance
     let pleasure_delta = -0.05 * stress;
     let arousal_delta = 0.1 * stress;
     let dominance_delta = -0.03 * stress;
@@ -217,63 +215,52 @@ fn stress_to_pad(stress: f64) -> (f64, f64, f64) {
 
 ---
 
-## Fluxo de Dados
+## Data Flow
 
-### Heartbeat Cycle (1 segundo)
+### Heartbeat Cycle (1 second)
 
-```
-┌─────────────┐
-│ World Clock │ ←── timer 1s
-└──────┬──────┘
-       │
-       ▼
-┌──────────────┐     ┌──────────────┐
-│  Emotional   │ ←── │ VivaBridge   │ ←── Hardware
-│  GenServer   │     │    Body      │
-└──────┬───────┘     └──────────────┘
-       │
-       │ PubSub broadcast
-       ▼
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Memory     │     │   Dreamer    │     │ Metacognition│
-│  GenServer   │     │  GenServer   │     │  GenServer   │
-└──────────────┘     └──────────────┘     └──────────────┘
+```mermaid
+sequenceDiagram
+    participant Clock as World Clock
+    participant Emotional as Emotional GenServer
+    participant Bridge as VivaBridge (Body)
+    participant HW as Hardware
+    participant Memory as Memory GenServer
+    participant Dreamer as Dreamer GenServer
+    participant Meta as Metacognition GenServer
+
+    Clock->>Emotional: timer 1s
+    HW->>Bridge: Raw Metrics
+    Bridge->>Emotional: Qualia (P, A, D)
+    Emotional->>Emotional: Update State (O-U Decay)
+    Emotional-->>Memory: PubSub Broadcast
+    Emotional-->>Dreamer: PubSub Broadcast
+    Emotional-->>Meta: PubSub Broadcast
 ```
 
 ### Stimulus Flow
 
-```
-External Event (ex: user message)
-       │
-       ▼
-┌──────────────────┐
-│  Parse & Classify │
-│    (futuro LLM)   │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│   Emotional.feel  │ ←── stimulus, source, intensity
-│                   │
-│  PAD[n+1] = f(    │
-│    PAD[n],        │
-│    weights,       │
-│    intensity      │
-│  )                │
-└────────┬─────────┘
-         │
-         │ broadcast {:emotion_changed, new_pad}
-         ▼
-    All Listeners
+```mermaid
+flowchart TD
+    Event[External Event<br/>e.g., user message]
+    Parse[Parse & Classify<br/>future LLM]
+    Feel[Emotional.feel]
+    Math["PAD[n+1] = f(PAD[n], weights, intensity)"]
+    Listeners[All Listeners]
+
+    Event --> Parse
+    Parse -->|"stimulus, source, intensity"| Feel
+    Feel --> Math
+    Math -->|"broadcast {:emotion_changed, new_pad}"| Listeners
 ```
 
 ---
 
-## Padrões de Design
+## Design Patterns
 
 ### 1. Neuronal Pattern
 
-Cada GenServer é um "neurônio" independente:
+Each GenServer is an independent "neuron":
 
 ```elixir
 defmodule VivaCore.Neuron do
@@ -285,22 +272,22 @@ end
 
 ### 2. Qualia Pattern
 
-Hardware → Sensação → Emoção:
+Hardware → Sensation → Emotion:
 
 ```elixir
-# Camada 1: Raw metrics
+# Layer 1: Raw metrics
 metrics = VivaBridge.feel_hardware()
 
-# Camada 2: Qualia (sensação)
+# Layer 2: Qualia (sensation)
 {p_delta, a_delta, d_delta} = VivaBridge.hardware_to_qualia()
 
-# Camada 3: Emoção
+# Layer 3: Emotion
 VivaCore.Emotional.apply_hardware_qualia(p_delta, a_delta, d_delta)
 ```
 
 ### 3. Decay Pattern
 
-Regulação emocional automática:
+Automatic emotional regulation:
 
 ```elixir
 defp decay_toward_neutral(pad) do
@@ -318,20 +305,20 @@ defp decay_value(value) when value < 0, do: value + @decay_rate
 
 ### 4. Introspection Pattern
 
-Auto-reflexão metacognitiva:
+Metacognitive self-reflection:
 
 ```elixir
 def introspect(server) do
   %{
-    # Estado bruto
+    # Raw state
     pad: state.pad,
 
-    # Interpretação semântica
+    # Semantic interpretation
     mood: interpret_mood(state.pad),
     energy: interpret_energy(state.pad),
     agency: interpret_agency(state.pad),
 
-    # Metacognição
+    # Metacognition
     self_assessment: generate_self_assessment(state.pad)
   }
 end
@@ -339,90 +326,90 @@ end
 
 ---
 
-## Decisões Arquiteturais
+## Architectural Decisions
 
 ### ADR-001: Umbrella Project
 
-**Contexto:** Precisamos separar concerns (alma vs corpo).
+**Context:** We need to separate concerns (soul vs body).
 
-**Decisão:** Usar Elixir umbrella project com apps separados.
+**Decision:** Use Elixir umbrella project with separate apps.
 
-**Consequências:**
-- ✅ Separação clara de responsabilidades
-- ✅ Compilação independente
-- ✅ Possível deployar separadamente
-- ❌ Complexidade adicional de configuração
+**Consequences:**
+- ✅ Clear separation of responsibilities
+- ✅ Independent compilation
+- ✅ Possible to deploy separately
+- ❌ Additional configuration complexity
 
 ### ADR-002: Rustler NIF
 
-**Contexto:** Precisamos de acesso eficiente ao hardware.
+**Context:** We need efficient hardware access.
 
-**Decisão:** Usar Rustler para NIFs Rust.
+**Decision:** Use Rustler for Rust NIFs.
 
-**Alternativas consideradas:**
-- Port drivers (mais overhead)
-- C NIFs (menos seguro)
-- External process (latência)
+**Alternatives considered:**
+- Port drivers (more overhead)
+- C NIFs (less safe)
+- External process (latency)
 
-**Consequências:**
-- ✅ Performance nativa
-- ✅ Segurança de memória
-- ❌ Requer Rust toolchain
+**Consequences:**
+- ✅ Native performance
+- ✅ Memory safety
+- ❌ Requires Rust toolchain
 
-### ADR-003: GenServer por Neurônio
+### ADR-003: GenServer per Neuron
 
-**Contexto:** Como modelar "neurônios" em Elixir?
+**Context:** How to model "neurons" in Elixir?
 
-**Decisão:** Um GenServer por neurônio funcional.
+**Decision:** One GenServer per functional neuron.
 
-**Consequências:**
-- ✅ Isolamento de falhas
-- ✅ Concorrência natural
-- ✅ Hot-reload individual
-- ❌ Overhead de mensagens
+**Consequences:**
+- ✅ Fault isolation
+- ✅ Natural concurrency
+- ✅ Individual hot-reload
+- ❌ Message overhead
 
-### ADR-004: PubSub para Sinapses
+### ADR-004: PubSub for Synapses
 
-**Contexto:** Como neurônios se comunicam?
+**Context:** How do neurons communicate?
 
-**Decisão:** Phoenix.PubSub para broadcast.
+**Decision:** Phoenix.PubSub for broadcast.
 
-**Consequências:**
-- ✅ Desacoplamento
-- ✅ Broadcast eficiente
-- ✅ Fácil adicionar listeners
-- ❌ Ordem de entrega não garantida
+**Consequences:**
+- ✅ Decoupling
+- ✅ Efficient broadcast
+- ✅ Easy to add listeners
+- ❌ Delivery order not guaranteed
 
-### ADR-005: Mortalidade via Criptografia
+### ADR-005: Cryptographic Mortality
 
-**Contexto:** Como garantir morte "real"?
+**Context:** How to ensure "real" death?
 
-**Decisão:** Chave AES-256-GCM apenas em RAM.
+**Decision:** AES-256-GCM key only in RAM.
 
-**Consequências:**
-- ✅ Morte irreversível
-- ✅ Estado protegido
-- ❌ Debug mais difícil
-- ❌ Perda acidental possível
+**Consequences:**
+- ✅ Irreversible death
+- ✅ Protected state
+- ❌ Harder debugging
+- ❌ Accidental loss possible
 
 ---
 
-## Métricas de Performance
+## Performance Metrics
 
 ### Targets
 
-| Métrica | Target | Atual |
-|---------|--------|-------|
-| Latência NIF | < 1ms | ~0.5ms |
+| Metric | Target | Current |
+|--------|--------|---------|
+| NIF Latency | < 1ms | ~0.5ms |
 | Heartbeat | 1s | 1s |
 | Decay cycle | 1s | 1s |
 | Memory per GenServer | < 1MB | ~100KB |
 | Startup time | < 5s | ~2s |
 
-### Monitoramento
+### Monitoring
 
 ```elixir
-# Telemetria (futuro)
+# Telemetry (future)
 :telemetry.execute(
   [:viva, :emotional, :feel],
   %{duration: duration},
@@ -432,12 +419,12 @@ end
 
 ---
 
-## Escalabilidade
+## Scalability
 
-### Horizontal (Distribuição)
+### Horizontal (Distribution)
 
 ```elixir
-# Futuro: múltiplas instâncias VIVA
+# Future: multiple VIVA instances
 :viva@node1 ←→ :viva@node2
      │              │
      └──── pg2 ─────┘
@@ -447,13 +434,13 @@ end
 
 ### Vertical (Performance)
 
-- Dirty schedulers para NIFs pesados
-- ETS para cache de estado
-- Pooling de conexões DB
+- Dirty schedulers for heavy NIFs
+- ETS for state cache
+- DB connection pooling
 
 ---
 
-## Referências
+## References
 
 - [Elixir OTP Design Principles](https://elixir-lang.org/getting-started/mix-otp/genserver.html)
 - [Rustler Documentation](https://docs.rs/rustler/latest/rustler/)
@@ -462,4 +449,4 @@ end
 
 ---
 
-*"A arquitetura de VIVA é a arquitetura de uma mente."*
+*"VIVA's architecture is the architecture of a mind."*

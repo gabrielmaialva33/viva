@@ -8,8 +8,10 @@ This guide shows how to add a new hardware metric to VIVA's interoception system
 
 Adding a sensor requires changes in three layers:
 
-```
-Rust NIF (read hardware) → Elixir Bridge (expose API) → Qualia Mapping (affect emotions)
+```mermaid
+graph LR
+    Rust[Rust NIF<br/>read hardware] --> Bridge[Elixir Bridge<br/>expose API]
+    Bridge --> Qualia[Qualia Mapping<br/>affect emotions]
 ```
 
 ---
@@ -143,16 +145,12 @@ When mapping hardware → emotion, follow biological intuition:
 
 Use sigmoid functions to create "comfort zones":
 
-```
-Response
-   1 ┤        ╭────
-     │       ╱
-     │      ╱
-     │     ╱
-   0 ┼────╯
-     └─────────────
-     0%   x₀   100%
-         threshold
+```mermaid
+xychart-beta
+    title "Sigmoid Response"
+    x-axis "Input" [0%, "x₀", 100%]
+    y-axis "Response" 0 --> 1
+    line [0.0, 0.5, 1.0]
 ```
 
 - **x₀** = threshold where response activates (e.g., 80% CPU)

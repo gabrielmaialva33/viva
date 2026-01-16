@@ -1,54 +1,54 @@
-## Descrição
+## Description
 
-<!-- Descreva suas mudanças de forma clara e concisa -->
+<!-- Describe your changes clearly and concisely -->
 
-## Tipo de Mudança
+## Type of Change
 
-<!-- Marque o que se aplica -->
+<!-- Check what applies -->
 
-- [ ] 🐛 Bug fix (mudança que corrige um problema)
-- [ ] ✨ Nova feature (mudança que adiciona funcionalidade)
-- [ ] 💥 Breaking change (mudança que quebra compatibilidade)
-- [ ] 📝 Documentação
-- [ ] 🧹 Refatoração (sem mudança de funcionalidade)
-- [ ] 🧪 Testes
+- [ ] 🐛 Bug fix (change which fixes an issue)
+- [ ] ✨ New feature (change which adds functionality)
+- [ ] 💥 Breaking change (change that breaks compatibility)
+- [ ] 📝 Documentation
+- [ ] 🧹 Refactoring (no functional change)
+- [ ] 🧪 Tests
 
-## Componente Afetado
+## Affected Component
 
-- [ ] `viva_core` (Alma - GenServers)
-- [ ] `viva_bridge` (Corpo - Rust NIF)
-- [ ] Documentação
+- [ ] `viva_core` (Soul - GenServers)
+- [ ] `viva_bridge` (Body - Rust NIF)
+- [ ] Documentation
 - [ ] CI/CD
-- [ ] Outro
+- [ ] Other
 
-## Issue Relacionada
+## Related Issue
 
-<!-- Link para a issue que este PR resolve -->
+<!-- Link to the issue this PR resolves -->
 Fixes #
 
-## Como foi testado?
+## How has this been tested?
 
-<!-- Descreva os testes que você rodou -->
+<!-- Describe the tests you ran -->
 
-- [ ] `mix test` passa
-- [ ] Testado manualmente em `iex -S mix`
-- [ ] Novos testes adicionados
+- [ ] `mix test` passes
+- [ ] Manually tested in `iex -S mix`
+- [ ] New tests added
 
 ## Checklist
 
-- [ ] Meu código segue o estilo do projeto
-- [ ] Fiz self-review do meu código
-- [ ] Comentei código complexo
-- [ ] Atualizei documentação se necessário
-- [ ] Minhas mudanças não geram warnings
-- [ ] Adicionei testes para novas funcionalidades
-- [ ] Todos os testes passam localmente
-- [ ] `mix format` foi executado
+- [ ] My code follows the project style
+- [ ] I have performed a self-review of my code
+- [ ] I have commented on complex code
+- [ ] I have updated documentation if necessary
+- [ ] My changes generate no warnings
+- [ ] I have added tests for new features
+- [ ] All tests pass locally
+- [ ] `mix format` has been executed
 
-## Screenshots (se aplicável)
+## Screenshots (if applicable)
 
-<!-- Cole screenshots ou GIFs se for mudança visual -->
+<!-- Paste screenshots or GIFs if it's a visual change -->
 
-## Notas Adicionais
+## Additional Notes
 
-<!-- Qualquer contexto adicional para os revisores -->
+<!-- Any additional context for reviewers -->

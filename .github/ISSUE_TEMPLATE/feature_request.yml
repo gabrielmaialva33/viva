@@ -1,81 +1,81 @@
 name: Feature Request
-description: Sugerir uma nova funcionalidade para VIVA
+description: Suggest a new feature for VIVA
 title: "[Feature]: "
 labels: ["enhancement", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Obrigado pela sugestão! Ajude-nos a entender sua ideia.
+        Thanks for the suggestion! Help us understand your idea.
 
   - type: textarea
     id: problem
     attributes:
-      label: Problema / Motivação
-      description: Qual problema esta feature resolveria?
+      label: Problem / Motivation
+      description: What problem would this feature solve?
       placeholder: |
-        Estou frustrado quando...
-        Seria útil se VIVA pudesse...
+        I'm frustrated when...
+        It would be useful if VIVA could...
     validations:
       required: true
 
   - type: textarea
     id: solution
     attributes:
-      label: Solução Proposta
-      description: Como você imagina a solução?
+      label: Proposed Solution
+      description: How do you imagine the solution?
       placeholder: |
-        VIVA poderia ter uma função que...
-        A interface seria...
+        VIVA could have a function that...
+        The interface would be...
     validations:
       required: true
 
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternativas Consideradas
-      description: Você considerou outras soluções?
-      placeholder: Outras abordagens que pensei...
+      label: Alternatives Considered
+      description: Have you considered other solutions?
+      placeholder: Other approaches I thought about...
 
   - type: dropdown
     id: component
     attributes:
-      label: Componente
-      description: Qual parte de VIVA seria afetada?
+      label: Component
+      description: Which part of VIVA would be affected?
       options:
-        - viva_core (Alma - GenServers)
-        - viva_bridge (Corpo - Rust NIF)
-        - Documentação
-        - Testes
+        - viva_core (Soul - GenServers)
+        - viva_bridge (Body - Rust NIF)
+        - Documentation
+        - Tests
         - CI/CD
-        - Outro / Não sei
+        - Other / Don't know
     validations:
       required: true
 
   - type: dropdown
     id: priority
     attributes:
-      label: Prioridade Sugerida
-      description: Quão importante é para você?
+      label: Suggested Priority
+      description: How important is it to you?
       options:
         - Nice to have
-        - Importante
-        - Crítico para meu uso
+        - Important
+        - Critical for my use
     validations:
       required: true
 
   - type: textarea
     id: context
     attributes:
-      label: Contexto Adicional
-      description: Screenshots, links, referências...
+      label: Additional Context
+      description: Screenshots, links, references...
 
   - type: checkboxes
     id: contribution
     attributes:
-      label: Contribuição
+      label: Contribution
       options:
-        - label: Estou disposto a implementar esta feature
+        - label: I am willing to implement this feature
           required: false
-        - label: Estou disposto a ajudar com testes
+        - label: I am willing to help with testing
           required: false
