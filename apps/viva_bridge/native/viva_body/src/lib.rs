@@ -824,6 +824,32 @@ fn mirror_list_modules() -> NifResult<Vec<(String, String, u64, usize)>> {
         .collect())
 }
 
+/// Returns auto-detected system capabilities
+#[rustler::nif]
+fn mirror_capabilities() -> NifResult<(String, String, bool, bool, bool, bool)> {
+    let caps = mirror::Capabilities::detect();
+    Ok((
+        caps.os,
+        caps.arch,
+        caps.has_rapl,
+        caps.has_hwmon,
+        caps.has_nvml,
+        caps.has_battery,
+    ))
+}
+
+/// Returns safety feature flags
+#[rustler::nif]
+fn mirror_feature_flags() -> NifResult<(bool, bool, bool, u32)> {
+    let flags = mirror::FeatureFlags::default();
+    Ok((
+        flags.enable_metaprogramming,
+        flags.enable_self_modification,
+        flags.enable_external_memory,
+        flags.max_self_modify_per_day,
+    ))
+}
+
 /// Applies sigmoid with normalization to maintain range [0, 1]
 /// Compensates for the fact that sigmoid(0) != 0 and sigmoid(1) != 1
 ///
@@ -1369,6 +1395,8 @@ rustler::init!(
         mirror_get_self,
         mirror_build_identity,
         mirror_list_modules,
+        mirror_capabilities,
+        mirror_feature_flags,
     ],
     load = load
 );

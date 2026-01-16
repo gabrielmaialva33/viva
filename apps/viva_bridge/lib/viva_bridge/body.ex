@@ -594,4 +594,22 @@ defmodule VivaBridge.Body do
   else
     def mirror_list_modules(), do: :erlang.nif_error(:nif_not_loaded)
   end
+
+  @doc """
+  Returns detected capabilities: {os, arch, has_rapl, has_hwmon, has_nvml, has_battery}
+  """
+  if @skip_nif do
+    def mirror_capabilities(), do: {"linux", "x86_64", false, false, false, false}
+  else
+    def mirror_capabilities(), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Returns safety flags: {metaprog, self_mod, ext_mem, max_mods_per_day}
+  """
+  if @skip_nif do
+    def mirror_feature_flags(), do: {true, false, true, 10}
+  else
+    def mirror_feature_flags(), do: :erlang.nif_error(:nif_not_loaded)
+  end
 end
