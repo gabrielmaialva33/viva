@@ -30,5 +30,8 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 # Error handling
 anyhow = "1.0"
 
+[dev-dependencies]
+proptest = "1.5"
+
 [features]
 default = []

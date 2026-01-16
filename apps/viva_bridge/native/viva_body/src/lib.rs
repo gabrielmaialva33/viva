@@ -34,6 +34,7 @@ mod cpu_topology; // Cache/Vendor info
 mod os_stats; // Kernel metrics (Context Switches)
 mod bio_rhythm; // Temporal analysis (Entropy/Jitter)
 mod memory; // Vector memory backends (usearch, SQLite)
+pub mod dynamics; // Stochastic dynamics (O-U, Cusp catastrophe)
 
 // ============================================================================
 // Pre-defined Atoms (rustler::atoms! macro for performance + panic safety)
