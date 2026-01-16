@@ -32,16 +32,20 @@ use std::sync::Mutex;
 #[derive(Serialize, Deserialize)]
 struct PersistentState {
     metadata: HashMap<u64, MemoryMeta>,
+    /// Embeddings stored for consolidation support
+    #[serde(default)]
+    embeddings: HashMap<u64, Vec<f32>>,
     next_key: u64,
     version: u32,
 }
 
 impl PersistentState {
-    const CURRENT_VERSION: u32 = 1;
+    const CURRENT_VERSION: u32 = 2; // Bumped for embeddings support
 
     fn new() -> Self {
         Self {
             metadata: HashMap::new(),
+            embeddings: HashMap::new(),
             next_key: 1,
             version: Self::CURRENT_VERSION,
         }
@@ -63,6 +67,8 @@ pub struct HnswMemory {
     index: Mutex<Hnsw<'static, f32, DistCosine>>,
     /// Metadata storage (key -> MemoryMeta)
     meta: Mutex<HashMap<u64, MemoryMeta>>,
+    /// Embedding storage for consolidation support (key -> embedding)
+    embeddings: Mutex<HashMap<u64, Vec<f32>>>,
     /// Next available key
     next_key: Mutex<u64>,
     /// Path for persistence (None = in-memory only)
@@ -93,6 +99,7 @@ impl HnswMemory {
         Ok(Self {
             index: Mutex::new(index),
             meta: Mutex::new(HashMap::new()),
+            embeddings: Mutex::new(HashMap::new()),
             next_key: Mutex::new(1),
             storage_path: None,
         })
@@ -156,6 +163,7 @@ impl HnswMemory {
         Ok(Self {
             index: Mutex::new(index),
             meta: Mutex::new(state.metadata),
+            embeddings: Mutex::new(state.embeddings),
             next_key: Mutex::new(state.next_key),
             storage_path: Some(base_path.to_path_buf()),
         })
@@ -203,6 +211,12 @@ impl HnswMemory {
         {
             let mut meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             meta_map.insert(key, meta);
+        }
+
+        // Store embedding for consolidation support
+        {
+            let mut emb_map = self.embeddings.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+            emb_map.insert(key, normalized);
         }
 
         Ok(key)
@@ -312,6 +326,11 @@ impl HnswMemory {
     pub fn forget(&self, key: u64) -> Result<()> {
         let mut meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
         meta_map.remove(&key);
+
+        // Also remove embedding
+        let mut emb_map = self.embeddings.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+        emb_map.remove(&key);
+
         Ok(())
     }
 
@@ -347,23 +366,33 @@ impl HnswMemory {
                 .map_err(|e| anyhow::anyhow!("Failed to dump HNSW index: {:?}", e))?;
         }
 
-        // Save metadata as JSON
+        // Save metadata as JSON (including embeddings for consolidation)
         let meta_path = Self::meta_file_path(base_path);
         let state = {
             let meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+            let emb_map = self.embeddings.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             let next_key = self.next_key.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             PersistentState {
                 metadata: meta_map.clone(),
+                embeddings: emb_map.clone(),
                 next_key: *next_key,
                 version: PersistentState::CURRENT_VERSION,
             }
         };
 
-        let file = File::create(&meta_path)
-            .context("Failed to create metadata file")?;
-        let writer = BufWriter::new(file);
-        serde_json::to_writer_pretty(writer, &state)
-            .context("Failed to write metadata")?;
+        // Atomic write: temp file + rename
+        let temp_path = meta_path.with_extension("meta.json.tmp");
+        {
+            let file = File::create(&temp_path)
+                .context("Failed to create temp metadata file")?;
+            let writer = BufWriter::new(file);
+            serde_json::to_writer_pretty(writer, &state)
+                .context("Failed to write metadata")?;
+        }
+
+        // Atomic rename (on same filesystem)
+        fs::rename(&temp_path, &meta_path)
+            .context("Failed to atomically rename metadata file")?;
 
         Ok(())
     }
@@ -387,6 +416,36 @@ impl HnswMemory {
     /// Get the storage path (if configured)
     pub fn storage_path(&self) -> Option<&Path> {
         self.storage_path.as_deref()
+    }
+
+    /// Get memories suitable for consolidation to semantic store
+    ///
+    /// Returns memories with importance >= threshold, along with their embeddings.
+    /// Used by VivaMemory::consolidate() to transfer strong memories.
+    ///
+    /// # Arguments
+    ///
+    /// * `importance_threshold` - Minimum importance score [0.0, 1.0]
+    ///
+    /// # Returns
+    ///
+    /// Vector of (key, metadata, embedding) tuples for candidates
+    pub fn get_consolidation_candidates(
+        &self,
+        importance_threshold: f32,
+    ) -> Result<Vec<(u64, MemoryMeta, Vec<f32>)>> {
+        let meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+        let emb_map = self.embeddings.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+
+        let candidates: Vec<_> = meta_map
+            .iter()
+            .filter(|(_, meta)| meta.importance >= importance_threshold)
+            .filter_map(|(key, meta)| {
+                emb_map.get(key).map(|emb| (*key, meta.clone(), emb.clone()))
+            })
+            .collect();
+
+        Ok(candidates)
     }
 }
 

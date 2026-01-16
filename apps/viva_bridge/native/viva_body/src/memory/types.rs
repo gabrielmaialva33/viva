@@ -5,6 +5,17 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Get current Unix timestamp safely (returns 0 if clock is misconfigured)
+///
+/// This avoids panics on systems with clocks set before 1970.
+#[inline]
+pub fn unix_timestamp_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
 /// Vector dimension for embeddings (e.g., 384 for all-MiniLM-L6-v2)
 pub const VECTOR_DIM: usize = 384;
 
@@ -103,10 +114,7 @@ pub struct MemoryMeta {
 impl MemoryMeta {
     /// Create new memory with default importance (0.5) and current timestamp
     pub fn new(id: String, content: String) -> Self {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now = unix_timestamp_now();
 
         Self {
             id,
@@ -171,10 +179,7 @@ impl TimeRange {
 
     /// Last N seconds from now
     pub fn last_seconds(seconds: i64) -> Self {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now = unix_timestamp_now();
         Self::since(now - seconds)
     }
 
@@ -312,21 +317,17 @@ pub struct MemorySearchResult {
 /// * `timestamp` - Unix timestamp of memory creation
 /// * `decay_scale` - Half-life in seconds (default: 604800 = 1 week)
 pub fn calculate_decay(timestamp: i64, decay_scale: f64) -> f32 {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
-
+    let now = unix_timestamp_now();
     let age = (now - timestamp).max(0) as f64;
     (-age / decay_scale).exp() as f32
 }
 
 /// Generate unique memory ID
 pub fn generate_id() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    format!("mem_{:x}", timestamp)
+    // Use nanos for uniqueness, safe helper for base timestamp
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or_else(|_| unix_timestamp_now() as u128 * 1_000_000_000);
+    format!("mem_{:x}", nanos)
 }

@@ -141,7 +141,7 @@ impl SqliteMemory {
 
         let conn = self.conn.lock().unwrap();
 
-        // Build query with filters
+        // Build query with parameterized filters (prevents SQL injection)
         let mut sql = String::from(
             "SELECT key, id, content, memory_type, importance,
                     emotion_p, emotion_a, emotion_d, timestamp,
@@ -149,28 +149,43 @@ impl SqliteMemory {
              FROM memories WHERE 1=1",
         );
 
+        // Collect parameters dynamically
+        let mut param_idx = 1;
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
         if let Some(ref t) = options.memory_type {
-            sql.push_str(&format!(" AND memory_type = '{}'", t.as_str()));
+            sql.push_str(&format!(" AND memory_type = ?{}", param_idx));
+            params.push(Box::new(t.as_str().to_string()));
+            param_idx += 1;
         }
 
         if options.min_importance > 0.0 {
-            sql.push_str(&format!(" AND importance >= {}", options.min_importance));
+            sql.push_str(&format!(" AND importance >= ?{}", param_idx));
+            params.push(Box::new(options.min_importance as f64)); // SQLite uses f64
+            param_idx += 1;
         }
 
         // Time range filter
         if let Some(start) = options.time_range.start {
-            sql.push_str(&format!(" AND timestamp >= {}", start));
+            sql.push_str(&format!(" AND timestamp >= ?{}", param_idx));
+            params.push(Box::new(start));
+            param_idx += 1;
         }
         if let Some(end) = options.time_range.end {
-            sql.push_str(&format!(" AND timestamp <= {}", end));
+            sql.push_str(&format!(" AND timestamp <= ?{}", param_idx));
+            params.push(Box::new(end));
+            // param_idx += 1; // Not needed after last use
         }
 
         let mut stmt = conn
             .prepare(&sql)
             .context("Failed to prepare query")?;
 
+        // Convert params to slice of references for rusqlite
+        let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+
         let rows = stmt
-            .query_map([], |row| {
+            .query_map(param_refs.as_slice(), |row| {
                 let key: u64 = row.get(0)?;
                 let id: String = row.get(1)?;
                 let content: String = row.get(2)?;
@@ -264,8 +279,12 @@ impl SqliteMemory {
             });
         }
 
-        // Sort by decayed score (descending)
-        results.sort_by(|a, b| b.decayed_score.partial_cmp(&a.decayed_score).unwrap());
+        // Sort by decayed score (descending), NaN-safe
+        results.sort_by(|a, b| {
+            b.decayed_score
+                .partial_cmp(&a.decayed_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results.truncate(options.limit);
 
         Ok(results)
@@ -276,10 +295,7 @@ impl SqliteMemory {
         let conn = self.conn.lock().unwrap();
 
         // Update access stats first
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now = unix_timestamp_now();
 
         conn.execute(
             "UPDATE memories SET access_count = access_count + 1, last_accessed = ?1 WHERE id = ?2",
