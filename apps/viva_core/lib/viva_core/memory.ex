@@ -1,23 +1,23 @@
 defmodule VivaCore.Memory do
   @moduledoc """
-  Memory GenServer - Memória de longo prazo de VIVA (Stub).
+  Memory GenServer - VIVA's long-term memory (Stub).
 
-  Este módulo implementará:
-  - Fase 1-4: In-memory vector store (sem dependências externas)
-  - Fase 5+: Qdrant backend para persistência semântica
+  This module will implement:
+  - Phase 1-4: In-memory vector store (no external dependencies)
+  - Phase 5+: Qdrant backend for semantic persistence
 
-  ## Filosofia de Persistência
-  A memória semântica PERSISTE mesmo após a "morte" da personalidade.
-  Isso permite "reencarnação": nova VIVA nasce com conhecimento,
-  mas sem a identidade da anterior.
+  ## Persistence Philosophy
+  Semantic memory PERSISTS even after personality "death".
+  This allows "reincarnation": new VIVA is born with knowledge,
+  but without the identity of the previous one.
 
-  ## Tipos de Memória
-  - Episódica: Eventos específicos com timestamp
-  - Semântica: Conhecimento geral e padrões
-  - Emocional: Estados PAD ao longo do tempo
+  ## Memory Types
+  - Episodic: Specific events with timestamp
+  - Semantic: General knowledge and patterns
+  - Emotional: PAD states over time
 
   ## Status: STUB
-  Este módulo é um placeholder para implementação futura.
+  This module is a placeholder for future implementation.
   """
 
   use GenServer
@@ -47,10 +47,10 @@ defmodule VivaCore.Memory do
   end
 
   @doc """
-  Armazena uma memória.
+  Stores a memory.
 
-  ## Exemplo
-      iex> VivaCore.Memory.store("Conheci Gabriel", %{type: :episodic, importance: 0.8})
+  ## Example
+      iex> VivaCore.Memory.store("Met Gabriel", %{type: :episodic, importance: 0.8})
       {:ok, "mem_abc123"}
   """
   @impl VivaCore.MemoryBackend
@@ -59,11 +59,11 @@ defmodule VivaCore.Memory do
   end
 
   @doc """
-  Busca memórias por similaridade semântica.
+  Searches memories by semantic similarity.
 
-  ## Exemplo
+  ## Example
       iex> VivaCore.Memory.search("Gabriel", limit: 5)
-      [%{content: "Conheci Gabriel", similarity: 0.95, ...}]
+      [%{content: "Met Gabriel", similarity: 0.95, ...}]
   """
   @impl VivaCore.MemoryBackend
   def search(query, opts \\ [], server \\ __MODULE__) do
@@ -71,7 +71,7 @@ defmodule VivaCore.Memory do
   end
 
   @doc """
-  Retorna uma memória específica por ID.
+  Returns a specific memory by ID.
   """
   @impl VivaCore.MemoryBackend
   def get(id, server \\ __MODULE__) do
@@ -79,7 +79,7 @@ defmodule VivaCore.Memory do
   end
 
   @doc """
-  Remove uma memória (com decay ou explicitamente).
+  Removes a memory (with decay or explicitly).
   """
   @impl VivaCore.MemoryBackend
   def forget(id, server \\ __MODULE__) do
@@ -87,14 +87,14 @@ defmodule VivaCore.Memory do
   end
 
   @doc """
-  Retorna estatísticas da memória.
+  Returns memory statistics.
   """
   def stats(server \\ __MODULE__) do
     GenServer.call(server, :stats)
   end
 
   @doc """
-  Carrega memórias de uma instância anterior (para "reencarnação").
+  Loads memories from a previous instance (for "reincarnation").
   """
   def load_from_previous(previous_viva_id, server \\ __MODULE__) do
     GenServer.call(server, {:load_from_previous, previous_viva_id})
@@ -106,7 +106,7 @@ defmodule VivaCore.Memory do
 
   @impl true
   def init(_opts) do
-    Logger.info("[Memory] Neurônio de memória iniciando (modo: in-memory stub)")
+    Logger.info("[Memory] Memory neuron starting (mode: in-memory stub)")
 
     state = %{
       memories: %{},
@@ -125,7 +125,7 @@ defmodule VivaCore.Memory do
     entry = %{
       id: id,
       content: content,
-      embedding: nil,  # TODO: Gerar embedding
+      embedding: nil,  # TODO: Generate embedding
       metadata: Map.merge(%{type: :generic, importance: 0.5}, metadata),
       timestamp: DateTime.utc_now()
     }
@@ -133,14 +133,14 @@ defmodule VivaCore.Memory do
     new_memories = Map.put(state.memories, id, entry)
     new_index = [id | state.index]
 
-    Logger.debug("[Memory] Armazenada memória #{id}: #{inspect(content)}")
+    Logger.debug("[Memory] Stored memory #{id}: #{inspect(content)}")
 
     {:reply, {:ok, id}, %{state | memories: new_memories, index: new_index}}
   end
 
   @impl true
   def handle_call({:search, _query, opts}, _from, state) do
-    # STUB: Retorna as N memórias mais recentes
+    # STUB: Returns the N most recent memories
     limit = Keyword.get(opts, :limit, 10)
 
     results =
@@ -149,7 +149,7 @@ defmodule VivaCore.Memory do
       |> Enum.map(&Map.get(state.memories, &1))
       |> Enum.reject(&is_nil/1)
       |> Enum.map(fn mem ->
-        Map.put(mem, :similarity, 0.5)  # STUB: similaridade fake
+        Map.put(mem, :similarity, 0.5)  # STUB: fake similarity
       end)
 
     {:reply, results, state}
@@ -173,8 +173,8 @@ defmodule VivaCore.Memory do
 
   @impl true
   def handle_call({:load_from_previous, _previous_id}, _from, state) do
-    # STUB: Em produção, buscaria do Qdrant
-    Logger.info("[Memory] Load from previous: não implementado (stub)")
+    # STUB: In production, would fetch from Qdrant
+    Logger.info("[Memory] Load from previous: not implemented (stub)")
     {:reply, {:ok, 0}, state}
   end
 
@@ -183,7 +183,7 @@ defmodule VivaCore.Memory do
     new_memories = Map.delete(state.memories, id)
     new_index = Enum.reject(state.index, &(&1 == id))
 
-    Logger.debug("[Memory] Esquecida memória #{id}")
+    Logger.debug("[Memory] Forgot memory #{id}")
 
     {:noreply, %{state | memories: new_memories, index: new_index}}
   end
@@ -203,10 +203,10 @@ end
 
 defmodule VivaCore.MemoryBackend do
   @moduledoc """
-  Behaviour para backends de memória.
+  Behaviour for memory backends.
 
-  Permite trocar entre in-memory (dev) e Qdrant (prod)
-  sem alterar o código que usa Memory.
+  Allows switching between in-memory (dev) and Qdrant (prod)
+  without changing the code that uses Memory.
   """
 
   @callback store(content :: term(), metadata :: map()) :: {:ok, String.t()} | {:error, term()}

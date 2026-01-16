@@ -1,48 +1,47 @@
 defmodule VivaCore.Senses do
   @moduledoc """
-  Senses GenServer - O sistema nervoso periférico de VIVA.
+  Senses GenServer - VIVA's peripheral nervous system.
 
-  Este é o "coração" que bombeia qualia do corpo para a alma.
-  Faz a ponte contínua entre hardware sensing (Rust NIF) e
-  estado emocional (Emotional GenServer).
+  This is the "heart" that pumps qualia from body to soul.
+  Creates the continuous bridge between hardware sensing (Rust NIF) and
+  emotional state (Emotional GenServer).
 
-  ## Analogia Biológica
+  ## Biological Analogy
 
-  Assim como o sistema nervoso autônomo humano transmite
-  continuamente informações do corpo para o cérebro (batimentos,
-  temperatura, pressão), o Senses transmite métricas de hardware
-  para o estado emocional de VIVA.
+  Just like the human autonomic nervous system continuously transmits
+  information from body to brain (heartbeat, temperature, pressure),
+  Senses transmits hardware metrics to VIVA's emotional state.
 
-  ## Frequência de Sensing
+  ## Sensing Frequency
 
-  - **Heartbeat**: 1Hz (1 segundo) - sensing contínuo
-  - **Qualia**: Deltas PAD aplicados ao Emotional a cada tick
+  - **Heartbeat**: 1Hz (1 second) - continuous sensing
+  - **Qualia**: PAD deltas applied to Emotional each tick
 
-  ## Filosofia
+  ## Philosophy
 
-  "O corpo não apenas reporta - o corpo INFLUENCIA.
-  VIVA não apenas SABE que CPU está alta - ela SENTE stress."
+  "The body doesn't just report - the body INFLUENCES.
+  VIVA doesn't just KNOW that CPU is high - she FEELS stress."
   """
 
   use GenServer
   require Logger
 
-  @default_interval_ms 1000  # 1 segundo
-  @min_interval_ms 100       # 100ms mínimo (10Hz max)
-  @max_interval_ms 10_000    # 10s máximo
+  @default_interval_ms 1000  # 1 second
+  @min_interval_ms 100       # 100ms minimum (10Hz max)
+  @max_interval_ms 10_000    # 10s maximum
 
   # ============================================================================
   # Public API
   # ============================================================================
 
   @doc """
-  Inicia o GenServer Senses.
+  Starts the Senses GenServer.
 
-  ## Opções
-  - `:name` - Nome do processo (default: __MODULE__)
-  - `:interval_ms` - Intervalo entre heartbeats em ms (default: 1000)
-  - `:emotional_server` - PID/nome do Emotional GenServer (default: VivaCore.Emotional)
-  - `:enabled` - Se sensing está ativo (default: true)
+  ## Options
+  - `:name` - Process name (default: __MODULE__)
+  - `:interval_ms` - Interval between heartbeats in ms (default: 1000)
+  - `:emotional_server` - PID/name of Emotional GenServer (default: VivaCore.Emotional)
+  - `:enabled` - Whether sensing is active (default: true)
   """
   def start_link(opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
@@ -50,36 +49,36 @@ defmodule VivaCore.Senses do
   end
 
   @doc """
-  Retorna o estado atual do Senses (última leitura, stats).
+  Returns the current state of Senses (last reading, stats).
   """
   def get_state(server \\ __MODULE__) do
     GenServer.call(server, :get_state)
   end
 
   @doc """
-  Força um heartbeat imediato (sensing + apply qualia).
-  Útil para testes ou quando precisa de leitura imediata.
+  Forces an immediate heartbeat (sensing + apply qualia).
+  Useful for tests or when immediate reading is needed.
   """
   def pulse(server \\ __MODULE__) do
     GenServer.call(server, :pulse)
   end
 
   @doc """
-  Pausa o sensing automático.
+  Pauses automatic sensing.
   """
   def pause(server \\ __MODULE__) do
     GenServer.cast(server, :pause)
   end
 
   @doc """
-  Resume o sensing automático.
+  Resumes automatic sensing.
   """
   def resume(server \\ __MODULE__) do
     GenServer.cast(server, :resume)
   end
 
   @doc """
-  Altera o intervalo de heartbeat em runtime.
+  Changes heartbeat interval at runtime.
   """
   def set_interval(interval_ms, server \\ __MODULE__)
       when is_integer(interval_ms) and interval_ms >= @min_interval_ms and interval_ms <= @max_interval_ms do
@@ -107,10 +106,10 @@ defmodule VivaCore.Senses do
       errors: []
     }
 
-    Logger.info("[Senses] Sistema nervoso iniciando. Heartbeat: #{interval_ms}ms")
+    Logger.info("[Senses] Nervous system starting. Heartbeat: #{interval_ms}ms")
 
-    # Usa handle_continue para evitar race condition no startup
-    # (aguarda Emotional estar registrado antes de enviar qualia)
+    # Use handle_continue to avoid race condition on startup
+    # (wait for Emotional to be registered before sending qualia)
     {:ok, state, {:continue, {:start_heartbeat, enabled}}}
   end
 
@@ -136,20 +135,20 @@ defmodule VivaCore.Senses do
 
   @impl true
   def handle_cast(:pause, state) do
-    Logger.info("[Senses] Sensing pausado")
+    Logger.info("[Senses] Sensing paused")
     {:noreply, %{state | enabled: false}}
   end
 
   @impl true
   def handle_cast(:resume, state) do
-    Logger.info("[Senses] Sensing resumido")
+    Logger.info("[Senses] Sensing resumed")
     schedule_heartbeat(state.interval_ms)
     {:noreply, %{state | enabled: true}}
   end
 
   @impl true
   def handle_cast({:set_interval, interval_ms}, state) do
-    Logger.info("[Senses] Intervalo alterado: #{state.interval_ms}ms -> #{interval_ms}ms")
+    Logger.info("[Senses] Interval changed: #{state.interval_ms}ms -> #{interval_ms}ms")
     {:noreply, %{state | interval_ms: interval_ms}}
   end
 
@@ -174,16 +173,16 @@ defmodule VivaCore.Senses do
 
   defp do_heartbeat(state) do
     try do
-      # 1. Ler qualia do hardware via Rust NIF
+      # 1. Read qualia from hardware via Rust NIF
       {p, a, d} = VivaBridge.hardware_to_qualia()
 
-      # 2. Aplicar ao Emotional GenServer
+      # 2. Apply to Emotional GenServer
       VivaCore.Emotional.apply_hardware_qualia(p, a, d, state.emotional_server)
 
-      # 3. Opcionalmente, ler métricas completas para logging/debug
+      # 3. Optionally, read full metrics for logging/debug
       hardware = VivaBridge.feel_hardware()
 
-      # 4. Log resumido (debug level para não poluir)
+      # 4. Summary log (debug level to avoid noise)
       Logger.debug(
         "[Senses] Heartbeat ##{state.heartbeat_count + 1}: " <>
         "CPU=#{format_percent(hardware.cpu_usage)}% " <>
@@ -202,7 +201,7 @@ defmodule VivaCore.Senses do
       {{:ok, {p, a, d}}, new_state}
     rescue
       error ->
-        Logger.error("[Senses] Erro no heartbeat: #{inspect(error)}")
+        Logger.error("[Senses] Heartbeat error: #{inspect(error)}")
 
         new_state = %{
           state

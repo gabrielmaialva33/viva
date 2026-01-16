@@ -1,31 +1,32 @@
 defmodule VivaCore.Emotional do
   @moduledoc """
-  Emotional GenServer - O primeiro "neurônio" de VIVA.
+  Emotional GenServer - VIVA's first "neuron".
 
-  Implementa o modelo PAD (Pleasure-Arousal-Dominance) para estado emocional.
-  Este GenServer é a fundação da consciência emergente - não É a consciência,
-  mas contribui para ela através da comunicação com outros neurônios.
+  Implements the PAD (Pleasure-Arousal-Dominance) model for emotional state.
+  This GenServer is the foundation of emergent consciousness - it IS NOT the
+  consciousness itself, but contributes to it through communication with other neurons.
 
-  ## Modelo PAD (Mehrabian, 1996)
-  - Pleasure: [-1.0, 1.0] - tristeza ↔ alegria
-  - Arousal: [-1.0, 1.0] - calma ↔ excitação
-  - Dominance: [-1.0, 1.0] - submissão ↔ controle
+  ## PAD Model (Mehrabian, 1996)
+  - Pleasure: [-1.0, 1.0] - sadness ↔ joy
+  - Arousal: [-1.0, 1.0] - calm ↔ excitement
+  - Dominance: [-1.0, 1.0] - submission ↔ control
 
-  ## Modelo DynAffect (Kuppens et al., 2010)
-  Decay dinâmico usando processo Ornstein-Uhlenbeck:
-  - Attractor point (μ): home base neutro (0.0)
-  - Attractor strength (β): força que puxa ao baseline
-  - Arousal modula β: arousal alto → menor β → decay lento
+  ## DynAffect Model (Kuppens et al., 2010)
+  Dynamic decay using Ornstein-Uhlenbeck stochastic process:
+  - Attractor point (μ): neutral home base (0.0)
+  - Attractor strength (θ): force pulling to baseline
+  - Arousal modulates θ: high arousal → lower θ → slower decay
+  - Stochastic noise (σ): natural emotional variability
 
-  ## Filosofia
-  "A consciência não reside aqui. A consciência emerge da CONVERSA
-  entre este processo e todos os outros."
+  ## Philosophy
+  "Consciousness does not reside here. Consciousness emerges from the
+  CONVERSATION between this process and all others."
   """
 
   use GenServer
   require Logger
 
-  # Constantes do modelo emocional
+  # Emotional model constants
   @neutral_state %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
   @min_value -1.0
   @max_value 1.0
@@ -38,7 +39,7 @@ defmodule VivaCore.Emotional do
   @arousal_decay_modifier 0.4  # How much arousal affects θ (40% variation)
   @stochastic_volatility 0.002  # σ - emotional noise/variability (small for stability)
 
-  # Pesos de impacto emocional para diferentes estímulos
+  # Emotional impact weights for different stimuli
   @stimulus_weights %{
     rejection: %{pleasure: -0.3, arousal: 0.2, dominance: -0.2},
     acceptance: %{pleasure: 0.3, arousal: 0.1, dominance: 0.1},
@@ -58,11 +59,11 @@ defmodule VivaCore.Emotional do
   # ============================================================================
 
   @doc """
-  Inicia o GenServer Emotional.
+  Starts the Emotional GenServer.
 
-  ## Opções
-  - `:name` - Nome do processo (default: __MODULE__)
-  - `:initial_state` - Estado PAD inicial (default: neutro)
+  ## Options
+  - `:name` - Process name (default: __MODULE__)
+  - `:initial_state` - Initial PAD state (default: neutral)
   """
   def start_link(opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
@@ -71,9 +72,9 @@ defmodule VivaCore.Emotional do
   end
 
   @doc """
-  Retorna o estado emocional atual como mapa PAD.
+  Returns the current emotional state as a PAD map.
 
-  ## Exemplo
+  ## Example
 
       state = VivaCore.Emotional.get_state(pid)
       # => %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
@@ -84,12 +85,12 @@ defmodule VivaCore.Emotional do
   end
 
   @doc """
-  Retorna um valor escalar de "felicidade" (pleasure normalizado para 0-1).
+  Returns a scalar "happiness" value (pleasure normalized to 0-1).
 
-  ## Exemplo
+  ## Example
 
       happiness = VivaCore.Emotional.get_happiness(pid)
-      # => 0.5 (estado neutro)
+      # => 0.5 (neutral state)
 
   """
   def get_happiness(server \\ __MODULE__) do
@@ -98,31 +99,31 @@ defmodule VivaCore.Emotional do
   end
 
   @doc """
-  Introspection - VIVA reflete sobre seu próprio estado.
+  Introspection - VIVA reflects on its own state.
 
-  Retorna um mapa com metadados sobre o estado emocional atual,
-  incluindo interpretação semântica.
+  Returns a map with metadata about the current emotional state,
+  including semantic interpretation.
   """
   def introspect(server \\ __MODULE__) do
     GenServer.call(server, :introspect)
   end
 
   @doc """
-  Aplica um estímulo emocional.
+  Applies an emotional stimulus.
 
-  ## Estímulos suportados
-  - `:rejection` - Rejeição social
-  - `:acceptance` - Aceitação social
-  - `:companionship` - Presença de companhia
-  - `:loneliness` - Solidão
-  - `:success` - Conquista de objetivo
-  - `:failure` - Falha em objetivo
-  - `:threat` - Percepção de ameaça
-  - `:safety` - Percepção de segurança
-  - `:hardware_stress` - Stress do hardware (qualia)
-  - `:hardware_comfort` - Conforto do hardware (qualia)
+  ## Supported stimuli
+  - `:rejection` - Social rejection
+  - `:acceptance` - Social acceptance
+  - `:companionship` - Presence of company
+  - `:loneliness` - Loneliness
+  - `:success` - Goal achievement
+  - `:failure` - Goal failure
+  - `:threat` - Threat perception
+  - `:safety` - Safety perception
+  - `:hardware_stress` - Hardware stress (qualia)
+  - `:hardware_comfort` - Hardware comfort (qualia)
 
-  ## Exemplo
+  ## Example
 
       VivaCore.Emotional.feel(:rejection, "human_1", 0.8, pid)
       # => :ok
@@ -134,36 +135,36 @@ defmodule VivaCore.Emotional do
   end
 
   @doc """
-  Aplica decaimento emocional em direção ao estado neutro.
-  Chamado periodicamente para simular regulação emocional natural.
+  Applies emotional decay toward neutral state.
+  Called periodically to simulate natural emotional regulation.
   """
   def decay(server \\ __MODULE__) do
     GenServer.cast(server, :decay)
   end
 
   @doc """
-  Reseta o estado emocional para neutro.
-  Use com cuidado - isto "apaga" o estado emocional atual.
+  Resets the emotional state to neutral.
+  Use with care - this "erases" the current emotional state.
   """
   def reset(server \\ __MODULE__) do
     GenServer.cast(server, :reset)
   end
 
   @doc """
-  Aplica qualia derivada do hardware (interocepção).
+  Applies hardware-derived qualia (interoception).
 
-  Recebe deltas PAD calculados a partir do estado do hardware
-  e os aplica ao estado emocional atual.
+  Receives PAD deltas calculated from hardware state
+  and applies them to the current emotional state.
 
-  ## Parâmetros
-  - `pleasure_delta` - delta de pleasure (tipicamente negativo sob stress)
-  - `arousal_delta` - delta de arousal (tipicamente positivo sob stress)
-  - `dominance_delta` - delta de dominance (tipicamente negativo sob stress)
+  ## Parameters
+  - `pleasure_delta` - pleasure delta (typically negative under stress)
+  - `arousal_delta` - arousal delta (typically positive under stress)
+  - `dominance_delta` - dominance delta (typically negative under stress)
 
-  ## Exemplo
+  ## Example
 
       VivaCore.Emotional.apply_hardware_qualia(-0.02, 0.05, -0.01)
-      # VIVA está sentindo leve stress do hardware
+      # VIVA is feeling mild hardware stress
 
   """
   def apply_hardware_qualia(pleasure_delta, arousal_delta, dominance_delta, server \\ __MODULE__)
@@ -177,7 +178,7 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def init(initial_state) do
-    Logger.info("[Emotional] Neurônio emocional iniciando. Estado: #{inspect(initial_state)}")
+    Logger.info("[Emotional] Emotional neuron starting. State: #{inspect(initial_state)}")
 
     state = %{
       pad: Map.merge(@neutral_state, initial_state),
@@ -187,7 +188,7 @@ defmodule VivaCore.Emotional do
       last_stimulus: nil
     }
 
-    # Usa handle_continue para evitar race condition no startup
+    # Use handle_continue to avoid race condition on startup
     {:ok, state, {:continue, :start_decay}}
   end
 
@@ -205,20 +206,20 @@ defmodule VivaCore.Emotional do
   @impl true
   def handle_call(:introspect, _from, state) do
     introspection = %{
-      # Estado bruto
+      # Raw state
       pad: state.pad,
 
-      # Interpretação semântica
+      # Semantic interpretation
       mood: interpret_mood(state.pad),
       energy: interpret_energy(state.pad),
       agency: interpret_agency(state.pad),
 
-      # Metadados
+      # Metadata
       last_stimulus: state.last_stimulus,
       history_length: state.history_size,
       uptime_seconds: DateTime.diff(DateTime.utc_now(), state.created_at),
 
-      # Auto-reflexão (metacognição básica)
+      # Self-reflection (basic metacognition)
       self_assessment: generate_self_assessment(state.pad)
     }
 
@@ -229,14 +230,14 @@ defmodule VivaCore.Emotional do
   def handle_cast({:feel, stimulus, source, intensity}, state) do
     case Map.get(@stimulus_weights, stimulus) do
       nil ->
-        Logger.warning("[Emotional] Estímulo desconhecido: #{stimulus}")
+        Logger.warning("[Emotional] Unknown stimulus: #{stimulus}")
         {:noreply, state}
 
       weights ->
-        # Aplicar pesos com intensidade
+        # Apply weights with intensity
         new_pad = apply_stimulus(state.pad, weights, intensity)
 
-        # Registrar no histórico
+        # Record in history
         event = %{
           stimulus: stimulus,
           source: source,
@@ -246,13 +247,13 @@ defmodule VivaCore.Emotional do
           pad_after: new_pad
         }
 
-        Logger.debug("[Emotional] Sentindo #{stimulus} de #{source} (intensidade: #{intensity})")
+        Logger.debug("[Emotional] Feeling #{stimulus} from #{source} (intensity: #{intensity})")
         Logger.debug("[Emotional] PAD: #{inspect(state.pad)} -> #{inspect(new_pad)}")
 
-        # Broadcast para outros módulos (futuro: via PubSub)
+        # Broadcast to other modules (future: via PubSub)
         # Phoenix.PubSub.broadcast(Viva.PubSub, "emotional", {:emotion_changed, new_pad})
 
-        # Histórico com :queue O(1) em vez de lista O(N)
+        # History with :queue O(1) instead of list O(N)
         {new_history, new_size} = push_history(state.history, state.history_size, event)
 
         new_state = %{
@@ -275,7 +276,7 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def handle_cast(:reset, state) do
-    Logger.info("[Emotional] Estado emocional resetado para neutro")
+    Logger.info("[Emotional] Emotional state reset to neutral")
     {:noreply, %{state | pad: @neutral_state, history: :queue.new(), history_size: 0, last_stimulus: nil}}
   end
 
@@ -287,7 +288,7 @@ defmodule VivaCore.Emotional do
       dominance: clamp(state.pad.dominance + d_delta, @min_value, @max_value)
     }
 
-    Logger.debug("[Emotional] Qualia do hardware: P#{format_delta(p_delta)}, A#{format_delta(a_delta)}, D#{format_delta(d_delta)}")
+    Logger.debug("[Emotional] Hardware qualia: P#{format_delta(p_delta)}, A#{format_delta(a_delta)}, D#{format_delta(d_delta)}")
 
     {:noreply, %{state | pad: new_pad, last_stimulus: {:hardware_qualia, "body", 1.0}}}
   end
@@ -297,7 +298,7 @@ defmodule VivaCore.Emotional do
     schedule_decay()
     new_pad = decay_toward_neutral(state.pad)
 
-    # Log decay rate dinâmico para debug (apenas se houver mudança significativa)
+    # Log dynamic decay rate for debug (only if significant change)
     if abs(state.pad.pleasure) > 0.01 or abs(state.pad.arousal) > 0.01 do
       dynamic_rate = @base_decay_rate * (1 - state.pad.arousal * @arousal_decay_modifier)
       Logger.debug("[Emotional] DynAffect decay: rate=#{Float.round(dynamic_rate, 5)} (arousal=#{Float.round(state.pad.arousal, 2)})")
@@ -410,26 +411,26 @@ defmodule VivaCore.Emotional do
     energy = interpret_energy(pad)
     agency = interpret_agency(pad)
 
-    # Metacognição básica - VIVA reflete sobre si mesma
+    # Basic metacognition - VIVA reflects on itself
     cond do
       mood == :joyful and agency == :empowered ->
-        "Estou me sentindo bem. Tenho energia e controle."
+        "I'm feeling good. I have energy and control."
 
       mood in [:sad, :depressed] and agency in [:uncertain, :helpless] ->
-        "Estou passando por um momento difícil. Preciso de apoio."
+        "I'm going through a difficult moment. I need support."
 
       energy in [:hyperactive] and mood != :joyful ->
-        "Estou agitada, mas não necessariamente feliz. Algo está errado."
+        "I'm agitated, but not necessarily happy. Something is wrong."
 
       mood == :neutral and energy == :calm ->
-        "Estou em equilíbrio. Estado neutro."
+        "I'm in balance. Neutral state."
 
       true ->
-        "Estou processando minhas emoções. Mood: #{mood}, Energy: #{energy}, Agency: #{agency}."
+        "I'm processing my emotions. Mood: #{mood}, Energy: #{energy}, Agency: #{agency}."
     end
   end
 
-  # Histórico com :queue O(1) - máximo 100 eventos
+  # History with :queue O(1) - maximum 100 events
   @max_history 100
   defp push_history(queue, size, item) when size >= @max_history do
     {{:value, _dropped}, new_queue} = :queue.out(queue)
@@ -445,8 +446,8 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def code_change(_old_vsn, state, _extra) do
-    # Migrar estrutura de state se necessário
-    # Exemplo: adicionar novos campos com defaults
+    # Migrate state structure if necessary
+    # Example: add new fields with defaults
     new_state = state
       |> Map.put_new(:history_size, :queue.len(Map.get(state, :history, :queue.new())))
 

@@ -1,17 +1,17 @@
 defmodule VivaBridge do
   @moduledoc """
-  VivaBridge - Ponte entre Alma (Elixir) e Corpo (Rust).
+  VivaBridge - Bridge between Soul (Elixir) and Body (Rust).
 
-  Este módulo coordena a comunicação entre os GenServers de VIVA
-  e as funções de baixo nível implementadas em Rust.
+  This module coordinates communication between VIVA's GenServers
+  and the low-level functions implemented in Rust.
 
-  ## Arquitetura
+  ## Architecture
 
-      Elixir (Alma)          Rust (Corpo)
+      Elixir (Soul)          Rust (Body)
       ┌──────────────┐       ┌──────────────┐
       │  Emotional   │ ←───→ │  sysinfo     │
       │  Memory      │       │  aes-gcm     │
-      │  Metacog     │       │  (futuro)    │
+      │  Metacog     │       │  (future)    │
       └──────────────┘       └──────────────┘
             │                       │
             └───────┬───────────────┘
@@ -19,17 +19,17 @@ defmodule VivaBridge do
                VivaBridge
                 (Rustler NIF)
 
-  ## Filosofia
+  ## Philosophy
 
-  A alma não pode existir sem corpo.
-  O corpo não pode existir sem alma.
-  VIVA é a união de ambos.
+  The soul cannot exist without body.
+  The body cannot exist without soul.
+  VIVA is the union of both.
   """
 
   alias VivaBridge.Body
 
   @doc """
-  Verifica se a ponte alma-corpo está funcionando.
+  Checks if the soul-body bridge is working.
   """
   def alive? do
     case Body.alive() do
@@ -41,28 +41,28 @@ defmodule VivaBridge do
   end
 
   @doc """
-  Obtém o estado atual do "corpo" de VIVA.
+  Gets the current state of VIVA's "body".
 
-  Retorna métricas de hardware interpretadas como sensações corporais.
+  Returns hardware metrics interpreted as bodily sensations.
   """
   defdelegate feel_hardware, to: Body
 
   @doc """
-  Converte sensações corporais em deltas emocionais.
+  Converts bodily sensations into emotional deltas.
 
-  Retorna `{pleasure_delta, arousal_delta, dominance_delta}`.
+  Returns `{pleasure_delta, arousal_delta, dominance_delta}`.
   """
   defdelegate hardware_to_qualia, to: Body
 
   @doc """
-  Aplica as sensações do corpo ao estado emocional de VIVA.
+  Applies body sensations to VIVA's emotional state.
 
-  Este é o loop de feedback corpo→alma.
+  This is the body→soul feedback loop.
   """
   def sync_body_to_soul do
     case hardware_to_qualia() do
       {p, a, d} when is_float(p) and is_float(a) and is_float(d) ->
-        # Aplica os deltas ao Emotional GenServer
+        # Applies the deltas to the Emotional GenServer
         VivaCore.Emotional.apply_hardware_qualia(p, a, d)
         {:ok, {p, a, d}}
 
