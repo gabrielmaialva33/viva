@@ -442,3 +442,9 @@ cache/
 # Playwright
 .playwright-report
 .playwright-mcp
+
+# Claude Code (local config)
+.claude/
+
+# Model files (tokenizers, vocab) - download, don't commit
+**/priv/models/
