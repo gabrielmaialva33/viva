@@ -21,9 +21,10 @@
 //! // Store a memory (automatically modulated by emotion)
 //! let embedding = vec![0.1; VECTOR_DIM];
 //! let meta = MemoryMeta::new("happy_moment".into(), "A joyful experience".into());
+//! // viva.store uses augmented vectors internally!
 //! viva.store(&embedding, meta)?;
 //!
-//! // Search with STDP boost
+//! // Search with STDP boost AND emotional vector augmented
 //! let results = viva.search(&embedding, &SearchOptions::new().limit(5))?;
 //! ```
 #![allow(dead_code)] // Latent code - will be used by Elixir NIFs
@@ -194,6 +195,7 @@ pub struct VivaMemory {
     pub semantic: SqliteMemory,
     /// Hebbian learning engine
     pub hebbian: HebbianLearning,
+
     /// Synaptic tag manager for consolidation
     pub tags: SynapticTagManager,
 }
@@ -248,8 +250,18 @@ impl VivaMemory {
         // Apply Three-Factor Hebbian modulation
         let modulated_meta = self.hebbian.modulate_memory(meta);
 
-        // Store in episodic (fast) memory
-        let key = self.episodic.store(embedding, modulated_meta.clone())?;
+        // Augment vector with current emotion (Critical for "Vibe Search")
+        // We use the emotion attached to the memory (which is current state)
+        // Weight 10.0 ensures emotion is significant in cosine distance
+        let augmented_vec = self.hebbian.augment_vector(
+            embedding,
+            modulated_meta.emotion,
+            10.0
+        );
+
+        // Store in episodic (fast) memory using AUGMENTED vector
+        // Note: HNSW backend handles variable dimensions, but we must be consistent
+        let key = self.episodic.store(&augmented_vec, modulated_meta.clone())?;
 
         // Tag for potential consolidation if not strong enough
         self.tags.tag_memory(
@@ -270,7 +282,15 @@ impl VivaMemory {
         query: &[f32],
         options: &SearchOptions,
     ) -> Result<Vec<MemorySearchResult>> {
-        let mut results = self.episodic.search(query, options)?;
+        // Augment query with CURRENT emotion to find "mood-congruent" memories
+        // Usage: "I am happy, find me other happy things"
+        let augmented_query = self.hebbian.augment_vector(
+            query,
+            None, // Use current emotion
+            10.0
+        );
+
+        let mut results = self.episodic.search(&augmented_query, options)?;
 
         // Apply STDP retrieval boost (emotion + timing)
         for result in &mut results {
@@ -315,8 +335,10 @@ impl VivaMemory {
         let mut expanded_options = options.clone();
         expanded_options.limit = options.limit * 2;
 
-        // 1. Search episodic (fast, specific memories)
-        let mut episodic_results = self.episodic.search(query, &expanded_options)?;
+        // 1. Search episodic (fast, specific memories) using AUGMENTED vector
+        let augmented_query = self.hebbian.augment_vector(query, None, 10.0);
+        let mut episodic_results = self.episodic.search(&augmented_query, &expanded_options)?;
+
 
         // 2. Search semantic (slow, general knowledge)
         let semantic_results = self.semantic.search(query, &expanded_options)?;

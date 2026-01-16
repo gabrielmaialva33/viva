@@ -79,11 +79,12 @@ impl SqliteMemory {
 
     /// Store a memory with its embedding
     pub fn store(&self, embedding: &[f32], meta: MemoryMeta) -> Result<u64> {
-        if embedding.len() != VECTOR_DIM {
+        if embedding.len() != VECTOR_DIM && embedding.len() != AUGMENTED_DIM {
             bail!(
-                "Invalid embedding dimension: {} (expected {})",
+                "Invalid embedding dimension: {} (expected {} or {})",
                 embedding.len(),
-                VECTOR_DIM
+                VECTOR_DIM,
+                AUGMENTED_DIM
             );
         }
 
@@ -131,11 +132,12 @@ impl SqliteMemory {
         query: &[f32],
         options: &SearchOptions,
     ) -> Result<Vec<MemorySearchResult>> {
-        if query.len() != VECTOR_DIM {
+        if query.len() != VECTOR_DIM && query.len() != AUGMENTED_DIM {
             bail!(
-                "Invalid query dimension: {} (expected {})",
+                "Invalid query dimension: {} (expected {} or {})",
                 query.len(),
-                VECTOR_DIM
+                VECTOR_DIM,
+                AUGMENTED_DIM
             );
         }
 

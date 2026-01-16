@@ -16,11 +16,14 @@ pub fn unix_timestamp_now() -> i64 {
         .unwrap_or(0)
 }
 
-/// Vector dimension for embeddings (e.g., 384 for all-MiniLM-L6-v2)
+/// Vector dimension for embeddings (semantic only)
 pub const VECTOR_DIM: usize = 384;
 
-/// Memory type classification
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Augmented Vector dimension (semantic + PAD)
+pub const AUGMENTED_DIM: usize = VECTOR_DIM + 3;
+
+/// Memory type enum
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MemoryType {
     /// Specific events with timestamp
     Episodic,

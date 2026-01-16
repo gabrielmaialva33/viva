@@ -287,6 +287,27 @@ impl HebbianLearning {
     pub fn params(&self) -> &HebbianParams {
         &self.params
     }
+
+    /// Augment a semantic vector with emotional state for "vibe-based" search
+    ///
+    /// Concatenates (PAD * weight) to the vector, extending its dimensionality.
+    /// This forces the ANN index to consider emotional proximity.
+    ///
+    /// # Arguments
+    ///
+    /// * `vector` - Original semantic vector
+    /// * `emotion` - Emotion to encode (defaults to current if None)
+    /// * `weight` - How much emotion influences distance (try 10.0)
+    pub fn augment_vector(&self, vector: &[f32], emotion: Option<PadEmotion>, weight: f32) -> Vec<f32> {
+        let emo = emotion.unwrap_or(self.current_emotion);
+        let mut aug = Vec::with_capacity(vector.len() + 3);
+        aug.extend_from_slice(vector);
+        // Append weighted PAD components
+        aug.push(emo.pleasure * weight);
+        aug.push(emo.arousal * weight);
+        aug.push(emo.dominance * weight);
+        aug
+    }
 }
 
 impl Default for HebbianLearning {
