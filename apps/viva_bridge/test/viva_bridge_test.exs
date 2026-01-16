@@ -3,29 +3,29 @@ defmodule VivaBridgeTest do
 
   @moduletag :bridge
 
-  describe "Body NIF - Básico" do
-    test "alive/0 retorna confirmação" do
+  describe "Body NIF - Basic" do
+    test "alive/0 returns confirmation" do
       assert VivaBridge.Body.alive() == "VIVA body is alive"
     end
   end
 
-  describe "Body NIF - Hardware Sensing (Interocepção)" do
-    test "feel_hardware/0 retorna métricas de CPU" do
+  describe "Body NIF - Hardware Sensing (Interoception)" do
+    test "feel_hardware/0 returns CPU metrics" do
       result = VivaBridge.Body.feel_hardware()
 
       assert is_map(result)
       assert Map.has_key?(result, :cpu_usage)
       assert Map.has_key?(result, :cpu_count)
 
-      # CPU usage deve estar entre 0-100
+      # CPU usage should be between 0-100
       assert result.cpu_usage >= 0.0
       assert result.cpu_usage <= 100.0
 
-      # Deve ter pelo menos 1 CPU
+      # Should have at least 1 CPU
       assert result.cpu_count >= 1
     end
 
-    test "feel_hardware/0 retorna métricas de memória" do
+    test "feel_hardware/0 returns memory metrics" do
       result = VivaBridge.Body.feel_hardware()
 
       assert Map.has_key?(result, :memory_used_percent)
@@ -33,40 +33,40 @@ defmodule VivaBridgeTest do
       assert Map.has_key?(result, :memory_total_gb)
       assert Map.has_key?(result, :swap_used_percent)
 
-      # Memory percent deve estar entre 0-100
+      # Memory percent should be between 0-100
       assert result.memory_used_percent >= 0.0
       assert result.memory_used_percent <= 100.0
 
-      # Deve ter memória disponível
+      # Should have available memory
       assert result.memory_total_gb > 0.0
     end
 
-    test "feel_hardware/0 retorna temperatura (opcional)" do
+    test "feel_hardware/0 returns temperature (optional)" do
       result = VivaBridge.Body.feel_hardware()
 
-      # cpu_temp pode ser nil se não disponível
+      # cpu_temp may be nil if not available
       assert Map.has_key?(result, :cpu_temp)
 
       case result.cpu_temp do
-        nil -> :ok  # Temperatura não disponível - OK
+        nil -> :ok  # Temperature not available - OK
         temp ->
-          # Se disponível, deve estar em range razoável (0-150°C)
+          # If available, should be in reasonable range (0-150C)
           assert is_float(temp)
           assert temp >= 0.0
           assert temp < 150.0
       end
     end
 
-    test "feel_hardware/0 retorna métricas de GPU (opcional)" do
+    test "feel_hardware/0 returns GPU metrics (optional)" do
       result = VivaBridge.Body.feel_hardware()
 
-      # Todas métricas de GPU podem ser nil
+      # All GPU metrics may be nil
       assert Map.has_key?(result, :gpu_usage)
       assert Map.has_key?(result, :gpu_vram_used_percent)
       assert Map.has_key?(result, :gpu_temp)
       assert Map.has_key?(result, :gpu_name)
 
-      # Se GPU disponível, valores devem ser válidos
+      # If GPU available, values should be valid
       if result.gpu_usage != nil do
         assert result.gpu_usage >= 0.0
         assert result.gpu_usage <= 100.0
@@ -78,30 +78,30 @@ defmodule VivaBridgeTest do
       end
     end
 
-    test "feel_hardware/0 retorna métricas de disco" do
+    test "feel_hardware/0 returns disk metrics" do
       result = VivaBridge.Body.feel_hardware()
 
       assert Map.has_key?(result, :disk_usage_percent)
       assert Map.has_key?(result, :disk_read_bytes)
       assert Map.has_key?(result, :disk_write_bytes)
 
-      # Disk usage deve estar entre 0-100
+      # Disk usage should be between 0-100
       assert result.disk_usage_percent >= 0.0
       assert result.disk_usage_percent <= 100.0
     end
 
-    test "feel_hardware/0 retorna métricas de rede" do
+    test "feel_hardware/0 returns network metrics" do
       result = VivaBridge.Body.feel_hardware()
 
       assert Map.has_key?(result, :net_rx_bytes)
       assert Map.has_key?(result, :net_tx_bytes)
 
-      # Bytes devem ser não-negativos
+      # Bytes must be non-negative
       assert result.net_rx_bytes >= 0
       assert result.net_tx_bytes >= 0
     end
 
-    test "feel_hardware/0 retorna métricas de sistema" do
+    test "feel_hardware/0 returns system metrics" do
       result = VivaBridge.Body.feel_hardware()
 
       assert Map.has_key?(result, :uptime_seconds)
@@ -110,46 +110,46 @@ defmodule VivaBridgeTest do
       assert Map.has_key?(result, :load_avg_5m)
       assert Map.has_key?(result, :load_avg_15m)
 
-      # Uptime deve ser positivo
+      # Uptime should be positive
       assert result.uptime_seconds > 0
 
-      # Deve ter pelo menos alguns processos
+      # Should have at least some processes
       assert result.process_count > 0
 
-      # Load average não-negativo
+      # Load average non-negative
       assert result.load_avg_1m >= 0.0
     end
   end
 
-  describe "Body NIF - Qualia (Hardware → PAD)" do
-    test "hardware_to_qualia/0 retorna tupla de deltas PAD" do
+  describe "Body NIF - Qualia (Hardware -> PAD)" do
+    test "hardware_to_qualia/0 returns tuple of PAD deltas" do
       {p, a, d} = VivaBridge.Body.hardware_to_qualia()
 
-      # Todos devem ser floats
+      # All should be floats
       assert is_float(p)
       assert is_float(a)
       assert is_float(d)
 
-      # Pleasure delta: negativo ou zero (stress nunca aumenta pleasure)
+      # Pleasure delta: negative or zero (stress never increases pleasure)
       assert p <= 0.0
-      assert p >= -0.1  # Max stress não passa de -0.08
+      assert p >= -0.1  # Max stress does not exceed -0.08
 
-      # Arousal delta: tipicamente positivo
+      # Arousal delta: typically positive
       assert a >= 0.0
       assert a <= 0.15  # Max ~0.12
 
-      # Dominance delta: negativo ou zero
+      # Dominance delta: negative or zero
       assert d <= 0.0
       assert d >= -0.1
     end
 
-    test "hardware_to_qualia/0 é determinístico em curto prazo" do
-      # Duas chamadas próximas devem dar resultados similares
+    test "hardware_to_qualia/0 is deterministic in short term" do
+      # Two close calls should give similar results
       {p1, a1, d1} = VivaBridge.Body.hardware_to_qualia()
       Process.sleep(10)
       {p2, a2, d2} = VivaBridge.Body.hardware_to_qualia()
 
-      # Diferença deve ser pequena (< 0.05)
+      # Difference should be small (< 0.05)
       assert abs(p1 - p2) < 0.05
       assert abs(a1 - a2) < 0.05
       assert abs(d1 - d2) < 0.05
@@ -157,11 +157,11 @@ defmodule VivaBridgeTest do
   end
 
   describe "VivaBridge integration" do
-    test "alive?/0 retorna true quando NIF carregado" do
+    test "alive?/0 returns true when NIF loaded" do
       assert VivaBridge.alive?() == true
     end
 
-    test "feel_hardware/0 delega para Body" do
+    test "feel_hardware/0 delegates to Body" do
       result = VivaBridge.feel_hardware()
       assert is_map(result)
       assert Map.has_key?(result, :cpu_usage)
@@ -169,30 +169,30 @@ defmodule VivaBridgeTest do
       assert Map.has_key?(result, :gpu_usage)
     end
 
-    test "sync_body_to_soul/0 aplica qualia ao Emotional" do
-      # Inicia um Emotional isolado para teste
+    test "sync_body_to_soul/0 applies qualia to Emotional" do
+      # Start an isolated Emotional for test
       {:ok, _pid} = VivaCore.Emotional.start_link(name: :test_emotional_sync)
 
-      # Estado inicial é neutro
+      # Initial state is neutral
       initial = VivaCore.Emotional.get_state(:test_emotional_sync)
       assert initial.pleasure == 0.0
       assert initial.arousal == 0.0
       assert initial.dominance == 0.0
 
-      # Aplica qualia diretamente (não via sync_body_to_soul que usa o global)
+      # Apply qualia directly (not via sync_body_to_soul which uses the global)
       {p, a, d} = VivaBridge.hardware_to_qualia()
       VivaCore.Emotional.apply_hardware_qualia(p, a, d, :test_emotional_sync)
 
-      # Pequeno delay para o cast processar
+      # Small delay for the cast to process
       Process.sleep(10)
 
-      # Estado deve ter mudado
+      # State should have changed
       new_state = VivaCore.Emotional.get_state(:test_emotional_sync)
 
-      # Se houve algum stress, pleasure deve ter diminuído
+      # If there was any stress, pleasure should have decreased
       if p < 0, do: assert(new_state.pleasure < 0)
 
-      # Arousal deve ter aumentado (stress aumenta arousal)
+      # Arousal should have increased (stress increases arousal)
       if a > 0, do: assert(new_state.arousal > 0)
 
       GenServer.stop(:test_emotional_sync)
