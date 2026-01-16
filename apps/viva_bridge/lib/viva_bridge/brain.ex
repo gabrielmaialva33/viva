@@ -12,10 +12,12 @@ defmodule VivaBridge.Brain do
   """
   def init() do
     Logger.info("[Brain] Initializing Native Cortex (Tabula Rasa)...")
+
     case Body.brain_init() do
       msg when is_binary(msg) ->
         Logger.info("[Brain] #{msg}")
         :ok
+
       {:error, reason} ->
         Logger.error("[Brain] Failed to init: #{inspect(reason)}")
         {:error, reason}
@@ -36,5 +38,21 @@ defmodule VivaBridge.Brain do
   # Helper for neutral experience (inference only, mostly)
   def experience(text) do
     experience(text, %{pleasure: 0.0, arousal: 0.0, dominance: 0.0})
+  end
+
+  @doc """
+  Recalls memories related to the given text.
+  Embeds the text using the Cortex and then searches the Memory.
+  """
+  def recall(text, limit \\ 5) do
+    # 1. Embed text to vector (using neutral experience as inference)
+    case experience(text) do
+      {:ok, vector} ->
+        # 2. Search memory
+        VivaBridge.Memory.search(vector, limit)
+
+      _ ->
+        []
+    end
   end
 end
