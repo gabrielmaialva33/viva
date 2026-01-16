@@ -18,3 +18,6 @@ import Config
 #       format: "$date $time [$level] $metadata$message\n",
 #       metadata: [:user_id]
 #
+config :viva_core,
+  memory_backend: :rust_native,
+  native_memory_path: Path.expand("~/.viva/memory")

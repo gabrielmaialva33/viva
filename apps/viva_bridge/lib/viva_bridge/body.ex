@@ -460,4 +460,81 @@ defmodule VivaBridge.Body do
   else
     def body_engine_apply_stimulus(_engine, _p, _a, _d), do: :erlang.nif_error(:nif_not_loaded)
   end
+
+  # ============================================================================
+  # Memory NIFs ("God Mode" Database)
+  # ============================================================================
+
+  @doc """
+  Initializes the native memory system (Singleton).
+  """
+  if @skip_nif do
+    def memory_init(_path), do: {:ok, "Stubbed Memory Init"}
+  else
+    def memory_init(_path), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Stores a memory in the native system.
+  Args: vector (list of floats), metadata_json (string)
+  """
+  if @skip_nif do
+    def memory_store(_vector, _metadata_json), do: {:ok, "Stubbed Store"}
+  else
+    def memory_store(_vector, _metadata_json),
+      do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Searches for memories.
+  Args: query (list of floats), limit (integer)
+  """
+  if @skip_nif do
+    def memory_search(_query, _limit), do: []
+  else
+    def memory_search(_query, _limit), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Gets memory stats.
+  Args: backend (string) - ignored in singleton mode but kept for compat
+  """
+  if @skip_nif do
+    def memory_stats(_backend), do: {:ok, "Stub Stats"}
+  else
+    def memory_stats(_backend), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Saves memory to disk.
+  """
+  if @skip_nif do
+    def memory_save(), do: {:ok, "Saved (Stub)"}
+  else
+    def memory_save(), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  # ============================================================================
+  # Brain NIFs (Native Cortex)
+  # ============================================================================
+
+  @doc """
+  Initializes the native cortex (Tabula Rasa).
+  """
+  if @skip_nif do
+    def brain_init(), do: :stub_brain
+  else
+    def brain_init(), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Process an experience through the cortex.
+  Arguments: text, pleasure, arousal, dominance.
+  """
+  if @skip_nif do
+    def brain_experience(_text, _p, _a, _d), do: [0.0, 0.0, 0.0]
+  else
+    def brain_experience(_text, _p, _a, _d), do: :erlang.nif_error(:nif_not_loaded)
+  end
 end
+

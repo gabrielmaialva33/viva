@@ -22,10 +22,11 @@
 
 use nvml_wrapper::Nvml;
 use rustler::{Encoder, Env, NifResult, Resource, ResourceArc, Term};
-use std::sync::LazyLock;
-use std::sync::Mutex;
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex, OnceLock, RwLock};
 use std::time::{Duration, Instant};
 use sysinfo::{Components, Disks, Networks, System};
+use chrono::Utc;
 
 mod math_opt; // Low-level mathematical optimizations
 mod serial_sensor; // Serial/IoT/Arduino support
@@ -644,8 +645,108 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
 }
 
 // ============================================================================
-// Mathematical Functions (Biologically-Inspired)
+// Memory NIFs ("God Mode" Database)
 // ============================================================================
+
+mod brain; // Native Cortex module
+
+use memory::{VivaMemory, MemoryMeta, MemoryType, PadEmotion, SearchOptions};
+// use brain::cortex::Cortex; // Will be used later
+
+
+// Global Memory Singleton
+static MEMORY: OnceLock<Mutex<VivaMemory>> = OnceLock::new();
+
+/// Initializes the native memory system (Global Singleton)
+#[rustler::nif]
+fn memory_init(path: Option<String>) -> NifResult<String> {
+    if MEMORY.get().is_some() {
+        return Ok("Memory already initialized".to_string());
+    }
+
+    let memory = match path {
+        Some(p) if p != "hnsw" => {
+            if p.starts_with("/") {
+                let episodic_path = format!("{}/episodic", p);
+                let semantic_path = format!("{}/semantic.db", p);
+                std::fs::create_dir_all(&p).map_err(|e: std::io::Error| rustler::Error::Term(Box::new(e.to_string())))?;
+                VivaMemory::open(&episodic_path, &semantic_path)
+                    .map_err(|e: anyhow::Error| rustler::Error::Term(Box::new(e.to_string())))?
+            } else {
+                 VivaMemory::new().map_err(|e: anyhow::Error| rustler::Error::Term(Box::new(e.to_string())))?
+            }
+        },
+        _ => VivaMemory::new().map_err(|e: anyhow::Error| rustler::Error::Term(Box::new(e.to_string())))?
+    };
+
+    MEMORY.set(Mutex::new(memory)).map_err(|_| rustler::Error::Term(Box::new("Failed to set memory singleton".to_string())))?;
+    Ok("Native Memory initialized successfully".to_string())
+}
+
+/// Stores a memory in the native system
+#[rustler::nif]
+fn memory_store(vector: Vec<f32>, metadata_json: String) -> NifResult<String> {
+    let memory_lock = MEMORY.get().ok_or_else(|| rustler::Error::Term(Box::new("Memory not initialized".to_string())))?;
+    let mut memory = memory_lock.lock().map_err(|_| rustler::Error::Term(Box::new("Memory mutex poisoned".to_string())))?;
+
+    // Create a meta object. We put the raw JSON in content for now.
+    // Ideally we parse the JSON to get 'type', 'timestamp' etc.
+    // For MVP, we generate a new ID and timestamp here.
+    let meta = MemoryMeta {
+        id: uuid::Uuid::new_v4().to_string(),
+        timestamp: memory::unix_timestamp_now(),
+        content: metadata_json, // Storing the raw JSON payload as content
+        memory_type: MemoryType::Episodic, // Defaulting to Episodic
+        emotion: None,
+        access_count: 0,
+        last_accessed: memory::unix_timestamp_now(),
+        importance: 0.5,
+    };
+
+    memory.store(&vector, meta).map_err(|e: anyhow::Error| rustler::Error::Term(Box::new(e.to_string())))?;
+    Ok("Memory stored".to_string())
+}
+
+/// Searches for memories
+#[rustler::nif]
+fn memory_search(query: Vec<f32>, limit: usize) -> NifResult<Vec<(String, String, f32, f32)>> {
+    let memory_lock = MEMORY.get().ok_or_else(|| rustler::Error::Term(Box::new("Memory not initialized".to_string())))?;
+    let memory = memory_lock.lock().map_err(|_| rustler::Error::Term(Box::new("Memory mutex poisoned".to_string())))?;
+
+    let options = SearchOptions::new().limit(limit);
+
+    // Use CLS search (merged backends)
+    let results = memory.search_cls(&query, &options)
+        .map_err(|e: anyhow::Error| rustler::Error::Term(Box::new(e.to_string())))?;
+
+    // Return tuple list: (id, content, score, importance)
+    Ok(results.into_iter().map(|r| (
+        r.meta.id,
+        r.meta.content,
+        r.decayed_score,
+        r.meta.importance
+    )).collect())
+}
+
+/// Stats
+#[rustler::nif]
+fn memory_stats(_backend: String) -> NifResult<String> {
+    let memory_lock = MEMORY.get().ok_or_else(|| rustler::Error::Term(Box::new("Memory not initialized".to_string())))?;
+    let memory = memory_lock.lock().map_err(|_| rustler::Error::Term(Box::new("Memory mutex poisoned".to_string())))?;
+
+    let stats = memory.stats();
+    Ok(format!("Episodic: {}, Semantic: {}", stats.episodic_count, stats.semantic_count))
+}
+
+/// Explicit save (persistence)
+#[rustler::nif]
+fn memory_save() -> NifResult<String> {
+    let memory_lock = MEMORY.get().ok_or_else(|| rustler::Error::Term(Box::new("Memory not initialized".to_string())))?;
+    let memory = memory_lock.lock().map_err(|_| rustler::Error::Term(Box::new("Memory mutex poisoned".to_string())))?;
+
+    memory.save().map_err(|e: anyhow::Error| rustler::Error::Term(Box::new(e.to_string())))?;
+    Ok("Saved".to_string())
+}
 
 /// Applies sigmoid with normalization to maintain range [0, 1]
 /// Compensates for the fact that sigmoid(0) != 0 and sigmoid(1) != 1
@@ -886,99 +987,12 @@ fn get_network_info(networks: &Networks) -> (u64, u64) {
 // ============================================================================
 // Memory System NIFs
 // ============================================================================
-
-#[allow(unused_imports)]
-use memory::{MemoryBackend, MemoryMeta, MemorySearchResult, MemoryType, SearchOptions};
-
-/// Wrapper for MemoryBackend as Rustler Resource
-pub struct MemoryResource {
-    backend: Mutex<MemoryBackend>,
-}
-
-#[rustler::resource_impl]
-impl Resource for MemoryResource {}
-
-/// Create HNSW-based memory backend (fast ANN search)
-// TODO: Enable when VivaBridge.Body declares memory functions
-// #[rustler::nif]
-#[allow(dead_code)]
-fn memory_new_hnsw() -> NifResult<ResourceArc<MemoryResource>> {
-    let backend = MemoryBackend::usearch()
-        .map_err(|e| rustler::Error::Term(Box::new(format!("Failed to create HNSW backend: {}", e))))?;
-    Ok(ResourceArc::new(MemoryResource { backend: Mutex::new(backend) }))
-}
-
-/// Create SQLite-based memory backend (portable, brute-force)
-// #[rustler::nif]
-#[allow(dead_code)]
-fn memory_new_sqlite() -> NifResult<ResourceArc<MemoryResource>> {
-    let backend = MemoryBackend::sqlite()
-        .map_err(|e| rustler::Error::Term(Box::new(format!("Failed to create SQLite backend: {}", e))))?;
-    Ok(ResourceArc::new(MemoryResource { backend: Mutex::new(backend) }))
-}
-
-/// Store a memory with embedding
-/// Returns the internal key (u64)
-// #[rustler::nif]
-#[allow(dead_code)]
-fn memory_store(
-    resource: ResourceArc<MemoryResource>,
-    embedding: Vec<f32>,
-    id: String,
-    content: String,
-    memory_type: String,
-    importance: f32,
-) -> NifResult<u64> {
-    let backend = resource.backend.lock().unwrap();
-
-    let meta = MemoryMeta::new(id, content)
-        .with_type(MemoryType::from_str(&memory_type))
-        .with_importance(importance);
-
-    backend.store(&embedding, meta)
-        .map_err(|e| rustler::Error::Term(Box::new(e.to_string())))
-}
+// All memory functions are now handled by VivaMemory (above)
 
 /// Search for similar memories
 /// Returns list of (id, content, similarity, decayed_score)
 // #[rustler::nif]
 #[allow(dead_code)]
-fn memory_search(
-    resource: ResourceArc<MemoryResource>,
-    query: Vec<f32>,
-    limit: usize,
-    memory_type: Option<String>,
-    apply_decay: bool,
-) -> NifResult<Vec<(String, String, f32, f32)>> {
-    let backend = resource.backend.lock().unwrap();
-
-    let mut options = SearchOptions::new().limit(limit);
-
-    if let Some(ref t) = memory_type {
-        options = options.of_type(MemoryType::from_str(t));
-    }
-
-    if !apply_decay {
-        options = options.no_decay();
-    }
-
-    let results = backend.search(&query, &options)
-        .map_err(|e| rustler::Error::Term(Box::new(e.to_string())))?;
-
-    Ok(results
-        .into_iter()
-        .map(|r| (r.meta.id, r.meta.content, r.similarity, r.decayed_score))
-        .collect())
-}
-
-/// Get backend name
-// #[rustler::nif]
-#[allow(dead_code)]
-fn memory_backend_name(resource: ResourceArc<MemoryResource>) -> String {
-    let backend = resource.backend.lock().unwrap();
-    backend.backend_name().to_string()
-}
-
 // ============================================================================
 // Dynamics NIFs (Stochastic Emotional Dynamics)
 // ============================================================================
@@ -1215,13 +1229,32 @@ impl Encoder for BodyState {
 }
 
 // ============================================================================
-// NIF Registration
+// BRAIN NIFS (Native Cortex)
 // ============================================================================
 
-fn load(_env: Env, _info: Term) -> bool {
-    // Resources are registered automatically via #[derive(Resource)]
-    true
+#[rustler::nif]
+fn brain_init() -> NifResult<String> {
+    match brain::BrainManager::init() {
+        Ok(_) => Ok("Native Cortex initialized successfully".to_string()),
+        Err(e) => Err(rustler::Error::Term(Box::new(e.to_string())))
+    }
 }
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn brain_experience(text: String, pleasure: f32, arousal: f32, dominance: f32) -> NifResult<Vec<f32>> {
+    let emotion = PadEmotion { pleasure, arousal, dominance };
+
+    match brain::BrainManager::process_experience(&text, emotion) {
+        Ok(vec) => Ok(vec),
+        Err(e) => Err(rustler::Error::Term(Box::new(e.to_string())))
+    }
+}
+
+// ============================================================================
+// NIF REGISTRATION
+// ============================================================================
+
+
 
 rustler::init!(
     "Elixir.VivaBridge.Body",
@@ -1244,6 +1277,21 @@ rustler::init!(
         body_engine_get_pad,
         body_engine_set_pad,
         body_engine_apply_stimulus,
+        // Memory (Native)
+        memory_init,
+        memory_store,
+        memory_search,
+        memory_stats,
+        memory_save,
+        // Brain (Native)
+        brain_init,
+        brain_experience,
+        // brain_process,
+
     ],
     load = load
 );
+
+fn load(_env: Env, _info: Term) -> bool {
+    true
+}

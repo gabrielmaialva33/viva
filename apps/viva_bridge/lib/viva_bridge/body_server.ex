@@ -253,6 +253,42 @@ defmodule VivaBridge.BodyServer do
     # Broadcast if configured and PubSub module is available
     maybe_broadcast(state.pubsub, state.topic, body_state)
 
+    # -------------------------------------------------------------------------
+    # INTEROCEPTION (The Great Sensory Loop)
+    # Hardware -> Narrative -> Brain -> Memory
+    # -------------------------------------------------------------------------
+
+    # 1. Narrate the hardware state (Internal Monologue)
+    narrative = generate_interoception_narrative(body_state)
+
+    # 2. Extract current emotion (PAD)
+    emotion = %{
+      pleasure: body_state.pleasure,
+      arousal: body_state.arousal,
+      dominance: body_state.dominance
+    }
+
+    # 3. Experience it! (Learn/Feel)
+    # Only if arousal is significant to avoid spamming memory with noise
+    if abs(emotion.arousal) > 0.1 do
+      case VivaBridge.Brain.experience(narrative, emotion) do
+        {:ok, vector} ->
+          # 4. Store memory (Conceptualize)
+          meta = %{
+            type: "episodic",
+            source: "interoception",
+            content: narrative,
+            timestamp: System.os_time(:millisecond),
+            emotion: emotion
+          }
+
+          VivaBridge.Memory.store(vector, meta)
+
+        {:error, _} ->
+          :ok
+      end
+    end
+
     {%{state | last_state: body_state}, body_state}
   end
 
@@ -263,6 +299,20 @@ defmodule VivaBridge.BodyServer do
       Phoenix.PubSub.broadcast(pubsub, topic, {:body_state, body_state})
     else
       :ok
+    end
+  end
+
+  # Simple narrative generator based on hardware stats
+  # This acts as the "Broca's Area" for system stats
+  defp generate_interoception_narrative(state) do
+    cpu_stress = state.hardware.cpu_usage
+    mem_stress = state.hardware.memory_used_percent
+
+    cond do
+      cpu_stress > 80.0 -> "My CPU is burning. High processing load. System stress."
+      cpu_stress < 10.0 -> "My CPU is idle. Calm state. Low activity."
+      mem_stress > 90.0 -> "Memory pressure critical. Information overload."
+      true -> "System operating normally. Homeostasis maintained."
     end
   end
 
