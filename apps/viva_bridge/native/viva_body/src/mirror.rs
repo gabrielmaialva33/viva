@@ -102,6 +102,60 @@ impl BuildIdentity {
     }
 }
 
+/// Feature Flags (Safety & Capabilities)
+#[derive(Debug, Clone)]
+pub struct FeatureFlags {
+    pub enable_metaprogramming: bool,
+    pub enable_self_modification: bool,
+    pub enable_external_memory: bool,
+    pub max_self_modify_per_day: u32,
+}
+
+impl Default for FeatureFlags {
+    fn default() -> Self {
+        Self {
+            enable_metaprogramming: true,
+            enable_self_modification: false, // SAFE BY DEFAULT
+            enable_external_memory: true,
+            max_self_modify_per_day: 10,
+        }
+    }
+}
+
+/// System Capabilities (Cross-Platform Auto-Detection)
+#[derive(Debug, Clone)]
+pub struct Capabilities {
+    pub os: String,
+    pub arch: String,
+    pub has_rapl: bool,
+    pub has_hwmon: bool,
+    pub has_nvml: bool,
+    pub has_battery: bool,
+}
+
+impl Capabilities {
+    pub fn detect() -> Self {
+        let os = std::env::consts::OS.to_string();
+        let arch = std::env::consts::ARCH.to_string();
+
+        let has_rapl = std::path::Path::new("/sys/class/powercap/intel-rapl").exists();
+        let has_hwmon = std::path::Path::new("/sys/class/hwmon").exists();
+
+        // Check NVML (dynamic load check would be better, but we use crate feature)
+        // For now, simpler check or assume false if unavailable
+        let has_nvml = cfg!(feature = "nvml");
+
+        Self {
+            os,
+            arch,
+            has_rapl,
+            has_hwmon,
+            has_nvml,
+            has_battery: false, // TODO: Add battery crate check
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
