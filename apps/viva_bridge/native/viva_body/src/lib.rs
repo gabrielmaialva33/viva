@@ -32,6 +32,7 @@ mod serial_sensor; // Serial/IoT/Arduino support
 mod asm; // Inline Assembly (RDTSC/CPUID)
 mod cpu_topology; // Cache/Vendor info
 mod os_stats; // Kernel metrics (Context Switches)
+mod bio_rhythm; // Temporal analysis (Entropy/Jitter)
 
 // ============================================================================
 // Pre-defined Atoms (rustler::atoms! macro for performance + panic safety)
@@ -71,6 +72,9 @@ rustler::atoms! {
     l3_cache_kb,
     context_switches,
     interrupts,
+    // Bio Rhythm
+    system_entropy,
+    os_jitter,
 }
 
 // Cache duration for hardware metrics (reduces lock contention)
@@ -113,6 +117,9 @@ static DISKS: LazyLock<Mutex<Disks>> =
 
 static NETWORKS: LazyLock<Mutex<Networks>> =
     LazyLock::new(|| Mutex::new(Networks::new_with_refreshed_list()));
+
+static BIO_RHYTHM: LazyLock<Mutex<bio_rhythm::BioRhythm>> =
+    LazyLock::new(|| Mutex::new(bio_rhythm::BioRhythm::new()));
 
 // NVIDIA GPU (initialized once, None if unavailable)
 static NVML: LazyLock<Option<Nvml>> = LazyLock::new(|| match Nvml::init() {
@@ -210,6 +217,10 @@ pub struct HardwareState {
     pub l3_cache_kb: Option<u32>,
     pub context_switches: u64,
     pub interrupts: u64,
+
+    // Bio-Rhythm (New)
+    pub system_entropy: f32, // 0.0 (Order) - 1.0 (Chaos)
+    pub os_jitter: f32,      // 0.0 (Stable) - 1.0 (Tremor)
 }
 
 impl HardwareState {
@@ -240,6 +251,8 @@ impl HardwareState {
             l3_cache_kb: None,
             context_switches: 0,
             interrupts: 0,
+            system_entropy: 0.0,
+            os_jitter: 0.0,
         }
     }
 }
@@ -344,6 +357,10 @@ impl Encoder for HardwareState {
         let map = put(map, context_switches(), self.context_switches, env);
         let map = put(map, interrupts(), self.interrupts, env);
 
+        // Bio Rhythm
+        let map = put(map, system_entropy(), self.system_entropy, env);
+        let map = put(map, os_jitter(), self.os_jitter, env);
+
         map
     }
 }
@@ -424,6 +441,17 @@ fn collect_hardware_state() -> HardwareState {
     let cache_info = cpu_topology::detect_cache_topology();
     let os_stats = os_stats::read_os_stats(&sys);
 
+    // Update Bio-Rhythm
+    // We update the buffer with CURRENT values, then calculate based on history.
+    let mut rhythm = safe_lock(&BIO_RHYTHM);
+    // Explicit deref or let generic flow, but compiler complained about type inference.
+    // Actually safe_lock returns MutexGuard<'_, BioRhythm>.
+    // The previous error was likely due to BIO_RHYTHM not being found or resolved.
+    // But let's be safe.
+    rhythm.update(cpu_usage, os_stats.context_switches);
+    let system_entropy = rhythm.cpu_entropy();
+    let os_jitter = rhythm.context_switch_jitter();
+
     let state = HardwareState {
         cpu_usage,
         cpu_temp,
@@ -451,6 +479,8 @@ fn collect_hardware_state() -> HardwareState {
         l3_cache_kb: if cache_info.l3_kb > 0 { Some(cache_info.l3_kb) } else { None },
         context_switches: os_stats.context_switches,
         interrupts: os_stats.interrupts,
+        system_entropy,
+        os_jitter,
     };
 
     // Update cache (using safe_lock)
@@ -574,17 +604,32 @@ fn hardware_to_qualia() -> NifResult<(f64, f64, f64)> {
 
     // Pleasure: Stress → desconforto (negativo)
     // Formula: δP = -k_p × σ
-    let pleasure_delta = -0.12 * adjusted_stress;
+    let mut pleasure_delta = -0.12 * adjusted_stress;
 
     // Arousal: Stress → activation (positive, up to a point)
     // Formula: δA = k_a × (2σ - σ²) - Yerkes-Dodson inverted U
     // Peak at σ=1, then decreases (exhaustion)
-    let arousal_delta = 0.15 * (2.0 * adjusted_stress - adjusted_stress.powi(2));
+    let mut arousal_delta = 0.15 * (2.0 * adjusted_stress - adjusted_stress.powi(2));
 
     // Dominance: Stress → perda de controle (negativo)
     // Mais impactado por GPU (capacidade) e Load (overwhelm)
     let dominance_stress = load_stress * 0.4 + gpu_stress * 0.3 + mem_stress * 0.3;
-    let dominance_delta = -0.09 * dominance_stress;
+    let mut dominance_delta = -0.09 * dominance_stress;
+
+    // ========================================================================
+    // BIO-RHYTHM IMPACT (New - The "Supreme" Layer)
+    // ========================================================================
+    //
+    // 1. System Entropy (Chaos vs Order):
+    //    High entropy (chaotic CPU usage) -> Cognitive dissonance (Low Dominance)
+    //    Low entropy (steady CPU usage) -> Flow state (High Dominance)
+    dominance_delta -= hw.system_entropy as f64 * 0.15; // Chaos erodes control
+
+    // 2. OS Jitter (Tremor):
+    //    High jitter -> Anxiety/Fear (High Arousal, Low Pleasure)
+    let jitter_impact = hw.os_jitter as f64;
+    arousal_delta += jitter_impact * 0.20; // Fear activates
+    pleasure_delta -= jitter_impact * 0.15; // Uncertainty is unpleasant
 
     Ok((pleasure_delta, arousal_delta, dominance_delta))
 }
