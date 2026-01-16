@@ -1,0 +1,264 @@
+defmodule VivaBridge.BodyServer do
+  @moduledoc """
+  GenServer that maintains VIVA's body state and evolves it over time.
+
+  This is the main integration point for VIVA's interoception system.
+  It maintains a Rust BodyEngine that:
+  - Senses hardware (CPU, memory, GPU, etc.)
+  - Computes stress and qualia (hardware → PAD deltas)
+  - Evolves emotional state via O-U dynamics + Cusp catastrophe
+  - Returns unified BodyState on each tick
+
+  ## Usage
+
+      # Start the server (usually in your supervision tree)
+      {:ok, pid} = VivaBridge.BodyServer.start_link()
+
+      # Get current state
+      state = VivaBridge.BodyServer.get_state()
+      # => %{pleasure: 0.1, arousal: -0.2, dominance: 0.3, hardware: %{...}, ...}
+
+      # Get just PAD
+      {p, a, d} = VivaBridge.BodyServer.get_pad()
+
+      # Apply external stimulus (e.g., positive message received)
+      VivaBridge.BodyServer.apply_stimulus(0.3, 0.1, 0.0)
+
+  ## Configuration
+
+  Options can be passed to `start_link/1`:
+
+      VivaBridge.BodyServer.start_link(
+        tick_interval: 500,        # ms between ticks (default: 500)
+        cusp_enabled: true,        # enable cusp catastrophe (default: true)
+        cusp_sensitivity: 0.5,     # cusp effect strength (default: 0.5)
+        seed: 0                    # RNG seed, 0 = random (default: 0)
+      )
+
+  ## PubSub
+
+  If configured, broadcasts state on each tick:
+
+      Phoenix.PubSub.subscribe(Viva.PubSub, "body:state")
+
+      # Receive:
+      {:body_state, %{pleasure: ..., arousal: ..., ...}}
+
+  """
+
+  use GenServer
+  require Logger
+
+  alias VivaBridge.Body
+
+  @default_tick_interval 500
+  @default_dt 0.5
+  @default_cusp_enabled true
+  @default_cusp_sensitivity 0.5
+  @default_seed 0
+
+  # ============================================================================
+  # Client API
+  # ============================================================================
+
+  @doc """
+  Starts the BodyServer.
+
+  ## Options
+
+  - `:tick_interval` - milliseconds between ticks (default: 500)
+  - `:cusp_enabled` - enable cusp catastrophe dynamics (default: true)
+  - `:cusp_sensitivity` - cusp effect strength 0-1 (default: 0.5)
+  - `:seed` - RNG seed, 0 = use system time (default: 0)
+  - `:pubsub` - PubSub module to broadcast state (optional)
+  - `:topic` - PubSub topic (default: "body:state")
+  - `:name` - GenServer name (default: __MODULE__)
+  """
+  def start_link(opts \\ []) do
+    name = Keyword.get(opts, :name, __MODULE__)
+    GenServer.start_link(__MODULE__, opts, name: name)
+  end
+
+  @doc """
+  Gets the current body state (last tick result).
+
+  Returns a map with:
+  - `:pleasure`, `:arousal`, `:dominance` - PAD state
+  - `:stress_level` - composite stress 0-1
+  - `:in_bifurcation` - whether in bifurcation region
+  - `:tick` - tick counter
+  - `:timestamp_ms` - Unix timestamp
+  - `:hardware` - nested hardware metrics
+  """
+  def get_state(server \\ __MODULE__) do
+    GenServer.call(server, :get_state)
+  end
+
+  @doc """
+  Gets just the PAD tuple.
+
+  Returns `{pleasure, arousal, dominance}`.
+  """
+  def get_pad(server \\ __MODULE__) do
+    GenServer.call(server, :get_pad)
+  end
+
+  @doc """
+  Sets PAD state directly.
+
+  Useful for initialization or testing.
+  Values are clamped to [-1, 1].
+  """
+  def set_pad(server \\ __MODULE__, pleasure, arousal, dominance) do
+    GenServer.cast(server, {:set_pad, pleasure, arousal, dominance})
+  end
+
+  @doc """
+  Applies an external emotional stimulus.
+
+  This allows external events (messages, interactions, achievements)
+  to influence VIVA's emotional state.
+
+  ## Examples
+
+      # Positive interaction
+      VivaBridge.BodyServer.apply_stimulus(0.3, 0.1, 0.1)
+
+      # Frustrating event
+      VivaBridge.BodyServer.apply_stimulus(-0.2, 0.3, -0.2)
+
+  """
+  def apply_stimulus(server \\ __MODULE__, p_delta, a_delta, d_delta) do
+    GenServer.cast(server, {:apply_stimulus, p_delta, a_delta, d_delta})
+  end
+
+  @doc """
+  Forces an immediate tick (useful for testing).
+  """
+  def force_tick(server \\ __MODULE__) do
+    GenServer.call(server, :force_tick)
+  end
+
+  @doc """
+  Pauses automatic ticking.
+  """
+  def pause(server \\ __MODULE__) do
+    GenServer.cast(server, :pause)
+  end
+
+  @doc """
+  Resumes automatic ticking.
+  """
+  def resume(server \\ __MODULE__) do
+    GenServer.cast(server, :resume)
+  end
+
+  # ============================================================================
+  # Server Callbacks
+  # ============================================================================
+
+  @impl true
+  def init(opts) do
+    tick_interval = Keyword.get(opts, :tick_interval, @default_tick_interval)
+    dt = Keyword.get(opts, :dt, @default_dt)
+    cusp_enabled = Keyword.get(opts, :cusp_enabled, @default_cusp_enabled)
+    cusp_sensitivity = Keyword.get(opts, :cusp_sensitivity, @default_cusp_sensitivity)
+    seed = Keyword.get(opts, :seed, @default_seed)
+    pubsub = Keyword.get(opts, :pubsub)
+    topic = Keyword.get(opts, :topic, "body:state")
+
+    # Create the Rust engine
+    engine = Body.body_engine_new_with_config(dt, cusp_enabled, cusp_sensitivity, seed)
+
+    state = %{
+      engine: engine,
+      tick_interval: tick_interval,
+      pubsub: pubsub,
+      topic: topic,
+      last_state: nil,
+      paused: false
+    }
+
+    # Schedule first tick
+    schedule_tick(tick_interval)
+
+    Logger.info("[BodyServer] Started with interval=#{tick_interval}ms, cusp=#{cusp_enabled}")
+
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_call(:get_state, _from, state) do
+    {:reply, state.last_state, state}
+  end
+
+  @impl true
+  def handle_call(:get_pad, _from, state) do
+    pad = Body.body_engine_get_pad(state.engine)
+    {:reply, pad, state}
+  end
+
+  @impl true
+  def handle_call(:force_tick, _from, state) do
+    {new_state, body_state} = do_tick(state)
+    {:reply, body_state, new_state}
+  end
+
+  @impl true
+  def handle_cast({:set_pad, p, a, d}, state) do
+    Body.body_engine_set_pad(state.engine, p, a, d)
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:apply_stimulus, p, a, d}, state) do
+    Body.body_engine_apply_stimulus(state.engine, p, a, d)
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast(:pause, state) do
+    Logger.debug("[BodyServer] Paused")
+    {:noreply, %{state | paused: true}}
+  end
+
+  @impl true
+  def handle_cast(:resume, state) do
+    Logger.debug("[BodyServer] Resumed")
+    schedule_tick(state.tick_interval)
+    {:noreply, %{state | paused: false}}
+  end
+
+  @impl true
+  def handle_info(:tick, %{paused: true} = state) do
+    # Don't tick while paused, but reschedule to check later
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:tick, state) do
+    {new_state, _body_state} = do_tick(state)
+    schedule_tick(state.tick_interval)
+    {:noreply, new_state}
+  end
+
+  # ============================================================================
+  # Private Functions
+  # ============================================================================
+
+  defp do_tick(state) do
+    # Execute tick in Rust
+    body_state = Body.body_engine_tick(state.engine)
+
+    # Broadcast if configured
+    if state.pubsub do
+      Phoenix.PubSub.broadcast(state.pubsub, state.topic, {:body_state, body_state})
+    end
+
+    {%{state | last_state: body_state}, body_state}
+  end
+
+  defp schedule_tick(interval) do
+    Process.send_after(self(), :tick, interval)
+  end
+end

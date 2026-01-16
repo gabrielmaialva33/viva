@@ -35,6 +35,7 @@ mod os_stats; // Kernel metrics (Context Switches)
 mod bio_rhythm; // Temporal analysis (Entropy/Jitter)
 mod memory; // Vector memory backends (usearch, SQLite)
 pub mod dynamics; // Stochastic dynamics (O-U, Cusp catastrophe)
+mod body_state; // Unified body state
 
 // ============================================================================
 // Pre-defined Atoms (rustler::atoms! macro for performance + panic safety)
@@ -1078,6 +1079,140 @@ fn dynamics_step(
 }
 
 // ============================================================================
+// Body State NIFs (Unified Interoception)
+// ============================================================================
+
+use body_state::{BodyConfig, BodyEngine, BodyState};
+
+/// Resource wrapper for BodyEngine (stateful)
+pub struct BodyEngineResource {
+    engine: Mutex<BodyEngine>,
+}
+
+impl Resource for BodyEngineResource {}
+
+/// Create a new body engine with default config
+#[rustler::nif]
+fn body_engine_new() -> ResourceArc<BodyEngineResource> {
+    ResourceArc::new(BodyEngineResource {
+        engine: Mutex::new(BodyEngine::default()),
+    })
+}
+
+/// Create body engine with custom config
+#[rustler::nif]
+fn body_engine_new_with_config(
+    dt: f64,
+    cusp_enabled: bool,
+    cusp_sensitivity: f64,
+    seed: u64,
+) -> ResourceArc<BodyEngineResource> {
+    let config = BodyConfig {
+        dt,
+        cusp_enabled,
+        cusp_sensitivity,
+        seed,
+        ..Default::default()
+    };
+    ResourceArc::new(BodyEngineResource {
+        engine: Mutex::new(BodyEngine::new(config)),
+    })
+}
+
+/// Execute one body tick - the main integration function
+///
+/// Returns complete BodyState as a map with all metrics
+#[rustler::nif]
+fn body_engine_tick(resource: ResourceArc<BodyEngineResource>) -> NifResult<BodyState> {
+    let mut engine = safe_lock(&resource.engine);
+    Ok(engine.tick())
+}
+
+/// Get current PAD state without ticking
+#[rustler::nif]
+fn body_engine_get_pad(resource: ResourceArc<BodyEngineResource>) -> (f64, f64, f64) {
+    let engine = safe_lock(&resource.engine);
+    engine.pad()
+}
+
+/// Set PAD state directly
+#[rustler::nif]
+fn body_engine_set_pad(resource: ResourceArc<BodyEngineResource>, p: f64, a: f64, d: f64) {
+    let mut engine = safe_lock(&resource.engine);
+    engine.set_pad(p, a, d);
+}
+
+/// Apply external stimulus (e.g., from conversation, events)
+#[rustler::nif]
+fn body_engine_apply_stimulus(
+    resource: ResourceArc<BodyEngineResource>,
+    p_delta: f64,
+    a_delta: f64,
+    d_delta: f64,
+) {
+    let mut engine = safe_lock(&resource.engine);
+    engine.apply_stimulus(p_delta, a_delta, d_delta);
+}
+
+// Implement Encoder for BodyState (Elixir map)
+impl Encoder for BodyState {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        use rustler::types::map::map_new;
+
+        let map = map_new(env);
+
+        // PAD state
+        let map = map
+            .map_put(pleasure().encode(env), self.pleasure.encode(env))
+            .expect("map_put");
+        let map = map
+            .map_put(arousal().encode(env), self.arousal.encode(env))
+            .expect("map_put");
+        let map = map
+            .map_put(dominance().encode(env), self.dominance.encode(env))
+            .expect("map_put");
+
+        // Derived metrics
+        let map = map
+            .map_put(
+                rustler::types::atom::Atom::from_str(env, "stress_level").unwrap().encode(env),
+                self.stress_level.encode(env),
+            )
+            .expect("map_put");
+        let map = map
+            .map_put(
+                rustler::types::atom::Atom::from_str(env, "in_bifurcation").unwrap().encode(env),
+                self.in_bifurcation.encode(env),
+            )
+            .expect("map_put");
+
+        // Metadata
+        let map = map
+            .map_put(
+                rustler::types::atom::Atom::from_str(env, "tick").unwrap().encode(env),
+                self.tick.encode(env),
+            )
+            .expect("map_put");
+        let map = map
+            .map_put(
+                rustler::types::atom::Atom::from_str(env, "timestamp_ms").unwrap().encode(env),
+                self.timestamp_ms.encode(env),
+            )
+            .expect("map_put");
+
+        // Embed hardware state
+        let map = map
+            .map_put(
+                rustler::types::atom::Atom::from_str(env, "hardware").unwrap().encode(env),
+                self.hardware.encode(env),
+            )
+            .expect("map_put");
+
+        map
+    }
+}
+
+// ============================================================================
 // NIF Registration
 // ============================================================================
 
@@ -1095,5 +1230,12 @@ rustler::init!(
         dynamics_cusp_is_bifurcation,
         dynamics_cusp_mood_step,
         dynamics_step,
+        // Body State (unified interoception)
+        body_engine_new,
+        body_engine_new_with_config,
+        body_engine_tick,
+        body_engine_get_pad,
+        body_engine_set_pad,
+        body_engine_apply_stimulus,
     ]
 );

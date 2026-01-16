@@ -334,4 +334,130 @@ defmodule VivaBridge.Body do
     def dynamics_step(_p, _a, _d, _dt, _np, _na, _nd, _cusp, _sens, _bias),
       do: :erlang.nif_error(:nif_not_loaded)
   end
+
+  # ============================================================================
+  # Body Engine NIFs - Unified Interoception
+  # ============================================================================
+
+  @doc """
+  Creates a new body engine with default configuration.
+
+  Returns a reference to the Rust BodyEngine resource.
+
+  ## Example
+
+      engine = VivaBridge.Body.body_engine_new()
+
+  """
+  if @skip_nif do
+    def body_engine_new(), do: :stub_engine
+  else
+    def body_engine_new(), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Creates a new body engine with custom configuration.
+
+  ## Parameters
+
+  - `dt` - Time step per tick in seconds (default: 0.5)
+  - `cusp_enabled` - Enable cusp catastrophe overlay (default: true)
+  - `cusp_sensitivity` - Cusp effect strength 0-1 (default: 0.5)
+  - `seed` - RNG seed, 0 = use system time (default: 0)
+
+  ## Example
+
+      engine = VivaBridge.Body.body_engine_new_with_config(0.5, true, 0.5, 0)
+
+  """
+  if @skip_nif do
+    def body_engine_new_with_config(_dt, _cusp, _sens, _seed), do: :stub_engine
+  else
+    def body_engine_new_with_config(_dt, _cusp, _sens, _seed),
+      do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Executes one body tick - the main integration function.
+
+  This performs the complete interoception cycle:
+  1. Senses hardware (CPU, memory, GPU, etc.)
+  2. Computes stress and qualia (hardware → PAD deltas)
+  3. Generates stochastic noise
+  4. Evolves PAD state via O-U dynamics + Cusp
+  5. Returns complete BodyState
+
+  ## Returns
+
+  Map with:
+  - `:pleasure`, `:arousal`, `:dominance` - PAD state [-1, 1]
+  - `:stress_level` - Composite stress [0, 1]
+  - `:in_bifurcation` - Whether in cusp bifurcation region
+  - `:tick` - Monotonic tick counter
+  - `:timestamp_ms` - Unix timestamp
+  - `:hardware` - Complete hardware metrics map
+
+  ## Example
+
+      engine = VivaBridge.Body.body_engine_new()
+      state = VivaBridge.Body.body_engine_tick(engine)
+      # => %{pleasure: 0.05, arousal: -0.1, dominance: 0.2, stress_level: 0.15, ...}
+
+  """
+  if @skip_nif do
+    def body_engine_tick(_engine) do
+      %{
+        pleasure: 0.0,
+        arousal: 0.0,
+        dominance: 0.0,
+        stress_level: 0.0,
+        in_bifurcation: false,
+        tick: 0,
+        timestamp_ms: System.system_time(:millisecond),
+        hardware: feel_hardware()
+      }
+    end
+  else
+    def body_engine_tick(_engine), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Gets current PAD state without ticking.
+
+  Returns `{pleasure, arousal, dominance}` tuple.
+  """
+  if @skip_nif do
+    def body_engine_get_pad(_engine), do: {0.0, 0.0, 0.0}
+  else
+    def body_engine_get_pad(_engine), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Sets PAD state directly.
+
+  Values are clamped to [-1, 1].
+  """
+  if @skip_nif do
+    def body_engine_set_pad(_engine, _p, _a, _d), do: :ok
+  else
+    def body_engine_set_pad(_engine, _p, _a, _d), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Applies an external emotional stimulus.
+
+  Allows external events to influence PAD state additively.
+  Values are clamped after application.
+
+  ## Example
+
+      # Positive interaction
+      VivaBridge.Body.body_engine_apply_stimulus(engine, 0.3, 0.1, 0.1)
+
+  """
+  if @skip_nif do
+    def body_engine_apply_stimulus(_engine, _p, _a, _d), do: :ok
+  else
+    def body_engine_apply_stimulus(_engine, _p, _a, _d), do: :erlang.nif_error(:nif_not_loaded)
+  end
 end

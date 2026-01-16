@@ -24,7 +24,9 @@
 /// - θ (theta): Mean-reversion speed (how fast it returns to equilibrium)
 /// - μ (mu): Long-term mean (equilibrium point)
 /// - σ (sigma): Volatility (noise amplitude)
-#[derive(Debug, Clone, Copy)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct OUParams {
     /// Mean-reversion speed (θ). Higher = faster return to equilibrium.
     /// Typical range: 0.1 to 10.0
