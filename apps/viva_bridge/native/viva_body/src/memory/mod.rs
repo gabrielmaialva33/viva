@@ -45,6 +45,8 @@ pub mod sqlite_backend;
 pub mod usearch_backend;
 pub mod hebbian;
 
+use anyhow::Result;
+
 pub use types::*;
 pub use sqlite_backend::SqliteMemory;
 pub use usearch_backend::HnswMemory;
@@ -59,32 +61,32 @@ pub enum MemoryBackend {
 
 impl MemoryBackend {
     /// Create HNSW backend (fast ANN, in-memory)
-    pub fn hnsw() -> Result<Self, String> {
+    pub fn hnsw() -> Result<Self> {
         Ok(MemoryBackend::Hnsw(HnswMemory::new()?))
     }
 
     /// Open persistent HNSW backend
-    pub fn hnsw_open(path: &str) -> Result<Self, String> {
+    pub fn hnsw_open(path: &str) -> Result<Self> {
         Ok(MemoryBackend::Hnsw(HnswMemory::open(path)?))
     }
 
     /// Alias for hnsw() for backwards compatibility
-    pub fn usearch() -> Result<Self, String> {
+    pub fn usearch() -> Result<Self> {
         Self::hnsw()
     }
 
     /// Create in-memory SQLite backend
-    pub fn sqlite() -> Result<Self, String> {
+    pub fn sqlite() -> Result<Self> {
         Ok(MemoryBackend::Sqlite(SqliteMemory::new()?))
     }
 
     /// Open file-based SQLite backend
-    pub fn sqlite_open(path: &str) -> Result<Self, String> {
+    pub fn sqlite_open(path: &str) -> Result<Self> {
         Ok(MemoryBackend::Sqlite(SqliteMemory::open(path)?))
     }
 
     /// Store a memory
-    pub fn store(&self, embedding: &[f32], meta: MemoryMeta) -> Result<u64, String> {
+    pub fn store(&self, embedding: &[f32], meta: MemoryMeta) -> Result<u64> {
         match self {
             MemoryBackend::Hnsw(h) => h.store(embedding, meta),
             MemoryBackend::Sqlite(s) => s.store(embedding, meta),
@@ -96,7 +98,7 @@ impl MemoryBackend {
         &self,
         query: &[f32],
         options: &SearchOptions,
-    ) -> Result<Vec<MemorySearchResult>, String> {
+    ) -> Result<Vec<MemorySearchResult>> {
         match self {
             MemoryBackend::Hnsw(h) => h.search(query, options),
             MemoryBackend::Sqlite(s) => s.search(query, options),
@@ -112,7 +114,7 @@ impl MemoryBackend {
     }
 
     /// Save to disk (if supported)
-    pub fn save(&self) -> Result<(), String> {
+    pub fn save(&self) -> Result<()> {
         match self {
             MemoryBackend::Hnsw(h) => h.save(),
             MemoryBackend::Sqlite(_) => Ok(()), // SQLite auto-persists
@@ -152,7 +154,7 @@ pub struct VivaMemory {
 
 impl VivaMemory {
     /// Create new integrated memory system (in-memory)
-    pub fn new() -> Result<Self, String> {
+    pub fn new() -> Result<Self> {
         Ok(Self {
             episodic: HnswMemory::new()?,
             semantic: SqliteMemory::new()?,
@@ -162,7 +164,7 @@ impl VivaMemory {
     }
 
     /// Create with persistent storage
-    pub fn open(episodic_path: &str, semantic_path: &str) -> Result<Self, String> {
+    pub fn open(episodic_path: &str, semantic_path: &str) -> Result<Self> {
         Ok(Self {
             episodic: HnswMemory::open(episodic_path)?,
             semantic: SqliteMemory::open(semantic_path)?,
@@ -192,7 +194,7 @@ impl VivaMemory {
     ///
     /// The memory's importance is automatically adjusted based on
     /// current emotional state.
-    pub fn store(&mut self, embedding: &[f32], meta: MemoryMeta) -> Result<u64, String> {
+    pub fn store(&mut self, embedding: &[f32], meta: MemoryMeta) -> Result<u64> {
         // Apply Three-Factor Hebbian modulation
         let modulated_meta = self.hebbian.modulate_memory(meta);
 
@@ -217,7 +219,7 @@ impl VivaMemory {
         &self,
         query: &[f32],
         options: &SearchOptions,
-    ) -> Result<Vec<MemorySearchResult>, String> {
+    ) -> Result<Vec<MemorySearchResult>> {
         let mut results = self.episodic.search(query, options)?;
 
         // Apply emotional retrieval boost
@@ -240,7 +242,7 @@ impl VivaMemory {
     ///
     /// This simulates "sleep consolidation" where important episodic
     /// memories are transferred to long-term semantic storage.
-    pub fn consolidate(&mut self, _importance_threshold: f32) -> Result<usize, String> {
+    pub fn consolidate(&mut self, _importance_threshold: f32) -> Result<usize> {
         // Clean up expired tags first
         self.tags.cleanup_expired();
 
@@ -255,7 +257,7 @@ impl VivaMemory {
     }
 
     /// Save both backends
-    pub fn save(&self) -> Result<(), String> {
+    pub fn save(&self) -> Result<()> {
         self.episodic.save()?;
         // SQLite auto-saves
         Ok(())
@@ -302,7 +304,7 @@ pub struct BenchmarkResult {
 pub fn bench_store(
     backend: &MemoryBackend,
     embeddings: &[Vec<f32>],
-) -> Result<BenchmarkResult, String> {
+) -> Result<BenchmarkResult> {
     let start = std::time::Instant::now();
 
     for (i, emb) in embeddings.iter().enumerate() {
@@ -326,7 +328,7 @@ pub fn bench_search(
     backend: &MemoryBackend,
     queries: &[Vec<f32>],
     limit: usize,
-) -> Result<BenchmarkResult, String> {
+) -> Result<BenchmarkResult> {
     let options = SearchOptions::new().limit(limit);
     let start = std::time::Instant::now();
 

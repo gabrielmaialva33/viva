@@ -5,6 +5,7 @@
 //! Brute-force cosine similarity (good for < 100k vectors).
 
 use crate::memory::types::*;
+use anyhow::{bail, Context, Result};
 use rusqlite::{params, Connection};
 use std::path::Path;
 use std::sync::Mutex;
@@ -17,9 +18,9 @@ pub struct SqliteMemory {
 
 impl SqliteMemory {
     /// Create in-memory database
-    pub fn new() -> Result<Self, String> {
+    pub fn new() -> Result<Self> {
         let conn =
-            Connection::open_in_memory().map_err(|e| format!("Failed to open SQLite: {}", e))?;
+            Connection::open_in_memory().context("Failed to open SQLite in-memory")?;
         let mem = Self {
             conn: Mutex::new(conn),
             path: None,
@@ -29,12 +30,12 @@ impl SqliteMemory {
     }
 
     /// Open or create file-based database
-    pub fn open(path: &str) -> Result<Self, String> {
+    pub fn open(path: &str) -> Result<Self> {
         let db_path = format!("{}.sqlite", path);
         let exists = Path::new(&db_path).exists();
 
         let conn =
-            Connection::open(&db_path).map_err(|e| format!("Failed to open SQLite: {}", e))?;
+            Connection::open(&db_path).context("Failed to open SQLite database")?;
 
         let mem = Self {
             conn: Mutex::new(conn),
@@ -48,7 +49,7 @@ impl SqliteMemory {
         Ok(mem)
     }
 
-    fn init_schema(&self) -> Result<(), String> {
+    fn init_schema(&self) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute_batch(
             r#"
@@ -72,18 +73,18 @@ impl SqliteMemory {
             CREATE INDEX IF NOT EXISTS idx_timestamp ON memories(timestamp);
             "#,
         )
-        .map_err(|e| format!("Failed to create schema: {}", e))?;
+        .context("Failed to create schema")?;
         Ok(())
     }
 
     /// Store a memory with its embedding
-    pub fn store(&self, embedding: &[f32], meta: MemoryMeta) -> Result<u64, String> {
+    pub fn store(&self, embedding: &[f32], meta: MemoryMeta) -> Result<u64> {
         if embedding.len() != VECTOR_DIM {
-            return Err(format!(
+            bail!(
                 "Invalid embedding dimension: {} (expected {})",
                 embedding.len(),
                 VECTOR_DIM
-            ));
+            );
         }
 
         let conn = self.conn.lock().unwrap();
@@ -118,7 +119,7 @@ impl SqliteMemory {
                 emb_bytes
             ],
         )
-        .map_err(|e| format!("Failed to insert: {}", e))?;
+        .context("Failed to insert memory")?;
 
         let key = conn.last_insert_rowid() as u64;
         Ok(key)
@@ -129,13 +130,13 @@ impl SqliteMemory {
         &self,
         query: &[f32],
         options: &SearchOptions,
-    ) -> Result<Vec<MemorySearchResult>, String> {
+    ) -> Result<Vec<MemorySearchResult>> {
         if query.len() != VECTOR_DIM {
-            return Err(format!(
+            bail!(
                 "Invalid query dimension: {} (expected {})",
                 query.len(),
                 VECTOR_DIM
-            ));
+            );
         }
 
         let conn = self.conn.lock().unwrap();
@@ -158,7 +159,7 @@ impl SqliteMemory {
 
         let mut stmt = conn
             .prepare(&sql)
-            .map_err(|e| format!("Failed to prepare: {}", e))?;
+            .context("Failed to prepare query")?;
 
         let rows = stmt
             .query_map([], |row| {
@@ -190,7 +191,7 @@ impl SqliteMemory {
                     emb_bytes,
                 ))
             })
-            .map_err(|e| format!("Failed to query: {}", e))?;
+            .context("Failed to query")?;
 
         let mut results: Vec<MemorySearchResult> = Vec::new();
 
@@ -208,7 +209,7 @@ impl SqliteMemory {
                 access_count,
                 last_accessed,
                 emb_bytes,
-            ) = row_result.map_err(|e| format!("Row error: {}", e))?;
+            ) = row_result.context("Row error")?;
 
             // Deserialize embedding
             let embedding: Vec<f32> = emb_bytes
@@ -263,7 +264,7 @@ impl SqliteMemory {
     }
 
     /// Get memory by string ID
-    pub fn get(&self, memory_id: &str) -> Result<Option<MemoryMeta>, String> {
+    pub fn get(&self, memory_id: &str) -> Result<Option<MemoryMeta>> {
         let conn = self.conn.lock().unwrap();
 
         // Update access stats first
@@ -276,7 +277,7 @@ impl SqliteMemory {
             "UPDATE memories SET access_count = access_count + 1, last_accessed = ?1 WHERE id = ?2",
             params![now, memory_id],
         )
-        .map_err(|e| format!("Failed to update access: {}", e))?;
+        .context("Failed to update access")?;
 
         // Fetch
         let result = conn.query_row(
@@ -310,24 +311,24 @@ impl SqliteMemory {
         match result {
             Ok(meta) => Ok(Some(meta)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(format!("Query failed: {}", e)),
+            Err(e) => Err(anyhow::anyhow!("Query failed: {}", e)),
         }
     }
 
     /// Delete a memory
-    pub fn forget(&self, memory_id: &str) -> Result<(), String> {
+    pub fn forget(&self, memory_id: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM memories WHERE id = ?1", params![memory_id])
-            .map_err(|e| format!("Failed to delete: {}", e))?;
+            .context("Failed to delete memory")?;
         Ok(())
     }
 
     /// Get stats
-    pub fn stats(&self) -> Result<SqliteStats, String> {
+    pub fn stats(&self) -> Result<SqliteStats> {
         let conn = self.conn.lock().unwrap();
         let count: usize = conn
             .query_row("SELECT COUNT(*) FROM memories", [], |row| row.get(0))
-            .map_err(|e| format!("Count failed: {}", e))?;
+            .context("Count failed")?;
 
         Ok(SqliteStats {
             backend: "sqlite",
@@ -374,7 +375,7 @@ mod tests {
 
     fn dummy_embedding() -> Vec<f32> {
         (0..VECTOR_DIM)
-            .map(|i| (i as f32 / VECTOR_DIM as f32))
+            .map(|i| i as f32 / VECTOR_DIM as f32)
             .collect()
     }
 

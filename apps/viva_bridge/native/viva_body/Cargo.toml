@@ -27,5 +27,8 @@ hnsw_rs = "0.3"           # Pure Rust HNSW - no C++ deps
 anndists = "0.1"          # Distance metrics for hnsw_rs
 rusqlite = { version = "0.32", features = ["bundled"] }
 
+# Error handling
+anyhow = "1.0"
+
 [features]
 default = []

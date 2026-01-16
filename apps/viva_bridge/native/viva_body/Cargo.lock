@@ -1116,6 +1116,7 @@ name = "viva_body"
 version = "0.1.0"
 dependencies = [
  "anndists",
+ "anyhow",
  "hnsw_rs",
  "nvml-wrapper",
  "rusqlite",

@@ -17,6 +17,7 @@
 
 use crate::memory::types::*;
 use anndists::dist::DistCosine;
+use anyhow::{bail, Context, Result};
 use hnsw_rs::api::AnnT; // Trait that provides file_dump()
 use hnsw_rs::hnsw::Hnsw;
 use hnsw_rs::hnswio::HnswIo;
@@ -75,12 +76,12 @@ impl HnswMemory {
     /// - max_nb_connection (M): 16 - edges per node
     /// - ef_construction: 200 - search width during construction
     /// - max_elements: 100_000 - pre-allocated capacity
-    pub fn new() -> Result<Self, String> {
+    pub fn new() -> Result<Self> {
         Self::with_capacity(100_000)
     }
 
     /// Create new in-memory HNSW index with custom capacity
-    pub fn with_capacity(max_elements: usize) -> Result<Self, String> {
+    pub fn with_capacity(max_elements: usize) -> Result<Self> {
         let index = Hnsw::<f32, DistCosine>::new(
             16,           // max_nb_connection (M)
             max_elements, // max_elements
@@ -100,7 +101,7 @@ impl HnswMemory {
     /// Open or create a persistent HNSW index at the given path
     ///
     /// If files exist at path, loads them. Otherwise creates new index.
-    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, String> {
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref().to_path_buf();
         let meta_path = Self::meta_file_path(&path);
 
@@ -116,14 +117,14 @@ impl HnswMemory {
     }
 
     /// Load existing HNSW index from disk
-    fn load_from_path(base_path: &Path) -> Result<Self, String> {
+    fn load_from_path(base_path: &Path) -> Result<Self> {
         let dir = base_path
             .parent()
-            .ok_or_else(|| "Invalid path: no parent directory".to_string())?;
+            .context("Invalid path: no parent directory")?;
         let name = base_path
             .file_name()
             .and_then(|n| n.to_str())
-            .ok_or_else(|| "Invalid path: no filename".to_string())?;
+            .context("Invalid path: no filename")?;
 
         // Load HNSW index
         // Note: Box::leak is used because HnswIo::load_hnsw returns Hnsw<'a>
@@ -133,23 +134,23 @@ impl HnswMemory {
         let reloader = Box::leak(Box::new(HnswIo::new(dir, name)));
         let index: Hnsw<'static, f32, DistCosine> = reloader
             .load_hnsw()
-            .map_err(|e| format!("Failed to load HNSW index: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to load HNSW index: {:?}", e))?;
 
         // Load metadata
         let meta_path = Self::meta_file_path(base_path);
         let file = File::open(&meta_path)
-            .map_err(|e| format!("Failed to open metadata file: {}", e))?;
+            .context("Failed to open metadata file")?;
         let reader = BufReader::new(file);
         let state: PersistentState = serde_json::from_reader(reader)
-            .map_err(|e| format!("Failed to parse metadata: {}", e))?;
+            .context("Failed to parse metadata")?;
 
         // Version check for future migrations
         if state.version > PersistentState::CURRENT_VERSION {
-            return Err(format!(
+            bail!(
                 "Metadata version {} is newer than supported version {}",
                 state.version,
                 PersistentState::CURRENT_VERSION
-            ));
+            );
         }
 
         Ok(Self {
@@ -172,13 +173,13 @@ impl HnswMemory {
     }
 
     /// Store a memory with its embedding
-    pub fn store(&self, embedding: &[f32], meta: MemoryMeta) -> Result<u64, String> {
+    pub fn store(&self, embedding: &[f32], meta: MemoryMeta) -> Result<u64> {
         if embedding.len() != VECTOR_DIM {
-            return Err(format!(
+            bail!(
                 "Invalid embedding dimension: {} (expected {})",
                 embedding.len(),
                 VECTOR_DIM
-            ));
+            );
         }
 
         // Normalize for cosine similarity via dot product
@@ -186,7 +187,7 @@ impl HnswMemory {
 
         // Get next key
         let key = {
-            let mut next = self.next_key.lock().map_err(|e| format!("Lock error: {}", e))?;
+            let mut next = self.next_key.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             let k = *next;
             *next += 1;
             k
@@ -194,13 +195,13 @@ impl HnswMemory {
 
         // Insert into HNSW index
         {
-            let index = self.index.lock().map_err(|e| format!("Lock error: {}", e))?;
+            let index = self.index.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             index.insert((&normalized, key as usize));
         }
 
         // Store metadata
         {
-            let mut meta_map = self.meta.lock().map_err(|e| format!("Lock error: {}", e))?;
+            let mut meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             meta_map.insert(key, meta);
         }
 
@@ -212,13 +213,13 @@ impl HnswMemory {
         &self,
         query: &[f32],
         options: &SearchOptions,
-    ) -> Result<Vec<MemorySearchResult>, String> {
+    ) -> Result<Vec<MemorySearchResult>> {
         if query.len() != VECTOR_DIM {
-            return Err(format!(
+            bail!(
                 "Invalid query dimension: {} (expected {})",
                 query.len(),
                 VECTOR_DIM
-            ));
+            );
         }
 
         // Normalize query
@@ -227,11 +228,11 @@ impl HnswMemory {
         // Search HNSW - get more results than needed for filtering
         let ef_search = (options.limit * 3).max(50);
         let neighbors = {
-            let index = self.index.lock().map_err(|e| format!("Lock error: {}", e))?;
+            let index = self.index.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             index.search(&normalized, options.limit * 2, ef_search)
         };
 
-        let meta_map = self.meta.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
         let mut results: Vec<MemorySearchResult> = Vec::new();
 
         for neighbor in neighbors {
@@ -303,8 +304,8 @@ impl HnswMemory {
     /// Note: The vector remains in the HNSW index but won't be returned
     /// since metadata is gone. This is a pragmatic workaround for HNSW's
     /// limitation with deletions.
-    pub fn forget(&self, key: u64) -> Result<(), String> {
-        let mut meta_map = self.meta.lock().map_err(|e| format!("Lock error: {}", e))?;
+    pub fn forget(&self, key: u64) -> Result<()> {
+        let mut meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
         meta_map.remove(&key);
         Ok(())
     }
@@ -313,39 +314,39 @@ impl HnswMemory {
     ///
     /// Requires that the index was opened with a path (via `open()`).
     /// For in-memory indexes created with `new()`, this will return an error.
-    pub fn save(&self) -> Result<(), String> {
+    pub fn save(&self) -> Result<()> {
         let base_path = self
             .storage_path
             .as_ref()
-            .ok_or_else(|| "No storage path configured. Use HnswMemory::open() for persistence.".to_string())?;
+            .context("No storage path configured. Use HnswMemory::open() for persistence.")?;
 
         let dir = base_path
             .parent()
-            .ok_or_else(|| "Invalid path: no parent directory".to_string())?;
+            .context("Invalid path: no parent directory")?;
         let name = base_path
             .file_name()
             .and_then(|n| n.to_str())
-            .ok_or_else(|| "Invalid path: no filename".to_string())?;
+            .context("Invalid path: no filename")?;
 
         // Ensure directory exists
         if !dir.as_os_str().is_empty() {
             fs::create_dir_all(dir)
-                .map_err(|e| format!("Failed to create directory: {}", e))?;
+                .context("Failed to create directory")?;
         }
 
         // Save HNSW index
         {
-            let index = self.index.lock().map_err(|e| format!("Lock error: {}", e))?;
+            let index = self.index.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             index
                 .file_dump(dir, name)
-                .map_err(|e| format!("Failed to dump HNSW index: {:?}", e))?;
+                .map_err(|e| anyhow::anyhow!("Failed to dump HNSW index: {:?}", e))?;
         }
 
         // Save metadata as JSON
         let meta_path = Self::meta_file_path(base_path);
         let state = {
-            let meta_map = self.meta.lock().map_err(|e| format!("Lock error: {}", e))?;
-            let next_key = self.next_key.lock().map_err(|e| format!("Lock error: {}", e))?;
+            let meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+            let next_key = self.next_key.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             PersistentState {
                 metadata: meta_map.clone(),
                 next_key: *next_key,
@@ -354,10 +355,10 @@ impl HnswMemory {
         };
 
         let file = File::create(&meta_path)
-            .map_err(|e| format!("Failed to create metadata file: {}", e))?;
+            .context("Failed to create metadata file")?;
         let writer = BufWriter::new(file);
         serde_json::to_writer_pretty(writer, &state)
-            .map_err(|e| format!("Failed to write metadata: {}", e))?;
+            .context("Failed to write metadata")?;
 
         Ok(())
     }
@@ -414,7 +415,7 @@ mod tests {
     use std::env;
 
     fn dummy_embedding() -> Vec<f32> {
-        let mut v: Vec<f32> = (0..VECTOR_DIM).map(|i| (i as f32 / VECTOR_DIM as f32)).collect();
+        let mut v: Vec<f32> = (0..VECTOR_DIM).map(|i| i as f32 / VECTOR_DIM as f32).collect();
         // Normalize
         let mag: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
         for x in &mut v {

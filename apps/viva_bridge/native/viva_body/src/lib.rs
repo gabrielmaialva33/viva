@@ -927,7 +927,7 @@ fn memory_store(
         .with_importance(importance);
 
     backend.store(&embedding, meta)
-        .map_err(|e| rustler::Error::Term(Box::new(e)))
+        .map_err(|e| rustler::Error::Term(Box::new(e.to_string())))
 }
 
 /// Search for similar memories
@@ -954,7 +954,7 @@ fn memory_search(
     }
 
     let results = backend.search(&query, &options)
-        .map_err(|e| rustler::Error::Term(Box::new(e)))?;
+        .map_err(|e| rustler::Error::Term(Box::new(e.to_string())))?;
 
     Ok(results
         .into_iter()
