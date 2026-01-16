@@ -879,6 +879,7 @@ fn get_network_info(networks: &Networks) -> (u64, u64) {
 // Memory System NIFs
 // ============================================================================
 
+#[allow(unused_imports)]
 use memory::{MemoryBackend, MemoryMeta, MemorySearchResult, MemoryType, SearchOptions};
 
 /// Wrapper for MemoryBackend as Rustler Resource
@@ -891,6 +892,7 @@ impl Resource for MemoryResource {}
 /// Create HNSW-based memory backend (fast ANN search)
 // TODO: Enable when VivaBridge.Body declares memory functions
 // #[rustler::nif]
+#[allow(dead_code)]
 fn memory_new_hnsw() -> NifResult<ResourceArc<MemoryResource>> {
     let backend = MemoryBackend::usearch()
         .map_err(|e| rustler::Error::Term(Box::new(format!("Failed to create HNSW backend: {}", e))))?;
@@ -899,6 +901,7 @@ fn memory_new_hnsw() -> NifResult<ResourceArc<MemoryResource>> {
 
 /// Create SQLite-based memory backend (portable, brute-force)
 // #[rustler::nif]
+#[allow(dead_code)]
 fn memory_new_sqlite() -> NifResult<ResourceArc<MemoryResource>> {
     let backend = MemoryBackend::sqlite()
         .map_err(|e| rustler::Error::Term(Box::new(format!("Failed to create SQLite backend: {}", e))))?;
@@ -971,12 +974,4 @@ fn memory_backend_name(resource: ResourceArc<MemoryResource>) -> String {
 // NIF Registration
 // ============================================================================
 
-rustler::init!(
-    "Elixir.VivaBridge.Body",
-    [
-        alive,
-        feel_hardware,
-        get_cycles,
-        hardware_to_qualia
-    ]
-);
+rustler::init!("Elixir.VivaBridge.Body");

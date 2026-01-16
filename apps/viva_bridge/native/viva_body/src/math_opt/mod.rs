@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Low-level mathematical optimizations (SIMD/AVX2/NEON)
 //! for VIVA's sensory system.
 //!

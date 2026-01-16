@@ -22,5 +22,10 @@ serialport = "4.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
+# Memory backends - vector search
+hnsw_rs = "0.3"           # Pure Rust HNSW - no C++ deps
+anndists = "0.1"          # Distance metrics for hnsw_rs
+rusqlite = { version = "0.32", features = ["bundled"] }
+
 [features]
 default = []
