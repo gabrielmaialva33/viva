@@ -57,8 +57,10 @@ defmodule VivaBridge.Body do
   """
   if @skip_nif do
     def alive(), do: "VIVA body is alive (stub)"
+    def get_cycles(), do: 0
   else
     def alive(), do: :erlang.nif_error(:nif_not_loaded)
+    def get_cycles(), do: :erlang.nif_error(:nif_not_loaded)
   end
 
   @doc """

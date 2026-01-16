@@ -54,22 +54,14 @@ defmodule VivaBridge do
   """
   defdelegate hardware_to_qualia, to: Body
 
-  @doc """
-  Applies body sensations to VIVA's emotional state.
-
-  This is the body→soul feedback loop.
-  """
-  def sync_body_to_soul do
-    case hardware_to_qualia() do
-      {p, a, d} when is_float(p) and is_float(a) and is_float(d) ->
-        # Applies the deltas to the Emotional GenServer
-        VivaCore.Emotional.apply_hardware_qualia(p, a, d)
-        {:ok, {p, a, d}}
-
-      error ->
-        {:error, error}
-    end
-  rescue
-    e -> {:error, e}
-  end
+  # @doc """
+  # Applies body sensations to VIVA's emotional state.
+  #
+  # This is the body→soul feedback loop.
+  # """
+  # def sync_body_to_soul do
+  #   # Moved to VivaCore to avoid circular dependency
+  #   # VivaCore.Senses handles this loop.
+  #   :ok
+  # end
 end
