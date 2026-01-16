@@ -157,6 +157,14 @@ impl SqliteMemory {
             sql.push_str(&format!(" AND importance >= {}", options.min_importance));
         }
 
+        // Time range filter
+        if let Some(start) = options.time_range.start {
+            sql.push_str(&format!(" AND timestamp >= {}", start));
+        }
+        if let Some(end) = options.time_range.end {
+            sql.push_str(&format!(" AND timestamp <= {}", end));
+        }
+
         let mut stmt = conn
             .prepare(&sql)
             .context("Failed to prepare query")?;

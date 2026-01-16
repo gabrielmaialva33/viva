@@ -251,6 +251,11 @@ impl HnswMemory {
                     continue;
                 }
 
+                // Time range filter
+                if !options.time_range.contains(meta.timestamp) {
+                    continue;
+                }
+
                 // Calculate decayed score
                 let decayed_score = if options.apply_decay {
                     let decay = calculate_decay(meta.timestamp, options.decay_scale);

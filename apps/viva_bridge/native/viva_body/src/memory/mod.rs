@@ -1,5 +1,33 @@
 //! VIVA's native memory system - vector search backends with Hebbian learning.
+//!
+//! This module provides a biologically-inspired memory system with:
+//!
+//! - **Dual backends**: HNSW (fast ANN) and SQLite (portable brute-force)
+//! - **Three-Factor Hebbian Learning**: Emotion modulates memory encoding
+//! - **STDP-based retrieval**: Recent memories get potentiation boost
+//! - **Synaptic Tagging**: Weak memories captured by strong emotional events
+//!
+//! # Quick Start
+//!
+//! ```rust,ignore
+//! use viva_body::memory::*;
+//!
+//! // Create integrated memory system
+//! let mut viva = VivaMemory::new()?;
+//!
+//! // Set emotional state (affects encoding strength)
+//! viva.feel(PadEmotion { pleasure: 0.8, arousal: 0.7, dominance: 0.5 });
+//!
+//! // Store a memory (automatically modulated by emotion)
+//! let embedding = vec![0.1; VECTOR_DIM];
+//! let meta = MemoryMeta::new("happy_moment".into(), "A joyful experience".into());
+//! viva.store(&embedding, meta)?;
+//!
+//! // Search with STDP boost
+//! let results = viva.search(&embedding, &SearchOptions::new().limit(5))?;
+//! ```
 #![allow(dead_code)] // Latent code - will be used by Elixir NIFs
+#![warn(missing_docs)]
 //!
 //! ## Architecture: Complementary Learning Systems (CLS)
 //!
@@ -222,9 +250,12 @@ impl VivaMemory {
     ) -> Result<Vec<MemorySearchResult>> {
         let mut results = self.episodic.search(query, options)?;
 
-        // Apply emotional retrieval boost
+        // Apply STDP retrieval boost (emotion + timing)
         for result in &mut results {
-            let boost = self.hebbian.retrieval_boost(result.meta.emotion);
+            let boost = self.hebbian.retrieval_boost_stdp(
+                result.meta.emotion,
+                Some(result.meta.last_accessed),
+            );
             result.decayed_score *= boost;
         }
 

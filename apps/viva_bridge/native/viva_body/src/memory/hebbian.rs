@@ -165,25 +165,85 @@ impl HebbianLearning {
         meta
     }
 
-    /// Calculate retrieval strength boost for a memory
+    /// Calculate retrieval strength boost for a memory using STDP timing
     ///
-    /// Memories that match current emotional state are retrieved more easily
-    /// (mood-congruent memory effect)
+    /// Implements Spike-Timing-Dependent Plasticity:
+    /// - LTP (potentiation): Recently accessed memories get boosted
+    /// - LTD (depression): Old memories get slightly weakened
+    /// - Emotional congruence modulates the effect
+    ///
+    /// STDP Window:
+    /// ```text
+    ///   Boost
+    ///     ^
+    /// 1.3 |  ****
+    /// 1.2 |      ****
+    /// 1.1 |          ****
+    /// 1.0 |---------------********----------> Δt (hours)
+    /// 0.9 |                        ****
+    ///     0    1    2    6   12   24   48
+    /// ```
     pub fn retrieval_boost(&self, memory_emotion: Option<PadEmotion>) -> f32 {
-        match memory_emotion {
+        self.retrieval_boost_stdp(memory_emotion, None)
+    }
+
+    /// STDP retrieval boost with timing information
+    ///
+    /// `last_accessed`: Unix timestamp of last memory access
+    pub fn retrieval_boost_stdp(
+        &self,
+        memory_emotion: Option<PadEmotion>,
+        last_accessed: Option<i64>,
+    ) -> f32 {
+        // 1. Emotional congruence component (mood-congruent memory)
+        let emotional_factor = match memory_emotion {
             Some(mem_emo) => {
-                // Calculate emotional similarity (dot product in PAD space)
                 let current = &self.current_emotion;
                 let similarity = mem_emo.pleasure * current.pleasure
                     + mem_emo.arousal * current.arousal
                     + mem_emo.dominance * current.dominance;
-
-                // Normalize to [0, 1] and convert to boost factor
-                let normalized = (similarity + 3.0) / 6.0; // PAD range is [-1,1]^3
-                1.0 + normalized * 0.3 // Boost up to 30%
+                // Normalize from [-3, 3] to [0.85, 1.15]
+                let normalized = (similarity + 3.0) / 6.0;
+                0.85 + normalized * 0.3
             }
-            None => 1.0, // No emotion = no boost
-        }
+            None => 1.0,
+        };
+
+        // 2. STDP timing component
+        let timing_factor: f32 = match last_accessed {
+            Some(last_ts) => {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0);
+
+                let delta_secs = (now - last_ts).max(0) as f32;
+                let delta_hours = delta_secs / 3600.0;
+
+                // STDP curve: LTP for recent, LTD for old
+                // Bi-exponential: A+ * exp(-Δt/τ+) - A- * exp(-Δt/τ-)
+                // τ+ = 2 hours (LTP window)
+                // τ- = 24 hours (LTD window)
+                let ltp = 0.25 * (-delta_hours / 2.0_f32).exp();  // Fast potentiation
+                let ltd = 0.15 * (-delta_hours / 24.0_f32).exp(); // Slow depression
+
+                // LTP dominates for recent, LTD baseline for old
+                if delta_hours < 6.0 {
+                    // Recent: strong LTP
+                    1.0 + ltp
+                } else if delta_hours < 24.0 {
+                    // Medium: transition zone
+                    1.0 + ltp - ltd * 0.5
+                } else {
+                    // Old: mild LTD
+                    1.0 - 0.05 * (1.0 - ltd)
+                }
+            }
+            None => 1.0, // No timing info = no STDP effect
+        };
+
+        // Combine factors multiplicatively
+        (emotional_factor * timing_factor).clamp(0.7, 1.5)
     }
 
     /// Apply STDP-inspired strengthening/weakening
@@ -458,6 +518,39 @@ mod tests {
         let opposite_boost = hebbian.retrieval_boost(Some(opposite));
 
         assert!(matching_boost > opposite_boost);
+    }
+
+    #[test]
+    fn test_stdp_timing() {
+        let mut hebbian = HebbianLearning::new();
+        hebbian.update_emotion(PadEmotion {
+            pleasure: 0.5,
+            arousal: 0.5,
+            dominance: 0.5,
+        });
+
+        let mem_emotion = Some(PadEmotion {
+            pleasure: 0.5,
+            arousal: 0.5,
+            dominance: 0.5,
+        });
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        // Recently accessed (1 min ago) = LTP boost
+        let recent_boost = hebbian.retrieval_boost_stdp(mem_emotion, Some(now - 60));
+
+        // Old access (48 hours ago) = slight LTD
+        let old_boost = hebbian.retrieval_boost_stdp(mem_emotion, Some(now - 48 * 3600));
+
+        // Recent should get higher boost than old
+        assert!(recent_boost > old_boost, "LTP should be > LTD: {} vs {}", recent_boost, old_boost);
+
+        // Recent should be > 1.0 (potentiation)
+        assert!(recent_boost > 1.0, "Recent should be potentiated: {}", recent_boost);
     }
 
     #[test]
