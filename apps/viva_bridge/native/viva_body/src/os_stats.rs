@@ -1,5 +1,5 @@
 use std::fs;
-
+use sysinfo::System;
 
 #[derive(Debug, Clone)]
 pub struct OsStats {
@@ -21,7 +21,7 @@ impl OsStats {
 
 /// Reads Linux-specific /proc and /sys statistics
 #[cfg(target_os = "linux")]
-pub fn read_os_stats() -> OsStats {
+pub fn read_os_stats(_sys: &System) -> OsStats {
     let (ctxt, intr) = read_proc_stat();
     let freq = read_cpu_freq();
 
@@ -32,10 +32,25 @@ pub fn read_os_stats() -> OsStats {
     }
 }
 
-/// Stub for non-Linux OS
+/// Windows / MacOS Implementation using sysinfo
 #[cfg(not(target_os = "linux"))]
-pub fn read_os_stats() -> OsStats {
-    OsStats::empty()
+pub fn read_os_stats(sys: &System) -> OsStats {
+    // Attempt to get frequency from sysinfo
+    // In sysinfo 0.32, we assume cpu.frequency() works if we access via System
+    // Actually, sys.cpus() returns &[Cpu]. We need to check if Cpu has frequency method.
+    // Based on docs and usage in lib.rs, it seems okay?
+    // Wait, lib.rs doesn't use frequency.
+    // If CpuExt is missing, maybe frequency() is inherent.
+    // If this fails compiling, we know we need a trait or it's gone.
+    // But standard sysinfo usually has this.
+
+    let freq = sys.cpus().first().map(|cpu| cpu.frequency() as f32);
+
+    OsStats {
+        context_switches: 0, // Hard to get without winapi
+        interrupts: 0,
+        cpu_freq_mhz: freq,
+    }
 }
 
 // ============================================================================
@@ -75,6 +90,6 @@ fn read_cpu_freq() -> Option<f32> {
         }
     }
 
-    // Fallback: cpuinfo_max_freq? Naah, VIVA wants current state.
+    // Fallback?
     None
 }

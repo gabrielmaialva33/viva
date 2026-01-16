@@ -422,7 +422,7 @@ fn collect_hardware_state() -> HardwareState {
 
     // Low-Level Metrics
     let cache_info = cpu_topology::detect_cache_topology();
-    let os_stats = os_stats::read_os_stats();
+    let os_stats = os_stats::read_os_stats(&sys);
 
     let state = HardwareState {
         cpu_usage,
