@@ -281,7 +281,9 @@ pub fn cusp_equilibria(c: f64, y: f64) -> Vec<f64> {
         let p = -c;
         let q = -y;
         let m = 2.0 * (-p / 3.0).sqrt();
-        let theta = (3.0 * q / (p * m)).acos() / 3.0;
+        // Clamp to [-1, 1] to avoid NaN from acos due to floating-point errors
+        let acos_arg = (3.0 * q / (p * m)).clamp(-1.0, 1.0);
+        let theta = acos_arg.acos() / 3.0;
 
         let x1 = m * theta.cos();
         let x2 = m * (theta - 2.0 * std::f64::consts::PI / 3.0).cos();
