@@ -536,5 +536,29 @@ defmodule VivaBridge.Body do
   else
     def brain_experience(_text, _p, _a, _d), do: :erlang.nif_error(:nif_not_loaded)
   end
-end
 
+  # ============================================================================
+  # Metabolism NIFs (Digital Thermodynamics)
+  # ============================================================================
+
+  @doc """
+  Initializes the metabolism engine with CPU TDP in Watts.
+  Example: metabolism_init(125.0) for i9-13900K
+  """
+  if @skip_nif do
+    def metabolism_init(_tdp_watts), do: {:ok, "Stubbed Metabolism"}
+  else
+    def metabolism_init(_tdp_watts), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Ticks the metabolism engine and returns current state.
+  Args: cpu_usage (0-100), cpu_temp (optional)
+  Returns: {energy_joules, entropy_heat, fatigue_level, needs_rest}
+  """
+  if @skip_nif do
+    def metabolism_tick(_cpu_usage, _cpu_temp), do: {0.0, 0.0, 0.0, false}
+  else
+    def metabolism_tick(_cpu_usage, _cpu_temp), do: :erlang.nif_error(:nif_not_loaded)
+  end
+end

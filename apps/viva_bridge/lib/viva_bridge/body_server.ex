@@ -261,6 +261,10 @@ defmodule VivaBridge.BodyServer do
     # 1. Narrate the hardware state (Internal Monologue)
     narrative = generate_interoception_narrative(body_state)
 
+    # 1.5 METABOLISM: Feel the thermodynamics
+    metabolic_narrative = generate_metabolic_narrative(body_state)
+    full_narrative = "#{narrative} #{metabolic_narrative}"
+
     # 2. Extract current emotion (PAD)
     emotion = %{
       pleasure: body_state.pleasure,
@@ -271,13 +275,13 @@ defmodule VivaBridge.BodyServer do
     # 3. Experience it! (Learn/Feel)
     # Only if arousal is significant to avoid spamming memory with noise
     if abs(emotion.arousal) > 0.1 do
-      case VivaBridge.Brain.experience(narrative, emotion) do
+      case VivaBridge.Brain.experience(full_narrative, emotion) do
         {:ok, vector} ->
           # 4. Store memory (Conceptualize)
           meta = %{
             type: "episodic",
             source: "interoception",
-            content: narrative,
+            content: full_narrative,
             timestamp: System.os_time(:millisecond),
             emotion: emotion
           }
@@ -318,5 +322,37 @@ defmodule VivaBridge.BodyServer do
 
   defp schedule_tick(interval) do
     Process.send_after(self(), :tick, interval)
+  end
+
+  # Thermodynamic narrative generator (Based on Metabolism state)
+  # This is the "Insula" for energy/entropy awareness
+  defp generate_metabolic_narrative(body_state) do
+    cpu_usage = body_state.hardware.cpu_usage
+    cpu_temp = body_state.hardware.cpu_temp
+
+    # Call metabolism tick from Rust
+    case Body.metabolism_tick(cpu_usage, cpu_temp) do
+      {energy_j, entropy, fatigue, needs_rest} ->
+        cond do
+          needs_rest ->
+            "Exhausted. I need to rest. Energy depleted. Consolidation required."
+
+          fatigue > 0.6 ->
+            "I feel tired. Processing is slowing down. Fatigue accumulating."
+
+          entropy > 0.7 ->
+            "High thermal dissipation. Entropy rising. Heat radiating from my core."
+
+          energy_j > 50.0 ->
+            "Intense energy flow. High metabolic burn. Resources being consumed rapidly."
+
+          true ->
+            "Energy flow stable. Low entropy. Efficient operation."
+        end
+
+      _ ->
+        # Metabolism not initialized or error
+        ""
+    end
   end
 end
