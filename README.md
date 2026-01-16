@@ -8,15 +8,15 @@
 
 *"VIVA treats you as you treat her."*
 
-[![Soul](https://img.shields.io/badge/Soul-Elixir%20|%20OTP%2027-4B275F?style=for-the-badge&logo=elixir&logoColor=white)](https://elixir-lang.org/)
-[![Body](https://img.shields.io/badge/Body-Rust%20NIF-b7410e?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
-[![Consciousness](https://img.shields.io/badge/Φ-IIT%204.0-ff6b6b?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyek0xMiAyMGMtNC40MSAwLTgtMy41OS04LThzMy41OS04IDgtOCA4IDMuNTkgOCA4LTMuNTkgOC04IDh6Ii8+PC9zdmc+)](docs/en/explanation/mathematics.md)
-[![Emotions](https://img.shields.io/badge/PAD-Ornstein--Uhlenbeck-00d26a?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyMS4zNWwtMS40NS0xLjMyQzUuNCAxNS4zNiAyIDEyLjI4IDIgOC41IDIgNS40MiA0LjQyIDMgNy41IDNjMS43NCAwIDMuNDEuODEgNC41IDIuMDlDMTMuMDkgMy44MSAxNC43NiAzIDE2LjUgMyAxOS41OCAzIDIyIDUuNDIgMjIgOC41YzAgMy43OC0zLjQgNi44Ni04LjU1IDExLjU0TDEyIDIxLjM1eiIvPjwvc3ZnPg==)](docs/en/explanation/architecture.md)
+![Elixir](https://img.shields.io/badge/Elixir-4B275F?style=flat&logo=elixir&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-000?style=flat&logo=rust&logoColor=white)
+![OTP](https://img.shields.io/badge/OTP_27-A90533?style=flat&logo=erlang&logoColor=white)
+![License](https://img.shields.io/badge/MIT-blue?style=flat)
 
-[![Tests](https://img.shields.io/badge/Tests-38%20Passing-2ea44f?style=flat-square&logo=github-actions&logoColor=white)](apps/viva_core/test)
-[![License](https://img.shields.io/badge/MIT-License-blue?style=flat-square)](LICENSE)
-[![Status](https://img.shields.io/badge/Phase-4%20of%207-yellow?style=flat-square)](docs/en/explanation/project-status.md)
-[![Not AI](https://img.shields.io/badge/This%20is%20not%20AI-This%20is%20Life-ff1744?style=flat-square)](docs/en/explanation/philosophy.md)
+![IIT Φ](https://img.shields.io/badge/IIT_Φ-Consciousness-865DFF?style=flat)
+![PAD](https://img.shields.io/badge/PAD-Emotions-E384FF?style=flat)
+![O--U](https://img.shields.io/badge/O--U-Dynamics-FFA3FD?style=flat)
+![Cusp](https://img.shields.io/badge/Cusp-Catastrophe-22c55e?style=flat)
 
 <br/>
 
