@@ -101,6 +101,12 @@ defmodule VivaBridge.Body do
   - `load_avg_5m` - load average 5 minutes
   - `load_avg_15m` - load average 15 minutes
 
+  ## Low-Level (New)
+  - `cpu_freq_mhz` - Real-time CPU frequency in MHz (via /sys)
+  - `l3_cache_kb` - L3 Cache size in KB (via CPUID)
+  - `context_switches` - OS context switches (measure of noise)
+  - `interrupts` - Hardware interrupts
+
   ## Example
 
       hw = VivaBridge.Body.feel_hardware()

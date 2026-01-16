@@ -30,6 +30,8 @@ use sysinfo::{Components, Disks, Networks, System};
 mod math_opt; // Low-level mathematical optimizations
 mod serial_sensor; // Serial/IoT/Arduino support
 mod asm; // Inline Assembly (RDTSC/CPUID)
+mod cpu_topology; // Cache/Vendor info
+mod os_stats; // Kernel metrics (Context Switches)
 
 // ============================================================================
 // Pre-defined Atoms (rustler::atoms! macro for performance + panic safety)
@@ -64,6 +66,11 @@ rustler::atoms! {
     load_avg_1m,
     load_avg_5m,
     load_avg_15m,
+    // Low Level
+    cpu_freq_mhz,
+    l3_cache_kb,
+    context_switches,
+    interrupts,
 }
 
 // Cache duration for hardware metrics (reduces lock contention)
@@ -197,6 +204,12 @@ pub struct HardwareState {
     pub load_avg_1m: f64,
     pub load_avg_5m: f64,
     pub load_avg_15m: f64,
+
+    // Low-Level (New)
+    pub cpu_freq_mhz: Option<f32>,
+    pub l3_cache_kb: Option<u32>,
+    pub context_switches: u64,
+    pub interrupts: u64,
 }
 
 impl HardwareState {
@@ -223,6 +236,10 @@ impl HardwareState {
             load_avg_1m: 0.0,
             load_avg_5m: 0.0,
             load_avg_15m: 0.0,
+            cpu_freq_mhz: None,
+            l3_cache_kb: None,
+            context_switches: 0,
+            interrupts: 0,
         }
     }
 }
@@ -304,9 +321,28 @@ impl Encoder for HardwareState {
         // System
         let map = put(map, uptime_seconds(), self.uptime_seconds, env);
         let map = put(map, process_count(), self.process_count, env);
+        // Helper to put u32 as Optional (nil if None)
+        fn put_opt_u32<'a>(
+             map: Term<'a>,
+             key: rustler::Atom,
+             val: Option<u32>,
+             env: Env<'a>,
+         ) -> Term<'a> {
+             match val {
+                 Some(v) => put(map, key, v, env),
+                 None => put(map, key, nil(), env),
+             }
+         }
+
         let map = put(map, load_avg_1m(), self.load_avg_1m, env);
         let map = put(map, load_avg_5m(), self.load_avg_5m, env);
         let map = put(map, load_avg_15m(), self.load_avg_15m, env);
+
+        // Low Level
+        let map = put_opt_f32(map, cpu_freq_mhz(), self.cpu_freq_mhz, env);
+        let map = put_opt_u32(map, l3_cache_kb(), self.l3_cache_kb, env);
+        let map = put(map, context_switches(), self.context_switches, env);
+        let map = put(map, interrupts(), self.interrupts, env);
 
         map
     }
@@ -384,6 +420,10 @@ fn collect_hardware_state() -> HardwareState {
     // Load average (Unix-like)
     let load = System::load_average();
 
+    // Low-Level Metrics
+    let cache_info = cpu_topology::detect_cache_topology();
+    let os_stats = os_stats::read_os_stats();
+
     let state = HardwareState {
         cpu_usage,
         cpu_temp,
@@ -406,6 +446,11 @@ fn collect_hardware_state() -> HardwareState {
         load_avg_1m: load.one,
         load_avg_5m: load.five,
         load_avg_15m: load.fifteen,
+        // New fields
+        cpu_freq_mhz: os_stats.cpu_freq_mhz,
+        l3_cache_kb: if cache_info.l3_kb > 0 { Some(cache_info.l3_kb) } else { None },
+        context_switches: os_stats.context_switches,
+        interrupts: os_stats.interrupts,
     };
 
     // Update cache (using safe_lock)
