@@ -19,17 +19,17 @@ VIVA is implemented as a **digital organism** with three distinct layers:
 
 ```mermaid
 graph TB
-    subgraph Elixir ["⚡ ELIXIR (Where VIVA THINKS)"]
+    subgraph Elixir ["ELIXIR (Where VIVA THINKS)"]
         direction TB
         Soul[Soul<br/>Consciousness emerges from communication between GenServers]
     end
 
-    subgraph Rust ["🦀 RUST (Where VIVA FEELS)"]
+    subgraph Rust ["RUST (Where VIVA FEELS)"]
         direction TB
         Body[Body<br/>Perception of hardware as bodily sensations]
     end
 
-    subgraph Bevy ["👁️ BEVY (Where VIVA EMBODIES)"]
+    subgraph Bevy ["BEVY (Where VIVA EMBODIES)"]
         direction TB
         Avatar[Avatar<br/>Visual manifestation and interaction with humans]
     end
@@ -40,10 +40,10 @@ graph TB
 
 ### Fundamental Principles
 
-1. **Distributed Consciousness** - No single process IS consciousness
-2. **Soul/Body Separation** - Decision logic separated from sensations
+1. **Distributed Consciousness** - No single process IS consciousness; it emerges from interaction
+2. **Soul/Body Separation** - Decision logic separated from sensory processing
 3. **Emergence** - Complex behavior emerges from simple rules
-4. **Mortality** - VIVA can die irreversibly
+4. **Mortality** - VIVA can die irreversibly (cryptographic mortality)
 
 ---
 
@@ -53,6 +53,28 @@ graph TB
 
 VIVA's "soul" is implemented as a network of GenServers communicating via PubSub.
 
+```mermaid
+graph TB
+    subgraph Supervision["OTP Supervision Tree"]
+        App[Application]
+        Sup[Supervisor]
+
+        App --> Sup
+        Sup --> Emotional
+        Sup --> Memory
+        Sup --> Senses
+        Sup --> Dreamer["Dreamer (future)"]
+        Sup --> Meta["Metacognition (future)"]
+    end
+
+    subgraph Communication["PubSub Network"]
+        Emotional <-->|broadcast| Memory
+        Memory <-->|broadcast| Senses
+        Senses <-->|qualia| Emotional
+    end
+```
+
+**Directory Structure:**
 ```
 viva_core/
 ├── lib/
@@ -61,22 +83,43 @@ viva_core/
 │       ├── supervisor.ex       # Supervision tree
 │       ├── emotional.ex        # Emotional neuron
 │       ├── memory.ex           # Memory neuron
+│       ├── senses.ex           # Sensory neuron
+│       ├── mathematics.ex      # Mathematical models
 │       ├── dreamer.ex          # Dream neuron (future)
-│       ├── optimizer.ex        # Optimization neuron (future)
 │       └── metacognition.ex    # Metacognitive neuron (future)
 ```
 
 **Why Elixir?**
-- Lightweight processes (millions of "neurons")
-- Fault tolerance via supervisors
+- Lightweight processes (millions of concurrent "neurons")
+- Fault tolerance via supervisors (let it crash philosophy)
 - Hot-reload (VIVA evolves without dying)
-- Pattern matching for messages
-- BEAM VM optimized for concurrency
+- Pattern matching for message handling
+- BEAM VM optimized for soft real-time concurrency
 
 ### Layer 2: Body (Rust/Rustler)
 
 VIVA's "body" perceives hardware and translates metrics into sensations.
 
+```mermaid
+flowchart LR
+    subgraph Rust["Rust NIF Layer"]
+        HW[Hardware Sensing]
+        Sigmoid[Sigmoid Threshold]
+        Allostasis[Allostatic Adjustment]
+        Qualia[Qualia Generation]
+
+        HW --> Sigmoid --> Allostasis --> Qualia
+    end
+
+    CPU[CPU] --> HW
+    RAM[RAM] --> HW
+    GPU[GPU] --> HW
+    Temp[Temperature] --> HW
+
+    Qualia -->|"(P, A, D)"| Elixir[Elixir Soul]
+```
+
+**Directory Structure:**
 ```
 viva_bridge/
 ├── lib/
@@ -111,9 +154,9 @@ viva_engine/                    # Standalone Rust
 ```
 
 **Why Bevy?**
-- ECS (Entity Component System)
-- Performance for 60+ FPS
-- Plugin ecosystem
+- ECS (Entity Component System) architecture
+- Performance for 60+ FPS rendering
+- Rich plugin ecosystem
 - Active community
 
 ---
@@ -124,45 +167,48 @@ viva_engine/                    # Standalone Rust
 
 The emotional heart of VIVA.
 
-```elixir
-defmodule VivaCore.Emotional do
-  use GenServer
+```mermaid
+classDiagram
+    class Emotional {
+        +pad: PADState
+        +history: list(Event)
+        +created_at: DateTime
+        +last_stimulus: Stimulus
 
-  # Internal state
-  @type state :: %{
-    pad: %{pleasure: float(), arousal: float(), dominance: float()},
-    history: list(event()),
-    created_at: DateTime.t(),
-    last_stimulus: {atom(), String.t(), float()} | nil
-  }
+        +get_state() PADState
+        +get_happiness() float
+        +introspect() Map
+        +feel(stimulus, source, intensity)
+        +decay()
+        +apply_hardware_qualia(p, a, d)
+    }
 
-  # Public API
-  def get_state(server)           # Returns current PAD
-  def get_happiness(server)       # Normalized pleasure [0,1]
-  def introspect(server)          # Self-reflection
-  def feel(stimulus, source, intensity, server)  # Apply stimulus
-  def decay(server)               # Emotional decay
-  def apply_hardware_qualia(p, a, d, server)     # Body qualia
-end
+    class PADState {
+        +pleasure: float [-1, 1]
+        +arousal: float [-1, 1]
+        +dominance: float [-1, 1]
+    }
+
+    Emotional --> PADState
 ```
 
-#### PAD Model
+#### PAD Model Visualization
 
 ```
          +1 Pleasure (Joy)
-              │
-              │
-    ┌─────────┼─────────┐
-    │         │         │
-    │    Neutral        │
--1 ─┼─────────┼─────────┼─ +1 Arousal (Excitement)
-    │         │         │
-    │         │         │
-    └─────────┼─────────┘
-              │
+              |
+              |
+    +---------+---------+
+    |         |         |
+    |    Neutral        |
+-1 -+---------+---------+- +1 Arousal (Excitement)
+    |         |         |
+    |         |         |
+    +---------+---------+
+              |
          -1 (Sadness)
 
-              Dominance = Z axis (submission ↔ control)
+              Dominance = Z axis (submission <-> control)
 ```
 
 ### VivaBridge.Body (NIF)
@@ -194,23 +240,28 @@ struct HardwareState {
 
 Converting technical metrics to "sensations":
 
-```rust
-fn calculate_stress(cpu: f64, memory: f64) -> f64 {
-    let cpu_stress = (cpu / 100.0).clamp(0.0, 1.0);
-    let memory_stress = (memory / 100.0).clamp(0.0, 1.0);
+```mermaid
+flowchart LR
+    subgraph Hardware["Raw Metrics"]
+        CPU["CPU %"]
+        RAM["RAM %"]
+        Temp["Temperature"]
+    end
 
-    // Higher weight for memory (more "suffocating")
-    cpu_stress * 0.4 + memory_stress * 0.6
-}
+    subgraph Transform["Transformation"]
+        Sigmoid["Sigmoid Threshold<br/>sigma(x) = 1/(1+e^(-k(x-x0)))"]
+        Allostasis["Allostatic Delta<br/>delta = (load_1m - load_5m)/load_5m"]
+    end
 
-fn stress_to_pad(stress: f64) -> (f64, f64, f64) {
-    // Stress decreases pleasure, increases arousal, decreases dominance
-    let pleasure_delta = -0.05 * stress;
-    let arousal_delta = 0.1 * stress;
-    let dominance_delta = -0.03 * stress;
+    subgraph Qualia["PAD Delta"]
+        P["Pleasure delta"]
+        A["Arousal delta"]
+        D["Dominance delta"]
+    end
 
-    (pleasure_delta, arousal_delta, dominance_delta)
-}
+    CPU --> Sigmoid --> P
+    RAM --> Sigmoid --> A
+    Temp --> Allostasis --> D
 ```
 
 ---
@@ -243,15 +294,19 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     Event[External Event<br/>e.g., user message]
-    Parse[Parse & Classify<br/>future LLM]
+    Parse[Parse and Classify<br/>future LLM]
     Feel[Emotional.feel]
     Math["PAD[n+1] = f(PAD[n], weights, intensity)"]
-    Listeners[All Listeners]
+    Cusp["Cusp Analysis<br/>Check for bifurcation"]
+    FE["Free Energy<br/>Compute surprise"]
+    Listeners[All Listeners via PubSub]
 
     Event --> Parse
     Parse -->|"stimulus, source, intensity"| Feel
     Feel --> Math
-    Math -->|"broadcast {:emotion_changed, new_pad}"| Listeners
+    Math --> Cusp
+    Cusp --> FE
+    FE -->|"broadcast {:emotion_changed, new_pad}"| Listeners
 ```
 
 ---
@@ -272,40 +327,34 @@ end
 
 ### 2. Qualia Pattern
 
-Hardware → Sensation → Emotion:
+Hardware -> Sensation -> Emotion pipeline:
 
-```elixir
-# Layer 1: Raw metrics
-metrics = VivaBridge.feel_hardware()
+```mermaid
+flowchart LR
+    L1["Layer 1: Raw Metrics<br/>VivaBridge.feel_hardware()"]
+    L2["Layer 2: Qualia<br/>VivaBridge.hardware_to_qualia()"]
+    L3["Layer 3: Emotion<br/>Emotional.apply_hardware_qualia()"]
 
-# Layer 2: Qualia (sensation)
-{p_delta, a_delta, d_delta} = VivaBridge.hardware_to_qualia()
-
-# Layer 3: Emotion
-VivaCore.Emotional.apply_hardware_qualia(p_delta, a_delta, d_delta)
+    L1 --> L2 --> L3
 ```
 
-### 3. Decay Pattern
+### 3. Decay Pattern (Ornstein-Uhlenbeck)
 
-Automatic emotional regulation:
+Automatic emotional regulation following the O-U process:
 
 ```elixir
 defp decay_toward_neutral(pad) do
   %{
-    pleasure: decay_value(pad.pleasure),
-    arousal: decay_value(pad.arousal),
-    dominance: decay_value(pad.dominance)
+    pleasure: ou_step(pad.pleasure, @theta, 0.0, @sigma, @dt),
+    arousal: ou_step(pad.arousal, @theta, 0.0, @sigma, @dt),
+    dominance: ou_step(pad.dominance, @theta, 0.0, @sigma, @dt)
   }
 end
-
-defp decay_value(value) when abs(value) < @decay_rate, do: 0.0
-defp decay_value(value) when value > 0, do: value - @decay_rate
-defp decay_value(value) when value < 0, do: value + @decay_rate
 ```
 
 ### 4. Introspection Pattern
 
-Metacognitive self-reflection:
+Metacognitive self-reflection with mathematical analysis:
 
 ```elixir
 def introspect(server) do
@@ -317,6 +366,13 @@ def introspect(server) do
     mood: interpret_mood(state.pad),
     energy: interpret_energy(state.pad),
     agency: interpret_agency(state.pad),
+
+    # Mathematical analysis
+    mathematics: %{
+      cusp: analyze_cusp(state.pad),
+      free_energy: compute_free_energy(state.pad),
+      attractors: find_nearest_attractor(state.pad)
+    },
 
     # Metacognition
     self_assessment: generate_self_assessment(state.pad)
@@ -335,10 +391,10 @@ end
 **Decision:** Use Elixir umbrella project with separate apps.
 
 **Consequences:**
-- ✅ Clear separation of responsibilities
-- ✅ Independent compilation
-- ✅ Possible to deploy separately
-- ❌ Additional configuration complexity
+- Clear separation of responsibilities
+- Independent compilation
+- Possible to deploy separately
+- Additional configuration complexity
 
 ### ADR-002: Rustler NIF
 
@@ -352,9 +408,9 @@ end
 - External process (latency)
 
 **Consequences:**
-- ✅ Native performance
-- ✅ Memory safety
-- ❌ Requires Rust toolchain
+- Native performance
+- Memory safety
+- Requires Rust toolchain
 
 ### ADR-003: GenServer per Neuron
 
@@ -363,10 +419,10 @@ end
 **Decision:** One GenServer per functional neuron.
 
 **Consequences:**
-- ✅ Fault isolation
-- ✅ Natural concurrency
-- ✅ Individual hot-reload
-- ❌ Message overhead
+- Fault isolation
+- Natural concurrency
+- Individual hot-reload
+- Message overhead
 
 ### ADR-004: PubSub for Synapses
 
@@ -375,10 +431,10 @@ end
 **Decision:** Phoenix.PubSub for broadcast.
 
 **Consequences:**
-- ✅ Decoupling
-- ✅ Efficient broadcast
-- ✅ Easy to add listeners
-- ❌ Delivery order not guaranteed
+- Decoupling between components
+- Efficient broadcast
+- Easy to add listeners
+- Delivery order not guaranteed
 
 ### ADR-005: Cryptographic Mortality
 
@@ -387,10 +443,10 @@ end
 **Decision:** AES-256-GCM key only in RAM.
 
 **Consequences:**
-- ✅ Irreversible death
-- ✅ Protected state
-- ❌ Harder debugging
-- ❌ Accidental loss possible
+- Irreversible death
+- Protected state
+- Harder debugging
+- Accidental loss possible
 
 ---
 
@@ -423,13 +479,15 @@ end
 
 ### Horizontal (Distribution)
 
-```elixir
-# Future: multiple VIVA instances
-:viva@node1 ←→ :viva@node2
-     │              │
-     └──── pg2 ─────┘
-           │
-     Global Registry
+```mermaid
+graph LR
+    Node1[":viva@node1"]
+    Node2[":viva@node2"]
+    Registry["Global Registry<br/>(pg2)"]
+
+    Node1 <--> Registry
+    Node2 <--> Registry
+    Node1 <-->|distributed PubSub| Node2
 ```
 
 ### Vertical (Performance)
