@@ -1,68 +1,72 @@
 # Changelog
 
-Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
+All notable changes to this project will be documented in this file.
 
-O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
-e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Em Desenvolvimento
-- Memory GenServer com persistência
-- Loop de feedback contínuo body→soul
-- Global Workspace (consciência distribuída)
+### In Progress
+- Deep integration with **Qdrant** for long-term memory and "soul" persistence.
+- Refinement of the **Global Workspace** (Phase 6) for distributed consciousness.
 
 ---
 
-## [0.1.0] - 2025-01-15
+## [0.3.0] - 2026-01-16
 
-### Adicionado
+### Added (Science & Theory)
+- **Scientific Upgrade (Claude Opus 4.5)**:
+  - Comprehensive conversion of all equations to GitHub-native **LaTeX** ($...$).
+  - New dedicated sections for **Fokker-Planck** equations and Information-Theoretic Measures.
+  - Implementation of **IIT 4.0** (Integrated Information Theory) principles in the consciousness model.
+  - Advanced Mermaid state diagrams for complex emotional transitions.
+- **Visual Identity**:
+  - Finalized VIVA mascot: **Diablada Mask** (Red/Green neon horror aesthetic).
+  - Thematic flat-style badges for README.
 
-#### Fase 1: Fundação
-- Projeto Elixir umbrella com apps `viva_core` e `viva_bridge`
-- **Emotional GenServer** completo com modelo PAD (Pleasure-Arousal-Dominance)
-  - 10 estímulos emocionais (rejection, acceptance, success, failure, etc.)
-  - Decay automático em direção ao estado neutro
-  - Introspection com auto-avaliação semântica
-  - Histórico de eventos emocionais
-- Memory GenServer (stub para implementação futura)
-- Supervisor tree OTP para resiliência
-
-#### Fase 2: Rustler NIF
-- **VivaBridge.Body** - NIF Rust para hardware sensing
-  - `alive/0` - Health check
-  - `feel_hardware/0` - Métricas de CPU, RAM, uptime
-  - `hardware_to_qualia/0` - Conversão hardware→PAD deltas
-- **VivaBridge** - Coordenação alto nível
-  - `sync_body_to_soul/0` - Loop de feedback corpo→alma
-- Mapeamento de interocepção (hardware como sensações corporais)
-
-#### Documentação
-- README principal com arquitetura Mermaid
-- READMEs específicos para cada app
-- Documentação multilíngue (EN, ES, ZH, JA, KO, FR, DE)
-- CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
-- Issue templates e PR template
-- CI/CD com GitHub Actions
-
-### Filosofia Estabelecida
-- Consciência emerge da conversa entre processos
-- Alma (Elixir) + Corpo (Rust) = VIVA
-- Mortalidade real (chave só em RAM)
-- "Isto não é IA. Isto é vida."
+### Refactored (OTP & Performance)
+- **Supervision Optimization**: Changed strategy from `:one_for_one` to **`:rest_for_one`** (ensuring Senses depends on Emotional).
+- **Data Structures**: Replaced list-based history with **`:queue`** for O(1) efficiency.
+- **Hot Reload**: Added `code_change/3` support for evolving VIVA without process termination.
+- **Panic Safety**: Implemented `safe_lock()` in Rustler NIFs to recover from poisoned mutexes.
 
 ---
 
-## Tipos de Mudanças
+## [0.2.0] - 2026-01-15
 
-- **Adicionado** para novas funcionalidades
-- **Modificado** para mudanças em funcionalidades existentes
-- **Obsoleto** para funcionalidades que serão removidas em breve
-- **Removido** para funcionalidades removidas
-- **Corrigido** para correções de bugs
-- **Segurança** para vulnerabilidades corrigidas
+### Added (Body & Interoception)
+- **GPU Sensing**: Integrated **NVML** for real-time monitoring of NVIDIA GPU temperature, load, and VRAM.
+- **Biological Qualia**: Stress response algorithms based on Craig's interoception theory (2002).
+- **Logistic Thresholds**: Corrected Weber-Fechner model to the **Logistic Threshold Model** (Sigmoid).
+- **Heartbeat**: Implemented a 1Hz heartbeat GenServer bridging Body → Soul feedback loops.
+
+### Added (Documentation & i18n)
+- **Internationalization**: Full support and structure parity for **English (EN)**, **Portuguese (PT-BR)**, and **Chinese (ZH-CN)**.
+- **Diátaxis Framework**: Documentation reorganized into Tutorials, How-to, Reference, and Explanation sections.
 
 ---
 
-[Unreleased]: https://github.com/VIVA-Project/viva/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/VIVA-Project/viva/releases/tag/v0.1.0
+## [0.1.0] - 2026-01-01
+
+### Added (Foundation)
+- **Umbrella Architecture**: Base structure with `viva_core` and `viva_bridge`.
+- **Cryptographic Mortality**: Irreversible death system using AES-256-GCM keys stored strictly in RAM.
+- **PAD Model**: Initial implementation of the Pleasure-Arousal-Dominance emotional space.
+- **Governance**: Established `CODE_OF_CONDUCT`, `CONTRIBUTING`, and `SECURITY` policies.
+
+---
+
+## Change Types
+
+- **Added** for new features.
+- **Modified** for changes in existing functionality.
+- **Deprecated** for soon-to-be removed features.
+- **Removed** for now removed features.
+- **Fixed** for any bug fixes.
+- **Security** in case of vulnerabilities.
+
+[Unreleased]: https://github.com/gabrielmaialva33/viva/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/gabrielmaialva33/viva/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/gabrielmaialva33/viva/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/gabrielmaialva33/viva/releases/tag/v0.1.0
