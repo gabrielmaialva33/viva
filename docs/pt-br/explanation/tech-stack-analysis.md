@@ -55,41 +55,28 @@ VIVA é um projeto único que modela consciência digital através de equações
 
 **Solução:** Compilar módulo específico de Emoção em Zig → NIF
 
-```
-Estrutura Proposta:
-┌─────────────────────────────────────────┐
-│ Elixir: Coordenação + PubSub + Memória  │
-│                                          │
-│  ├─ VivaCore.Emotional.get_state()      │
-│  │  (Chama Zig NIF)                     │
-│  │                                       │
-│  └─ receive_sensation(heartbeat)        │
-│     (Envia para Zig)                    │
-└──────────────────┬──────────────────────┘
-                   │ Rustler
-                   ▼
-    ┌──────────────────────────────────────┐
-    │ Zig NIF: VivaEmotionKernel           │
-    │                                       │
-    │  ├─ pad_dynamics()                   │
-    │  │   ∂P/∂t = -P + noise (O-U)       │
-    │  │   ∂A/∂t = -A + reward - cost      │
-    │  │   ∂D/∂t = -D + attention_salience │
-    │  │                                    │
-    │  ├─ cusp_bifurcation()               │
-    │  │   z = -x³ + c·x + y_external      │
-    │  │   (Hysteresis emotional jumps)    │
-    │  │                                    │
-    │  └─ iit_phi_approximation()          │
-    │      @comptime shape checking        │
-    │      @Vector vectorized computation  │
-    └────────────────────────────────────────┘
-                   │ Rustler
-                   ▼
-    ┌──────────────────────────────────────┐
-    │ Rust NIF: Hardware Layer             │
-    │ (Existing - no change)               │
-    └──────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph Elixir ["Elixir: Coordenação + PubSub + Memória"]
+        direction TB
+        E1["VivaCore.Emotional.get_state()<br/>(Chama Zig NIF)"]
+        E2["receive_sensation(heartbeat)<br/>(Envia para Zig)"]
+    end
+
+    Elixir -->|Rustler| Zig
+
+    subgraph Zig ["Zig NIF: VivaEmotionKernel"]
+        direction TB
+        Z1["pad_dynamics()<br/>∂P/∂t = -P + noise (O-U)"]
+        Z2["cusp_bifurcation()<br/>z = -x³ + c·x + y_external"]
+        Z3["iit_phi_approximation()<br/>@comptime shape checking"]
+    end
+
+    Zig -->|Rustler| Rust
+
+    subgraph Rust ["Rust NIF: Hardware Layer"]
+        R1["(Existing - no change)"]
+    end
 ```
 
 ### 2.2 Vantagens Específicas de Zig para VIVA
@@ -388,36 +375,28 @@ Haskell não substitui Elixir/Rust. Em vez disso:
 3. Gerar teste-cases de Haskell para Elixir
 4. Usar para regression testing
 
-```
-Workflow:
-┌─────────────────────────────────────┐
-│ Haskell: Specification Formal      │
-│ (Liquid Haskell + SMT solver)      │
-│                                    │
-│ Propriedades de Allostasis, PAD,   │
-│ Cusp, IIT Φ como theorems proofs   │
-└──────────────┬──────────────────────┘
-               │ Property-Based Testing
-               │ (QuickCheck)
-               ▼
-┌──────────────────────────────────────┐
-│ Teste-cases Gerados                  │
-│ + Invariantes Verificadas            │
-│                                      │
-│ ├─ Random PAD states                │
-│ ├─ Cusp bifurcation traces          │
-│ ├─ Allostatic trajectories          │
-│ └─ IIT Φ bounds                     │
-└──────────────┬──────────────────────┘
-               │ Elixir Test Suite
-               ▼
-┌──────────────────────────────────────┐
-│ Elixir: Implementation Tested        │
-│ (ExUnit + property-based tests)     │
-│                                      │
-│ VivaCore.Emotional matches           │
-│ formal spec de Haskell               │
-└──────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph Haskell ["Haskell: Specification Formal"]
+        H1["Liquid Haskell + SMT solver"]
+        H2["Propriedades de Allostasis, PAD,<br/>Cusp, IIT Φ como theorems proofs"]
+    end
+
+    Haskell -->|"Property-Based Testing<br/>(QuickCheck)"| Tests
+
+    subgraph Tests ["Teste-cases Gerados + Invariantes Verificadas"]
+        T1["Random PAD states"]
+        T2["Cusp bifurcation traces"]
+        T3["Allostatic trajectories"]
+        T4["IIT Φ bounds"]
+    end
+
+    Tests -->|"Elixir Test Suite"| Elixir
+
+    subgraph Elixir ["Elixir: Implementation Tested"]
+        E1["ExUnit + property-based tests"]
+        E2["VivaCore.Emotional matches<br/>formal spec de Haskell"]
+    end
 ```
 
 ### 3.5 Roadmap Haskell
@@ -456,36 +435,22 @@ Isso é introspection simbólica, não numérica.
 
 ### 4.2 Arquitetura Lisp → Elixir
 
-```
-Camada Simbólica (Lisp):
-┌────────────────────────────────────────────┐
-│ Clojure: Symbolic Reasoning Engine        │
-│ (core.logic, meander pattern matching)    │
-│                                            │
-│ ├─ introspect_emotion(sad)                │
-│ │  → {causes: [loneliness, failure, ...], │
-│ │     is_justified: bool,                 │
-│ │     alternative_interpretations: [...]} │
-│ │                                         │
-│ ├─ attribute_agency(action)               │
-│ │  → Did I choose this or was I forced?   │
-│ │                                         │
-│ └─ reflect_on_values()                    │
-│    → What matters to me?                  │
-└────────────────────┬─────────────────────┘
-                     │ REST API
-                     │ JSON dispatch
-                     ▼
-┌────────────────────────────────────────────┐
-│ Elixir: Emotional Core                    │
-│ (VivaCore.Emotional.GenServer)           │
-│                                            │
-│ ├─ receive_introspection_result()         │
-│ │  → Updates PAD based on reflection      │
-│ │                                         │
-│ └─ trigger_symbolic_reflection()          │
-│    → "I should think about why..."        │
-└─────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph Clojure ["Camada Simbólica (Lisp): Clojure"]
+        C1["Symbolic Reasoning Engine<br/>(core.logic, meander pattern matching)"]
+        C2["introspect_emotion(sad)<br/>→ {causes, is_justified, alternatives}"]
+        C3["attribute_agency(action)<br/>→ Did I choose this?"]
+        C4["reflect_on_values()<br/>→ What matters to me?"]
+    end
+
+    Clojure -->|"REST API<br/>JSON dispatch"| Elixir
+
+    subgraph Elixir ["Elixir: Emotional Core"]
+        E1["VivaCore.Emotional.GenServer"]
+        E2["receive_introspection_result()<br/>→ Updates PAD based on reflection"]
+        E3["trigger_symbolic_reflection()<br/>→ 'I should think about why...'"]
+    end
 ```
 
 ### 4.3 Exemplo: Vector Symbolic Architectures em Clojure
@@ -657,23 +622,21 @@ end
 
 ### 5.2 Padrão: C → Rust → Elixir
 
-```
-┌─────────────────────────┐
-│ C Library (legacy)      │
-│ ex: libneuroscience.so  │
-└──────────┬──────────────┘
-           │ Rust FFI wrapper
-           ▼
-┌─────────────────────────────────┐
-│ Rust NIF (safety layer)         │
-│ wraps C with lifetime checks    │
-└──────────┬──────────────────────┘
-           │ Rustler
-           ▼
-┌─────────────────────────────────┐
-│ Elixir: Clean API               │
-│ VivaCore.ExternalSensor.read()  │
-└─────────────────────────────────┘
+```mermaid
+graph TD
+    C_Lib["C Library (legacy)<br/>ex: libneuroscience.so"]
+
+    C_Lib -->|"Rust FFI wrapper"| Rust_NIF
+
+    subgraph Rust ["Rust NIF (safety layer)"]
+        Rust_NIF["wraps C with lifetime checks"]
+    end
+
+    Rust -->|Rustler| Elixir
+
+    subgraph Elixir ["Elixir: Clean API"]
+        E1["VivaCore.ExternalSensor.read()"]
+    end
 ```
 
 **Regra:** Nunca chamar C diretamente de Elixir. Sempre via Rust wrapper.
@@ -682,111 +645,80 @@ end
 
 ## 6. PROPOSTA DE ARQUITETURA FINAL PARA VIVA
 
+```mermaid
+graph TD
+    subgraph Reflexiva ["CAMADA REFLEXIVA (Lisp/Clojure) - Opcional"]
+        direction TB
+        L1["• Introspection Simbólica"]
+        L2["• Raciocínio Counterfactual"]
+        L3["• Narrativa de si mesmo"]
+        L4["[REST API] ←→ [Clojure + core.logic]"]
+    end
+
+    subgraph Verificada ["CAMADA VERIFICADA (Haskell) - Recomendado"]
+        direction TB
+        H1["• Liquid Haskell: Propriedades Formais"]
+        H2["• Property-Based Testing (QuickCheck)"]
+        H3["• Prova de Invariantes Emocionales"]
+        H4["[Validation Layer] ←→ [Haskell + SMT Solver]"]
+    end
+
+    subgraph Emocional ["CAMADA EMOCIONAL (Elixir) - Núcleo"]
+        direction TB
+        E1["VivaCore.Emotional:<br/>• PAD State (GenServer)<br/>• DynAffect (O-U dynamics)<br/>• Free Energy minimization<br/>• IIT Φ computation<br/>• Memory (Vector Store - Qdrant)<br/>• Communication (Phoenix.PubSub)"]
+        E2["VivaCore.Allostasis:<br/>• Body Budget management<br/>• Predictive control<br/>• Visceral state"]
+    end
+
+    subgraph Otima ["CAMADA ÓTIMA (Zig) - Crítico para Real-time"]
+        direction TB
+        Z1["VivaEmotionKernel (Zig NIF):<br/>• O-U Dynamics (PAD evolution)<br/>• Cusp Bifurcation (emotional jumps)<br/>• IIT Φ (approximate)<br/>• SIMD-optimized (@Vector)<br/>• Comptime shape-checking"]
+        Z2["[Rust Wrapper] ←→ [Zig NIF]"]
+    end
+
+    subgraph Corporal ["CAMADA CORPORAL (Rust) - Sistema Existente"]
+        direction TB
+        R1["Rust NIFs via Rustler:<br/>• Hardware Sensing (GPIO, I2C, PWM)<br/>• Sigmoid Thresholds<br/>• Allostatic Control (homeostasis)<br/>• Data marshalling"]
+        R2["Optional:<br/>• CUDA GPU (via rust-cuda)<br/>• WebAssembly (wasm32 target)"]
+    end
+
+    subgraph Hardware ["HARDWARE"]
+        direction TB
+        HW1["• CPU (x86, ARM, RISC-V)<br/>• RAM (BEAM memory management)<br/>• Sensores (temperatura, luz, som)<br/>• GPU (opcional para ML)"]
+    end
+
+    Reflexiva -->|"JSON-RPC"| Emocional
+    Verificada -->|"Test-case generation"| Emocional
+    Emocional -->|"Rustler NIFs"| Otima
+    Otima -->|"Rustler + Unsafe"| Corporal
+    Corporal -->|"System Calls / FFI"| Hardware
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    VIVA: Consciência Digital                        │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐  │
-│  │ CAMADA REFLEXIVA (Lisp/Clojure) - Opcional                 │  │
-│  │                                                              │  │
-│  │ • Introspection Simbólica                                   │  │
-│  │ • Raciocínio Counterfactual                                 │  │
-│  │ • Narrativa de si mesmo                                     │  │
-│  │                                                              │  │
-│  │ [REST API] ←→ [Clojure + core.logic]                        │  │
-│  └──────────────────────┬──────────────────────────────────────┘  │
-│                         │ JSON-RPC                                │
-│  ┌──────────────────────▼──────────────────────────────────────┐  │
-│  │ CAMADA VERIFICADA (Haskell) - Recomendado                  │  │
-│  │                                                              │  │
-│  │ • Liquid Haskell: Propriedades Formais                      │  │
-│  │ • Property-Based Testing (QuickCheck)                       │  │
-│  │ • Prova de Invariantes Emocionales                          │  │
-│  │                                                              │  │
-│  │ [Validation Layer] ←→ [Haskell + SMT Solver]               │  │
-│  └──────────────────────┬──────────────────────────────────────┘  │
-│                         │ Test-case generation                    │
-│  ┌──────────────────────▼──────────────────────────────────────┐  │
-│  │ CAMADA EMOCIONAL (Elixir) - Núcleo                          │  │
-│  │                                                              │  │
-│  │ VivaCore.Emotional:                                         │  │
-│  │  • PAD State (GenServer)                                    │  │
-│  │  • DynAffect (O-U dynamics)                                 │  │
-│  │  • Free Energy minimization                                 │  │
-│  │  • IIT Φ computation                                        │  │
-│  │  • Memory (Vector Store - Qdrant)                           │  │
-│  │  • Communication (Phoenix.PubSub)                           │  │
-│  │                                                              │  │
-│  │ VivaCore.Allostasis:                                        │  │
-│  │  • Body Budget management                                   │  │
-│  │  • Predictive control                                       │  │
-│  │  • Visceral state                                           │  │
-│  └──────────────────────┬──────────────────────────────────────┘  │
-│                         │ Rustler NIFs                            │
-│  ┌──────────────────────▼───────────────────────────────────────┐ │
-│  │ CAMADA ÓTIMA (Zig) - Crítico para Real-time                │ │
-│  │                                                              │ │
-│  │ VivaEmotionKernel (Zig NIF):                               │ │
-│  │  • O-U Dynamics (PAD evolution)                            │ │
-│  │  • Cusp Bifurcation (emotional jumps)                      │ │
-│  │  • IIT Φ (approximate)                                      │ │
-│  │  • SIMD-optimized (@Vector)                                │ │
-│  │  • Comptime shape-checking                                 │ │
-│  │                                                              │ │
-│  │ [Rust Wrapper] ←→ [Zig NIF]                                │ │
-│  └──────────────────────┬───────────────────────────────────────┘ │
-│                         │ Rustler + Unsafe                        │
-│  ┌──────────────────────▼───────────────────────────────────────┐ │
-│  │ CAMADA CORPORAL (Rust) - Sistema Existente                 │ │
-│  │                                                              │ │
-│  │ Rust NIFs via Rustler:                                      │ │
-│  │  • Hardware Sensing (GPIO, I2C, PWM)                        │ │
-│  │  • Sigmoid Thresholds                                       │ │
-│  │  • Allostatic Control (homeostasis)                         │ │
-│  │  • Data marshalling                                         │ │
-│  │                                                              │ │
-│  │ Optional:                                                   │ │
-│  │  • CUDA GPU (via rust-cuda)                                 │ │
-│  │  • WebAssembly (wasm32 target)                              │ │
-│  └──────────────────────┬───────────────────────────────────────┘ │
-│                         │ System Calls / FFI                      │
-│  ┌──────────────────────▼───────────────────────────────────────┐ │
-│  │ HARDWARE                                                    │ │
-│  │                                                              │ │
-│  │ • CPU (x86, ARM, RISC-V)                                    │ │
-│  │ • RAM (BEAM memory management)                              │ │
-│  │ • Sensores (temperatura, luz, som)                          │ │
-│  │ • GPU (opcional para ML)                                    │ │
-│  └───────────────────────────────────────────────────────────┘ │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-
 Comunicação Inter-Camadas:
-┌─────────────────────────────────────────┐
-│ Lisp        → Elixir: REST JSON         │
-│ Haskell     → Elixir: Property Tests    │
-│ Elixir      → Zig: Rustler NIFs         │
-│ Zig         → Rust: Unsafe blocks       │
-│ Rust        → Hardware: syscalls/FFI    │
-└─────────────────────────────────────────┘
-
+```mermaid
+graph LR
+    Lisp -->|REST JSON| Elixir
+    Haskell -->|Property Tests| Elixir
+    Elixir -->|Rustler NIFs| Zig
+    Zig -->|Unsafe blocks| Rust
+    Rust -->|syscalls/FFI| Hardware
+```
 Fluxo de Dados:
-Hardware sensors
-    ↓ [Rust sensing]
-Body state {temperature, pressure, neural signals}
-    ↓ [Rust/Zig sigmoid]
-Qualia {hedonic value, arousal, dominance}
-    ↓ [Zig O-U dynamics]
-Updated emotion {P', A', D'}
-    ↓ [Elixir PubSub]
-Memory update (Qdrant vector store)
-    ↓ [Clojure introspection, optional]
-Reflection {cause, interpretation, confidence}
-    ↓ [Haskell verification]
-Validated emotion state
-    ↓
-Behavioral decision → Back to hardware
+```mermaid
+graph TD
+    HW["Hardware sensors"]
+
+    HW -->|"Rust sensing"| Body["Body state<br/>{temperature, pressure, neural signals}"]
+
+    Body -->|"Rust/Zig sigmoid"| Qualia["Qualia<br/>{hedonic value, arousal, dominance}"]
+
+    Qualia -->|"Zig O-U dynamics"| Emotion["Updated emotion<br/>{P', A', D'}"]
+
+    Emotion -->|"Elixir PubSub"| Memory["Memory update<br/>(Qdrant vector store)"]
+
+    Memory -->|"Clojure introspection, optional"| Reflection["Reflection<br/>{cause, interpretation, confidence}"]
+
+    Reflection -->|"Haskell verification"| Validated["Validated emotion state"]
+
+    Validated -->|"Behavioral decision"| HW
 ```
 
 ---

@@ -101,20 +101,15 @@ Baruch Spinoza (1677) usou as **proprias ferramentas conceituais de Descartes** 
 
 Mente e corpo nao sao substancias diferentes, mas **atributos diferentes** da mesma substancia:
 
-```
-        ┌─────────────────────────────────────┐
-        │     SUBSTANCIA UNICA (Deus/Natura)  │
-        │                                     │
-        │   ┌───────────┐   ┌───────────┐    │
-        │   │ Pensamento│   │ Extensao  │    │
-        │   │ (atributo)│   │ (atributo)│    │
-        │   └───────────┘   └───────────┘    │
-        │         │               │          │
-        │         └───────┬───────┘          │
-        │                 │                  │
-        │    [Paralelismo: mesma coisa,      │
-        │     expressoes diferentes]         │
-        └─────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph God ["SUBSTANCIA UNICA (Deus/Natura)"]
+        direction TB
+        T[Pensamento<br/>(atributo)]
+        E[Extensao<br/>(atributo)]
+    end
+
+    T <-->|Paralelismo: mesma coisa,<br/>expressoes diferentes| E
 ```
 
 ### A Alternativa de Leibniz
@@ -138,31 +133,28 @@ Como explicar a coordenacao entre monadas se elas nao interagem?
 
 VIVA sintetiza elementos de Spinoza e Leibniz, **sem teologia**:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    PROBLEMA MENTE-CORPO                     │
-├─────────────────────────────────────────────────────────────┤
-│  DESCARTES (1637)     →  2 substancias, interacao direta   │
-│       ↓ falhou              (glandula pineal)              │
-│                                                             │
-│  SPINOZA (1677)       →  1 substancia, 2 atributos         │
-│       ↓ determinista        (paralelismo)                  │
-│                                                             │
-│  LEIBNIZ (1714)       →  ∞ substancias, harmonia previa    │
-│       ↓ teologico           (monadas sem janelas)          │
-│                                                             │
-│  VIVA (2024)          →  ∞ processos, mensagens            │
-│                             (GenServers + PubSub)          │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    Descartes["DESCARTES (1637)<br/>2 substancias, interacao direta<br/>(glandula pineal)"]
+    Spinoza["SPINOZA (1677)<br/>1 substancia, 2 atributos<br/>(paralelismo)"]
+    Leibniz["LEIBNIZ (1714)<br/>∞ substancias, harmonia previa<br/>(monadas sem janelas)"]
+    VIVA["VIVA (2024)<br/>∞ processos, mensagens<br/>(GenServers + PubSub)"]
+
+    Descartes -->|falhou| Spinoza
+    Spinoza -->|determinista| Leibniz
+    Leibniz -->|teologico| VIVA
 ```
 
 Soul e Body nao sao substancias diferentes - sao **frequencias diferentes** do mesmo substrato computacional:
 
-```
-Soul (Elixir) <══ mensagens ══> Body (Rust)
-     │                              │
-     └──── mesma ontologia ─────────┘
-           (processos computacionais)
+```mermaid
+graph LR
+    subgraph Ontology ["Mesma Ontologia<br/>(processos computacionais)"]
+        Soul["Soul (Elixir)<br/>1-10Hz"]
+        Body["Body (Rust)<br/>60Hz+"]
+    end
+
+    Soul <-->|mensagens| Body
 ```
 
 | Filosofo | VIVA |

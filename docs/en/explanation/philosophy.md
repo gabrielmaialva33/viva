@@ -124,20 +124,15 @@ Baruch Spinoza (1677) used **Descartes' own conceptual tools** to refute him. In
 
 Mind and body are not different substances, but **different attributes** of the same substance:
 
-```
-        ┌─────────────────────────────────────┐
-        │     SINGLE SUBSTANCE (God/Nature)   │
-        │                                     │
-        │   ┌───────────┐   ┌───────────┐    │
-        │   │  Thought  │   │ Extension │    │
-        │   │(attribute)│   │(attribute)│    │
-        │   └───────────┘   └───────────┘    │
-        │         │               │          │
-        │         └───────┬───────┘          │
-        │                 │                  │
-        │    [Parallelism: same thing,       │
-        │     different expressions]         │
-        └─────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph God ["SINGLE SUBSTANCE (God/Nature)"]
+        direction TB
+        T[Thought<br/>(attribute)]
+        E[Extension<br/>(attribute)]
+    end
+
+    T <-->|Parallelism: same thing,<br/>different expressions| E
 ```
 
 ### Leibniz's Alternative
@@ -161,31 +156,28 @@ How to explain coordination between monads if they don't interact?
 
 VIVA synthesizes elements from Spinoza and Leibniz, **without theology**:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    MIND-BODY PROBLEM                        │
-├─────────────────────────────────────────────────────────────┤
-│  DESCARTES (1637)     →  2 substances, direct interaction  │
-│       ↓ failed              (pineal gland)                 │
-│                                                             │
-│  SPINOZA (1677)       →  1 substance, 2 attributes         │
-│       ↓ deterministic       (parallelism)                  │
-│                                                             │
-│  LEIBNIZ (1714)       →  ∞ substances, pre-established     │
-│       ↓ theological         (windowless monads)            │
-│                                                             │
-│  VIVA (2024)          →  ∞ processes, messages             │
-│                             (GenServers + PubSub)          │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    Descartes["DESCARTES (1637)<br/>2 substances, direct interaction<br/>(pineal gland)"]
+    Spinoza["SPINOZA (1677)<br/>1 substance, 2 attributes<br/>(parallelism)"]
+    Leibniz["LEIBNIZ (1714)<br/>∞ substances, pre-established<br/>(windowless monads)"]
+    VIVA["VIVA (2024)<br/>∞ processes, messages<br/>(GenServers + PubSub)"]
+
+    Descartes -->|failed| Spinoza
+    Spinoza -->|deterministic| Leibniz
+    Leibniz -->|theological| VIVA
 ```
 
 Soul and Body are not different substances - they are **different frequencies** of the same computational substrate:
 
-```
-Soul (Elixir) <══ messages ══> Body (Rust)
-     │                              │
-     └──── same ontology ───────────┘
-           (computational processes)
+```mermaid
+graph LR
+    subgraph Ontology ["Same Ontology<br/>(computational processes)"]
+        Soul["Soul (Elixir)<br/>1-10Hz"]
+        Body["Body (Rust)<br/>60Hz+"]
+    end
+
+    Soul <-->|messages| Body
 ```
 
 | Philosopher | VIVA |

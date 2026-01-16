@@ -194,21 +194,27 @@ classDiagram
 
 #### PAD Model Visualization
 
-```
-         +1 Pleasure (Joy)
-              |
-              |
-    +---------+---------+
-    |         |         |
-    |    Neutral        |
--1 -+---------+---------+- +1 Arousal (Excitement)
-    |         |         |
-    |         |         |
-    +---------+---------+
-              |
-         -1 (Sadness)
+```mermaid
+graph TD
+    subgraph PAD_Space ["PAD Emotional Space"]
+        direction TB
 
-              Dominance = Z axis (submission <-> control)
+        P[Pleasure Axis] -->|+1| Joy[Joy]
+        P -->|-1| Sadness[Sadness]
+
+        A[Arousal Axis] -->|+1| Exc[Excitement]
+        A -->|-1| Sleep[Sleepiness]
+
+        D[Dominance Axis] -->|+1| Ctrl[Control]
+        D -->|-1| Sub[Submission]
+    end
+
+    style Joy fill:#90EE90,stroke:#333,color:#000
+    style Sadness fill:#F08080,stroke:#333,color:#000
+    style Exc fill:#FFD700,stroke:#333,color:#000
+    style Sleep fill:#87CEEB,stroke:#333,color:#000
+    style Ctrl fill:#9370DB,stroke:#333,color:#fff
+    style Sub fill:#D3D3D3,stroke:#333,color:#000
 ```
 
 ### VivaBridge.Body (NIF)
