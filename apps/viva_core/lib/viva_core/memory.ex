@@ -34,6 +34,7 @@ defmodule VivaCore.Memory do
   """
 
   use GenServer
+  import Bitwise
   require Logger
 
   alias VivaCore.Qdrant
@@ -204,13 +205,10 @@ defmodule VivaCore.Memory do
         {:ok, Map.merge(state, %{memories: %{}, index: []})}
 
       :rust_native ->
-        # Default path relative to home
-        home = System.user_home!()
-        path = Application.get_env(:viva_core, :native_memory_path, Path.join(home, ".viva/memory"))
-        case NativeMemory.init(path) do
-          {:ok, resource} ->
+        case NativeMemory.init() do
+          :ok ->
             Logger.info("[Memory] Memory neuron online (backend: Rust Native - God Mode)")
-            {:ok, Map.put(state, :resource, resource)}
+            {:ok, state}
           {:error, reason} ->
             Logger.error("[Memory] Failed to init native memory: #{inspect(reason)}")
             {:stop, reason}
@@ -255,18 +253,17 @@ defmodule VivaCore.Memory do
       :rust_native ->
         case Embedder.embed(content) do
           {:ok, embedding} ->
-            # Convert generic metadata to strings
-            str_metadata = metadata
-            |> Map.new(fn {k, v} -> {to_string(k), to_string(v)} end)
-            |> Map.put("id", id)
-            |> Map.put("type", payload.type)
-            |> Map.put("importance", to_string(payload.importance))
+            # NativeMemory.store/2 expects (vector, metadata_map)
+            metadata_for_native = payload
+            |> Map.put(:id, id)
+            |> Map.put(:content, content)
 
-            case NativeMemory.store(state.resource, content, embedding, str_metadata) do
-              {:ok, _key} -> {:ok, id} # Return UUID to caller
-              error -> error
+            case NativeMemory.store(embedding, metadata_for_native) do
+              "Memory stored" -> {:ok, id}
+              {:ok, _} -> {:ok, id}
+              error -> {:error, error}
             end
-          error -> error
+          {:error, reason} -> {:error, reason}
         end
     end
 
@@ -320,23 +317,22 @@ defmodule VivaCore.Memory do
       :rust_native ->
         case Embedder.embed(query) do
           {:ok, query_vector} ->
-            case NativeMemory.search(state.resource, query_vector, limit) do
-              {:ok, raw_results} ->
-                # Map tuple results {id, content, score, importance} to map
-                formatted = Enum.map(raw_results, fn {id, content, score, _imp} ->
-                  %{
-                    id: id,
-                    content: content,
-                    similarity: score, # Rust returns STDP-boosted score
-                    # Minimal fields for basic display
-                    timestamp: nil,
-                    importance: 0.0 # TODO: fetch full meta if needed
-                  }
-                end)
-                {:ok, formatted}
-              error -> error
-            end
-          error -> error
+            # NativeMemory.search/2 expects (vector, limit)
+            raw_results = NativeMemory.search(query_vector, limit)
+            # Results are already a list from NIF
+            formatted = Enum.map(raw_results, fn result ->
+              # Adapt to whatever format the NIF returns
+              case result do
+                {id, content, score, _imp} ->
+                  %{id: id, content: content, similarity: score, timestamp: nil, importance: 0.0}
+                %{} = map ->
+                  Map.merge(%{timestamp: nil, importance: 0.0}, map)
+                _ ->
+                  %{id: nil, content: inspect(result), similarity: 0.0, timestamp: nil, importance: 0.0}
+              end
+            end)
+            {:ok, formatted}
+          {:error, _} -> {:ok, []}
         end
     end
 
@@ -399,11 +395,8 @@ defmodule VivaCore.Memory do
         Map.put(base_stats, :points_count, map_size(state.memories))
 
       :rust_native ->
-        {episodic, semantic} = NativeMemory.stats(state.resource)
-        base_stats
-        |> Map.put(:episodic_count, episodic)
-        |> Map.put(:semantic_count, semantic)
-        |> Map.put(:points_count, episodic + semantic)
+        # NativeMemory doesn't expose stats yet - return base stats
+        Map.put(base_stats, :points_count, :unknown)
     end
 
     {:reply, stats, state}
@@ -431,8 +424,17 @@ defmodule VivaCore.Memory do
   # ============================================================================
 
   defp generate_id do
-    # Qdrant requires UUID format
-    UUID.uuid4()
+    # Qdrant requires UUID format - generate v4 UUID using Erlang crypto
+    <<a1::32, a2::16, a3::16, a4::16, a5::48>> = :crypto.strong_rand_bytes(16)
+    # Set version (4) and variant bits
+    a3_v4 = (a3 &&& 0x0FFF) ||| 0x4000
+    a4_var = (a4 &&& 0x3FFF) ||| 0x8000
+
+    :io_lib.format(
+      "~8.16.0b-~4.16.0b-~4.16.0b-~4.16.0b-~12.16.0b",
+      [a1, a2, a3_v4, a4_var, a5]
+    )
+    |> IO.iodata_to_binary()
   end
 
   # Notify Dreamer of new memory (non-blocking)

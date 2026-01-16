@@ -4,7 +4,6 @@ defmodule VivaBridge.Memory do
   Wraps the Rust NIFs for vectors and storage.
   """
   alias VivaBridge.Body
-  alias VivaBridge.Brain
   require Logger
 
   @doc """
