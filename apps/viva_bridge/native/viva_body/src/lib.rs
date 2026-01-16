@@ -718,10 +718,44 @@ fn get_cpu_temp(components: &Components) -> Option<f32> {
     None
 }
 
-/// Helper: Executa nvidia-smi via CLI (Fallback para WSL/Sem NVML)
+/// Reads GPU info from cache file (~/.cache/viva/gpu.csv)
+/// Format: utilization,mem_used,mem_total,temp,name
+/// Updated by external daemon to avoid fork() issues in BEAM
+fn read_gpu_cache() -> Option<(Option<f32>, Option<f32>, Option<f32>, Option<String>)> {
+    let home = std::env::var("HOME").ok()?;
+    let cache_path = format!("{}/.cache/viva/gpu.csv", home);
+
+    let content = std::fs::read_to_string(&cache_path).ok()?;
+    let line = content.lines().next()?;
+    let parts: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
+
+    if parts.len() >= 5 {
+        let usage = parts[0].parse::<f32>().ok();
+        let mem_used = parts[1].parse::<f64>().unwrap_or(0.0);
+        let mem_total = parts[2].parse::<f64>().unwrap_or(1.0);
+        let vram_percent = if mem_total > 0.0 {
+            Some((mem_used / mem_total * 100.0) as f32)
+        } else {
+            None
+        };
+        let temp = parts[3].parse::<f32>().ok();
+        let name = Some(parts[4].to_string());
+
+        return Some((usage, vram_percent, temp, name));
+    }
+
+    None
+}
+
+/// Helper: Executes nvidia-smi via CLI (Fallback when NVML unavailable)
 fn get_gpu_info_cli() -> (Option<f32>, Option<f32>, Option<f32>, Option<String>) {
-    // Formato CSV: utilisation.gpu, memory.used, memory.total, temperature.gpu, name
-    // NOTE: nvidia-smi might be in /usr/lib/wsl/lib/ on WSL2
+    // First, try reading from cache file (updated by external daemon)
+    // This avoids fork() issues inside BEAM VM
+    if let Some(result) = read_gpu_cache() {
+        return result;
+    }
+
+    // Fallback: Direct command (works on native Linux/Windows, not WSL)
     let output = std::process::Command::new("nvidia-smi")
         .args([
             "--query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu,name",
