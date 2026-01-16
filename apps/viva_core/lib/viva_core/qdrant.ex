@@ -12,7 +12,7 @@ defmodule VivaCore.Qdrant do
 
   @base_url "http://localhost:6333"
   @collection "viva_memories"
-  @vector_size 384  # all-MiniLM-L6-v2 dimension
+  @vector_size 1024  # NVIDIA nv-embedqa-e5-v5 dimension
 
   # ============================================================================
   # Collection Management

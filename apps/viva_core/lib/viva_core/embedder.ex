@@ -12,7 +12,7 @@ defmodule VivaCore.Embedder do
 
   require Logger
 
-  @vector_size 384
+  @vector_size 1024  # NVIDIA nv-embedqa-e5-v5
   @ollama_url "http://localhost:11434"
   @nvidia_url "https://integrate.api.nvidia.com/v1"
 
