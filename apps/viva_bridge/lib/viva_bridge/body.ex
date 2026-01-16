@@ -561,4 +561,37 @@ defmodule VivaBridge.Body do
   else
     def metabolism_tick(_cpu_usage, _cpu_temp), do: :erlang.nif_error(:nif_not_loaded)
   end
+
+  # ============================================================================
+  # Mirror NIFs (Self-Reading / Autoscopia)
+  # ============================================================================
+
+  @doc """
+  Returns source code of a module by path.
+  Example: mirror_get_self("cortex.rs")
+  """
+  if @skip_nif do
+    def mirror_get_self(_path), do: nil
+  else
+    def mirror_get_self(_path), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Returns build identity (git_hash, version, build_time, source_hash)
+  """
+  if @skip_nif do
+    def mirror_build_identity(), do: {"dev", "0.1.0", "unknown", 0}
+  else
+    def mirror_build_identity(), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Lists all available self-modules with metadata.
+  Returns: [{name, path, hash, line_count}, ...]
+  """
+  if @skip_nif do
+    def mirror_list_modules(), do: []
+  else
+    def mirror_list_modules(), do: :erlang.nif_error(:nif_not_loaded)
+  end
 end

@@ -38,6 +38,7 @@ pub mod memory; // Vector memory backends (usearch, SQLite)
 pub mod dynamics; // Stochastic dynamics (O-U, Cusp catastrophe)
 pub mod body_state; // Unified body state
 pub mod metabolism; // Digital Metabolism (Energy/Entropy/Fatigue)
+pub mod mirror; // Self-Reading (Autoscopia) + Build Identity
 
 // ============================================================================
 // Pre-defined Atoms (rustler::atoms! macro for performance + panic safety)
@@ -791,6 +792,38 @@ fn metabolism_tick(cpu_usage: f32, cpu_temp: Option<f32>) -> NifResult<(f32, f32
     ))
 }
 
+// ============================================================================
+// Mirror NIFs (Self-Reading / Autoscopia)
+// ============================================================================
+
+/// Returns source code of a module by path
+#[rustler::nif]
+fn mirror_get_self(path: String) -> NifResult<Option<String>> {
+    Ok(mirror::get_source(&path).map(|s| s.to_string()))
+}
+
+/// Returns build identity (git hash, version, build time, source hash)
+#[rustler::nif]
+fn mirror_build_identity() -> NifResult<(String, String, String, u64)> {
+    let id = mirror::BuildIdentity::current();
+    Ok((
+        id.git_hash.to_string(),
+        id.version.to_string(),
+        id.build_time.to_string(),
+        id.source_hash,
+    ))
+}
+
+/// Lists all available self-modules with metadata
+#[rustler::nif]
+fn mirror_list_modules() -> NifResult<Vec<(String, String, u64, usize)>> {
+    let modules = mirror::list_modules();
+    Ok(modules
+        .into_iter()
+        .map(|m| (m.name.to_string(), m.path.to_string(), m.hash, m.line_count))
+        .collect())
+}
+
 /// Applies sigmoid with normalization to maintain range [0, 1]
 /// Compensates for the fact that sigmoid(0) != 0 and sigmoid(1) != 1
 ///
@@ -1332,6 +1365,10 @@ rustler::init!(
         // Metabolism (Thermodynamics)
         metabolism_init,
         metabolism_tick,
+        // Mirror (Self-Reading / Autoscopia)
+        mirror_get_self,
+        mirror_build_identity,
+        mirror_list_modules,
     ],
     load = load
 );
