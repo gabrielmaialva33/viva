@@ -170,4 +170,168 @@ defmodule VivaBridge.Body do
   else
     def hardware_to_qualia(), do: :erlang.nif_error(:nif_not_loaded)
   end
+
+  # ============================================================================
+  # Dynamics NIFs - Stochastic Emotional State Evolution
+  # ============================================================================
+
+  @doc """
+  Single Ornstein-Uhlenbeck step for PAD state.
+
+  The O-U process models mean-reversion: emotional states naturally drift
+  back towards equilibrium (neutral) over time, with random perturbations.
+
+  ## Parameters
+
+  - `p, a, d` - Current PAD state (each in [-1, 1])
+  - `dt` - Time step (typically 0.5 for 500ms ticks)
+  - `noise_p, noise_a, noise_d` - Gaussian noise samples (N(0,1))
+
+  ## Returns
+
+  Tuple `{p', a', d'}` - New PAD state (bounded to [-1, 1])
+
+  ## Example
+
+      # Neutral state with small perturbation
+      {p, a, d} = VivaBridge.Body.dynamics_ou_step(0.0, 0.0, 0.0, 0.5, 0.1, -0.2, 0.05)
+      # => {0.0075, -0.025, 0.005}
+
+  ## Default O-U Parameters (Kuppens et al., 2010)
+
+  - Pleasure: θ=0.3, σ=0.15 (slow reversion, moderate volatility)
+  - Arousal: θ=0.5, σ=0.25 (fast reversion, high volatility)
+  - Dominance: θ=0.2, σ=0.10 (slowest reversion, low volatility)
+  """
+  if @skip_nif do
+    def dynamics_ou_step(_p, _a, _d, _dt, _noise_p, _noise_a, _noise_d), do: {0.0, 0.0, 0.0}
+  else
+    def dynamics_ou_step(_p, _a, _d, _dt, _noise_p, _noise_a, _noise_d),
+      do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Find equilibrium points of the cusp catastrophe.
+
+  The cusp catastrophe models sudden transitions (bifurcations) in mood.
+  Given control parameters (c, y), returns the equilibria where dV/dx = 0.
+
+  ## Parameters
+
+  - `c` - "Splitting factor" (controls bifurcation strength)
+  - `y` - "Normal factor" (asymmetry/bias)
+
+  ## Returns
+
+  List of equilibrium x values (1 or 3 depending on bifurcation region)
+
+  ## Example
+
+      # Outside bifurcation region - single equilibrium
+      VivaBridge.Body.dynamics_cusp_equilibria(0.5, 0.0)
+      # => [0.0]
+
+      # Inside bifurcation region - three equilibria
+      VivaBridge.Body.dynamics_cusp_equilibria(2.0, 0.0)
+      # => [-1.414, 0.0, 1.414]
+
+  """
+  if @skip_nif do
+    def dynamics_cusp_equilibria(_c, _y), do: [0.0]
+  else
+    def dynamics_cusp_equilibria(_c, _y), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Check if (c, y) is in the bifurcation region.
+
+  The bifurcation region is where the cusp has 3 equilibria, allowing
+  sudden mood transitions. Condition: 27y² < 4c³
+
+  ## Example
+
+      VivaBridge.Body.dynamics_cusp_is_bifurcation(2.0, 0.0)
+      # => true
+
+      VivaBridge.Body.dynamics_cusp_is_bifurcation(0.5, 0.0)
+      # => false
+
+  """
+  if @skip_nif do
+    def dynamics_cusp_is_bifurcation(_c, _y), do: false
+  else
+    def dynamics_cusp_is_bifurcation(_c, _y), do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Cusp-modulated mood step.
+
+  Applies cusp catastrophe dynamics to pleasure (mood) based on arousal level.
+  Higher arousal increases bifurcation potential, enabling sudden mood swings.
+
+  ## Parameters
+
+  - `mood` - Current pleasure/mood value
+  - `arousal` - Current arousal (controls bifurcation strength)
+  - `external_bias` - External influence (maps to cusp asymmetry)
+  - `dt` - Time step
+
+  ## Returns
+
+  New mood value after cusp dynamics
+
+  ## Example
+
+      # High arousal can trigger mood flip
+      VivaBridge.Body.dynamics_cusp_mood_step(-0.8, 0.9, 0.1, 0.5)
+      # => 0.7  (sudden flip from negative to positive mood)
+
+  """
+  if @skip_nif do
+    def dynamics_cusp_mood_step(mood, _arousal, _external_bias, _dt), do: mood
+  else
+    def dynamics_cusp_mood_step(_mood, _arousal, _external_bias, _dt),
+      do: :erlang.nif_error(:nif_not_loaded)
+  end
+
+  @doc """
+  Full DynAffect step: O-U dynamics + optional Cusp overlay.
+
+  This is the main function for evolving VIVA's emotional state over time.
+  Combines:
+  1. Ornstein-Uhlenbeck mean-reversion (baseline dynamics)
+  2. Cusp catastrophe (optional sudden transitions)
+
+  ## Parameters
+
+  - `p, a, d` - Current PAD state
+  - `dt` - Time step
+  - `noise_p, noise_a, noise_d` - Gaussian noise samples
+  - `cusp_enabled` - Whether to apply cusp overlay
+  - `cusp_sensitivity` - How strongly cusp affects mood (0.0-1.0)
+  - `external_bias` - External emotional influence
+
+  ## Returns
+
+  Tuple `{p', a', d'}` - New PAD state
+
+  ## Example
+
+      # Full dynamics with cusp enabled
+      {p, a, d} = VivaBridge.Body.dynamics_step(
+        0.5, 0.3, 0.2,      # Current PAD
+        0.5,                 # dt = 500ms
+        0.1, -0.2, 0.05,    # Noise
+        true,                # Cusp enabled
+        0.5,                 # Medium sensitivity
+        0.0                  # No external bias
+      )
+
+  """
+  if @skip_nif do
+    def dynamics_step(p, a, d, _dt, _np, _na, _nd, _cusp, _sens, _bias), do: {p, a, d}
+  else
+    def dynamics_step(_p, _a, _d, _dt, _np, _na, _nd, _cusp, _sens, _bias),
+      do: :erlang.nif_error(:nif_not_loaded)
+  end
 end
