@@ -125,7 +125,8 @@ defmodule VivaCore.Memory do
     entry = %{
       id: id,
       content: content,
-      embedding: nil,  # TODO: Generate embedding
+      # TODO: Generate embedding
+      embedding: nil,
       metadata: Map.merge(%{type: :generic, importance: 0.5}, metadata),
       timestamp: DateTime.utc_now()
     }
@@ -149,7 +150,8 @@ defmodule VivaCore.Memory do
       |> Enum.map(&Map.get(state.memories, &1))
       |> Enum.reject(&is_nil/1)
       |> Enum.map(fn mem ->
-        Map.put(mem, :similarity, 0.5)  # STUB: fake similarity
+        # STUB: fake similarity
+        Map.put(mem, :similarity, 0.5)
       end)
 
     {:reply, results, state}

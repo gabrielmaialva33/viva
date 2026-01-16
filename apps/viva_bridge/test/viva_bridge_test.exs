@@ -48,7 +48,10 @@ defmodule VivaBridgeTest do
       assert Map.has_key?(result, :cpu_temp)
 
       case result.cpu_temp do
-        nil -> :ok  # Temperature not available - OK
+        # Temperature not available - OK
+        nil ->
+          :ok
+
         temp ->
           # If available, should be in reasonable range (0-150C)
           assert is_float(temp)
@@ -132,11 +135,13 @@ defmodule VivaBridgeTest do
 
       # Pleasure delta: negative or zero (stress never increases pleasure)
       assert p <= 0.0
-      assert p >= -0.1  # Max stress does not exceed -0.08
+      # Max stress does not exceed -0.08
+      assert p >= -0.1
 
       # Arousal delta: typically positive
       assert a >= 0.0
-      assert a <= 0.15  # Max ~0.12
+      # Max ~0.12
+      assert a <= 0.15
 
       # Dominance delta: negative or zero
       assert d <= 0.0

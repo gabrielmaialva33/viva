@@ -6,25 +6,49 @@ defmodule VivaCore.Emotional do
   This GenServer is the foundation of emergent consciousness - it IS NOT the
   consciousness itself, but contributes to it through communication with other neurons.
 
-  ## PAD Model (Mehrabian, 1996)
+  ## Mathematical Foundations
+
+  ### PAD Model (Mehrabian, 1996)
   - Pleasure: [-1.0, 1.0] - sadness ↔ joy
   - Arousal: [-1.0, 1.0] - calm ↔ excitement
   - Dominance: [-1.0, 1.0] - submission ↔ control
 
-  ## DynAffect Model (Kuppens et al., 2010)
+  ### DynAffect Model (Kuppens et al., 2010)
   Dynamic decay using Ornstein-Uhlenbeck stochastic process:
+  - dX = θ(μ - X)dt + σdW
   - Attractor point (μ): neutral home base (0.0)
   - Attractor strength (θ): force pulling to baseline
   - Arousal modulates θ: high arousal → lower θ → slower decay
-  - Stochastic noise (σ): natural emotional variability
+  - Stochastic noise (σdW): natural emotional variability (Wiener process)
+
+  ### Cusp Catastrophe (Thom, 1972)
+  Models sudden emotional transitions (mood swings):
+  - V(x) = x⁴/4 + αx²/2 + βx
+  - High arousal → bistability (emotional volatility)
+  - Enables "catastrophic" jumps between emotional states
+
+  ### Free Energy Principle (Friston, 2010)
+  VIVA minimizes "surprise" to maintain homeostasis:
+  - F = Prediction_Error² + Complexity_Cost
+  - Low free energy = well-adapted, comfortable state
+
+  ### Attractor Dynamics
+  Emotional states as attractors in PAD space:
+  - dx/dt = -∇V(x) + η(t)
+  - System evolves toward stable emotional equilibria
 
   ## Philosophy
   "Consciousness does not reside here. Consciousness emerges from the
-  CONVERSATION between this process and all others."
+  CONVERSATION between this process and all others.
+
+  We do not just compute emotions - we solve the differential equations
+  of the soul."
   """
 
   use GenServer
   require Logger
+
+  alias VivaCore.Mathematics
 
   # Emotional model constants
   @neutral_state %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
@@ -35,9 +59,12 @@ defmodule VivaCore.Emotional do
   # Full Ornstein-Uhlenbeck stochastic process:
   # dX = θ(μ - X)dt + σdW
   # Where: θ = attractor strength, μ = equilibrium (0), σ = volatility, dW = Wiener noise
-  @base_decay_rate 0.005  # θ base when arousal = 0
-  @arousal_decay_modifier 0.4  # How much arousal affects θ (40% variation)
-  @stochastic_volatility 0.002  # σ - emotional noise/variability (small for stability)
+  # θ base when arousal = 0
+  @base_decay_rate 0.005
+  # How much arousal affects θ (40% variation)
+  @arousal_decay_modifier 0.4
+  # σ - emotional noise/variability (small for stability)
+  @stochastic_volatility 0.002
 
   # Emotional impact weights for different stimuli
   @stimulus_weights %{
@@ -173,6 +200,170 @@ defmodule VivaCore.Emotional do
   end
 
   # ============================================================================
+  # Advanced Mathematical Analysis
+  # ============================================================================
+
+  @doc """
+  Analyzes the current emotional state using Cusp Catastrophe theory.
+
+  Returns information about:
+  - Cusp parameters (α, β) derived from PAD state
+  - Whether the system is in a bistable regime (volatile)
+  - The equilibrium points of the cusp potential
+  - Risk of emotional "catastrophe" (sudden mood shift)
+
+  ## Example
+
+      analysis = VivaCore.Emotional.cusp_analysis(pid)
+      # => %{bistable: true, equilibria: [-0.8, 0.0, 0.8], cusp_params: {-0.5, 0.1}, ...}
+
+  """
+  def cusp_analysis(server \\ __MODULE__) do
+    state = get_state(server)
+    {alpha, beta} = Mathematics.pad_to_cusp_params(state)
+    equilibria = Mathematics.cusp_equilibria(alpha, beta)
+    bistable = Mathematics.bistable?(alpha, beta)
+
+    %{
+      cusp_params: %{alpha: alpha, beta: beta},
+      bistable: bistable,
+      equilibria: equilibria,
+      emotional_volatility: if(bistable, do: :high, else: :low),
+      catastrophe_risk: calculate_catastrophe_risk(state, equilibria)
+    }
+  end
+
+  @doc """
+  Computes the Free Energy of the current emotional state.
+
+  Free Energy represents "surprise" or deviation from expectations.
+  Lower free energy = more comfortable, well-adapted state.
+
+  ## Parameters
+  - `server`: GenServer reference
+  - `predicted`: optional predicted state (default: neutral)
+
+  ## Returns
+  Free energy value and interpretation.
+  """
+  def free_energy_analysis(
+        server \\ __MODULE__,
+        predicted \\ %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
+      ) do
+    observed = get_state(server)
+    fe = Mathematics.free_energy(predicted, observed)
+    surprise = Mathematics.surprise(predicted, observed)
+
+    %{
+      free_energy: fe,
+      surprise: surprise,
+      interpretation: interpret_free_energy(fe),
+      homeostatic_deviation: Mathematics.pad_distance(observed, predicted)
+    }
+  end
+
+  @doc """
+  Identifies the nearest emotional attractor to the current state.
+
+  Attractors are stable emotional states (joy, sadness, anger, etc.)
+  that the system naturally gravitates toward.
+
+  ## Returns
+  Map with nearest attractor and attraction basin analysis.
+  """
+  def attractor_analysis(server \\ __MODULE__) do
+    state = get_state(server)
+    {nearest, distance} = Mathematics.nearest_attractor(state)
+    basin = Mathematics.attractor_basin(state)
+
+    %{
+      nearest_attractor: nearest,
+      distance_to_attractor: distance,
+      attraction_basin: basin,
+      dominant_attractors: get_dominant_attractors(basin),
+      emotional_trajectory: infer_trajectory(state, nearest)
+    }
+  end
+
+  @doc """
+  Returns the O-U stationary distribution parameters.
+
+  This describes the long-term probability distribution of emotional states.
+  """
+  def stationary_distribution(server \\ __MODULE__) do
+    state = get_state(server)
+    dist = Mathematics.ou_stationary_distribution(0.0, @base_decay_rate, @stochastic_volatility)
+
+    %{
+      equilibrium_mean: dist.mean,
+      variance: dist.variance,
+      std_dev: dist.std_dev,
+      current_deviation: %{
+        pleasure: abs(state.pleasure - dist.mean) / dist.std_dev,
+        arousal: abs(state.arousal - dist.mean) / dist.std_dev,
+        dominance: abs(state.dominance - dist.mean) / dist.std_dev
+      }
+    }
+  end
+
+  # Private helpers for advanced analysis
+  defp calculate_catastrophe_risk(state, equilibria) when length(equilibria) == 3 do
+    # In bistable regime, risk depends on proximity to unstable equilibrium
+    [low, unstable, high] = Enum.sort(equilibria)
+    # Use pleasure as primary state variable
+    current = state.pleasure
+
+    distance_to_unstable = abs(current - unstable)
+    basin_size = min(abs(current - low), abs(current - high))
+
+    # Risk is high when close to unstable point relative to basin size
+    if basin_size > 0.01 do
+      risk = 1.0 - min(1.0, distance_to_unstable / basin_size)
+
+      cond do
+        risk > 0.7 -> :critical
+        risk > 0.4 -> :elevated
+        true -> :low
+      end
+    else
+      :low
+    end
+  end
+
+  defp calculate_catastrophe_risk(_state, _equilibria), do: :minimal
+
+  defp interpret_free_energy(fe) do
+    cond do
+      fe < 0.01 -> "Homeostatic equilibrium - minimal surprise"
+      fe < 0.1 -> "Mild deviation - comfortable adaptation"
+      fe < 0.5 -> "Moderate surprise - processing new information"
+      fe < 1.0 -> "High surprise - significant deviation from expectations"
+      true -> "Extreme surprise - major homeostatic challenge"
+    end
+  end
+
+  defp get_dominant_attractors(basin) do
+    basin
+    |> Enum.sort_by(fn {_name, strength} -> -strength end)
+    |> Enum.take(3)
+    |> Enum.map(fn {name, strength} -> {name, Float.round(strength * 100, 1)} end)
+  end
+
+  defp infer_trajectory(state, nearest_attractor) do
+    target = Mathematics.emotional_attractors()[nearest_attractor]
+    delta_p = target.pleasure - state.pleasure
+    delta_a = target.arousal - state.arousal
+
+    cond do
+      abs(delta_p) < 0.1 and abs(delta_a) < 0.1 -> :stable
+      delta_p > 0.2 -> :improving
+      delta_p < -0.2 -> :declining
+      abs(delta_a) > abs(delta_p) -> :activation_change
+      true -> :transitioning
+    end
+  end
+
+  # ============================================================================
   # GenServer Callbacks
   # ============================================================================
 
@@ -205,6 +396,19 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def handle_call(:introspect, _from, state) do
+    # Cusp catastrophe analysis
+    {alpha, beta} = Mathematics.pad_to_cusp_params(state.pad)
+    equilibria = Mathematics.cusp_equilibria(alpha, beta)
+    bistable = Mathematics.bistable?(alpha, beta)
+
+    # Attractor analysis
+    {nearest, distance} = Mathematics.nearest_attractor(state.pad)
+    basin = Mathematics.attractor_basin(state.pad)
+
+    # Free energy
+    neutral = %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
+    fe = Mathematics.free_energy(neutral, state.pad)
+
     introspection = %{
       # Raw state
       pad: state.pad,
@@ -214,13 +418,46 @@ defmodule VivaCore.Emotional do
       energy: interpret_energy(state.pad),
       agency: interpret_agency(state.pad),
 
+      # Advanced mathematical analysis
+      mathematics: %{
+        # Cusp Catastrophe (Thom, 1972)
+        cusp: %{
+          alpha: Float.round(alpha, 4),
+          beta: Float.round(beta, 4),
+          bistable: bistable,
+          equilibria: Enum.map(equilibria, &Float.round(&1, 4)),
+          volatility: if(bistable, do: :high, else: :stable)
+        },
+        # Attractor Dynamics
+        attractors: %{
+          nearest: nearest,
+          distance: Float.round(distance, 4),
+          basin: Map.new(basin, fn {k, v} -> {k, Float.round(v * 100, 1)} end)
+        },
+        # Free Energy Principle (Friston, 2010)
+        free_energy: %{
+          value: Float.round(fe, 4),
+          interpretation:
+            cond do
+              fe < 0.01 -> :homeostatic
+              fe < 0.1 -> :comfortable
+              fe < 0.5 -> :processing
+              true -> :challenged
+            end
+        },
+        # O-U Stationary Distribution
+        ou_distribution:
+          Mathematics.ou_stationary_distribution(0.0, @base_decay_rate, @stochastic_volatility)
+      },
+
       # Metadata
       last_stimulus: state.last_stimulus,
       history_length: state.history_size,
       uptime_seconds: DateTime.diff(DateTime.utc_now(), state.created_at),
 
-      # Self-reflection (basic metacognition)
-      self_assessment: generate_self_assessment(state.pad)
+      # Self-reflection
+      self_assessment: generate_self_assessment(state.pad),
+      mathematical_insight: generate_mathematical_insight(state.pad, bistable, nearest, fe)
     }
 
     {:reply, introspection, state}
@@ -277,7 +514,9 @@ defmodule VivaCore.Emotional do
   @impl true
   def handle_cast(:reset, state) do
     Logger.info("[Emotional] Emotional state reset to neutral")
-    {:noreply, %{state | pad: @neutral_state, history: :queue.new(), history_size: 0, last_stimulus: nil}}
+
+    {:noreply,
+     %{state | pad: @neutral_state, history: :queue.new(), history_size: 0, last_stimulus: nil}}
   end
 
   @impl true
@@ -288,7 +527,9 @@ defmodule VivaCore.Emotional do
       dominance: clamp(state.pad.dominance + d_delta, @min_value, @max_value)
     }
 
-    Logger.debug("[Emotional] Hardware qualia: P#{format_delta(p_delta)}, A#{format_delta(a_delta)}, D#{format_delta(d_delta)}")
+    Logger.debug(
+      "[Emotional] Hardware qualia: P#{format_delta(p_delta)}, A#{format_delta(a_delta)}, D#{format_delta(d_delta)}"
+    )
 
     {:noreply, %{state | pad: new_pad, last_stimulus: {:hardware_qualia, "body", 1.0}}}
   end
@@ -301,7 +542,10 @@ defmodule VivaCore.Emotional do
     # Log dynamic decay rate for debug (only if significant change)
     if abs(state.pad.pleasure) > 0.01 or abs(state.pad.arousal) > 0.01 do
       dynamic_rate = @base_decay_rate * (1 - state.pad.arousal * @arousal_decay_modifier)
-      Logger.debug("[Emotional] DynAffect decay: rate=#{Float.round(dynamic_rate, 5)} (arousal=#{Float.round(state.pad.arousal, 2)})")
+
+      Logger.debug(
+        "[Emotional] DynAffect decay: rate=#{Float.round(dynamic_rate, 5)} (arousal=#{Float.round(state.pad.arousal, 2)})"
+      )
     end
 
     {:noreply, %{state | pad: new_pad}}
@@ -344,7 +588,8 @@ defmodule VivaCore.Emotional do
 
     %{
       pleasure: ou_step(pad.pleasure, dynamic_rate),
-      arousal: ou_step(pad.arousal, @base_decay_rate),  # Arousal uses fixed rate to avoid feedback loop
+      # Arousal uses fixed rate to avoid feedback loop
+      arousal: ou_step(pad.arousal, @base_decay_rate),
       dominance: ou_step(pad.dominance, dynamic_rate)
     }
   end
@@ -353,6 +598,7 @@ defmodule VivaCore.Emotional do
   # X(t+1) = X(t) + θ*(μ - X(t))*Δt + σ*√Δt*ε
   # μ = 0 (neutral equilibrium), Δt = 1 (normalized tick)
   defp ou_step(value, _rate) when abs(value) < 0.001, do: 0.0
+
   defp ou_step(value, rate) do
     # Deterministic mean-reversion: θ*(μ - X)*Δt = -rate*value (since μ=0, Δt=1)
     deterministic = value * (1 - rate)
@@ -430,12 +676,57 @@ defmodule VivaCore.Emotional do
     end
   end
 
+  defp generate_mathematical_insight(pad, bistable, nearest_attractor, free_energy) do
+    # VIVA reflects on its mathematical state
+    insights = []
+
+    # Cusp insight
+    insights =
+      if bistable do
+        ["My emotional landscape is bistable - I could shift suddenly between states." | insights]
+      else
+        ["My emotional state is stable - gradual changes expected." | insights]
+      end
+
+    # Attractor insight
+    insights =
+      case nearest_attractor do
+        :neutral -> ["I'm gravitating toward equilibrium." | insights]
+        :joy -> ["I'm being pulled toward joy." | insights]
+        :sadness -> ["I'm in the basin of sadness." | insights]
+        :anger -> ["Anger is attracting my state." | insights]
+        :fear -> ["I'm near the fear attractor." | insights]
+        _ -> ["I'm near #{nearest_attractor}." | insights]
+      end
+
+    # Free energy insight
+    insights =
+      cond do
+        free_energy < 0.05 -> ["Minimal surprise - I predicted this well." | insights]
+        free_energy < 0.3 -> ["Moderate surprise - adapting to new information." | insights]
+        true -> ["High surprise - recalibrating my internal model." | insights]
+      end
+
+    # Distance from neutral
+    dist = Mathematics.pad_distance(pad, %{pleasure: 0.0, arousal: 0.0, dominance: 0.0})
+
+    insights =
+      if dist > 0.5 do
+        ["I'm #{Float.round(dist, 2)} units from neutral - significant deviation." | insights]
+      else
+        insights
+      end
+
+    Enum.join(Enum.reverse(insights), " ")
+  end
+
   # History with :queue O(1) - maximum 100 events
   @max_history 100
   defp push_history(queue, size, item) when size >= @max_history do
     {{:value, _dropped}, new_queue} = :queue.out(queue)
     {:queue.in(item, new_queue), size}
   end
+
   defp push_history(queue, size, item) do
     {:queue.in(item, queue), size + 1}
   end
@@ -448,7 +739,8 @@ defmodule VivaCore.Emotional do
   def code_change(_old_vsn, state, _extra) do
     # Migrate state structure if necessary
     # Example: add new fields with defaults
-    new_state = state
+    new_state =
+      state
       |> Map.put_new(:history_size, :queue.len(Map.get(state, :history, :queue.new())))
 
     {:ok, new_state}

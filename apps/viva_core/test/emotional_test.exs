@@ -137,16 +137,18 @@ defmodule VivaCore.EmotionalTest do
 
     test "mood reflects pleasure correctly" do
       # Test with happy state
-      {:ok, pid_happy} = Emotional.start_link(
-        name: :test_emotional_9a,
-        initial_state: %{pleasure: 0.7, arousal: 0.0, dominance: 0.0}
-      )
+      {:ok, pid_happy} =
+        Emotional.start_link(
+          name: :test_emotional_9a,
+          initial_state: %{pleasure: 0.7, arousal: 0.0, dominance: 0.0}
+        )
 
       # Test with sad state
-      {:ok, pid_sad} = Emotional.start_link(
-        name: :test_emotional_9b,
-        initial_state: %{pleasure: -0.7, arousal: 0.0, dominance: 0.0}
-      )
+      {:ok, pid_sad} =
+        Emotional.start_link(
+          name: :test_emotional_9b,
+          initial_state: %{pleasure: -0.7, arousal: 0.0, dominance: 0.0}
+        )
 
       happy_intro = Emotional.introspect(pid_happy)
       sad_intro = Emotional.introspect(pid_sad)
@@ -174,10 +176,11 @@ defmodule VivaCore.EmotionalTest do
     end
 
     test "maximum happiness returns ~1.0" do
-      {:ok, pid} = Emotional.start_link(
-        name: :test_emotional_11,
-        initial_state: %{pleasure: 1.0, arousal: 0.0, dominance: 0.0}
-      )
+      {:ok, pid} =
+        Emotional.start_link(
+          name: :test_emotional_11,
+          initial_state: %{pleasure: 1.0, arousal: 0.0, dominance: 0.0}
+        )
 
       happiness = Emotional.get_happiness(pid)
       assert happiness == 1.0
@@ -188,10 +191,11 @@ defmodule VivaCore.EmotionalTest do
 
   describe "reset/1" do
     test "returns to neutral state" do
-      {:ok, pid} = Emotional.start_link(
-        name: :test_emotional_12,
-        initial_state: %{pleasure: 0.8, arousal: -0.5, dominance: 0.3}
-      )
+      {:ok, pid} =
+        Emotional.start_link(
+          name: :test_emotional_12,
+          initial_state: %{pleasure: 0.8, arousal: -0.5, dominance: 0.3}
+        )
 
       # Verify non-neutral state
       before = Emotional.get_state(pid)
@@ -213,10 +217,11 @@ defmodule VivaCore.EmotionalTest do
 
   describe "decay" do
     test "values decay toward neutral" do
-      {:ok, pid} = Emotional.start_link(
-        name: :test_emotional_13,
-        initial_state: %{pleasure: 0.5, arousal: 0.5, dominance: 0.5}
-      )
+      {:ok, pid} =
+        Emotional.start_link(
+          name: :test_emotional_13,
+          initial_state: %{pleasure: 0.5, arousal: 0.5, dominance: 0.5}
+        )
 
       before = Emotional.get_state(pid)
 
@@ -235,10 +240,11 @@ defmodule VivaCore.EmotionalTest do
     end
 
     test "negative values increase toward neutral" do
-      {:ok, pid} = Emotional.start_link(
-        name: :test_emotional_14,
-        initial_state: %{pleasure: -0.5, arousal: -0.5, dominance: -0.5}
-      )
+      {:ok, pid} =
+        Emotional.start_link(
+          name: :test_emotional_14,
+          initial_state: %{pleasure: -0.5, arousal: -0.5, dominance: -0.5}
+        )
 
       before = Emotional.get_state(pid)
 
@@ -264,6 +270,7 @@ defmodule VivaCore.EmotionalTest do
       for _ <- 1..20 do
         Emotional.feel(:success, "test", 1.0, pid)
       end
+
       :timer.sleep(100)
 
       state = Emotional.get_state(pid)

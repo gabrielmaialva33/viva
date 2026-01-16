@@ -26,9 +26,12 @@ defmodule VivaCore.Senses do
   use GenServer
   require Logger
 
-  @default_interval_ms 1000  # 1 second
-  @min_interval_ms 100       # 100ms minimum (10Hz max)
-  @max_interval_ms 10_000    # 10s maximum
+  # 1 second
+  @default_interval_ms 1000
+  # 100ms minimum (10Hz max)
+  @min_interval_ms 100
+  # 10s maximum
+  @max_interval_ms 10_000
 
   # ============================================================================
   # Public API
@@ -81,7 +84,8 @@ defmodule VivaCore.Senses do
   Changes heartbeat interval at runtime.
   """
   def set_interval(interval_ms, server \\ __MODULE__)
-      when is_integer(interval_ms) and interval_ms >= @min_interval_ms and interval_ms <= @max_interval_ms do
+      when is_integer(interval_ms) and interval_ms >= @min_interval_ms and
+             interval_ms <= @max_interval_ms do
     GenServer.cast(server, {:set_interval, interval_ms})
   end
 
@@ -118,6 +122,7 @@ defmodule VivaCore.Senses do
     send(self(), :heartbeat)
     {:noreply, state}
   end
+
   def handle_continue({:start_heartbeat, false}, state) do
     {:noreply, state}
   end
@@ -185,10 +190,10 @@ defmodule VivaCore.Senses do
       # 4. Summary log (debug level to avoid noise)
       Logger.debug(
         "[Senses] Heartbeat ##{state.heartbeat_count + 1}: " <>
-        "CPU=#{format_percent(hardware.cpu_usage)}% " <>
-        "RAM=#{format_percent(hardware.memory_used_percent)}% " <>
-        "GPU=#{format_gpu(hardware.gpu_usage)} " <>
-        "Qualia=(P#{format_delta(p)}, A#{format_delta(a)}, D#{format_delta(d)})"
+          "CPU=#{format_percent(hardware.cpu_usage)}% " <>
+          "RAM=#{format_percent(hardware.memory_used_percent)}% " <>
+          "GPU=#{format_gpu(hardware.gpu_usage)} " <>
+          "Qualia=(P#{format_delta(p)}, A#{format_delta(a)}, D#{format_delta(d)})"
       )
 
       new_state = %{

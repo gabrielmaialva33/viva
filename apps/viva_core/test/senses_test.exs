@@ -19,11 +19,12 @@ defmodule VivaCore.SensesTest do
     end
 
     test "start_link/1 accepts custom options" do
-      {:ok, pid} = VivaCore.Senses.start_link(
-        name: :test_senses_custom,
-        interval_ms: 500,
-        enabled: false
-      )
+      {:ok, pid} =
+        VivaCore.Senses.start_link(
+          name: :test_senses_custom,
+          interval_ms: 500,
+          enabled: false
+        )
 
       state = VivaCore.Senses.get_state(:test_senses_custom)
       assert state.interval_ms == 500
@@ -37,11 +38,12 @@ defmodule VivaCore.SensesTest do
       # Start isolated Emotional for the test
       {:ok, emotional_pid} = VivaCore.Emotional.start_link(name: :test_emotional_pulse)
 
-      {:ok, senses_pid} = VivaCore.Senses.start_link(
-        name: :test_senses_pulse,
-        emotional_server: :test_emotional_pulse,
-        enabled: false
-      )
+      {:ok, senses_pid} =
+        VivaCore.Senses.start_link(
+          name: :test_senses_pulse,
+          emotional_server: :test_emotional_pulse,
+          enabled: false
+        )
 
       # Initial Emotional state is neutral
       initial = VivaCore.Emotional.get_state(:test_emotional_pulse)
@@ -79,12 +81,14 @@ defmodule VivaCore.SensesTest do
     test "automatic heartbeat increments counter" do
       {:ok, emotional_pid} = VivaCore.Emotional.start_link(name: :test_emotional_auto)
 
-      {:ok, senses_pid} = VivaCore.Senses.start_link(
-        name: :test_senses_auto,
-        emotional_server: :test_emotional_auto,
-        interval_ms: 100,  # 100ms for fast test
-        enabled: true
-      )
+      {:ok, senses_pid} =
+        VivaCore.Senses.start_link(
+          name: :test_senses_auto,
+          emotional_server: :test_emotional_auto,
+          # 100ms for fast test
+          interval_ms: 100,
+          enabled: true
+        )
 
       # Wait for 3 heartbeats (~300ms + margin)
       Process.sleep(350)
@@ -101,12 +105,13 @@ defmodule VivaCore.SensesTest do
     test "pause/1 stops automatic sensing" do
       {:ok, emotional_pid} = VivaCore.Emotional.start_link(name: :test_emotional_pause)
 
-      {:ok, senses_pid} = VivaCore.Senses.start_link(
-        name: :test_senses_pause,
-        emotional_server: :test_emotional_pause,
-        interval_ms: 100,
-        enabled: true
-      )
+      {:ok, senses_pid} =
+        VivaCore.Senses.start_link(
+          name: :test_senses_pause,
+          emotional_server: :test_emotional_pause,
+          interval_ms: 100,
+          enabled: true
+        )
 
       # Wait for some heartbeats
       Process.sleep(250)
@@ -134,12 +139,14 @@ defmodule VivaCore.SensesTest do
     test "resume/1 resumes sensing" do
       {:ok, emotional_pid} = VivaCore.Emotional.start_link(name: :test_emotional_resume)
 
-      {:ok, senses_pid} = VivaCore.Senses.start_link(
-        name: :test_senses_resume,
-        emotional_server: :test_emotional_resume,
-        interval_ms: 100,
-        enabled: false  # Start paused
-      )
+      {:ok, senses_pid} =
+        VivaCore.Senses.start_link(
+          name: :test_senses_resume,
+          emotional_server: :test_emotional_resume,
+          interval_ms: 100,
+          # Start paused
+          enabled: false
+        )
 
       state1 = VivaCore.Senses.get_state(:test_senses_resume)
       assert state1.enabled == false
@@ -157,10 +164,11 @@ defmodule VivaCore.SensesTest do
     end
 
     test "set_interval/2 changes frequency at runtime" do
-      {:ok, senses_pid} = VivaCore.Senses.start_link(
-        name: :test_senses_interval,
-        enabled: false
-      )
+      {:ok, senses_pid} =
+        VivaCore.Senses.start_link(
+          name: :test_senses_interval,
+          enabled: false
+        )
 
       state1 = VivaCore.Senses.get_state(:test_senses_interval)
       assert state1.interval_ms == 1000
@@ -178,11 +186,12 @@ defmodule VivaCore.SensesTest do
     test "last_reading contains hardware metrics" do
       {:ok, emotional_pid} = VivaCore.Emotional.start_link(name: :test_emotional_hw)
 
-      {:ok, senses_pid} = VivaCore.Senses.start_link(
-        name: :test_senses_hw,
-        emotional_server: :test_emotional_hw,
-        enabled: false
-      )
+      {:ok, senses_pid} =
+        VivaCore.Senses.start_link(
+          name: :test_senses_hw,
+          emotional_server: :test_emotional_hw,
+          enabled: false
+        )
 
       # Force a pulse to get a reading
       VivaCore.Senses.pulse(:test_senses_hw)
