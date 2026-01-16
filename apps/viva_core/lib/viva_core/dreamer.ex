@@ -11,10 +11,10 @@ defmodule VivaCore.Dreamer do
   S(m, q) = w_r · D(m) + w_s · Sim(m, q) + w_i · I(m) + w_e · E(m)
 
   Where:
-  - D(m) = e^(-age/τ) · (1 + log(1 + access_count)/10)  # Temporal decay + spaced repetition
-  - Sim(m, q) = cos_sim(emb_m, emb_q)                    # Semantic similarity
-  - I(m) = importance ∈ [0, 1]                           # Memory importance
-  - E(m) = 1 - ||PAD_m - PAD_current|| / √12             # Emotional resonance
+  - D(m) = e^(-age/τ) · (1 + min(0.5, log(1 + access_count)/κ))  # Temporal decay + spaced repetition
+  - Sim(m, q) = cos_sim(emb_m, emb_q)                             # Semantic similarity
+  - I(m) = importance ∈ [0, 1]                                    # Memory importance
+  - E(m) = max(0, 1 - ||PAD_m - PAD_current|| / √12)              # Emotional resonance
 
   Weights: w_r=0.2, w_s=0.4, w_i=0.2, w_e=0.2
 
@@ -58,7 +58,7 @@ defmodule VivaCore.Dreamer do
   # Decay scale for temporal scoring (1 week in seconds)
   @decay_scale 604_800
 
-  # Scoring weights
+  # Scoring weights (sum = 1.0)
   @weight_recency 0.2
   @weight_similarity 0.4
   @weight_importance 0.2
@@ -70,19 +70,53 @@ defmodule VivaCore.Dreamer do
   # Memories to retrieve per focal point
   @retrieval_limit 20
 
-  # PAD space diagonal (√12 for [-1,1]³ cube)
-  @pad_diagonal :math.sqrt(12)
+  # PAD space diagonal (√12 ≈ 3.464 for [-1,1]³ cube)
+  @pad_diagonal 3.4641016151377544
+
+  # Spaced repetition boost divisor
+  @repetition_boost_divisor 10.0
+
+  # Maximum boost from spaced repetition (caps at 50% boost)
+  @max_repetition_boost 0.5
+
+  # Maximum thoughts to keep in memory (prevents memory leak)
+  @max_thoughts 1000
+
+  # Maximum recent memory IDs to track
+  @max_recent_memories 50
+
+  # Recent memories to process for focal points
+  @focal_point_memory_count 20
+
+  # Recent thoughts for meta-reflection
+  @meta_reflection_thought_count 10
+
+  # Minimum thoughts required for meta-reflection
+  @min_thoughts_for_meta 3
+
+  # Sleep cycle iterations
+  @sleep_cycle_iterations 3
+
+  # Reflection check interval (5 minutes in ms)
+  @reflection_check_interval 5 * 60 * 1000
+
+  # Default importance/similarity values
+  @default_importance 0.5
+  @default_similarity 0.5
+  @default_emotional_resonance 0.5
 
   # ============================================================================
   # Types
   # ============================================================================
 
+  @typedoc "Focal point for reflection"
   @type focal_point :: %{
           question: String.t(),
           context: String.t(),
           timestamp: DateTime.t()
         }
 
+  @typedoc "Generated reflection/insight"
   @type reflection :: %{
           insight: String.t(),
           evidence: [String.t()],
@@ -90,6 +124,20 @@ defmodule VivaCore.Dreamer do
           importance: float(),
           focal_point: String.t(),
           timestamp: DateTime.t()
+        }
+
+  @typedoc "Dreamer status"
+  @type status :: %{
+          importance_accumulator: float(),
+          threshold: float(),
+          progress_percent: float(),
+          last_reflection: DateTime.t(),
+          seconds_since_reflection: integer(),
+          reflection_count: non_neg_integer(),
+          recent_memories_count: non_neg_integer(),
+          thoughts_count: non_neg_integer(),
+          total_insights_generated: non_neg_integer(),
+          uptime_seconds: integer()
         }
 
   # ============================================================================
@@ -103,7 +151,12 @@ defmodule VivaCore.Dreamer do
   - `:name` - Process name (default: __MODULE__)
   - `:memory` - Memory GenServer (default: VivaCore.Memory)
   - `:emotional` - Emotional GenServer (default: VivaCore.Emotional)
+
+  ## Returns
+  - `{:ok, pid}` on success
+  - `{:error, reason}` on failure
   """
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
     GenServer.start_link(__MODULE__, opts, name: name)
@@ -114,15 +167,29 @@ defmodule VivaCore.Dreamer do
   Called automatically by Memory GenServer after store.
 
   Accumulates importance and may trigger reflection.
+
+  ## Parameters
+  - `memory_id` - ID of the stored memory
+  - `importance` - Importance value (0.0 to 1.0)
+  - `server` - GenServer reference (default: __MODULE__)
+
+  ## Returns
+  - `:ok` (fire and forget)
   """
-  def on_memory_stored(memory_id, importance, server \\ __MODULE__) do
+  @spec on_memory_stored(String.t(), float(), GenServer.server()) :: :ok
+  def on_memory_stored(memory_id, importance, server \\ __MODULE__)
+      when is_binary(memory_id) and is_number(importance) do
     GenServer.cast(server, {:memory_stored, memory_id, importance})
   end
 
   @doc """
   Forces a reflection cycle immediately.
   Useful for testing or manual triggering.
+
+  ## Returns
+  - `%{focal_points: [...], insights: [...], trigger: :manual}`
   """
+  @spec reflect_now(GenServer.server()) :: map()
   def reflect_now(server \\ __MODULE__) do
     GenServer.call(server, :reflect_now, 60_000)
   end
@@ -130,30 +197,57 @@ defmodule VivaCore.Dreamer do
   @doc """
   Initiates a deep reflection (sleep cycle).
   Performs multiple reflection iterations and higher-depth analysis.
+
+  This operation runs asynchronously to avoid blocking the GenServer.
+
+  ## Returns
+  - `{:ok, ref}` - Reference to track the async operation
   """
+  @spec sleep_cycle(GenServer.server()) :: {:ok, reference()}
   def sleep_cycle(server \\ __MODULE__) do
-    GenServer.call(server, :sleep_cycle, 120_000)
+    GenServer.call(server, :sleep_cycle)
   end
 
   @doc """
   Returns the current state and statistics.
+
+  ## Returns
+  - Status map with accumulator, threshold, counts, etc.
   """
+  @spec status(GenServer.server()) :: status()
   def status(server \\ __MODULE__) do
     GenServer.call(server, :status)
   end
 
   @doc """
   Returns recent reflections (thoughts).
+
+  ## Parameters
+  - `limit` - Maximum number of thoughts to return (default: 10)
+  - `server` - GenServer reference
+
+  ## Returns
+  - List of thought maps
   """
-  def recent_thoughts(limit \\ 10, server \\ __MODULE__) do
+  @spec recent_thoughts(non_neg_integer(), GenServer.server()) :: [reflection()]
+  def recent_thoughts(limit \\ 10, server \\ __MODULE__) when is_integer(limit) and limit > 0 do
     GenServer.call(server, {:recent_thoughts, limit})
   end
 
   @doc """
   Retrieves memories with composite scoring.
   Uses the full scoring formula: recency + similarity + importance + emotional.
+
+  ## Parameters
+  - `query` - Search query string
+  - `opts` - Options (`:limit` - max results)
+  - `server` - GenServer reference
+
+  ## Returns
+  - List of memories with `:composite_score` field added
   """
-  def retrieve_with_scoring(query, opts \\ [], server \\ __MODULE__) do
+  @spec retrieve_with_scoring(String.t(), keyword(), GenServer.server()) :: [map()]
+  def retrieve_with_scoring(query, opts \\ [], server \\ __MODULE__) when is_binary(query) do
     GenServer.call(server, {:retrieve, query, opts}, 30_000)
   end
 
@@ -175,33 +269,43 @@ defmodule VivaCore.Dreamer do
       importance_accumulator: 0.0,
       last_reflection: DateTime.utc_now(),
       reflection_count: 0,
+      reflection_pending: false,
 
       # Recent memories (for focal point generation)
       recent_memory_ids: [],
 
-      # Generated thoughts
+      # Generated thoughts (limited to prevent memory leak)
       thoughts: [],
 
       # Statistics
       created_at: DateTime.utc_now(),
-      total_insights_generated: 0
+      total_insights_generated: 0,
+
+      # Timer reference for cleanup
+      timer_ref: nil,
+
+      # Async sleep cycle tracking
+      sleep_cycle_task: nil
     }
 
     Logger.info("[Dreamer] Dreamer neuron online. Ready to reflect.")
 
-    # Schedule periodic check
-    schedule_reflection_check()
+    # Schedule periodic check and store ref
+    timer_ref = schedule_reflection_check()
 
-    {:ok, state}
+    {:ok, %{state | timer_ref: timer_ref}}
   end
 
   @impl true
   def handle_cast({:memory_stored, memory_id, importance}, state) do
+    # Validate importance
+    importance = if is_number(importance), do: importance, else: @default_importance
+
     # Accumulate importance
     new_accumulator = state.importance_accumulator + importance
 
-    # Track recent memories
-    recent = [memory_id | state.recent_memory_ids] |> Enum.take(50)
+    # Track recent memories (with limit)
+    recent = [memory_id | state.recent_memory_ids] |> Enum.take(@max_recent_memories)
 
     new_state = %{
       state
@@ -209,15 +313,18 @@ defmodule VivaCore.Dreamer do
         recent_memory_ids: recent
     }
 
-    Logger.debug(
-      "[Dreamer] Memory stored: #{memory_id}, importance: #{importance}, accumulator: #{Float.round(new_accumulator, 2)}"
-    )
+    # Check if threshold reached AND no reflection pending (prevents race condition)
+    new_state =
+      if new_accumulator >= @importance_threshold and not state.reflection_pending do
+        Logger.info(
+          "[Dreamer] Importance threshold reached (#{Float.round(new_accumulator, 2)}). Triggering reflection."
+        )
 
-    # Check if threshold reached
-    if new_accumulator >= @importance_threshold do
-      Logger.info("[Dreamer] Importance threshold reached (#{Float.round(new_accumulator, 2)}). Triggering reflection.")
-      send(self(), :trigger_reflection)
-    end
+        send(self(), :trigger_reflection)
+        %{new_state | reflection_pending: true}
+      else
+        new_state
+      end
 
     {:noreply, new_state}
   end
@@ -229,29 +336,22 @@ defmodule VivaCore.Dreamer do
   end
 
   @impl true
-  def handle_call(:sleep_cycle, _from, state) do
-    Logger.info("[Dreamer] Sleep cycle initiated. Deep reflection starting...")
+  def handle_call(:sleep_cycle, from, state) do
+    Logger.info("[Dreamer] Sleep cycle initiated. Deep reflection starting asynchronously...")
 
-    # Multiple reflection iterations
-    {results, final_state} =
-      Enum.reduce(1..3, {[], state}, fn iteration, {acc, s} ->
-        Logger.info("[Dreamer] Sleep reflection iteration #{iteration}/3")
-        {result, new_s} = do_reflection(s, :sleep)
-        {[result | acc], new_s}
+    # Run sleep cycle in a separate task to avoid blocking
+    task_ref = make_ref()
+
+    task =
+      Task.async(fn ->
+        do_sleep_cycle(state, task_ref)
       end)
 
-    # Higher-depth reflection on the thoughts themselves
-    {meta_result, meta_state} = do_meta_reflection(final_state)
+    # Reply immediately with the reference
+    GenServer.reply(from, {:ok, task_ref})
 
-    all_results = %{
-      iterations: Enum.reverse(results),
-      meta_reflection: meta_result,
-      total_insights: Enum.sum(Enum.map(results, &length(&1.insights)))
-    }
-
-    Logger.info("[Dreamer] Sleep cycle complete. Generated #{all_results.total_insights} insights.")
-
-    {:reply, all_results, meta_state}
+    # Store task for tracking
+    {:noreply, %{state | sleep_cycle_task: task}}
   end
 
   @impl true
@@ -259,14 +359,16 @@ defmodule VivaCore.Dreamer do
     status = %{
       importance_accumulator: Float.round(state.importance_accumulator, 2),
       threshold: @importance_threshold,
-      progress_percent: Float.round(state.importance_accumulator / @importance_threshold * 100, 1),
+      progress_percent:
+        Float.round(state.importance_accumulator / @importance_threshold * 100, 1),
       last_reflection: state.last_reflection,
       seconds_since_reflection: DateTime.diff(DateTime.utc_now(), state.last_reflection),
       reflection_count: state.reflection_count,
       recent_memories_count: length(state.recent_memory_ids),
       thoughts_count: length(state.thoughts),
       total_insights_generated: state.total_insights_generated,
-      uptime_seconds: DateTime.diff(DateTime.utc_now(), state.created_at)
+      uptime_seconds: DateTime.diff(DateTime.utc_now(), state.created_at),
+      reflection_pending: state.reflection_pending
     }
 
     {:reply, status, state}
@@ -287,18 +389,21 @@ defmodule VivaCore.Dreamer do
   @impl true
   def handle_info(:trigger_reflection, state) do
     {_result, new_state} = do_reflection(state, :threshold)
-    {:noreply, new_state}
+    # Clear pending flag after reflection
+    {:noreply, %{new_state | reflection_pending: false}}
   end
 
   @impl true
   def handle_info(:reflection_check, state) do
-    schedule_reflection_check()
+    timer_ref = schedule_reflection_check()
 
     # Check time-based trigger
     seconds_since = DateTime.diff(DateTime.utc_now(), state.last_reflection)
 
     new_state =
-      if seconds_since >= @max_reflection_interval and length(state.recent_memory_ids) > 5 do
+      if seconds_since >= @max_reflection_interval and
+           length(state.recent_memory_ids) > 5 and
+           not state.reflection_pending do
         Logger.info("[Dreamer] Time-based reflection trigger (#{seconds_since}s since last)")
         {_result, s} = do_reflection(state, :time)
         s
@@ -306,7 +411,131 @@ defmodule VivaCore.Dreamer do
         state
       end
 
+    {:noreply, %{new_state | timer_ref: timer_ref}}
+  end
+
+  # Handle async task completion (sleep cycle)
+  @impl true
+  def handle_info({ref, {:sleep_cycle_complete, results, insights_count}}, state)
+      when is_reference(ref) do
+    # Demonitor and flush
+    Process.demonitor(ref, [:flush])
+
+    Logger.info("[Dreamer] Sleep cycle complete. Generated #{insights_count} insights.")
+
+    # Update state with results from sleep cycle
+    new_thoughts =
+      (results.all_insights ++ state.thoughts)
+      |> Enum.take(@max_thoughts)
+
+    new_state = %{
+      state
+      | thoughts: new_thoughts,
+        total_insights_generated: state.total_insights_generated + insights_count,
+        sleep_cycle_task: nil,
+        last_reflection: DateTime.utc_now(),
+        reflection_count: state.reflection_count + @sleep_cycle_iterations + 1,
+        importance_accumulator: 0.0,
+        recent_memory_ids: []
+    }
+
     {:noreply, new_state}
+  end
+
+  # Handle task failure
+  @impl true
+  def handle_info({:DOWN, ref, :process, _pid, reason}, state)
+      when is_reference(ref) do
+    Logger.warning("[Dreamer] Async task failed: #{inspect(reason)}")
+    {:noreply, %{state | sleep_cycle_task: nil}}
+  end
+
+  # Catch-all for unexpected messages
+  @impl true
+  def handle_info(msg, state) do
+    Logger.warning("[Dreamer] Unexpected message: #{inspect(msg)}")
+    {:noreply, state}
+  end
+
+  @impl true
+  def terminate(reason, state) do
+    # Cancel pending timer
+    if state.timer_ref do
+      Process.cancel_timer(state.timer_ref)
+    end
+
+    # Log termination
+    Logger.info("[Dreamer] Terminating: #{inspect(reason)}. #{length(state.thoughts)} thoughts in memory.")
+
+    :ok
+  end
+
+  # ============================================================================
+  # Private - Async Sleep Cycle
+  # ============================================================================
+
+  defp do_sleep_cycle(state, _task_ref) do
+    # Multiple reflection iterations
+    {all_insights, _final_state} =
+      Enum.reduce(1..@sleep_cycle_iterations, {[], state}, fn iteration, {acc, s} ->
+        Logger.info("[Dreamer] Sleep reflection iteration #{iteration}/#{@sleep_cycle_iterations}")
+
+        case safe_reflection(s, :sleep) do
+          {:ok, result, new_s} ->
+            insights = Map.get(result, :insights, [])
+            {insights ++ acc, new_s}
+
+          {:error, reason} ->
+            Logger.warning("[Dreamer] Sleep iteration #{iteration} failed: #{inspect(reason)}")
+            {acc, s}
+        end
+      end)
+
+    # Meta-reflection
+    meta_insights =
+      case safe_meta_reflection(state) do
+        {:ok, result} -> Map.get(result, :meta_insights, [])
+        {:error, _} -> []
+      end
+
+    total_insights = length(all_insights) + length(meta_insights)
+
+    results = %{
+      all_insights: meta_insights ++ all_insights,
+      iterations: @sleep_cycle_iterations
+    }
+
+    {:sleep_cycle_complete, results, total_insights}
+  end
+
+  defp safe_reflection(state, trigger_type) do
+    try do
+      {result, new_state} = do_reflection(state, trigger_type)
+      {:ok, result, new_state}
+    rescue
+      e ->
+        Logger.error("[Dreamer] Reflection failed: #{Exception.message(e)}")
+        {:error, e}
+    catch
+      :exit, reason ->
+        Logger.error("[Dreamer] Reflection exited: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  defp safe_meta_reflection(state) do
+    try do
+      {result, _new_state} = do_meta_reflection(state)
+      {:ok, result}
+    rescue
+      e ->
+        Logger.error("[Dreamer] Meta-reflection failed: #{Exception.message(e)}")
+        {:error, e}
+    catch
+      :exit, reason ->
+        Logger.error("[Dreamer] Meta-reflection exited: #{inspect(reason)}")
+        {:error, reason}
+    end
   end
 
   # ============================================================================
@@ -319,16 +548,17 @@ defmodule VivaCore.Dreamer do
     # Step 1: Generate focal points from recent memories
     focal_points = generate_focal_points(state)
 
-    if focal_points == [] do
+    if Enum.empty?(focal_points) do
       Logger.info("[Dreamer] No focal points generated. Skipping reflection.")
       result = %{focal_points: [], insights: [], trigger: trigger_type}
       {result, reset_accumulator(state)}
     else
       # Step 2: For each focal point, retrieve relevant memories
-      retrieved = Enum.map(focal_points, fn fp ->
-        memories = do_retrieve(fp.question, [limit: @retrieval_limit], state)
-        {fp, memories}
-      end)
+      retrieved =
+        Enum.map(focal_points, fn fp ->
+          memories = do_retrieve(fp.question, [limit: @retrieval_limit], state)
+          {fp, memories}
+        end)
 
       # Step 3: Generate insights from retrieved memories
       insights = generate_insights(retrieved, state)
@@ -350,18 +580,19 @@ defmodule VivaCore.Dreamer do
 
   defp do_meta_reflection(state) do
     # Reflect on recent thoughts (depth=2)
-    recent_thoughts = Enum.take(state.thoughts, 10)
+    recent_thoughts = Enum.take(state.thoughts, @meta_reflection_thought_count)
 
-    if length(recent_thoughts) < 3 do
+    if length(recent_thoughts) < @min_thoughts_for_meta do
       {%{meta_insights: []}, state}
     else
       # Generate meta-question about the thoughts
       thought_summary =
         recent_thoughts
-        |> Enum.map(& &1.insight)
+        |> Enum.map(&Map.get(&1, :insight, ""))
         |> Enum.join("; ")
 
-      meta_question = "What patterns emerge from these reflections: #{String.slice(thought_summary, 0, 200)}?"
+      meta_question =
+        "What patterns emerge from these reflections: #{String.slice(thought_summary, 0, 200)}?"
 
       # Retrieve memories related to the pattern
       memories = do_retrieve(meta_question, [limit: 10], state)
@@ -369,18 +600,22 @@ defmodule VivaCore.Dreamer do
       # Generate meta-insight
       meta_insight = %{
         insight: synthesize_meta_insight(recent_thoughts, memories),
-        evidence: Enum.map(recent_thoughts, & &1.insight) |> Enum.take(5),
+        evidence: recent_thoughts |> Enum.map(&Map.get(&1, :insight, "")) |> Enum.take(5),
         depth: 2,
         importance: 0.8,
         focal_point: meta_question,
         timestamp: DateTime.utc_now()
       }
 
-      # Store meta-thought
-      new_state = %{state | thoughts: [meta_insight | state.thoughts]}
+      # Store meta-thought (with limit)
+      new_thoughts =
+        [meta_insight | state.thoughts]
+        |> Enum.take(@max_thoughts)
 
-      # Store in Memory as semantic knowledge
-      Memory.store(
+      new_state = %{state | thoughts: new_thoughts}
+
+      # Store in Memory as semantic knowledge (with error handling)
+      safe_memory_store(
         meta_insight.insight,
         %{
           type: :semantic,
@@ -395,38 +630,35 @@ defmodule VivaCore.Dreamer do
   end
 
   defp generate_focal_points(state) do
-    recent_ids = Enum.take(state.recent_memory_ids, 20)
+    recent_ids = Enum.take(state.recent_memory_ids, @focal_point_memory_count)
 
-    if recent_ids == [] do
+    if Enum.empty?(recent_ids) do
       []
     else
-      # Get recent memory contents
+      # Get recent memory contents with error handling
       recent_contents =
         recent_ids
-        |> Enum.map(fn id -> Memory.get(id, state.memory) end)
+        |> Enum.map(fn id -> safe_memory_get(id, state.memory) end)
         |> Enum.filter(&(&1 != nil))
-        |> Enum.map(fn m -> Map.get(m, :content, "") end)
-        |> Enum.filter(&(String.length(&1) > 0))
+        |> Enum.map(fn m -> get_memory_field(m, :content, "") end)
+        |> Enum.filter(&(is_binary(&1) and String.length(&1) > 0))
 
-      if recent_contents == [] do
+      if Enum.empty?(recent_contents) do
         []
       else
-        # Generate focal points based on recent content
-        # In a full implementation, this would use an LLM
-        # For now, we extract key themes
         generate_focal_points_from_content(recent_contents)
       end
     end
   end
 
   defp generate_focal_points_from_content(contents) do
-    # Simple heuristic: create questions from the most recent distinct topics
     contents
     |> Enum.take(@focal_point_count * 2)
     |> Enum.uniq_by(&extract_topic/1)
     |> Enum.take(@focal_point_count)
     |> Enum.map(fn content ->
       topic = extract_topic(content)
+
       %{
         question: "What have I learned about #{topic}?",
         context: String.slice(content, 0, 100),
@@ -435,33 +667,32 @@ defmodule VivaCore.Dreamer do
     end)
   end
 
-  defp extract_topic(content) do
-    # Extract first meaningful phrase (simplified)
+  defp extract_topic(content) when is_binary(content) do
     content
     |> String.split(~r/[.!?\n]/, parts: 2)
     |> List.first()
+    |> Kernel.||("")
     |> String.slice(0, 50)
     |> String.trim()
   end
 
+  defp extract_topic(_), do: ""
+
   defp generate_insights(retrieved, state) do
-    retrieved
-    |> Enum.flat_map(fn {focal_point, memories} ->
+    Enum.flat_map(retrieved, fn {focal_point, memories} ->
       generate_insights_for_focal_point(focal_point, memories, state)
     end)
   end
 
   defp generate_insights_for_focal_point(focal_point, memories, _state) do
-    if memories == [] do
+    if Enum.empty?(memories) do
       []
     else
-      # Synthesize insight from memories
-      # In full implementation, this would use an LLM
-      memory_contents = Enum.map(memories, fn m ->
-        Map.get(m, :content, Map.get(m, "content", ""))
-      end)
+      memory_contents =
+        Enum.map(memories, fn m ->
+          get_memory_field(m, :content, "")
+        end)
 
-      # Generate insight (simplified heuristic)
       insight = synthesize_insight(focal_point.question, memory_contents)
 
       [
@@ -478,11 +709,10 @@ defmodule VivaCore.Dreamer do
   end
 
   defp synthesize_insight(question, contents) do
-    # Simplified synthesis - in production this would use an LLM
     content_summary =
       contents
       |> Enum.take(3)
-      |> Enum.map(&String.slice(&1, 0, 50))
+      |> Enum.map(&String.slice(to_string(&1), 0, 50))
       |> Enum.join(", ")
 
     "Reflecting on '#{String.slice(question, 0, 30)}...': Based on #{length(contents)} memories, " <>
@@ -495,7 +725,7 @@ defmodule VivaCore.Dreamer do
 
     common_themes =
       thoughts
-      |> Enum.map(& &1.focal_point)
+      |> Enum.map(&Map.get(&1, :focal_point, ""))
       |> Enum.take(3)
       |> Enum.join(", ")
 
@@ -505,14 +735,13 @@ defmodule VivaCore.Dreamer do
   end
 
   defp calculate_insight_importance(memories) do
-    if memories == [] do
-      0.5
+    if Enum.empty?(memories) do
+      @default_importance
     else
-      # Average importance of supporting memories, boosted
       avg =
         memories
         |> Enum.map(fn m ->
-          Map.get(m, :importance, Map.get(m, "importance", 0.5))
+          get_memory_field(m, :importance, @default_importance)
         end)
         |> Enum.sum()
         |> Kernel./(length(memories))
@@ -522,9 +751,9 @@ defmodule VivaCore.Dreamer do
   end
 
   defp store_thoughts(insights, state) do
-    # Store each insight as a thought memory
+    # Store each insight as a thought memory (with error handling)
     Enum.each(insights, fn insight ->
-      Memory.store(
+      safe_memory_store(
         insight.insight,
         %{
           type: :semantic,
@@ -540,10 +769,14 @@ defmodule VivaCore.Dreamer do
       )
     end)
 
-    # Update local state
+    # Update local state with limit to prevent memory leak
+    new_thoughts =
+      (insights ++ state.thoughts)
+      |> Enum.take(@max_thoughts)
+
     %{
       state
-      | thoughts: insights ++ state.thoughts,
+      | thoughts: new_thoughts,
         total_insights_generated: state.total_insights_generated + length(insights)
     }
   end
@@ -559,15 +792,55 @@ defmodule VivaCore.Dreamer do
   end
 
   # ============================================================================
+  # Private - Safe Memory Operations
+  # ============================================================================
+
+  defp safe_memory_get(id, memory_server) do
+    try do
+      Memory.get(id, memory_server)
+    rescue
+      e in [ArgumentError, RuntimeError] ->
+        Logger.warning("[Dreamer] Memory.get failed for #{id}: #{Exception.message(e)}")
+        nil
+    catch
+      :exit, {:noproc, _} ->
+        Logger.warning("[Dreamer] Memory server not running")
+        nil
+
+      :exit, {:timeout, _} ->
+        Logger.warning("[Dreamer] Memory.get timeout for #{id}")
+        nil
+    end
+  end
+
+  defp safe_memory_store(content, metadata, memory_server) do
+    try do
+      Memory.store(content, metadata, memory_server)
+    rescue
+      e in [ArgumentError, RuntimeError] ->
+        Logger.warning("[Dreamer] Memory.store failed: #{Exception.message(e)}")
+        {:error, e}
+    catch
+      :exit, {:noproc, _} ->
+        Logger.warning("[Dreamer] Memory server not running")
+        {:error, :noproc}
+
+      :exit, {:timeout, _} ->
+        Logger.warning("[Dreamer] Memory.store timeout")
+        {:error, :timeout}
+    end
+  end
+
+  # ============================================================================
   # Private - Retrieval with Composite Scoring
   # ============================================================================
 
   defp do_retrieve(query, opts, state) do
     limit = Keyword.get(opts, :limit, @retrieval_limit)
 
-    # Get basic search results from Memory
-    case Memory.search(query, [limit: limit * 2], state.memory) do
-      memories when is_list(memories) ->
+    # Get basic search results from Memory with error handling
+    case safe_memory_search(query, limit * 2, state.memory) do
+      {:ok, memories} when is_list(memories) ->
         # Get current emotional state for resonance calculation
         current_pad = get_current_pad(state)
 
@@ -578,8 +851,30 @@ defmodule VivaCore.Dreamer do
         |> Enum.take(limit)
         |> Enum.map(fn {m, score} -> Map.put(m, :composite_score, score) end)
 
-      _ ->
+      {:error, _reason} ->
         []
+    end
+  end
+
+  defp safe_memory_search(query, limit, memory_server) do
+    try do
+      case Memory.search(query, [limit: limit], memory_server) do
+        memories when is_list(memories) -> {:ok, memories}
+        {:error, reason} -> {:error, reason}
+        other -> {:ok, if(is_list(other), do: other, else: [])}
+      end
+    rescue
+      e in [ArgumentError, RuntimeError] ->
+        Logger.warning("[Dreamer] Memory.search failed: #{Exception.message(e)}")
+        {:error, e}
+    catch
+      :exit, {:noproc, _} ->
+        Logger.warning("[Dreamer] Memory server not running")
+        {:error, :noproc}
+
+      :exit, {:timeout, _} ->
+        Logger.warning("[Dreamer] Memory.search timeout")
+        {:error, :timeout}
     end
   end
 
@@ -587,20 +882,20 @@ defmodule VivaCore.Dreamer do
     # Extract values from memory (handle both atom and string keys)
     timestamp = get_memory_field(memory, :timestamp, 0)
     access_count = get_memory_field(memory, :access_count, 0)
-    importance = get_memory_field(memory, :importance, 0.5)
-    similarity = get_memory_field(memory, :similarity, 0.5)
+    importance = get_memory_field(memory, :importance, @default_importance)
+    similarity = get_memory_field(memory, :similarity, @default_similarity)
     emotion = get_memory_field(memory, :emotion, nil)
 
-    # 1. Recency with spaced repetition
+    # 1. Recency with spaced repetition (capped boost)
     recency = calculate_recency(timestamp, access_count)
 
     # 2. Similarity (already calculated by Memory.search)
-    sim = similarity
+    sim = if is_number(similarity), do: similarity, else: @default_similarity
 
     # 3. Importance
-    imp = importance
+    imp = if is_number(importance), do: importance, else: @default_importance
 
-    # 4. Emotional resonance
+    # 4. Emotional resonance (clamped to [0, 1])
     emotional = calculate_emotional_resonance(emotion, current_pad)
 
     # Composite score
@@ -613,9 +908,14 @@ defmodule VivaCore.Dreamer do
     {memory, score}
   end
 
-  defp get_memory_field(memory, field, default) do
-    Map.get(memory, field, Map.get(memory, to_string(field), default))
+  defp get_memory_field(%{} = memory, field, default) when is_atom(field) do
+    case Map.get(memory, field) do
+      nil -> Map.get(memory, Atom.to_string(field), default)
+      value -> value
+    end
   end
+
+  defp get_memory_field(_, _, default), do: default
 
   defp calculate_recency(timestamp, access_count) when is_integer(timestamp) do
     now = DateTime.utc_now() |> DateTime.to_unix()
@@ -624,59 +924,85 @@ defmodule VivaCore.Dreamer do
     # Base decay: e^(-age/τ)
     base_decay = :math.exp(-age / @decay_scale)
 
-    # Spaced repetition boost: (1 + log(1 + access_count) / 10)
-    repetition_boost = 1 + :math.log(1 + access_count) / 10
+    # Spaced repetition boost: capped to prevent saturation at 1.0
+    # boost = min(@max_repetition_boost, log(1 + access_count) / κ)
+    access_count = if is_integer(access_count), do: access_count, else: 0
+    raw_boost = :math.log(1 + access_count) / @repetition_boost_divisor
+    capped_boost = min(@max_repetition_boost, raw_boost)
 
-    min(1.0, base_decay * repetition_boost)
+    # Final recency = base_decay * (1 + capped_boost)
+    # This ensures recency never exceeds base_decay * 1.5
+    base_decay * (1 + capped_boost)
   end
 
   defp calculate_recency(timestamp, access_count) when is_binary(timestamp) do
     case DateTime.from_iso8601(timestamp) do
       {:ok, dt, _} -> calculate_recency(DateTime.to_unix(dt), access_count)
-      _ -> 0.5
+      _ -> @default_similarity
     end
   end
 
-  defp calculate_recency(_, _), do: 0.5
+  defp calculate_recency(%DateTime{} = dt, access_count) do
+    calculate_recency(DateTime.to_unix(dt), access_count)
+  end
 
-  defp calculate_emotional_resonance(nil, _current_pad), do: 0.5
+  defp calculate_recency(_, _), do: @default_similarity
+
+  defp calculate_emotional_resonance(nil, _current_pad), do: @default_emotional_resonance
 
   defp calculate_emotional_resonance(emotion, current_pad) when is_map(emotion) do
     # Extract PAD values
-    p1 = Map.get(emotion, :pleasure, Map.get(emotion, "pleasure", 0.0))
-    a1 = Map.get(emotion, :arousal, Map.get(emotion, "arousal", 0.0))
-    d1 = Map.get(emotion, :dominance, Map.get(emotion, "dominance", 0.0))
+    p1 = get_pad_value(emotion, :pleasure)
+    a1 = get_pad_value(emotion, :arousal)
+    d1 = get_pad_value(emotion, :dominance)
 
-    p2 = Map.get(current_pad, :pleasure, 0.0)
-    a2 = Map.get(current_pad, :arousal, 0.0)
-    d2 = Map.get(current_pad, :dominance, 0.0)
+    p2 = get_pad_value(current_pad, :pleasure)
+    a2 = get_pad_value(current_pad, :arousal)
+    d2 = get_pad_value(current_pad, :dominance)
 
     # Euclidean distance in PAD space
     distance = :math.sqrt(:math.pow(p1 - p2, 2) + :math.pow(a1 - a2, 2) + :math.pow(d1 - d2, 2))
 
-    # Normalize: 1 - (distance / max_distance)
-    # Max distance in [-1,1]³ is √12
-    1 - distance / @pad_diagonal
+    # Normalize: 1 - (distance / max_distance), clamped to [0, 1]
+    # This ensures we never return negative values
+    max(0.0, 1 - distance / @pad_diagonal)
   end
 
-  defp calculate_emotional_resonance(_, _), do: 0.5
+  defp calculate_emotional_resonance(_, _), do: @default_emotional_resonance
+
+  defp get_pad_value(map, key) when is_map(map) and is_atom(key) do
+    value = Map.get(map, key, Map.get(map, Atom.to_string(key), 0.0))
+    if is_number(value), do: value, else: 0.0
+  end
 
   defp get_current_pad(state) do
     try do
-      Emotional.get_state(state.emotional)
+      case Emotional.get_state(state.emotional) do
+        %{pleasure: _, arousal: _, dominance: _} = pad -> pad
+        _ -> default_pad()
+      end
     rescue
-      _ -> %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
+      e in [ArgumentError, RuntimeError] ->
+        Logger.debug("[Dreamer] Failed to get PAD state: #{Exception.message(e)}")
+        default_pad()
     catch
-      :exit, _ -> %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
+      :exit, {:noproc, _} ->
+        Logger.debug("[Dreamer] Emotional server not running")
+        default_pad()
+
+      :exit, {:timeout, _} ->
+        Logger.debug("[Dreamer] Emotional.get_state timeout")
+        default_pad()
     end
   end
+
+  defp default_pad, do: %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
 
   # ============================================================================
   # Private - Scheduling
   # ============================================================================
 
   defp schedule_reflection_check do
-    # Check every 5 minutes
-    Process.send_after(self(), :reflection_check, 5 * 60 * 1000)
+    Process.send_after(self(), :reflection_check, @reflection_check_interval)
   end
 end
