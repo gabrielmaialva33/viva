@@ -37,6 +37,7 @@ mod bio_rhythm; // Temporal analysis (Entropy/Jitter)
 pub mod memory; // Vector memory backends (usearch, SQLite)
 pub mod dynamics; // Stochastic dynamics (O-U, Cusp catastrophe)
 pub mod body_state; // Unified body state
+pub mod metabolism; // Digital Metabolism (Energy/Entropy/Fatigue)
 
 // ============================================================================
 // Pre-defined Atoms (rustler::atoms! macro for performance + panic safety)
@@ -748,6 +749,48 @@ fn memory_save() -> NifResult<String> {
     Ok("Saved".to_string())
 }
 
+// ============================================================================
+// Metabolism NIFs (Digital Thermodynamics)
+// ============================================================================
+
+use metabolism::{Metabolism, MetabolicState};
+
+// Global Metabolism Singleton
+static METABOLISM: OnceLock<Mutex<Metabolism>> = OnceLock::new();
+
+/// Initializes the metabolism engine with CPU TDP
+#[rustler::nif]
+fn metabolism_init(tdp_watts: f32) -> NifResult<String> {
+    if METABOLISM.get().is_some() {
+        return Ok("Metabolism already initialized".to_string());
+    }
+
+    let engine = Metabolism::new(tdp_watts);
+    METABOLISM.set(Mutex::new(engine))
+        .map_err(|_| rustler::Error::Term(Box::new("Failed to set metabolism singleton".to_string())))?;
+
+    Ok(format!("Metabolism initialized with TDP={}W", tdp_watts))
+}
+
+/// Ticks the metabolism engine and returns current state
+/// Returns: (energy_joules, thermal_stress, fatigue_level, needs_rest)
+#[rustler::nif]
+fn metabolism_tick(cpu_usage: f32, cpu_temp: Option<f32>) -> NifResult<(f32, f32, f32, bool)> {
+    let meta_lock = METABOLISM.get()
+        .ok_or_else(|| rustler::Error::Term(Box::new("Metabolism not initialized".to_string())))?;
+    let mut engine = meta_lock.lock()
+        .map_err(|_| rustler::Error::Term(Box::new("Metabolism mutex poisoned".to_string())))?;
+
+    let state: MetabolicState = engine.tick(cpu_usage, cpu_temp);
+
+    Ok((
+        state.energy_joules,
+        state.thermal_stress,
+        state.fatigue_level,
+        state.needs_rest,
+    ))
+}
+
 /// Applies sigmoid with normalization to maintain range [0, 1]
 /// Compensates for the fact that sigmoid(0) != 0 and sigmoid(1) != 1
 ///
@@ -1286,8 +1329,9 @@ rustler::init!(
         // Brain (Native)
         brain_init,
         brain_experience,
-        // brain_process,
-
+        // Metabolism (Thermodynamics)
+        metabolism_init,
+        metabolism_tick,
     ],
     load = load
 );
