@@ -119,48 +119,56 @@ O sistema emocional de VIVA é construído sobre literatura científica revisada
 | **Interocepção** | Craig | 2002 | Mapeamento sensorial corpo→cérebro |
 | **Alostase** | Sterling | 2012 | Regulação antecipatória |
 
-### Equações Chave
+### Dinâmica Emocional
 
-#### Ornstein-Uhlenbeck (Decaimento Emocional)
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Neutro
 
-```
-dX = θ(μ - X)dt + σdW
+    Neutro --> Alegria: +estímulo
+    Neutro --> Tristeza: -estímulo
+    Alegria --> Neutro: decaimento θ
+    Tristeza --> Neutro: decaimento θ
 
-Onde:
-  X  = estado emocional atual
-  μ  = ponto de equilíbrio (neutro = 0)
-  θ  = força do atrator (modulada por arousal)
-  σ  = volatilidade estocástica
-  dW = incremento do processo de Wiener
-```
+    state "Zona Cusp" as Cusp
+    Alegria --> Cusp: alta ativação
+    Tristeza --> Cusp: alta ativação
+    Cusp --> Alegria: β > 0
+    Cusp --> Tristeza: β < 0
 
-#### Catástrofe Cusp (Transições de Humor)
-
-```
-V(x) = x⁴/4 + αx²/2 + βx
-
-Onde:
-  α < 0 → regime biestável (volatilidade emocional)
-  Discriminante Δ = -4α³ - 27β² determina estabilidade
-```
-
-#### Energia Livre (Homeostase)
-
-```
-F = ||observado - predito||² + λ × ||estado - prior||²
-    ───────────────────────   ──────────────────────
-       Erro de Predição          Custo de Complexidade
+    note right of Cusp
+        Transição catastrófica
+        (região biestável)
+    end note
 ```
 
-#### Informação Integrada (Consciência)
+### Equações Fundamentais
 
-```
-Φ = min_θ [I(s;s̃) - I_θ(s;s̃)]
+| Modelo | Equação | Propósito |
+|:-------|:--------|:----------|
+| **Ornstein-Uhlenbeck** | $dX = \theta(\mu - X)dt + \sigma dW$ | Decaimento emocional para baseline |
+| **Catástrofe Cusp** | $V(x) = \frac{x^4}{4} + \frac{\alpha x^2}{2} + \beta x$ | Transições súbitas de humor |
+| **Energia Livre** | $F = \mathbb{E}[\log P(s \mid m)] - D_{KL}[Q \| P]$ | Regulação homeostática |
+| **IIT (Φ)** | $\Phi = \min_{\text{MIP}} \left[ I(X;X') - \sum_i I(X_i;X'_i) \right]$ | Métrica de consciência |
 
-Φ > 0 indica informação integrada além das partes redutíveis
-```
+<details>
+<summary><b>Tabela de Símbolos</b></summary>
 
-> 📚 Veja [MATEMATICA.md](MATEMATICA.md) para derivações completas.
+| Símbolo | Descrição |
+|:-------:|:----------|
+| $\theta$ | Taxa de reversão à média |
+| $\mu$ | Atrator homeostático (baseline) |
+| $\sigma$ | Volatilidade (amplitude do ruído) |
+| $dW$ | Processo de Wiener (ruído estocástico) |
+| $\alpha$ | Parâmetro de bifurcação |
+| $\beta$ | Parâmetro de assimetria |
+| $\Phi$ | Informação integrada |
+| $D_{KL}$ | Divergência de Kullback-Leibler |
+
+</details>
+
+> 📚 Veja [mathematics.md](explanation/mathematics.md) para derivações completas.
 
 ---
 
