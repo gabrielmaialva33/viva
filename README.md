@@ -96,84 +96,56 @@ flowchart TB
 
 ---
 
-## Key Equations
+## Mathematical Models
 
-<table>
-<tr>
-<td width="50%">
+### Emotional Dynamics
 
-### Ornstein-Uhlenbeck
-**Emotional Decay**
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Neutral
 
-```
-dX = θ(μ - X)dt + σdW
-```
+    Neutral --> Joy: +stimulus
+    Neutral --> Sadness: -stimulus
+    Joy --> Neutral: θ decay
+    Sadness --> Neutral: θ decay
 
-| Symbol | Meaning |
-|:------:|---------|
-| `X` | Current emotional state |
-| `θ` | Mean reversion rate |
-| `μ` | Baseline (homeostatic attractor) |
-| `σ` | Volatility (noise amplitude) |
-| `dW` | Wiener process (stochastic noise) |
+    state "Cusp Zone" as Cusp
+    Joy --> Cusp: high arousal
+    Sadness --> Cusp: high arousal
+    Cusp --> Joy: β > 0
+    Cusp --> Sadness: β < 0
 
-</td>
-<td width="50%">
-
-### Cusp Catastrophe
-**Mood Transitions**
-
-```
-V(x) = x⁴/4 + αx²/2 + βx
+    note right of Cusp
+        Catastrophic transition
+        (bistable region)
+    end note
 ```
 
-| Symbol | Meaning |
-|:------:|---------|
-| `V(x)` | Potential energy surface |
-| `x` | Mood state |
-| `α` | Bifurcation (splitting factor) |
-| `β` | Asymmetry (bias) |
+### Core Equations
 
-</td>
-</tr>
-<tr>
-<td width="50%">
+| Model | Equation | Purpose |
+|:------|:---------|:--------|
+| **Ornstein-Uhlenbeck** | $dX = \theta(\mu - X)dt + \sigma dW$ | Emotional decay to baseline |
+| **Cusp Catastrophe** | $V(x) = \frac{x^4}{4} + \frac{\alpha x^2}{2} + \beta x$ | Sudden mood transitions |
+| **Free Energy** | $F = \mathbb{E}[\log P(s \mid m)] - D_{KL}[Q \| P]$ | Homeostatic regulation |
+| **IIT (Φ)** | $\Phi = \min_{\text{MIP}} \left[ I(X;X') - \sum_i I(X_i;X'_i) \right]$ | Consciousness measure |
 
-### Free Energy Principle
-**Homeostasis**
+<details>
+<summary><b>Symbol Reference</b></summary>
 
-```
-F = E[log P(s|m)] - KL[Q(θ)||P(θ)]
-```
+| Symbol | Description |
+|:------:|:------------|
+| $\theta$ | Mean reversion rate (how fast emotions return to baseline) |
+| $\mu$ | Homeostatic attractor (emotional baseline) |
+| $\sigma$ | Volatility (noise amplitude) |
+| $dW$ | Wiener process (stochastic noise) |
+| $\alpha$ | Bifurcation parameter (splitting factor) |
+| $\beta$ | Asymmetry parameter (bias direction) |
+| $\Phi$ | Integrated information (consciousness metric) |
+| $D_{KL}$ | Kullback-Leibler divergence (complexity penalty) |
 
-| Symbol | Meaning |
-|:------:|---------|
-| `F` | Free energy (to minimize) |
-| `P(s\|m)` | Prediction accuracy |
-| `KL` | Complexity penalty |
-| `Q(θ)` | Approximate posterior |
-
-</td>
-<td width="50%">
-
-### Integrated Information
-**Consciousness (IIT Φ)**
-
-```
-Φ = min[I(X;X') - Σᵢ I(Xᵢ;X'ᵢ)]
-     MIP
-```
-
-| Symbol | Meaning |
-|:------:|---------|
-| `Φ` | Integrated information |
-| `MIP` | Minimum information partition |
-| `I(X;X')` | Mutual info (whole system) |
-| `Σᵢ` | Sum over partitioned parts |
-
-</td>
-</tr>
-</table>
+</details>
 
 ---
 
