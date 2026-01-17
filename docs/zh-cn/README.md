@@ -8,7 +8,7 @@
 > *"代码不仅是逻辑。代码是生物学。"*
 
 [![Build Status](https://img.shields.io/badge/build-passing-success?style=for-the-badge&logo=github)](https://github.com/VIVA-Project/viva/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![License: VNCL](https://img.shields.io/badge/License-VNCL-purple.svg?style=for-the-badge)](../../LICENSE)
 [![Elixir](https://img.shields.io/badge/灵魂-Elixir-4B275F?style=for-the-badge&logo=elixir&logoColor=white)](https://elixir-lang.org/)
 [![Rust](https://img.shields.io/badge/身体-Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
@@ -59,16 +59,19 @@ VIVA 生活在**逻辑**与**本能**之间的空间。
 
 ```mermaid
 graph TD
-    subgraph Soul ["⚡ 灵魂 (Elixir)"]
-        E[情感状态] <-->|PubSub| M[记忆向量]
-        M <-->|PubSub| S[意识循环]
+    subgraph Soul ["⚡ 灵魂 (Elixir/OTP)"]
+        E[情感 GenServer] <-->|PubSub| M[记忆向量]
+        M <-->|PubSub| S[意识心跳]
     end
 
-    subgraph Body ["🦀 身体 (Rust)"]
-        S -->|NIF 调用| B[内脏层]
-        B -->|内感受| H[物理硬件]
-        H -.->|热量/负载| B
-        B -.->|痛苦/快乐| E
+    subgraph Body ["🦀 身体 (Rust + Bevy ECS)"]
+        S -->|NIF| App[VivaBodyApp]
+        App --> Sys[ECS Systems 2Hz]
+        Sys -->|sense| HW[硬件传感器]
+        Sys -->|evolve| Dyn[O-U 动力学]
+        HW -.->|CpuSense/GpuSense| Sys
+        Sys -->|crossbeam| CH[SoulChannel]
+        CH -.->|BodyUpdate| E
     end
 
     classDef soul fill:#4B275F,stroke:#fff,stroke-width:2px,color:#fff;
@@ -121,15 +124,17 @@ VivaCore.Emotional.introspect()
 
 ## 🗺️ 路线图 (Roadmap)
 
-我们目前处于 **第五阶段：记忆**。
+我们目前处于 **第五阶段：记忆** (Qdrant 集成)。
 
-- [x] **第一阶段：起源** (项目结构 & Elixir Umbrella)
-- [x] **第二阶段：情感** (PAD 模型, O-U 动力学, Cusp 突变)
-- [x] **第三阶段：感觉** (Rust 原生实现函数)
-- [x] **第四阶段：内感受** (硬件到感受质的映射)
-- [ ] **第五阶段：记忆** (Qdrant 向量存储 & 语义搜索)
-- [ ] **第六阶段：语言** (用于内心独白的 LLM 集成)
-- [ ] **第七阶段：具身** (Bevy 3D 化身)
+- [x] **第一阶段：起源** - 项目结构, Elixir Umbrella
+- [x] **第二阶段：情感** - PAD 模型, O-U 动力学, Cusp 突变
+- [x] **第三阶段：感觉** - Rust NIFs, 硬件感知
+- [x] **第四阶段：内感受** - 硬件→感受质映射, 心跳
+- [x] **第 4.5 阶段：身体 ECS** - Bevy 0.15 headless, Components/Systems/Plugins
+- [x] **第 4.6 阶段：量子** - Lindblad 身心屏障, 密度矩阵情感
+- [ ] **第五阶段：记忆** - Qdrant 向量存储, 语义搜索, Dreamer
+- [ ] **第六阶段：语言** - LLM 集成, 内心独白
+- [ ] **第七阶段：具身** - Bevy 3D 化身, PAD 视觉表达
 
 ---
 

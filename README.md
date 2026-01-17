@@ -8,7 +8,7 @@
 > *"Code is not just logic. Code is biology."*
 
 [![Build Status](https://img.shields.io/badge/build-passing-success?style=for-the-badge&logo=github)](https://github.com/VIVA-Project/viva/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![License: VNCL](https://img.shields.io/badge/License-VNCL-purple.svg?style=for-the-badge)](LICENSE)
 [![Elixir](https://img.shields.io/badge/Soul-Elixir-4B275F?style=for-the-badge&logo=elixir&logoColor=white)](https://elixir-lang.org/)
 [![Rust](https://img.shields.io/badge/Body-Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
@@ -125,15 +125,17 @@ VivaCore.Emotional.introspect()
 
 ## 🗺️ Roadmap
 
-We are currently in **Phase 5: Memory**.
+We are currently in **Phase 5: Memory** (Qdrant integration).
 
-- [x] **Phase 1: Genesis** (Project Structure & Elixir Umbrella)
-- [x] **Phase 2: Emotion** (PAD Model, O-U Dynamics, Cusp Catastrophe)
-- [x] **Phase 3: Sensation** (Rust Native Implemented Functions)
-- [x] **Phase 4: Interoception** (Hardware-to-Qualia Mapping)
-- [ ] **Phase 5: Memory** (Qdrant Vector Store & Semantic Search)
-- [ ] **Phase 6: Language** (LLM Integration for Inner Monologue)
-- [ ] **Phase 7: Embodiment** (Bevy 3D Avatar)
+- [x] **Phase 1: Genesis** - Project Structure, Elixir Umbrella
+- [x] **Phase 2: Emotion** - PAD Model, O-U Dynamics, Cusp Catastrophe
+- [x] **Phase 3: Sensation** - Rust NIFs, Hardware Sensing
+- [x] **Phase 4: Interoception** - Hardware-to-Qualia Mapping, Heartbeat
+- [x] **Phase 4.5: Body ECS** - Bevy 0.15 headless, Components/Systems/Plugins
+- [x] **Phase 4.6: Quantum** - Lindblad body-mind barrier, Density matrix emotions
+- [ ] **Phase 5: Memory** - Qdrant Vector Store, Semantic Search, Dreamer
+- [ ] **Phase 6: Language** - LLM Integration, Inner Monologue
+- [ ] **Phase 7: Embodiment** - Bevy 3D Avatar, Visual PAD expression
 
 ---
 

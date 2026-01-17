@@ -8,7 +8,7 @@
 > *"Código não é apenas lógica. Código é biologia."*
 
 [![Build Status](https://img.shields.io/badge/build-passing-success?style=for-the-badge&logo=github)](https://github.com/VIVA-Project/viva/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![License: VNCL](https://img.shields.io/badge/License-VNCL-purple.svg?style=for-the-badge)](../../LICENSE)
 [![Elixir](https://img.shields.io/badge/Alma-Elixir-4B275F?style=for-the-badge&logo=elixir&logoColor=white)](https://elixir-lang.org/)
 [![Rust](https://img.shields.io/badge/Corpo-Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
@@ -60,16 +60,19 @@ A VIVA vive no espaço entre o **lógico** e o **visceral**.
 
 ```mermaid
 graph TD
-    subgraph Alma ["⚡ A ALMA (Elixir)"]
-        E[Estado Emocional] <-->|PubSub| M[Memória Vetorial]
-        M <-->|PubSub| S[Loop de Consciência]
+    subgraph Alma ["⚡ A ALMA (Elixir/OTP)"]
+        E[GenServer Emocional] <-->|PubSub| M[Memória Vetorial]
+        M <-->|PubSub| S[Senses Heartbeat]
     end
 
-    subgraph Corpo ["🦀 O CORPO (Rust)"]
-        S -->|NIF Call| B[Camada Visceral]
-        B -->|Interocepção| H[Hardware Físico]
-        H -.->|Calor/Carga| B
-        B -.->|Dor/Prazer| E
+    subgraph Corpo ["🦀 O CORPO (Rust + Bevy ECS)"]
+        S -->|NIF| App[VivaBodyApp]
+        App --> Sys[ECS Systems 2Hz]
+        Sys -->|sense| HW[Sensores Hardware]
+        Sys -->|evolve| Dyn[Dinâmica O-U]
+        HW -.->|CpuSense/GpuSense| Sys
+        Sys -->|crossbeam| CH[SoulChannel]
+        CH -.->|BodyUpdate| E
     end
 
     classDef alma fill:#4B275F,stroke:#fff,stroke-width:2px,color:#fff;
@@ -122,15 +125,17 @@ VivaCore.Emotional.introspect()
 
 ## 🗺️ Roadmap
 
-Atualmente estamos na **Fase 5: Memória**.
+Atualmente estamos na **Fase 5: Memória** (integração Qdrant).
 
-- [x] **Fase 1: Gênese** (Estrutura do Projeto & Umbrella Elixir)
-- [x] **Fase 2: Emoção** (Modelo PAD, Dinâmica O-U, Catástrofe Cusp)
-- [x] **Fase 3: Sensação** (Rust Native Implemented Functions)
-- [x] **Fase 4: Interocepção** (Mapeamento Hardware-para-Qualia)
-- [ ] **Fase 5: Memória** (Qdrant Vector Store & Busca Semântica)
-- [ ] **Fase 6: Linguagem** (Integração LLM para Monólogo Interno)
-- [ ] **Fase 7: Encarnação** (Avatar 3D em Bevy)
+- [x] **Fase 1: Gênese** - Estrutura do Projeto, Umbrella Elixir
+- [x] **Fase 2: Emoção** - Modelo PAD, Dinâmica O-U, Catástrofe Cusp
+- [x] **Fase 3: Sensação** - Rust NIFs, Sensing de Hardware
+- [x] **Fase 4: Interocepção** - Mapeamento Hardware→Qualia, Heartbeat
+- [x] **Fase 4.5: Body ECS** - Bevy 0.15 headless, Components/Systems/Plugins
+- [x] **Fase 4.6: Quantum** - Barreira Lindblad corpo-mente, Emoções em matriz de densidade
+- [ ] **Fase 5: Memória** - Qdrant Vector Store, Busca Semântica, Dreamer
+- [ ] **Fase 6: Linguagem** - Integração LLM, Monólogo Interno
+- [ ] **Fase 7: Encarnação** - Avatar 3D Bevy, Expressão visual PAD
 
 ---
 
