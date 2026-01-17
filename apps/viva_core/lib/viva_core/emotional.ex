@@ -86,7 +86,10 @@ defmodule VivaCore.Emotional do
     safety: %{pleasure: 0.1, arousal: -0.2, dominance: 0.1},
     # Hardware-derived (Qualia)
     hardware_stress: %{pleasure: -0.1, arousal: 0.3, dominance: -0.1},
-    hardware_comfort: %{pleasure: 0.1, arousal: -0.1, dominance: 0.1}
+    hardware_comfort: %{pleasure: 0.1, arousal: -0.1, dominance: 0.1},
+    # Dreamer Feedback (Internal Recurrence)
+    lucid_insight: %{pleasure: 0.3, arousal: 0.2, dominance: 0.2},
+    grim_realization: %{pleasure: -0.3, arousal: 0.2, dominance: -0.2}
   }
 
   # ============================================================================
@@ -613,7 +616,13 @@ defmodule VivaCore.Emotional do
     # Disable internal decay when syncing from BodyServer
     # (BodyServer already does O-U + Cusp dynamics)
     # Track last sync time to detect BodyServer death
-    new_state = %{state | pad: new_pad, body_server_active: true, last_body_sync: System.monotonic_time(:second)}
+    new_state = %{
+      state
+      | pad: new_pad,
+        body_server_active: true,
+        last_body_sync: System.monotonic_time(:second)
+    }
+
     {:noreply, new_state}
   end
 

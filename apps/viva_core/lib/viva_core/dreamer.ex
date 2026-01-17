@@ -688,10 +688,18 @@ defmodule VivaCore.Dreamer do
     end)
   end
 
-  defp generate_insights_for_focal_point(focal_point, memories, _state) do
+  defp generate_insights_for_focal_point(focal_point, memories, state) do
     if Enum.empty?(memories) do
       []
     else
+      # Recurrence: Dreamer affects Emotional state based on memory valence
+      feedback = calculate_emotional_feedback(memories)
+
+      if feedback do
+        Logger.debug("[Dreamer] Insight triggered emotion: #{feedback}")
+        Emotional.feel(feedback, "dreamer", 0.8, state.emotional)
+      end
+
       memory_contents =
         Enum.map(memories, fn m ->
           get_memory_field(m, :content, "")
@@ -709,6 +717,24 @@ defmodule VivaCore.Dreamer do
           timestamp: DateTime.utc_now()
         }
       ]
+    end
+  end
+
+  defp calculate_emotional_feedback(memories) do
+    total_pleasure =
+      memories
+      |> Enum.map(fn m ->
+        emotion = get_memory_field(m, :emotion, nil)
+        if emotion, do: get_pad_value(emotion, :pleasure), else: 0.0
+      end)
+      |> Enum.sum()
+
+    avg_pleasure = total_pleasure / length(memories)
+
+    cond do
+      avg_pleasure > 0.1 -> :lucid_insight
+      avg_pleasure < -0.1 -> :grim_realization
+      true -> nil
     end
   end
 
