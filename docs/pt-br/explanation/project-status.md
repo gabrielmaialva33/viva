@@ -30,14 +30,17 @@ flowchart TB
         S <-->|Qualia| E
     end
 
-    subgraph Rust["🦀 RUST NIF (Corpo)"]
+    subgraph Rust["🦀 RUST + BEVY ECS (Corpo)"]
         direction TB
         HW[Sensoriamento de Hardware]
         SIG["Limiares Sigmoid<br/><small>σ(x) = 1/(1+e⁻ᵏˣ)</small>"]
         ALLO["Alostase<br/><small>δ = Δload/load</small>"]
+        ECS["Bevy ECS 2Hz"]
+        CH["SoulChannel"]
 
         HW --> SIG
-        SIG --> ALLO
+        SIG --> ALLO --> ECS
+        ECS --> CH
     end
 
     subgraph Hardware["💻 HARDWARE"]
@@ -110,9 +113,11 @@ gantt
     Fase 2 - Emotional       :done, p2, after p1, 5d
     Fase 3 - Rust NIF        :done, p3, after p2, 4d
     Fase 4 - Interocepcao    :done, p4, after p3, 3d
+    Fase 4.5 - Body ECS      :done, p45, after p4, 4d
+    Fase 4.6 - Quantum       :done, p46, after p45, 3d
 
     section Memoria
-    Fase 5 - Qdrant          :active, p5, after p4, 7d
+    Fase 5 - Qdrant          :active, p5, after p46, 7d
 
     section Consciencia
     Fase 6 - Global Workspace :p6, after p5, 5d
@@ -129,6 +134,8 @@ gantt
 | 2. Emocional | Completa | PAD, DynAffect, Cusp, Energia Livre, IIT $\Phi$ | `emotional.ex` |
 | 3. Rust NIF | Completa | Sensoriamento via Rustler (sysinfo + nvml) | `lib.rs`, `body.ex` |
 | 4. Interocepcao | Completa | Hardware - Qualia - Emocional | `senses.ex` |
+| 4.5 Body ECS | Completa | Bevy 0.15 headless, Components/Systems/Plugins | `app.rs`, `systems/` |
+| 4.6 Quantum | Completa | Barreira Lindblad, emocoes em matriz de densidade | `quantum.rs` |
 | 5. Memoria | Em Progresso | Integracao com banco vetorial Qdrant | `memory.ex` |
 | 6. Global Workspace | Planejada | Modelo de consciencia de Baars | `workspace.ex` |
 | 7. Bevy Avatar | Planejada | Encarnacao visual | `/avatar` |

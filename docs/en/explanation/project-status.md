@@ -30,14 +30,17 @@ flowchart TB
         S <-->|Qualia| E
     end
 
-    subgraph Rust["RUST NIF (Body)"]
+    subgraph Rust["RUST + BEVY ECS (Body)"]
         direction TB
         HW[Hardware Sensing]
         SIG[Sigmoid Thresholds]
         ALLO[Allostasis]
+        ECS[Bevy ECS 2Hz]
+        CH[SoulChannel]
 
         HW --> SIG
-        SIG --> ALLO
+        SIG --> ALLO --> ECS
+        ECS --> CH
     end
 
     subgraph Hardware["HARDWARE"]
@@ -345,9 +348,11 @@ gantt
 
     section Phase 4
     Senses + Qualia      :done, p4, after p3, 3d
+    Body ECS (4.5)       :done, p45, after p4, 4d
+    Quantum (4.6)        :done, p46, after p45, 3d
 
     section Phase 5
-    Memory + Qdrant      :active, p5, after p4, 7d
+    Memory + Qdrant      :active, p5, after p46, 7d
 
     section Phase 6
     Global Workspace     :p6, after p5, 5d

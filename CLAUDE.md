@@ -208,10 +208,17 @@ viva/
 
 ## Current Phase
 
-**Phase 5: Memory** - Qdrant integration, semantic search.
+**Phase 5: Memory** - Qdrant integration, semantic search, Dreamer consolidation.
 
-Completed: Genesis, Emotion, Sensation, Interoception.
-Next: Language (LLM), Embodiment (Bevy 3D).
+Completed:
+- Phase 1: Genesis (Umbrella structure)
+- Phase 2: Emotion (PAD, O-U, Cusp)
+- Phase 3: Sensation (Rust NIFs)
+- Phase 4: Interoception (Hardware→Qualia)
+- Phase 4.5: Body ECS (Bevy 0.15 headless)
+- Phase 4.6: Quantum (Lindblad barrier, density matrix)
+
+Next: Language (LLM inner monologue), Embodiment (Bevy 3D Avatar).
 
 ## Contributor Roles
 
