@@ -187,8 +187,8 @@ defmodule VivaCore.SensesTest do
     end
   end
 
-  @tag :nif
   describe "Senses - Hardware Integration" do
+    @tag :nif
     test "last_reading contains hardware metrics" do
       {:ok, emotional_pid} = VivaCore.Emotional.start_link(name: :test_emotional_hw)
 

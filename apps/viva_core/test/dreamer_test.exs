@@ -142,7 +142,7 @@ defmodule VivaCore.DreamerTest do
       # Test the mathematical properties
       # Recent memory should have higher recency score
       now = DateTime.utc_now() |> DateTime.to_unix()
-      one_week_ago = now - 604_800
+      _one_week_ago = now - 604_800
 
       recent_decay = :math.exp(-0 / 604_800) * (1 + :math.log(1 + 0) / 10)
       old_decay = :math.exp(-604_800 / 604_800) * (1 + :math.log(1 + 0) / 10)

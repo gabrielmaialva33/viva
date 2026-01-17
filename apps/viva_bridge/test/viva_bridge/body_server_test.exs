@@ -52,7 +52,7 @@ defmodule VivaBridge.BodyServerTest do
 
   test "apply_stimulus/4 modifies emotional state" do
     # 1. Get baseline
-    {p1, a1, _d1} = BodyServer.get_pad()
+    {p1, _a1, _d1} = BodyServer.get_pad()
 
     # 2. Apply strong positive stimulus
     BodyServer.apply_stimulus(0.5, 0.1, 0.1)
@@ -61,7 +61,7 @@ defmodule VivaBridge.BodyServerTest do
     BodyServer.force_tick()
 
     # 4. Check effect
-    {p2, a2, _d2} = BodyServer.get_pad()
+    {p2, _a2, _d2} = BodyServer.get_pad()
 
     # We expect pleasure to increase (or stay maxed) and arousal to change
     # Note: O-U dynamics constantly pull back to 0, so small delta might be lost if we wait too long.
