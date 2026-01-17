@@ -7,29 +7,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added (Body Architecture)
-- **Bevy ECS 0.15** (headless): Complete refactor of Body subsystem to Entity-Component-System architecture.
+---
+
+## [0.4.0] - 2026-01-17
+
+### 🧠 Quantum Consciousness (Phase 4 Highlight)
+
+- **Lindblad Master Equation**: Body-Mind barrier through open quantum systems
+  - Density matrix ρ evolves via: `dρ/dt = -i[H, ρ] + Σ_k γ_k D[L_k]ρ`
+  - Hardware (Watts, Temperature) → Decoherence rates (γ_k)
+  - RK4 integration preserving trace and positivity
+- **Quantum Emotional State**: 6-dimensional Hilbert space (Joy, Sadness, Anger, Fear, Surprise, Disgust)
+  - PAD extraction via eigenvalue projection
+  - Stimulus-driven Hamiltonian modifications
+  - Physical enforcement (Hermitian, trace=1)
+
+### 🦀 Bevy ECS Architecture
+
+- **Bevy 0.15** (headless): Complete refactor to Entity-Component-System
   - **Components**: `CpuSense`, `GpuSense`, `MemorySense`, `ThermalSense`, `BioRhythm`, `EmotionalState`
   - **Systems**: `sense_hardware`, `calculate_stress`, `evolve_dynamics`, `sync_soul` (2Hz tick)
   - **Plugins**: `SensorPlugin`, `DynamicsPlugin`, `BridgePlugin` for modular setup
   - **Resources**: `BodyConfig`, `HostSensor`, `SoulChannel` for shared state
-- **Platform Sensors**: Abstracted hardware sensing with `trait HostSensor`
+- **Platform Sensors**: Abstracted via `trait HostSensor`
   - Linux: sysinfo + NVML + perf-event
   - Windows: sysinfo + NVML
-  - Fallback: stub for unsupported platforms
-- **crossbeam-channel**: Lock-free async communication between Soul (Elixir) and Body (Rust)
-  - `BodyUpdate`: StateChanged, CriticalStress, NeedsRest
-  - `SoulCommand`: ApplyStimulus, SetDecay, Shutdown
+  - WSL2: Cache-based GPU sensing fallback
+- **crossbeam-channel**: Lock-free Soul↔Body communication
 
-### Changed
+### 🔬 Digital Metabolism
+
+- **Thermodynamics Engine**: Energy/Entropy/Fatigue model with RAPL support
+  - ATP-like energy currency
+  - Entropy accumulation and fatigue recovery
+  - Metabolic narratives for interoception
+- **Mirror Module (Autoscopia)**: Self-reading capabilities
+  - Cross-platform capability detection
+  - Feature flags introspection
+  - Protocol Espelho for self-awareness
+
+### 🧬 Memory & Learning
+
+- **Native HNSW Memory**: Rust-based vector search with Hebbian learning
+  - SQLite persistence for episodic memories
+  - P1/P2/P3 improvements from code review
+  - Box::leak rationale documented
+- **Qdrant Integration**: Long-term semantic memory
+- **Dreamer Module**: Reflection system for memory consolidation
+
+### ⚡ Low-Level Performance
+
+- **ASM Module**: Direct CPU communication (RDTSC/CPUID)
+  - Multi-arch support with stdlib intrinsics
+  - `get_cycles` NIF for timing
+- **SIMD/AVX2 Math**: Schraudolph fast exp, batch sigmoid
+- **CPU Topology**: Intel Leaf 0x04 cache detection
+- **OS Stats**: Kernel metrics via sysinfo
+- **Bio Rhythm**: Temporal analysis for circadian patterns
+- **Serial Sensor**: IoT/Arduino integration via serialport
+
+### 📊 Dynamics Engine
+
+- **Ornstein-Uhlenbeck Process**: Mean-reverting stochastic dynamics
+- **Cusp Catastrophe Model**: Sudden emotional transitions
+- **Unified BodyState**: Native state management with BodyServer
+
+### 📝 Documentation & Governance
+
+- **VNCL License**: VIVA Non-Commercial License (formerly MIT)
+- **Governance Files**: CODE_OF_CONDUCT, CONTRIBUTING, SECURITY
+- **Multi-language Whitepaper**: EN, PT-BR, ZH-CN
+- **Tech Stack Analysis**: Organized into i18n structure
+- **Phase 4 Consolidation**: Removed subfases 4.5/4.6
+
+### 🔧 Changed
+
 - **Rustler**: 0.35 → 0.36
 - **sysinfo**: 0.32 → 0.33
-- **Body.ex**: Thin wrapper delegating to Bevy ECS (-574 lines)
-- **lib.rs**: NIF exports only, logic moved to ECS systems (-1705 lines)
+- **Body.ex**: Thin NIF wrapper (-574 lines)
+- **lib.rs**: Logic moved to ECS systems (-1705 lines)
+- **Emotional GenServer**: Classical PAD for stimuli, quantum for hardware
 
-### In Progress
-- Deep integration with **Qdrant** for long-term memory and "soul" persistence.
-- Refinement of the **Global Workspace** (Phase 6) for distributed consciousness.
+### 🐛 Fixed
+
+- CI test configuration with environment-specific configs
+- PubSub initialization order in supervision tree
+- Memory backend selection for test environment
+- Quantum eigenvalue normalization (sum to zero)
+- WSL2 GPU sensing with cache fallback
+- NIF compatibility with Rustler 0.36
+- Float comparison in tests with `assert_in_delta`
+- Test isolation with `subscribe_pubsub: false` option
+
+### 🏷️ Test Infrastructure
+
+- `@moduletag :nif` for NIF-dependent tests
+- Environment configs: test.exs, dev.exs, prod.exs
+- BodyServer skipped in test environment
+- 35 tests passing (6 excluded for NIF dependency)
 
 ---
 
@@ -86,7 +161,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixed** for any bug fixes.
 - **Security** in case of vulnerabilities.
 
-[Unreleased]: https://github.com/gabrielmaialva33/viva/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/gabrielmaialva33/viva/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/gabrielmaialva33/viva/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/gabrielmaialva33/viva/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/gabrielmaialva33/viva/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/gabrielmaialva33/viva/releases/tag/v0.1.0
