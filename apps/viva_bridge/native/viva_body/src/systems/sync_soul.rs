@@ -1,8 +1,8 @@
-use crate::prelude::*;
-use crate::resources::soul_channel::{SoulChannel, BodyUpdate};
 use crate::components::bio_rhythm::BioRhythm;
 use crate::components::cpu_sense::CpuSense;
 use crate::components::gpu_sense::GpuSense;
+use crate::prelude::*;
+use crate::resources::soul_channel::{BodyUpdate, SoulChannel};
 
 pub fn sync_soul_system(
     bio_query: Query<&BioRhythm, Changed<BioRhythm>>,
@@ -31,7 +31,9 @@ pub fn sync_soul_system(
         });
 
         if bio.stress_level > 0.8 {
-            let _ = channel.tx.try_send(BodyUpdate::CriticalStress(bio.stress_level));
+            let _ = channel
+                .tx
+                .try_send(BodyUpdate::CriticalStress(bio.stress_level));
         }
     }
 }

@@ -26,8 +26,8 @@ defmodule VivaBridge.MixProject do
 
   defp deps do
     [
-      {:rustler, "~> 0.35.0"}
-      # {:viva_core, in_umbrella: true} -- Removed to avoid circular dependency (Core depends on Bridge)
+      {:rustler, "~> 0.35.0"},
+      {:phoenix_pubsub, "~> 2.1"}
     ]
   end
 end

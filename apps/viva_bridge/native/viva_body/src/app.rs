@@ -1,22 +1,22 @@
 use crate::prelude::*;
 // Plugins
-use crate::plugins::sensor_plugin::SensorPlugin;
-use crate::plugins::dynamics_plugin::DynamicsPlugin;
 use crate::plugins::bridge_plugin::BridgePlugin;
+use crate::plugins::dynamics_plugin::DynamicsPlugin;
+use crate::plugins::sensor_plugin::SensorPlugin;
 // Components
+use crate::components::bio_rhythm::BioRhythm;
 use crate::components::cpu_sense::CpuSense;
+use crate::components::emotional_state::EmotionalState;
 use crate::components::gpu_sense::GpuSense;
 use crate::components::memory_sense::MemorySense;
 use crate::components::thermal_sense::ThermalSense;
-use crate::components::bio_rhythm::BioRhythm;
-use crate::components::emotional_state::EmotionalState;
 
 // Explicit imports for headless plugins
 use bevy_app::ScheduleRunnerPlugin;
-use bevy_time::TimePlugin;
-use bevy_log::LogPlugin;
 use bevy_core::Name;
-use bevy_core::{TaskPoolPlugin, TypeRegistrationPlugin, FrameCountPlugin};
+use bevy_core::{FrameCountPlugin, TaskPoolPlugin, TypeRegistrationPlugin};
+use bevy_log::LogPlugin;
+use bevy_time::TimePlugin;
 
 pub fn create_body_app() -> App {
     let mut app = App::new();

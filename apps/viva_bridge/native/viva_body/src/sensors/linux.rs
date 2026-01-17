@@ -1,8 +1,8 @@
 use super::trait_def::*;
-use sysinfo::System;
+use nvml_wrapper::Nvml;
 use std::fs;
 use std::path::Path;
-use nvml_wrapper::Nvml;
+use sysinfo::System;
 
 pub struct LinuxSensor {
     sysinfo: System,
@@ -56,7 +56,7 @@ impl LinuxSensor {
                     if name == "coretemp" || name == "k10temp" || name == "amdgpu" {
                         let temp_path = path.join("temp1_input");
                         if temp_path.exists() {
-                             return Some(temp_path.to_string_lossy().to_string());
+                            return Some(temp_path.to_string_lossy().to_string());
                         }
                     }
                 }
@@ -78,10 +78,10 @@ impl LinuxSensor {
 
     fn read_sys_thermal(&self) -> f32 {
         if let Some(path) = &self.hwmon_path {
-             if let Ok(content) = fs::read_to_string(path) {
-                 if let Ok(val) = content.trim().parse::<f32>() {
-                     return val / 1000.0;
-                 }
+            if let Ok(content) = fs::read_to_string(path) {
+                if let Ok(val) = content.trim().parse::<f32>() {
+                    return val / 1000.0;
+                }
             }
         }
         40.0
@@ -93,7 +93,10 @@ impl SensorReader for LinuxSensor {
         self.sysinfo.refresh_cpu_all();
         let usage = self.sysinfo.global_cpu_usage();
 
-        let freqs: Vec<f32> = self.sysinfo.cpus().iter()
+        let freqs: Vec<f32> = self
+            .sysinfo
+            .cpus()
+            .iter()
             .map(|c| c.frequency() as f32)
             .collect();
         let temp = self.read_sys_thermal();
@@ -114,7 +117,10 @@ impl SensorReader for LinuxSensor {
             usage: device.utilization_rates().ok().map(|u| u.gpu as f32),
             vram_used: device.memory_info().ok().map(|m| m.used / 1024 / 1024), // Bytes -> MB
             vram_total: device.memory_info().ok().map(|m| m.total / 1024 / 1024),
-            temp: device.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu).ok().map(|t| t as f32),
+            temp: device
+                .temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu)
+                .ok()
+                .map(|t| t as f32),
             power_watts: device.power_usage().ok().map(|p| p as f32 / 1000.0), // mW -> W
         })
     }
@@ -122,10 +128,14 @@ impl SensorReader for LinuxSensor {
     fn read_memory(&mut self) -> MemoryReading {
         self.sysinfo.refresh_memory();
         MemoryReading {
-            used_percent: (self.sysinfo.used_memory() as f64 / self.sysinfo.total_memory() as f64) as f32 * 100.0,
+            used_percent: (self.sysinfo.used_memory() as f64 / self.sysinfo.total_memory() as f64)
+                as f32
+                * 100.0,
             available_gb: self.sysinfo.available_memory() as f32 / 1024.0 / 1024.0 / 1024.0,
             total_gb: self.sysinfo.total_memory() as f32 / 1024.0 / 1024.0 / 1024.0,
-            swap_percent: (self.sysinfo.used_swap() as f64 / self.sysinfo.total_swap().max(1) as f64) as f32 * 100.0,
+            swap_percent: (self.sysinfo.used_swap() as f64
+                / self.sysinfo.total_swap().max(1) as f64) as f32
+                * 100.0,
         }
     }
 

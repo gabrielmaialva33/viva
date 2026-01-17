@@ -1,8 +1,8 @@
 use crate::prelude::*;
-use crate::resources::host_sensor::HostSensor;
 use crate::resources::body_config::BodyConfig;
-use crate::systems::sense_hardware::sense_hardware_system;
+use crate::resources::host_sensor::HostSensor;
 use crate::systems::calculate_stress::calculate_stress_system;
+use crate::systems::sense_hardware::sense_hardware_system;
 use std::time::Duration;
 
 #[cfg(target_os = "linux")]
@@ -31,9 +31,9 @@ impl Plugin for SensorPlugin {
 
         app.insert_resource(Time::<Fixed>::from_seconds(0.5));
 
-        app.add_systems(FixedUpdate, (
-            sense_hardware_system,
-            calculate_stress_system
-        ).chain());
+        app.add_systems(
+            FixedUpdate,
+            (sense_hardware_system, calculate_stress_system).chain(),
+        );
     }
 }

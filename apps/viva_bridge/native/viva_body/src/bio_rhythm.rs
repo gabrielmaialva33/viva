@@ -88,9 +88,8 @@ impl BioRhythm {
         let mean: f32 = deltas.iter().sum::<f32>() / deltas.len() as f32;
 
         // Variância
-        let variance: f32 = deltas.iter()
-            .map(|&x| (x - mean).powi(2))
-            .sum::<f32>() / deltas.len() as f32;
+        let variance: f32 =
+            deltas.iter().map(|&x| (x - mean).powi(2)).sum::<f32>() / deltas.len() as f32;
 
         // Desvio padrão normalizado (Coefficient of Variation)
         // Se mean for muito baixo, jitter pode explodir, então clampamos

@@ -214,8 +214,8 @@ pub mod aarch64 {
 
 #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
 pub mod fallback {
-    use std::time::Instant;
     use std::sync::LazyLock;
+    use std::time::Instant;
 
     static START_TIME: LazyLock<Instant> = LazyLock::new(Instant::now);
 

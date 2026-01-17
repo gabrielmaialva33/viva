@@ -162,7 +162,13 @@ mod tests {
             let expected = sigmoid_scalar(x, k, x0);
             let diff = (outputs[i] - expected).abs();
             // Allow small tolerance for AVX2 approximation
-            assert!(diff < 0.01, "Mismatch at {}: got {}, expected {}", i, outputs[i], expected);
+            assert!(
+                diff < 0.01,
+                "Mismatch at {}: got {}, expected {}",
+                i,
+                outputs[i],
+                expected
+            );
         }
     }
 

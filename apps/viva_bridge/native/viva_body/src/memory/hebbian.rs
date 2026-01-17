@@ -136,8 +136,7 @@ impl HebbianLearning {
         let dominance_boost = (emotion.dominance + 1.0) / 2.0 * 0.1; // Normalize to [0,1]
 
         // Strong emotions (positive or negative) get extra boost
-        let emotional_intensity =
-            (emotion.pleasure.abs() + emotion.arousal.abs()) / 2.0;
+        let emotional_intensity = (emotion.pleasure.abs() + emotion.arousal.abs()) / 2.0;
         let intensity_boost = if emotional_intensity > 0.7 {
             (emotional_intensity - 0.7) * self.params.emotional_boost
         } else {
@@ -224,7 +223,7 @@ impl HebbianLearning {
                 // Bi-exponential: A+ * exp(-Δt/τ+) - A- * exp(-Δt/τ-)
                 // τ+ = 2 hours (LTP window)
                 // τ- = 24 hours (LTD window)
-                let ltp = 0.25 * (-delta_hours / 2.0_f32).exp();  // Fast potentiation
+                let ltp = 0.25 * (-delta_hours / 2.0_f32).exp(); // Fast potentiation
                 let ltd = 0.15 * (-delta_hours / 24.0_f32).exp(); // Slow depression
 
                 // LTP dominates for recent, LTD baseline for old
@@ -266,8 +265,8 @@ impl HebbianLearning {
             Some(mem_emo) => {
                 let current = &self.current_emotion;
                 // Sign-sensitive matching (positive with positive, etc.)
-                let match_score = mem_emo.pleasure * current.pleasure
-                    + mem_emo.arousal * current.arousal * 0.5;
+                let match_score =
+                    mem_emo.pleasure * current.pleasure + mem_emo.arousal * current.arousal * 0.5;
                 match_score.clamp(-1.0, 1.0)
             }
             None => 0.0,
@@ -298,7 +297,12 @@ impl HebbianLearning {
     /// * `vector` - Original semantic vector
     /// * `emotion` - Emotion to encode (defaults to current if None)
     /// * `weight` - How much emotion influences distance (try 10.0)
-    pub fn augment_vector(&self, vector: &[f32], emotion: Option<PadEmotion>, weight: f32) -> Vec<f32> {
+    pub fn augment_vector(
+        &self,
+        vector: &[f32],
+        emotion: Option<PadEmotion>,
+        weight: f32,
+    ) -> Vec<f32> {
         let emo = emotion.unwrap_or(self.current_emotion);
         let mut aug = Vec::with_capacity(vector.len() + 3);
         aug.extend_from_slice(vector);
@@ -568,10 +572,19 @@ mod tests {
         let old_boost = hebbian.retrieval_boost_stdp(mem_emotion, Some(now - 48 * 3600));
 
         // Recent should get higher boost than old
-        assert!(recent_boost > old_boost, "LTP should be > LTD: {} vs {}", recent_boost, old_boost);
+        assert!(
+            recent_boost > old_boost,
+            "LTP should be > LTD: {} vs {}",
+            recent_boost,
+            old_boost
+        );
 
         // Recent should be > 1.0 (potentiation)
-        assert!(recent_boost > 1.0, "Recent should be potentiated: {}", recent_boost);
+        assert!(
+            recent_boost > 1.0,
+            "Recent should be potentiated: {}",
+            recent_boost
+        );
     }
 
     #[test]

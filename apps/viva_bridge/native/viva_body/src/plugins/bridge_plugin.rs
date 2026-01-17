@@ -8,10 +8,7 @@ impl Plugin for BridgePlugin {
     fn build(&self, app: &mut App) {
         // Run sync after dynamics (PostUpdate or end of Update)
         // We use FixedUpdate to match the tick rate, but at the end of the chain
-        app.add_systems(
-            FixedUpdate,
-            sync_soul_system.in_set(BridgeSystemSet)
-        );
+        app.add_systems(FixedUpdate, sync_soul_system.in_set(BridgeSystemSet));
     }
 }
 

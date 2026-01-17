@@ -1,8 +1,8 @@
-use crate::prelude::*;
-use crate::components::emotional_state::EmotionalState;
 use crate::components::bio_rhythm::BioRhythm;
-use crate::resources::body_config::BodyConfig;
+use crate::components::emotional_state::EmotionalState;
 use crate::dynamics::{DynAffect, OUParams};
+use crate::prelude::*;
+use crate::resources::body_config::BodyConfig;
 use rand_distr::{Distribution, Normal};
 
 pub fn evolve_dynamics_system(

@@ -11,7 +11,7 @@ pub struct CpuReading {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GpuReading {
     pub usage: Option<f32>,
-    pub vram_used: Option<u64>, // MB
+    pub vram_used: Option<u64>,  // MB
     pub vram_total: Option<u64>, // MB
     pub temp: Option<f32>,
     pub power_watts: Option<f32>,

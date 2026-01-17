@@ -1,44 +1,44 @@
 //! VIVA Body - Hardware Sensing (Interoception)
 //! Architecture: Bevy ECS (Headless)
+#![allow(missing_docs)]
 
 use rustler::{Encoder, Env, NifResult, Term};
 use std::sync::{Mutex, OnceLock};
 
-mod math_opt;
 mod asm;
-mod cpu_topology;
-mod os_stats;
 mod bio_rhythm;
-pub mod memory;
-pub mod dynamics;
 pub mod body_state;
+mod cpu_topology;
+pub mod dynamics;
+mod math_opt;
+pub mod memory;
 pub mod metabolism;
 pub mod mirror;
+mod os_stats;
 
 // Bevy modules
-mod prelude;
 mod app;
 mod app_wrapper;
 mod components;
-mod resources;
-mod systems;
 mod plugins;
+mod prelude;
+mod resources;
 mod sensors;
+mod systems;
 
-use crate::prelude::*;
 use crate::app_wrapper::VivaBodyApp;
-use components::bio_rhythm::BioRhythm as EcsBioRhythm;
-use components::emotional_state::EmotionalState as EcsEmotionalState;
-use components::cpu_sense::CpuSense;
+use crate::prelude::*;
 use body_state::{BodyState, HardwareState};
-use resources::soul_channel::{SoulChannel, SoulBridge, create_channel, BodyUpdate};
+use components::bio_rhythm::BioRhythm as EcsBioRhythm;
+use components::cpu_sense::CpuSense;
+use components::emotional_state::EmotionalState as EcsEmotionalState;
+use resources::soul_channel::{create_channel, BodyUpdate, SoulBridge, SoulChannel};
 
 // Simple atoms for NIFs
 rustler::atoms! {
     ok,
     error,
 }
-
 
 pub trait SensoryInput {
     fn fetch_metrics(&self) -> HardwareState;
@@ -120,7 +120,7 @@ fn body_tick() -> BodyState {
     hw.gpu_temp = gpu.temp_celsius;
     hw.gpu_vram_used_percent = match (gpu.vram_used_mb, gpu.vram_total_mb) {
         (Some(used), Some(total)) if total > 0 => Some((used as f32 / total as f32) * 100.0),
-        _ => None
+        _ => None,
     };
 
     // System/Bio
@@ -147,10 +147,10 @@ fn poll_channel() -> Vec<(String, f32)> {
             while let Ok(msg) = bridge.rx.try_recv() {
                 match msg {
                     BodyUpdate::StateChanged { stress, .. } => {
-                       events.push(("state_changed".to_string(), stress));
+                        events.push(("state_changed".to_string(), stress));
                     }
                     BodyUpdate::CriticalStress(s) => {
-                       events.push(("critical".to_string(), s));
+                        events.push(("critical".to_string(), s));
                     }
                     _ => {}
                 }
@@ -162,7 +162,7 @@ fn poll_channel() -> Vec<(String, f32)> {
 }
 
 // Legacy Re-exports
-use memory::{VivaMemory, MemoryMeta, MemoryType, PadEmotion, SearchOptions};
+use memory::{MemoryMeta, MemoryType, PadEmotion, SearchOptions, VivaMemory};
 
 static MEMORY: OnceLock<Mutex<VivaMemory>> = OnceLock::new();
 
@@ -175,7 +175,9 @@ static METABOLISM: OnceLock<Mutex<Metabolism>> = OnceLock::new();
 
 #[rustler::nif]
 fn metabolism_init(tdp: f32) -> NifResult<String> {
-    if METABOLISM.get().is_some() { return Ok("Already init".to_string()); }
+    if METABOLISM.get().is_some() {
+        return Ok("Already init".to_string());
+    }
     let m = Metabolism::new(tdp);
     METABOLISM.set(Mutex::new(m)).ok();
     Ok("Init".to_string())
@@ -190,7 +192,7 @@ fn metabolism_tick(cpu_usage: f32, cpu_temp: Option<f32>) -> NifResult<(f32, f32
                 state.energy_joules,
                 state.thermal_stress, // treated as entropy in elixir map (conceptually related)
                 state.fatigue_level,
-                state.needs_rest
+                state.needs_rest,
             ));
         }
     }
@@ -200,24 +202,30 @@ fn metabolism_tick(cpu_usage: f32, cpu_temp: Option<f32>) -> NifResult<(f32, f32
 
 #[rustler::nif]
 fn memory_init(path: Option<String>) -> NifResult<String> {
-   if MEMORY.get().is_some() { return Ok("Already init".to_string()); }
-   let m = VivaMemory::new().map_err(|e| rustler::Error::Term(Box::new(e.to_string())))?;
-   MEMORY.set(Mutex::new(m)).ok();
-   Ok("Init".to_string())
+    if MEMORY.get().is_some() {
+        return Ok("Already init".to_string());
+    }
+    let m = VivaMemory::new().map_err(|e| rustler::Error::Term(Box::new(e.to_string())))?;
+    MEMORY.set(Mutex::new(m)).ok();
+    Ok("Init".to_string())
 }
 
 #[rustler::nif]
 fn memory_store(vector: Vec<f32>, metadata_json: String) -> NifResult<String> {
-   Ok("Stored".to_string())
+    Ok("Stored".to_string())
 }
 #[rustler::nif]
 fn memory_search(_q: Vec<f32>, _l: usize) -> NifResult<Vec<(String, String, f32, f32)>> {
     Ok(vec![])
 }
 #[rustler::nif]
-fn memory_save() -> NifResult<String> { Ok("Saved".to_string()) }
+fn memory_save() -> NifResult<String> {
+    Ok("Saved".to_string())
+}
 #[rustler::nif]
-fn memory_stats(_b: String) -> NifResult<String> { Ok("Stats".to_string()) }
+fn memory_stats(_b: String) -> NifResult<String> {
+    Ok("Stats".to_string())
+}
 
 #[rustler::nif]
 fn apply_stimulus(p: f64, a: f64, d: f64) -> NifResult<String> {

@@ -238,7 +238,11 @@ mod tests {
 
         // Fadiga deve ter aumentado
         // Fadiga deve ter aumentado (rate aprox 0.009/s -> em 1s ~= 0.009)
-        assert!(meta.fatigue > 0.005, "Fatigue should accumulate (got {})", meta.fatigue);
+        assert!(
+            meta.fatigue > 0.005,
+            "Fatigue should accumulate (got {})",
+            meta.fatigue
+        );
 
         // Testar recuperação
         let peak_fatigue = meta.fatigue;

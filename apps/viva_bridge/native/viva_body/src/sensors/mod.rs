@@ -1,6 +1,6 @@
-pub mod trait_def;
-pub mod linux;
 pub mod fallback;
+pub mod linux;
+pub mod trait_def;
 
 // Conditional compilation for Windows module
 #[cfg(target_os = "windows")]

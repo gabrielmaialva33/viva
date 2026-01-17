@@ -25,7 +25,9 @@ impl SensorReader for FallbackSensor {
         }
     }
 
-    fn read_gpu(&mut self) -> Option<GpuReading> { None }
+    fn read_gpu(&mut self) -> Option<GpuReading> {
+        None
+    }
 
     fn read_memory(&mut self) -> MemoryReading {
         MemoryReading::default()
@@ -35,5 +37,7 @@ impl SensorReader for FallbackSensor {
         ThermalReading::default()
     }
 
-    fn platform_name(&self) -> &'static str { "generic_fallback" }
+    fn platform_name(&self) -> &'static str {
+        "generic_fallback"
+    }
 }

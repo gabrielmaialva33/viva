@@ -162,22 +162,34 @@ pub struct TimeRange {
 impl TimeRange {
     /// Create unbounded time range (matches all)
     pub fn all() -> Self {
-        Self { start: None, end: None }
+        Self {
+            start: None,
+            end: None,
+        }
     }
 
     /// Create range from start to now
     pub fn since(start: i64) -> Self {
-        Self { start: Some(start), end: None }
+        Self {
+            start: Some(start),
+            end: None,
+        }
     }
 
     /// Create range from epoch to end
     pub fn until(end: i64) -> Self {
-        Self { start: None, end: Some(end) }
+        Self {
+            start: None,
+            end: Some(end),
+        }
     }
 
     /// Create bounded range [start, end]
     pub fn between(start: i64, end: i64) -> Self {
-        Self { start: Some(start), end: Some(end) }
+        Self {
+            start: Some(start),
+            end: Some(end),
+        }
     }
 
     /// Last N seconds from now

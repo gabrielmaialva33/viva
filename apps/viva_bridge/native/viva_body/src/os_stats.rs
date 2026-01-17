@@ -84,7 +84,8 @@ fn read_proc_stat() -> (u64, u64) {
 fn read_cpu_freq() -> Option<f32> {
     // Reads CPU 0 current scaling frequency
     // content is in kHz (e.g. 2200000 = 2.2GHz)
-    if let Ok(content) = fs::read_to_string("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq") {
+    if let Ok(content) = fs::read_to_string("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq")
+    {
         if let Ok(khz) = content.trim().parse::<f32>() {
             return Some(khz / 1000.0); // Convert to MHz
         }

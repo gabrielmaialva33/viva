@@ -1,5 +1,5 @@
-use crossbeam_channel::{Sender, Receiver, unbounded};
 use crate::prelude::*;
+use crossbeam_channel::{unbounded, Receiver, Sender};
 
 #[derive(Clone, Debug)]
 pub enum BodyUpdate {
@@ -39,7 +39,13 @@ pub fn create_channel() -> (SoulChannel, SoulBridge) {
     let (soul_tx, body_rx) = unbounded();
 
     (
-        SoulChannel { tx: body_tx, rx: body_rx },
-        SoulBridge { rx: soul_rx, tx: soul_tx },
+        SoulChannel {
+            tx: body_tx,
+            rx: body_rx,
+        },
+        SoulBridge {
+            rx: soul_rx,
+            tx: soul_tx,
+        },
     )
 }

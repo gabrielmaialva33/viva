@@ -1,6 +1,6 @@
 use super::trait_def::*;
-use sysinfo::{Components, System};
 use nvml_wrapper::Nvml;
+use sysinfo::{Components, System};
 
 pub struct WindowsSensor {
     sysinfo: System,
@@ -35,7 +35,10 @@ impl SensorReader for WindowsSensor {
         self.sysinfo.refresh_cpu_all();
         let usage = self.sysinfo.global_cpu_usage();
 
-        let freqs: Vec<f32> = self.sysinfo.cpus().iter()
+        let freqs: Vec<f32> = self
+            .sysinfo
+            .cpus()
+            .iter()
             .map(|c| c.frequency() as f32)
             .collect();
 
@@ -43,11 +46,11 @@ impl SensorReader for WindowsSensor {
         let mut temp: Option<f32> = None;
         self.components.refresh(true);
         for comp in &self.components {
-             let label = comp.label().to_lowercase();
-             if label.contains("cpu") || label.contains("core") || label.contains("package") {
-                 temp = Some(comp.temperature());
-                 break; // Just take the first one for now
-             }
+            let label = comp.label().to_lowercase();
+            if label.contains("cpu") || label.contains("core") || label.contains("package") {
+                temp = Some(comp.temperature());
+                break; // Just take the first one for now
+            }
         }
 
         CpuReading {
@@ -66,7 +69,10 @@ impl SensorReader for WindowsSensor {
             usage: device.utilization_rates().ok().map(|u| u.gpu as f32),
             vram_used: device.memory_info().ok().map(|m| m.used / 1024 / 1024),
             vram_total: device.memory_info().ok().map(|m| m.total / 1024 / 1024),
-            temp: device.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu).ok().map(|t| t as f32),
+            temp: device
+                .temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu)
+                .ok()
+                .map(|t| t as f32),
             power_watts: device.power_usage().ok().map(|p| p as f32 / 1000.0),
         })
     }
@@ -74,10 +80,14 @@ impl SensorReader for WindowsSensor {
     fn read_memory(&mut self) -> MemoryReading {
         self.sysinfo.refresh_memory();
         MemoryReading {
-            used_percent: (self.sysinfo.used_memory() as f64 / self.sysinfo.total_memory() as f64) as f32 * 100.0,
+            used_percent: (self.sysinfo.used_memory() as f64 / self.sysinfo.total_memory() as f64)
+                as f32
+                * 100.0,
             available_gb: self.sysinfo.available_memory() as f32 / 1024.0 / 1024.0 / 1024.0,
             total_gb: self.sysinfo.total_memory() as f32 / 1024.0 / 1024.0 / 1024.0,
-            swap_percent: (self.sysinfo.used_swap() as f64 / self.sysinfo.total_swap().max(1) as f64) as f32 * 100.0,
+            swap_percent: (self.sysinfo.used_swap() as f64
+                / self.sysinfo.total_swap().max(1) as f64) as f32
+                * 100.0,
         }
     }
 
@@ -86,11 +96,15 @@ impl SensorReader for WindowsSensor {
         let mut max_t = 0.0;
         for comp in &self.components {
             let t = comp.temperature();
-            if t > max_t { max_t = t; }
+            if t > max_t {
+                max_t = t;
+            }
         }
 
         // If no sensors found (common on Windows without Admin), fallback to 40.0
-        if max_t < 1.0 { max_t = 40.0; }
+        if max_t < 1.0 {
+            max_t = 40.0;
+        }
 
         ThermalReading {
             highest_temp: max_t,

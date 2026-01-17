@@ -96,11 +96,11 @@ impl HnswMemory {
     /// Create new in-memory HNSW index with custom capacity
     pub fn with_capacity(max_elements: usize) -> Result<Self> {
         let index = Hnsw::<f32, DistCosine>::new(
-            16,           // max_nb_connection (M)
-            max_elements, // max_elements
-            16,           // max_layer
-            200,          // ef_construction
-            DistCosine {},   // distance metric (dot product for normalized vectors = cosine)
+            16,            // max_nb_connection (M)
+            max_elements,  // max_elements
+            16,            // max_layer
+            200,           // ef_construction
+            DistCosine {}, // distance metric (dot product for normalized vectors = cosine)
         );
 
         Ok(Self {
@@ -179,11 +179,10 @@ impl HnswMemory {
 
         // Load metadata
         let meta_path = Self::meta_file_path(base_path);
-        let file = File::open(&meta_path)
-            .context("Failed to open metadata file")?;
+        let file = File::open(&meta_path).context("Failed to open metadata file")?;
         let reader = BufReader::new(file);
-        let state: PersistentState = serde_json::from_reader(reader)
-            .context("Failed to parse metadata")?;
+        let state: PersistentState =
+            serde_json::from_reader(reader).context("Failed to parse metadata")?;
 
         // Version check for future migrations
         if state.version > PersistentState::CURRENT_VERSION {
@@ -232,7 +231,10 @@ impl HnswMemory {
 
         // Get next key
         let key = {
-            let mut next = self.next_key.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+            let mut next = self
+                .next_key
+                .lock()
+                .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             let k = *next;
             *next += 1;
             k
@@ -240,25 +242,33 @@ impl HnswMemory {
 
         // Insert into HNSW index
         {
-            let index = self.index.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+            let index = self
+                .index
+                .lock()
+                .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             index.insert((&normalized, key as usize));
         }
 
         // Store metadata
         {
-            let mut meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+            let mut meta_map = self
+                .meta
+                .lock()
+                .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             meta_map.insert(key, meta);
         }
 
         // Store embedding for consolidation support
         {
-            let mut emb_map = self.embeddings.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+            let mut emb_map = self
+                .embeddings
+                .lock()
+                .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             emb_map.insert(key, normalized);
         }
 
         Ok(key)
     }
-
 
     pub fn search(
         &self,
@@ -280,11 +290,17 @@ impl HnswMemory {
         // Search HNSW - get more results than needed for filtering
         let ef_search = (options.limit * 3).max(50);
         let neighbors = {
-            let index = self.index.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+            let index = self
+                .index
+                .lock()
+                .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             index.search(&normalized, options.limit * 2, ef_search)
         };
 
-        let meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+        let meta_map = self
+            .meta
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
         let mut results: Vec<MemorySearchResult> = Vec::new();
 
         for neighbor in neighbors {
@@ -376,11 +392,17 @@ impl HnswMemory {
     /// since metadata is gone. This is a pragmatic workaround for HNSW's
     /// limitation with deletions.
     pub fn forget(&self, key: u64) -> Result<()> {
-        let mut meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+        let mut meta_map = self
+            .meta
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
         meta_map.remove(&key);
 
         // Also remove embedding
-        let mut emb_map = self.embeddings.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+        let mut emb_map = self
+            .embeddings
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
         emb_map.remove(&key);
 
         Ok(())
@@ -406,13 +428,15 @@ impl HnswMemory {
 
         // Ensure directory exists
         if !dir.as_os_str().is_empty() {
-            fs::create_dir_all(dir)
-                .context("Failed to create directory")?;
+            fs::create_dir_all(dir).context("Failed to create directory")?;
         }
 
         // Save HNSW index
         {
-            let index = self.index.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+            let index = self
+                .index
+                .lock()
+                .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             index
                 .file_dump(dir, name)
                 .map_err(|e| anyhow::anyhow!("Failed to dump HNSW index: {:?}", e))?;
@@ -423,9 +447,18 @@ impl HnswMemory {
         // This minimizes lock contention at the cost of memory for the snapshot.
         let meta_path = Self::meta_file_path(base_path);
         let state = {
-            let meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
-            let emb_map = self.embeddings.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
-            let next_key = self.next_key.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+            let meta_map = self
+                .meta
+                .lock()
+                .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+            let emb_map = self
+                .embeddings
+                .lock()
+                .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+            let next_key = self
+                .next_key
+                .lock()
+                .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
             PersistentState {
                 metadata: meta_map.clone(),
                 embeddings: emb_map.clone(),
@@ -438,16 +471,13 @@ impl HnswMemory {
         // Atomic write: temp file + rename
         let temp_path = meta_path.with_extension("meta.json.tmp");
         {
-            let file = File::create(&temp_path)
-                .context("Failed to create temp metadata file")?;
+            let file = File::create(&temp_path).context("Failed to create temp metadata file")?;
             let writer = BufWriter::new(file);
-            serde_json::to_writer_pretty(writer, &state)
-                .context("Failed to write metadata")?;
+            serde_json::to_writer_pretty(writer, &state).context("Failed to write metadata")?;
         }
 
         // Atomic rename (on same filesystem)
-        fs::rename(&temp_path, &meta_path)
-            .context("Failed to atomically rename metadata file")?;
+        fs::rename(&temp_path, &meta_path).context("Failed to atomically rename metadata file")?;
 
         Ok(())
     }
@@ -489,14 +519,22 @@ impl HnswMemory {
         &self,
         importance_threshold: f32,
     ) -> Result<Vec<(u64, MemoryMeta, Vec<f32>)>> {
-        let meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
-        let emb_map = self.embeddings.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+        let meta_map = self
+            .meta
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+        let emb_map = self
+            .embeddings
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
 
         let candidates: Vec<_> = meta_map
             .iter()
             .filter(|(_, meta)| meta.importance >= importance_threshold)
             .filter_map(|(key, meta)| {
-                emb_map.get(key).map(|emb| (*key, meta.clone(), emb.clone()))
+                emb_map
+                    .get(key)
+                    .map(|emb| (*key, meta.clone(), emb.clone()))
             })
             .collect();
 
@@ -517,16 +555,23 @@ impl HnswMemory {
     /// Number of vectors in the rebuilt index
     pub fn rebuild_index(&self) -> Result<usize> {
         // 1. Lock everything to prevent concurrent modifications
-        let mut index_guard = self.index.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
-        let meta_map = self.meta.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
-        let emb_map = self.embeddings.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+        let mut index_guard = self
+            .index
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+        let meta_map = self
+            .meta
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+        let emb_map = self
+            .embeddings
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
 
         // 2. Collect valid entries (those with both metadata and embedding)
         let valid_entries: Vec<_> = meta_map
             .keys()
-            .filter_map(|key| {
-                emb_map.get(key).map(|emb| (*key, emb.clone()))
-            })
+            .filter_map(|key| emb_map.get(key).map(|emb| (*key, emb.clone())))
             .collect();
 
         let count = valid_entries.len();
@@ -583,7 +628,9 @@ mod tests {
     use std::env;
 
     fn dummy_embedding() -> Vec<f32> {
-        let mut v: Vec<f32> = (0..VECTOR_DIM).map(|i| i as f32 / VECTOR_DIM as f32).collect();
+        let mut v: Vec<f32> = (0..VECTOR_DIM)
+            .map(|i| i as f32 / VECTOR_DIM as f32)
+            .collect();
         // Normalize
         let mag: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
         for x in &mut v {
@@ -708,7 +755,11 @@ mod tests {
             "next_key": 1,
             "version": 9999  // Future version
         });
-        fs::write(&meta_path, serde_json::to_string_pretty(&future_state).unwrap()).unwrap();
+        fs::write(
+            &meta_path,
+            serde_json::to_string_pretty(&future_state).unwrap(),
+        )
+        .unwrap();
 
         // Should fail with version error
         let result = HnswMemory::open(&test_path);
@@ -716,8 +767,11 @@ mod tests {
         // Check error message contains version info
         if let Err(e) = result {
             let err_msg = e.to_string();
-            assert!(err_msg.contains("newer") || err_msg.contains("version"),
-                "Expected version error, got: {}", err_msg);
+            assert!(
+                err_msg.contains("newer") || err_msg.contains("version"),
+                "Expected version error, got: {}",
+                err_msg
+            );
         }
 
         // Clean up

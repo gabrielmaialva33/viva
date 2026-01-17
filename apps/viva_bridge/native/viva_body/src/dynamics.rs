@@ -42,9 +42,9 @@ pub struct OUParams {
 impl Default for OUParams {
     fn default() -> Self {
         Self {
-            theta: 0.5,  // Moderate mean-reversion
-            mu: 0.0,     // Neutral equilibrium
-            sigma: 0.1,  // Low noise
+            theta: 0.5, // Moderate mean-reversion
+            mu: 0.0,    // Neutral equilibrium
+            sigma: 0.1, // Low noise
         }
     }
 }
@@ -121,12 +121,7 @@ pub fn ou_step(state: &mut f64, params: &OUParams, dt: f64, noise: f64) {
 /// * `dt` - Time step in seconds
 /// * `noise` - Array of N(0,1) samples for each dimension
 #[inline]
-pub fn ou_step_pad(
-    pad: &mut [f64; 3],
-    params: &[OUParams; 3],
-    dt: f64,
-    noise: &[f64; 3],
-) {
+pub fn ou_step_pad(pad: &mut [f64; 3], params: &[OUParams; 3], dt: f64, noise: &[f64; 3]) {
     for i in 0..3 {
         ou_step(&mut pad[i], &params[i], dt, noise[i]);
     }
@@ -151,12 +146,7 @@ pub fn ou_step_clamped(
 
 /// Ornstein-Uhlenbeck step for bounded PAD state [-1, 1].
 #[inline]
-pub fn ou_step_pad_bounded(
-    pad: &mut [f64; 3],
-    params: &[OUParams; 3],
-    dt: f64,
-    noise: &[f64; 3],
-) {
+pub fn ou_step_pad_bounded(pad: &mut [f64; 3], params: &[OUParams; 3], dt: f64, noise: &[f64; 3]) {
     ou_step_pad(pad, params, dt, noise);
     for x in pad.iter_mut() {
         *x = x.clamp(-1.0, 1.0);
@@ -242,14 +232,7 @@ pub fn cusp_step(x: &mut f64, c: f64, y: f64, dt: f64, damping: f64) {
 /// dx = (-x³ + c·x + y)dt + σ·dW
 /// ```
 #[inline]
-pub fn cusp_step_stochastic(
-    x: &mut f64,
-    c: f64,
-    y: f64,
-    dt: f64,
-    sigma: f64,
-    noise: f64,
-) {
+pub fn cusp_step_stochastic(x: &mut f64, c: f64, y: f64, dt: f64, sigma: f64, noise: f64) {
     let gradient = cusp_gradient(*x, c, y);
     let diffusion = sigma * dt.sqrt() * noise;
     *x += (-gradient * dt) + diffusion;
@@ -324,12 +307,7 @@ pub fn cusp_is_bifurcation(c: f64, y: f64) -> bool {
 /// // mood might jump from -0.8 to +0.6 (mania)
 /// ```
 #[inline]
-pub fn cusp_mood_step(
-    mood: &mut f64,
-    arousal: f64,
-    external_bias: f64,
-    dt: f64,
-) {
+pub fn cusp_mood_step(mood: &mut f64, arousal: f64, external_bias: f64, dt: f64) {
     // Map arousal to control parameter (higher arousal = more bifurcation)
     let c = arousal.abs() * 1.5;
     // External bias directly maps to asymmetry
@@ -388,13 +366,7 @@ impl DynAffect {
     /// * `dt` - Time step in seconds
     /// * `noise` - [n1, n2, n3] N(0,1) samples
     /// * `external_bias` - External emotional influence
-    pub fn step(
-        &self,
-        pad: &mut [f64; 3],
-        dt: f64,
-        noise: &[f64; 3],
-        external_bias: f64,
-    ) {
+    pub fn step(&self, pad: &mut [f64; 3], dt: f64, noise: &[f64; 3], external_bias: f64) {
         // Step 1: O-U dynamics for all dimensions
         ou_step_pad_bounded(pad, &self.ou_params, dt, noise);
 
@@ -424,9 +396,9 @@ mod tests {
     #[test]
     fn test_ou_converges_to_equilibrium() {
         let params = OUParams {
-            theta: 2.0,  // Fast convergence
-            mu: 0.5,     // Target
-            sigma: 0.0,  // No noise for deterministic test
+            theta: 2.0, // Fast convergence
+            mu: 0.5,    // Target
+            sigma: 0.0, // No noise for deterministic test
         };
         let mut x = 0.0;
 
@@ -436,7 +408,12 @@ mod tests {
         }
 
         // Should converge near mu
-        assert!((x - params.mu).abs() < 0.01, "x={} should be near mu={}", x, params.mu);
+        assert!(
+            (x - params.mu).abs() < 0.01,
+            "x={} should be near mu={}",
+            x,
+            params.mu
+        );
     }
 
     #[test]
@@ -478,7 +455,11 @@ mod tests {
         let eq = cusp_equilibria(2.0, 0.0);
         for x in eq {
             let grad = cusp_gradient(x, 2.0, 0.0);
-            assert!(grad.abs() < 0.01, "Gradient at equilibrium should be ~0, got {}", grad);
+            assert!(
+                grad.abs() < 0.01,
+                "Gradient at equilibrium should be ~0, got {}",
+                grad
+            );
         }
     }
 
@@ -495,7 +476,11 @@ mod tests {
 
         // Should be at an equilibrium (gradient ~= 0)
         let grad = cusp_gradient(x, c, y);
-        assert!(grad.abs() < 0.1, "Should converge to equilibrium, grad={}", grad);
+        assert!(
+            grad.abs() < 0.1,
+            "Should converge to equilibrium, grad={}",
+            grad
+        );
     }
 
     #[test]

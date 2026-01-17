@@ -1,9 +1,9 @@
-use crate::prelude::*;
-use crate::resources::host_sensor::HostSensor;
 use crate::components::cpu_sense::CpuSense;
 use crate::components::gpu_sense::GpuSense;
 use crate::components::memory_sense::MemorySense;
 use crate::components::thermal_sense::ThermalSense;
+use crate::prelude::*;
+use crate::resources::host_sensor::HostSensor;
 
 pub fn sense_hardware_system(
     mut sensor: ResMut<HostSensor>,

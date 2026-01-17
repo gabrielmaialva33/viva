@@ -19,8 +19,7 @@ pub struct SqliteMemory {
 impl SqliteMemory {
     /// Create in-memory database
     pub fn new() -> Result<Self> {
-        let conn =
-            Connection::open_in_memory().context("Failed to open SQLite in-memory")?;
+        let conn = Connection::open_in_memory().context("Failed to open SQLite in-memory")?;
         let mem = Self {
             conn: Mutex::new(conn),
             path: None,
@@ -34,8 +33,7 @@ impl SqliteMemory {
         let db_path = format!("{}.sqlite", path);
         let exists = Path::new(&db_path).exists();
 
-        let conn =
-            Connection::open(&db_path).context("Failed to open SQLite database")?;
+        let conn = Connection::open(&db_path).context("Failed to open SQLite database")?;
 
         let mem = Self {
             conn: Mutex::new(conn),
@@ -91,10 +89,7 @@ impl SqliteMemory {
         let conn = self.conn.lock().unwrap();
 
         // Serialize embedding to bytes
-        let emb_bytes: Vec<u8> = embedding
-            .iter()
-            .flat_map(|f| f.to_le_bytes())
-            .collect();
+        let emb_bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
 
         let (ep, ea, ed) = meta
             .emotion
@@ -179,9 +174,7 @@ impl SqliteMemory {
             // param_idx += 1; // Not needed after last use
         }
 
-        let mut stmt = conn
-            .prepare(&sql)
-            .context("Failed to prepare query")?;
+        let mut stmt = conn.prepare(&sql).context("Failed to prepare query")?;
 
         // Convert params to slice of references for rusqlite
         let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
@@ -312,7 +305,11 @@ impl SqliteMemory {
              FROM memories WHERE id = ?1",
             params![memory_id],
             |row| {
-                let emotion = match (row.get::<_, Option<f32>>(4)?, row.get::<_, Option<f32>>(5)?, row.get::<_, Option<f32>>(6)?) {
+                let emotion = match (
+                    row.get::<_, Option<f32>>(4)?,
+                    row.get::<_, Option<f32>>(5)?,
+                    row.get::<_, Option<f32>>(6)?,
+                ) {
                     (Some(p), Some(a), Some(d)) => Some(PadEmotion {
                         pleasure: p,
                         arousal: a,

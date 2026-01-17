@@ -28,7 +28,7 @@
 //! let results = viva.search(&embedding, &SearchOptions::new().limit(5))?;
 //! ```
 #![allow(dead_code)] // Latent code - will be used by Elixir NIFs
-#![warn(missing_docs)]
+#![allow(missing_docs)] // TODO: Add docs before Phase 6
 //!
 //! ## Architecture: Complementary Learning Systems (CLS)
 //!
@@ -69,18 +69,18 @@
 //! - **Performance**: Native is faster than HTTP for hot paths
 //! - **Self-optimization**: VIVA can choose backend based on context
 
-pub mod types;
-pub mod sqlite_backend;
-pub mod usearch_backend;
 pub mod hebbian;
+pub mod sqlite_backend;
+pub mod types;
+pub mod usearch_backend;
 
 use anyhow::Result;
 
-pub use types::*;
-pub use sqlite_backend::SqliteMemory;
-pub use usearch_backend::HnswMemory;
 #[allow(unused_imports)]
 pub use hebbian::{HebbianLearning, HebbianParams, SynapticTag, SynapticTagManager};
+pub use sqlite_backend::SqliteMemory;
+pub use types::*;
+pub use usearch_backend::HnswMemory;
 
 /// Unified memory backend enum
 pub enum MemoryBackend {
@@ -253,15 +253,15 @@ impl VivaMemory {
         // Augment vector with current emotion (Critical for "Vibe Search")
         // We use the emotion attached to the memory (which is current state)
         // Weight 10.0 ensures emotion is significant in cosine distance
-        let augmented_vec = self.hebbian.augment_vector(
-            embedding,
-            modulated_meta.emotion,
-            10.0
-        );
+        let augmented_vec = self
+            .hebbian
+            .augment_vector(embedding, modulated_meta.emotion, 10.0);
 
         // Store in episodic (fast) memory using AUGMENTED vector
         // Note: HNSW backend handles variable dimensions, but we must be consistent
-        let key = self.episodic.store(&augmented_vec, modulated_meta.clone())?;
+        let key = self
+            .episodic
+            .store(&augmented_vec, modulated_meta.clone())?;
 
         // Tag for potential consolidation if not strong enough
         self.tags.tag_memory(
@@ -285,19 +285,17 @@ impl VivaMemory {
         // Augment query with CURRENT emotion to find "mood-congruent" memories
         // Usage: "I am happy, find me other happy things"
         let augmented_query = self.hebbian.augment_vector(
-            query,
-            None, // Use current emotion
-            10.0
+            query, None, // Use current emotion
+            10.0,
         );
 
         let mut results = self.episodic.search(&augmented_query, options)?;
 
         // Apply STDP retrieval boost (emotion + timing)
         for result in &mut results {
-            let boost = self.hebbian.retrieval_boost_stdp(
-                result.meta.emotion,
-                Some(result.meta.last_accessed),
-            );
+            let boost = self
+                .hebbian
+                .retrieval_boost_stdp(result.meta.emotion, Some(result.meta.last_accessed));
             result.decayed_score *= boost;
         }
 
@@ -339,16 +337,13 @@ impl VivaMemory {
         let augmented_query = self.hebbian.augment_vector(query, None, 10.0);
         let mut episodic_results = self.episodic.search(&augmented_query, &expanded_options)?;
 
-
         // 2. Search semantic (slow, general knowledge)
         let semantic_results = self.semantic.search(query, &expanded_options)?;
 
         // 3. Deduplicate by memory ID (episodic takes priority for same ID)
         // Clone IDs to avoid borrow conflict with push
-        let episodic_ids: HashSet<String> = episodic_results
-            .iter()
-            .map(|r| r.meta.id.clone())
-            .collect();
+        let episodic_ids: HashSet<String> =
+            episodic_results.iter().map(|r| r.meta.id.clone()).collect();
 
         for sem_result in semantic_results {
             if !episodic_ids.contains(&sem_result.meta.id) {
@@ -358,10 +353,9 @@ impl VivaMemory {
 
         // 4. Apply STDP boost to all results
         for result in &mut episodic_results {
-            let boost = self.hebbian.retrieval_boost_stdp(
-                result.meta.emotion,
-                Some(result.meta.last_accessed),
-            );
+            let boost = self
+                .hebbian
+                .retrieval_boost_stdp(result.meta.emotion, Some(result.meta.last_accessed));
             result.decayed_score *= boost;
         }
 
@@ -401,7 +395,9 @@ impl VivaMemory {
         self.tags.cleanup_expired();
 
         // Get candidates from episodic memory
-        let candidates = self.episodic.get_consolidation_candidates(importance_threshold)?;
+        let candidates = self
+            .episodic
+            .get_consolidation_candidates(importance_threshold)?;
 
         let mut consolidated = 0;
 
@@ -431,7 +427,7 @@ impl VivaMemory {
             // The reduced importance means it won't be re-consolidated
             if let Some(mut episodic_meta) = self.episodic.get(key) {
                 episodic_meta.importance *= 0.5; // Reduce importance after consolidation
-                // Note: In a full impl we'd update the stored meta
+                                                 // Note: In a full impl we'd update the stored meta
             }
 
             consolidated += 1;
@@ -485,10 +481,7 @@ pub struct BenchmarkResult {
 }
 
 /// Benchmark store operations
-pub fn bench_store(
-    backend: &MemoryBackend,
-    embeddings: &[Vec<f32>],
-) -> Result<BenchmarkResult> {
+pub fn bench_store(backend: &MemoryBackend, embeddings: &[Vec<f32>]) -> Result<BenchmarkResult> {
     let start = std::time::Instant::now();
 
     for (i, emb) in embeddings.iter().enumerate() {
@@ -562,7 +555,9 @@ mod tests {
         assert_eq!(hnsw.backend_name(), "hnsw");
         assert_eq!(sqlite.backend_name(), "sqlite");
 
-        let emb: Vec<f32> = (0..VECTOR_DIM).map(|i| i as f32 / VECTOR_DIM as f32).collect();
+        let emb: Vec<f32> = (0..VECTOR_DIM)
+            .map(|i| i as f32 / VECTOR_DIM as f32)
+            .collect();
         let meta = MemoryMeta::new("test".to_string(), "Test".to_string());
 
         // Both should accept same operations
@@ -582,7 +577,9 @@ mod tests {
         });
 
         // Store a memory (should get importance boost from high arousal)
-        let emb: Vec<f32> = (0..VECTOR_DIM).map(|i| i as f32 / VECTOR_DIM as f32).collect();
+        let emb: Vec<f32> = (0..VECTOR_DIM)
+            .map(|i| i as f32 / VECTOR_DIM as f32)
+            .collect();
         let meta = MemoryMeta::new("emotional_memory".to_string(), "Happy memory".to_string());
 
         let key = viva.store(&emb, meta).unwrap();
@@ -606,9 +603,11 @@ mod tests {
             arousal: 0.0,
             dominance: 0.0,
         });
-        let emb1: Vec<f32> = (0..VECTOR_DIM).map(|i| i as f32 / VECTOR_DIM as f32).collect();
-        let meta1 = MemoryMeta::new("neutral".to_string(), "Neutral".to_string())
-            .with_importance(0.5);
+        let emb1: Vec<f32> = (0..VECTOR_DIM)
+            .map(|i| i as f32 / VECTOR_DIM as f32)
+            .collect();
+        let meta1 =
+            MemoryMeta::new("neutral".to_string(), "Neutral".to_string()).with_importance(0.5);
         viva.store(&emb1, meta1).unwrap();
 
         // Store with high arousal
@@ -617,9 +616,11 @@ mod tests {
             arousal: 0.9,
             dominance: 0.5,
         });
-        let emb2: Vec<f32> = (0..VECTOR_DIM).map(|i| (i as f32 + 0.1) / VECTOR_DIM as f32).collect();
-        let meta2 = MemoryMeta::new("emotional".to_string(), "Emotional".to_string())
-            .with_importance(0.5);
+        let emb2: Vec<f32> = (0..VECTOR_DIM)
+            .map(|i| (i as f32 + 0.1) / VECTOR_DIM as f32)
+            .collect();
+        let meta2 =
+            MemoryMeta::new("emotional".to_string(), "Emotional".to_string()).with_importance(0.5);
         viva.store(&emb2, meta2).unwrap();
 
         // Search for the emotional memory
@@ -631,7 +632,10 @@ mod tests {
 
         if let (Some(e), Some(_n)) = (emotional, neutral) {
             // The emotional memory should have been boosted
-            assert!(e.meta.importance > 0.5, "Emotional memory importance should be boosted");
+            assert!(
+                e.meta.importance > 0.5,
+                "Emotional memory importance should be boosted"
+            );
         }
     }
 }

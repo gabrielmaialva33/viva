@@ -1,5 +1,5 @@
-use crate::prelude::*;
 use crate::dynamics::OUParams;
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Resource, Clone, Serialize, Deserialize)]
@@ -23,9 +23,21 @@ impl Default for BodyConfig {
             cusp_enabled: true,
             cusp_sensitivity: 0.5,
             ou_params: [
-                 OUParams { theta: 0.3, mu: 0.0, sigma: 0.15 },
-                 OUParams { theta: 0.5, mu: 0.0, sigma: 0.25 },
-                 OUParams { theta: 0.2, mu: 0.0, sigma: 0.10 },
+                OUParams {
+                    theta: 0.3,
+                    mu: 0.0,
+                    sigma: 0.15,
+                },
+                OUParams {
+                    theta: 0.5,
+                    mu: 0.0,
+                    sigma: 0.25,
+                },
+                OUParams {
+                    theta: 0.2,
+                    mu: 0.0,
+                    sigma: 0.10,
+                },
             ],
             seed: 0,
         }

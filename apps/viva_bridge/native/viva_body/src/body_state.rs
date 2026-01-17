@@ -1,6 +1,6 @@
+use crate::dynamics::{DynAffect, OUParams};
 use rustler::NifMap;
 use serde::{Deserialize, Serialize};
-use crate::dynamics::{DynAffect, OUParams};
 
 /// Complete hardware metrics
 #[derive(Debug, Clone, Serialize, Deserialize, NifMap)]
@@ -37,15 +37,33 @@ pub struct HardwareState {
 impl HardwareState {
     pub fn empty() -> Self {
         Self {
-            cpu_usage: 0.0, cpu_temp: None, cpu_count: 0,
-            memory_used_percent: 0.0, memory_available_gb: 0.0, memory_total_gb: 0.0, swap_used_percent: 0.0,
-            gpu_usage: None, gpu_vram_used_percent: None, gpu_temp: None, gpu_name: None,
-            disk_usage_percent: 0.0, disk_read_bytes: 0, disk_write_bytes: 0,
-            net_rx_bytes: 0, net_tx_bytes: 0,
-            uptime_seconds: 0, process_count: 0,
-            load_avg_1m: 0.0, load_avg_5m: 0.0, load_avg_15m: 0.0,
-            cpu_freq_mhz: None, l3_cache_kb: None, context_switches: 0, interrupts: 0,
-            system_entropy: 0.0, os_jitter: 0.0
+            cpu_usage: 0.0,
+            cpu_temp: None,
+            cpu_count: 0,
+            memory_used_percent: 0.0,
+            memory_available_gb: 0.0,
+            memory_total_gb: 0.0,
+            swap_used_percent: 0.0,
+            gpu_usage: None,
+            gpu_vram_used_percent: None,
+            gpu_temp: None,
+            gpu_name: None,
+            disk_usage_percent: 0.0,
+            disk_read_bytes: 0,
+            disk_write_bytes: 0,
+            net_rx_bytes: 0,
+            net_tx_bytes: 0,
+            uptime_seconds: 0,
+            process_count: 0,
+            load_avg_1m: 0.0,
+            load_avg_5m: 0.0,
+            load_avg_15m: 0.0,
+            cpu_freq_mhz: None,
+            l3_cache_kb: None,
+            context_switches: 0,
+            interrupts: 0,
+            system_entropy: 0.0,
+            os_jitter: 0.0,
         }
     }
 }
@@ -99,9 +117,21 @@ impl Default for BodyConfig {
             cusp_enabled: true,
             cusp_sensitivity: 0.5,
             ou_params: [
-                 OUParams { theta: 0.3, mu: 0.0, sigma: 0.15 },
-                 OUParams { theta: 0.5, mu: 0.0, sigma: 0.25 },
-                 OUParams { theta: 0.2, mu: 0.0, sigma: 0.10 },
+                OUParams {
+                    theta: 0.3,
+                    mu: 0.0,
+                    sigma: 0.15,
+                },
+                OUParams {
+                    theta: 0.5,
+                    mu: 0.0,
+                    sigma: 0.25,
+                },
+                OUParams {
+                    theta: 0.2,
+                    mu: 0.0,
+                    sigma: 0.10,
+                },
             ],
             seed: 0,
         }
