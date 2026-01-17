@@ -164,7 +164,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 feat(emotional): add fear stimulus with high arousal impact
 fix(bridge): correct GPU temperature reading on Windows
-docs(readme): update roadmap with Phase 4.5
+docs(readme): update roadmap with Phase 4 completion
 refactor(body): migrate to Bevy ECS architecture
 ```
 

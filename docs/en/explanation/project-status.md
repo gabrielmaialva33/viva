@@ -347,12 +347,10 @@ gantt
     Rustler NIF          :done, p3, after p2m, 4d
 
     section Phase 4
-    Senses + Qualia      :done, p4, after p3, 3d
-    Body ECS (4.5)       :done, p45, after p4, 4d
-    Quantum (4.6)        :done, p46, after p45, 3d
+    Interoception        :done, p4, after p3, 10d
 
     section Phase 5
-    Memory + Qdrant      :active, p5, after p46, 7d
+    Memory + Qdrant      :active, p5, after p4, 7d
 
     section Phase 6
     Global Workspace     :p6, after p5, 5d

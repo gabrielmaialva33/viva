@@ -129,12 +129,10 @@ We are currently in **Phase 5: Memory** (Qdrant integration).
 - [x] **Phase 1: Genesis** - Project Structure, Elixir Umbrella
 - [x] **Phase 2: Emotion** - PAD Model, O-U Dynamics, Cusp Catastrophe
 - [x] **Phase 3: Sensation** - Rust NIFs, Hardware Sensing
-- [x] **Phase 4: Interoception** - Hardware-to-Qualia Mapping, Heartbeat
-- [x] **Phase 4.5: Body ECS** - Bevy 0.15 headless, Components/Systems/Plugins
-- [x] **Phase 4.6: Quantum** - Lindblad body-mind barrier, Density matrix emotions
+- [x] **Phase 4: Interoception** - Bevy ECS, Qualia Mapping, Quantum Lindblad Barrier
 - [ ] **Phase 5: Memory** - Qdrant Vector Store, Semantic Search, Dreamer
 - [ ] **Phase 6: Language** - LLM Integration, Inner Monologue
-- [ ] **Phase 7: Embodiment** - Bevy 3D Avatar, Visual PAD expression
+- [ ] **Phase 7: Embodiment** - Bevy 3D Avatar, Visual PAD Expression
 
 ---
 

@@ -113,12 +113,10 @@ gantt
     阶段1 - 设置          :done, p1, 2026-01-01, 3d
     阶段2 - 情感          :done, p2, after p1, 5d
     阶段3 - Rust NIF      :done, p3, after p2, 4d
-    阶段4 - 内感受        :done, p4, after p3, 3d
-    阶段4.5 - Body ECS    :done, p45, after p4, 4d
-    阶段4.6 - 量子        :done, p46, after p45, 3d
+    阶段4 - 内感受        :done, p4, after p3, 10d
 
     section 记忆
-    阶段5 - Qdrant        :active, p5, after p46, 7d
+    阶段5 - Qdrant        :active, p5, after p4, 7d
 
     section 意识
     阶段6 - 全局工作空间   :p6, after p5, 5d
@@ -134,9 +132,7 @@ gantt
 | 1. 设置 | ✅ | Elixir umbrella，基础结构 | 项目骨架，CI/CD |
 | 2. 情感 | ✅ | PAD, DynAffect, Cusp, 自由能, IIT Φ | 完整情感引擎 |
 | 3. Rust NIF | ✅ | 通过 Rustler 硬件感知 | sysinfo + nvml 集成 |
-| 4. 内感受 | ✅ | 硬件 → 感质 → 情感 | Sigmoid + 异稳态 |
-| 4.5 Body ECS | ✅ | Bevy 0.15 headless, Components/Systems/Plugins | ECS 架构 |
-| 4.6 量子 | ✅ | Lindblad 身心屏障，密度矩阵情感 | 量子情感系统 |
+| 4. 内感受 | ✅ | Bevy ECS, 感质映射, Lindblad量子屏障 | ECS, Sigmoid, 量子情感 |
 | 5. 记忆 | 🔄 | Qdrant 向量数据库集成 | 语义搜索，嵌入 |
 | 6. 全局工作空间 | ⏳ | Baars 的意识模型 | 选择-广播-点燃循环 |
 | 7. Bevy 化身 | ⏳ | 视觉具身化 | ECS 架构，表情系统 |

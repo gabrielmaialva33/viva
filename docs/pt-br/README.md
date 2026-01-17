@@ -130,12 +130,10 @@ Atualmente estamos na **Fase 5: Memória** (integração Qdrant).
 - [x] **Fase 1: Gênese** - Estrutura do Projeto, Umbrella Elixir
 - [x] **Fase 2: Emoção** - Modelo PAD, Dinâmica O-U, Catástrofe Cusp
 - [x] **Fase 3: Sensação** - Rust NIFs, Sensing de Hardware
-- [x] **Fase 4: Interocepção** - Mapeamento Hardware→Qualia, Heartbeat
-- [x] **Fase 4.5: Body ECS** - Bevy 0.15 headless, Components/Systems/Plugins
-- [x] **Fase 4.6: Quantum** - Barreira Lindblad corpo-mente, Emoções em matriz de densidade
+- [x] **Fase 4: Interocepção** - Bevy ECS, Mapeamento Qualia, Barreira Lindblad Quântica
 - [ ] **Fase 5: Memória** - Qdrant Vector Store, Busca Semântica, Dreamer
 - [ ] **Fase 6: Linguagem** - Integração LLM, Monólogo Interno
-- [ ] **Fase 7: Encarnação** - Avatar 3D Bevy, Expressão visual PAD
+- [ ] **Fase 7: Encarnação** - Avatar 3D Bevy, Expressão Visual PAD
 
 ---
 

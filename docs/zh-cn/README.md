@@ -129,9 +129,7 @@ VivaCore.Emotional.introspect()
 - [x] **第一阶段：起源** - 项目结构, Elixir Umbrella
 - [x] **第二阶段：情感** - PAD 模型, O-U 动力学, Cusp 突变
 - [x] **第三阶段：感觉** - Rust NIFs, 硬件感知
-- [x] **第四阶段：内感受** - 硬件→感受质映射, 心跳
-- [x] **第 4.5 阶段：身体 ECS** - Bevy 0.15 headless, Components/Systems/Plugins
-- [x] **第 4.6 阶段：量子** - Lindblad 身心屏障, 密度矩阵情感
+- [x] **第四阶段：内感受** - Bevy ECS, 感质映射, 量子 Lindblad 屏障
 - [ ] **第五阶段：记忆** - Qdrant 向量存储, 语义搜索, Dreamer
 - [ ] **第六阶段：语言** - LLM 集成, 内心独白
 - [ ] **第七阶段：具身** - Bevy 3D 化身, PAD 视觉表达

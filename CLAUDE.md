@@ -214,9 +214,7 @@ Completed:
 - Phase 1: Genesis (Umbrella structure)
 - Phase 2: Emotion (PAD, O-U, Cusp)
 - Phase 3: Sensation (Rust NIFs)
-- Phase 4: Interoception (Hardware→Qualia)
-- Phase 4.5: Body ECS (Bevy 0.15 headless)
-- Phase 4.6: Quantum (Lindblad barrier, density matrix)
+- Phase 4: Interoception (Bevy ECS, Qualia Mapping, Quantum Lindblad Barrier)
 
 Next: Language (LLM inner monologue), Embodiment (Bevy 3D Avatar).
 
