@@ -12,7 +12,8 @@ defmodule VivaCore.Embedder do
 
   require Logger
 
-  @vector_size 1024  # NVIDIA nv-embedqa-e5-v5
+  # NVIDIA nv-embedqa-e5-v5
+  @vector_size 1024
   @ollama_url "http://localhost:11434"
   @nvidia_url "https://integrate.api.nvidia.com/v1"
 
@@ -107,7 +108,11 @@ defmodule VivaCore.Embedder do
         {"Content-Type", "application/json"}
       ]
 
-      case Req.post("#{@nvidia_url}/embeddings", json: body, headers: headers, receive_timeout: 30_000) do
+      case Req.post("#{@nvidia_url}/embeddings",
+             json: body,
+             headers: headers,
+             receive_timeout: 30_000
+           ) do
         {:ok, %{status: 200, body: %{"data" => [%{"embedding" => embedding} | _]}}} ->
           {:ok, normalize_vector(embedding)}
 
@@ -144,7 +149,8 @@ defmodule VivaCore.Embedder do
     {vec, _final_state} =
       Enum.map_reduce(1..@vector_size, initial_state, fn _, state ->
         {val, new_state} = :rand.uniform_s(state)
-        {val * 2 - 1, new_state}  # Range [-1, 1]
+        # Range [-1, 1]
+        {val * 2 - 1, new_state}
       end)
 
     normalize_l2(vec)
@@ -159,12 +165,18 @@ defmodule VivaCore.Embedder do
   end
 
   defp normalize_vector(vec) when length(vec) > @vector_size do
-    Logger.warning("[Embedder] Truncating #{length(vec)}D vector to #{@vector_size}D - consider using matching model")
+    Logger.warning(
+      "[Embedder] Truncating #{length(vec)}D vector to #{@vector_size}D - consider using matching model"
+    )
+
     vec |> Enum.take(@vector_size) |> normalize_l2()
   end
 
   defp normalize_vector(vec) when length(vec) < @vector_size do
-    Logger.warning("[Embedder] Padding #{length(vec)}D vector to #{@vector_size}D - semantic quality degraded")
+    Logger.warning(
+      "[Embedder] Padding #{length(vec)}D vector to #{@vector_size}D - semantic quality degraded"
+    )
+
     # Pad with zeros (not ideal, but maintains determinism)
     padding = List.duplicate(0.0, @vector_size - length(vec))
     (vec ++ padding) |> normalize_l2()

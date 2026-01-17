@@ -186,20 +186,21 @@ defmodule VivaCore.MemorySeed do
   def run(server \\ VivaCore.Memory) do
     Logger.info("[MemorySeed] Seeding #{length(@seeds)} foundational memories...")
 
-    results = Enum.map(@seeds, fn seed ->
-      content = String.trim(seed.content)
-      metadata = Map.drop(seed, [:content])
+    results =
+      Enum.map(@seeds, fn seed ->
+        content = String.trim(seed.content)
+        metadata = Map.drop(seed, [:content])
 
-      case Memory.store(content, metadata, server) do
-        {:ok, id} ->
-          Logger.debug("[MemorySeed] Seeded: #{String.slice(content, 0, 50)}... -> #{id}")
-          {:ok, id}
+        case Memory.store(content, metadata, server) do
+          {:ok, id} ->
+            Logger.debug("[MemorySeed] Seeded: #{String.slice(content, 0, 50)}... -> #{id}")
+            {:ok, id}
 
-        {:error, reason} ->
-          Logger.warning("[MemorySeed] Failed: #{inspect(reason)}")
-          {:error, reason}
-      end
-    end)
+          {:error, reason} ->
+            Logger.warning("[MemorySeed] Failed: #{inspect(reason)}")
+            {:error, reason}
+        end
+      end)
 
     successes = Enum.count(results, &match?({:ok, _}, &1))
     Logger.info("[MemorySeed] Completed: #{successes}/#{length(@seeds)} seeds stored")

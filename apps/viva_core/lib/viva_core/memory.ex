@@ -44,7 +44,8 @@ defmodule VivaCore.Memory do
   @behaviour VivaCore.MemoryBackend
 
   # Decay parameters (based on Ebbinghaus research)
-  @default_decay_scale 604_800  # 1 week in seconds
+  # 1 week in seconds
+  @default_decay_scale 604_800
   # TODO: implement per-memory decay scaling based on importance
 
   # ============================================================================
@@ -55,16 +56,16 @@ defmodule VivaCore.Memory do
   @type pad_emotion :: %{pleasure: float(), arousal: float(), dominance: float()}
 
   @type episode :: %{
-    id: String.t(),
-    content: String.t(),
-    type: memory_type(),
-    importance: float(),
-    emotion: pad_emotion() | nil,
-    timestamp: DateTime.t(),
-    access_count: non_neg_integer(),
-    last_accessed: DateTime.t(),
-    similarity: float() | nil
-  }
+          id: String.t(),
+          content: String.t(),
+          type: memory_type(),
+          importance: float(),
+          emotion: pad_emotion() | nil,
+          timestamp: DateTime.t(),
+          access_count: non_neg_integer(),
+          last_accessed: DateTime.t(),
+          similarity: float() | nil
+        }
 
   # ============================================================================
   # Public API
@@ -196,7 +197,10 @@ defmodule VivaCore.Memory do
             {:ok, state}
 
           {:error, reason} ->
-            Logger.warning("[Memory] Qdrant unavailable: #{inspect(reason)}, using in-memory fallback")
+            Logger.warning(
+              "[Memory] Qdrant unavailable: #{inspect(reason)}, using in-memory fallback"
+            )
+
             {:ok, Map.merge(state, %{backend: :in_memory, memories: %{}, index: []})}
         end
 
@@ -209,6 +213,7 @@ defmodule VivaCore.Memory do
           :ok ->
             Logger.info("[Memory] Memory neuron online (backend: Rust Native - God Mode)")
             {:ok, state}
+
           {:error, reason} ->
             Logger.error("[Memory] Failed to init native memory: #{inspect(reason)}")
             {:stop, reason}
@@ -232,40 +237,44 @@ defmodule VivaCore.Memory do
       last_accessed: DateTime.to_iso8601(now)
     }
 
-    result = case state.backend do
-      :qdrant ->
-        # Generate embedding
-        case Embedder.embed(content) do
-          {:ok, embedding} ->
-            Qdrant.upsert_point(id, embedding, payload)
+    result =
+      case state.backend do
+        :qdrant ->
+          # Generate embedding
+          case Embedder.embed(content) do
+            {:ok, embedding} ->
+              Qdrant.upsert_point(id, embedding, payload)
 
-          {:error, reason} ->
-            Logger.error("[Memory] Embedding failed: #{inspect(reason)}")
-            {:error, :embedding_failed}
-        end
+            {:error, reason} ->
+              Logger.error("[Memory] Embedding failed: #{inspect(reason)}")
+              {:error, :embedding_failed}
+          end
 
-      :in_memory ->
-        entry = Map.merge(payload, %{id: id, embedding: Embedder.embed_hash(content)})
-        new_memories = Map.put(state.memories, id, entry)
-        new_index = [id | state.index]
-        {:ok, id, %{state | memories: new_memories, index: new_index}}
+        :in_memory ->
+          entry = Map.merge(payload, %{id: id, embedding: Embedder.embed_hash(content)})
+          new_memories = Map.put(state.memories, id, entry)
+          new_index = [id | state.index]
+          {:ok, id, %{state | memories: new_memories, index: new_index}}
 
-      :rust_native ->
-        case Embedder.embed(content) do
-          {:ok, embedding} ->
-            # NativeMemory.store/2 expects (vector, metadata_map)
-            metadata_for_native = payload
-            |> Map.put(:id, id)
-            |> Map.put(:content, content)
+        :rust_native ->
+          case Embedder.embed(content) do
+            {:ok, embedding} ->
+              # NativeMemory.store/2 expects (vector, metadata_map)
+              metadata_for_native =
+                payload
+                |> Map.put(:id, id)
+                |> Map.put(:content, content)
 
-            case NativeMemory.store(embedding, metadata_for_native) do
-              "Memory stored" -> {:ok, id}
-              {:ok, _} -> {:ok, id}
-              error -> {:error, error}
-            end
-          {:error, reason} -> {:error, reason}
-        end
-    end
+              case NativeMemory.store(embedding, metadata_for_native) do
+                "Memory stored" -> {:ok, id}
+                {:ok, _} -> {:ok, id}
+                error -> {:error, error}
+              end
+
+            {:error, reason} ->
+              {:error, reason}
+          end
+      end
 
     case result do
       {:ok, id} ->
@@ -294,47 +303,66 @@ defmodule VivaCore.Memory do
     # Calculate decay scale based on importance
     base_decay = Keyword.get(opts, :decay_scale, @default_decay_scale)
 
-    result = case state.backend do
-      :qdrant ->
-        case Embedder.embed(query) do
-          {:ok, query_vector} ->
-            # Build filter
-            filter = build_filter(type_filter, min_importance)
+    result =
+      case state.backend do
+        :qdrant ->
+          case Embedder.embed(query) do
+            {:ok, query_vector} ->
+              # Build filter
+              filter = build_filter(type_filter, min_importance)
 
-            Qdrant.search_with_decay(query_vector,
-              limit: limit,
-              decay_scale: base_decay,
-              filter: filter
-            )
+              Qdrant.search_with_decay(query_vector,
+                limit: limit,
+                decay_scale: base_decay,
+                filter: filter
+              )
 
-          {:error, _} ->
-            {:ok, []}
-        end
+            {:error, _} ->
+              {:ok, []}
+          end
 
-      :in_memory ->
-        search_in_memory(state, query, limit)
+        :in_memory ->
+          search_in_memory(state, query, limit)
 
-      :rust_native ->
-        case Embedder.embed(query) do
-          {:ok, query_vector} ->
-            # NativeMemory.search/2 expects (vector, limit)
-            raw_results = NativeMemory.search(query_vector, limit)
-            # Results are already a list from NIF
-            formatted = Enum.map(raw_results, fn result ->
-              # Adapt to whatever format the NIF returns
-              case result do
-                {id, content, score, _imp} ->
-                  %{id: id, content: content, similarity: score, timestamp: nil, importance: 0.0}
-                %{} = map ->
-                  Map.merge(%{timestamp: nil, importance: 0.0}, map)
-                _ ->
-                  %{id: nil, content: inspect(result), similarity: 0.0, timestamp: nil, importance: 0.0}
-              end
-            end)
-            {:ok, formatted}
-          {:error, _} -> {:ok, []}
-        end
-    end
+        :rust_native ->
+          case Embedder.embed(query) do
+            {:ok, query_vector} ->
+              # NativeMemory.search/2 expects (vector, limit)
+              raw_results = NativeMemory.search(query_vector, limit)
+              # Results are already a list from NIF
+              formatted =
+                Enum.map(raw_results, fn result ->
+                  # Adapt to whatever format the NIF returns
+                  case result do
+                    {id, content, score, _imp} ->
+                      %{
+                        id: id,
+                        content: content,
+                        similarity: score,
+                        timestamp: nil,
+                        importance: 0.0
+                      }
+
+                    %{} = map ->
+                      Map.merge(%{timestamp: nil, importance: 0.0}, map)
+
+                    _ ->
+                      %{
+                        id: nil,
+                        content: inspect(result),
+                        similarity: 0.0,
+                        timestamp: nil,
+                        importance: 0.0
+                      }
+                  end
+                end)
+
+              {:ok, formatted}
+
+            {:error, _} ->
+              {:ok, []}
+          end
+      end
 
     case result do
       {:ok, memories} ->
@@ -348,26 +376,29 @@ defmodule VivaCore.Memory do
 
   @impl true
   def handle_call({:get, id}, _from, state) do
-    result = case state.backend do
-      :qdrant ->
-        case Qdrant.get_point(id) do
-          {:ok, memory} ->
-            # Increment access count (spaced repetition)
-            Qdrant.update_payload(id, %{
-              access_count: (memory[:access_count] || 0) + 1,
-              last_accessed: DateTime.utc_now() |> DateTime.to_iso8601()
-            })
-            {:ok, memory}
+    result =
+      case state.backend do
+        :qdrant ->
+          case Qdrant.get_point(id) do
+            {:ok, memory} ->
+              # Increment access count (spaced repetition)
+              Qdrant.update_payload(id, %{
+                access_count: (memory[:access_count] || 0) + 1,
+                last_accessed: DateTime.utc_now() |> DateTime.to_iso8601()
+              })
 
-          error -> error
-        end
+              {:ok, memory}
 
-      :in_memory ->
-        case Map.get(state.memories, id) do
-          nil -> {:error, :not_found}
-          mem -> {:ok, mem}
-        end
-    end
+            error ->
+              error
+          end
+
+        :in_memory ->
+          case Map.get(state.memories, id) do
+            nil -> {:error, :not_found}
+            mem -> {:ok, mem}
+          end
+      end
 
     case result do
       {:ok, memory} -> {:reply, memory, state}
@@ -384,36 +415,38 @@ defmodule VivaCore.Memory do
       search_count: state.search_count
     }
 
-    stats = case state.backend do
-      :qdrant ->
-        case Qdrant.stats() do
-          {:ok, qdrant_stats} -> Map.merge(base_stats, qdrant_stats)
-          _ -> base_stats
-        end
+    stats =
+      case state.backend do
+        :qdrant ->
+          case Qdrant.stats() do
+            {:ok, qdrant_stats} -> Map.merge(base_stats, qdrant_stats)
+            _ -> base_stats
+          end
 
-      :in_memory ->
-        Map.put(base_stats, :points_count, map_size(state.memories))
+        :in_memory ->
+          Map.put(base_stats, :points_count, map_size(state.memories))
 
-      :rust_native ->
-        # NativeMemory doesn't expose stats yet - return base stats
-        Map.put(base_stats, :points_count, :unknown)
-    end
+        :rust_native ->
+          # NativeMemory doesn't expose stats yet - return base stats
+          Map.put(base_stats, :points_count, :unknown)
+      end
 
     {:reply, stats, state}
   end
 
   @impl true
   def handle_cast({:forget, id}, state) do
-    new_state = case state.backend do
-      :qdrant ->
-        Qdrant.delete_point(id)
-        state
+    new_state =
+      case state.backend do
+        :qdrant ->
+          Qdrant.delete_point(id)
+          state
 
-      :in_memory ->
-        new_memories = Map.delete(state.memories, id)
-        new_index = Enum.reject(state.index, &(&1 == id))
-        %{state | memories: new_memories, index: new_index}
-    end
+        :in_memory ->
+          new_memories = Map.delete(state.memories, id)
+          new_index = Enum.reject(state.index, &(&1 == id))
+          %{state | memories: new_memories, index: new_index}
+      end
 
     Logger.debug("[Memory] Forgot: #{id}")
     {:noreply, new_state}
@@ -442,7 +475,8 @@ defmodule VivaCore.Memory do
     # Check if Dreamer is running before sending
     case Process.whereis(VivaCore.Dreamer) do
       nil ->
-        :ok  # Dreamer not running, skip notification
+        # Dreamer not running, skip notification
+        :ok
 
       _pid ->
         # Don't block the Memory process - fire and forget
@@ -450,7 +484,8 @@ defmodule VivaCore.Memory do
           try do
             VivaCore.Dreamer.on_memory_stored(memory_id, importance)
           rescue
-            _ -> :ok  # Ignore errors
+            # Ignore errors
+            _ -> :ok
           catch
             :exit, _ -> :ok
           end
@@ -463,17 +498,19 @@ defmodule VivaCore.Memory do
   defp build_filter(type, min_importance) do
     conditions = []
 
-    conditions = if type do
-      [%{key: "type", match: %{value: Atom.to_string(type)}} | conditions]
-    else
-      conditions
-    end
+    conditions =
+      if type do
+        [%{key: "type", match: %{value: Atom.to_string(type)}} | conditions]
+      else
+        conditions
+      end
 
-    conditions = if min_importance > 0 do
-      [%{key: "importance", range: %{gte: min_importance}} | conditions]
-    else
-      conditions
-    end
+    conditions =
+      if min_importance > 0 do
+        [%{key: "importance", range: %{gte: min_importance}} | conditions]
+      else
+        conditions
+      end
 
     if conditions == [] do
       nil
@@ -485,14 +522,15 @@ defmodule VivaCore.Memory do
   defp search_in_memory(state, query, limit) do
     query_vec = Embedder.embed_hash(query)
 
-    results = state.memories
-    |> Map.values()
-    |> Enum.map(fn mem ->
-      similarity = cosine_similarity(query_vec, mem[:embedding] || [])
-      Map.put(mem, :similarity, similarity)
-    end)
-    |> Enum.sort_by(& &1[:similarity], :desc)
-    |> Enum.take(limit)
+    results =
+      state.memories
+      |> Map.values()
+      |> Enum.map(fn mem ->
+        similarity = cosine_similarity(query_vec, mem[:embedding] || [])
+        Map.put(mem, :similarity, similarity)
+      end)
+      |> Enum.sort_by(& &1[:similarity], :desc)
+      |> Enum.take(limit)
 
     {:ok, results}
   end
@@ -500,6 +538,7 @@ defmodule VivaCore.Memory do
   defp cosine_similarity([], _), do: 0.0
   defp cosine_similarity(_, []), do: 0.0
   defp cosine_similarity(a, b) when length(a) != length(b), do: 0.0
+
   defp cosine_similarity(a, b) do
     dot = Enum.zip(a, b) |> Enum.reduce(0, fn {x, y}, acc -> acc + x * y end)
     mag_a = :math.sqrt(Enum.reduce(a, 0, fn x, acc -> acc + x * x end))

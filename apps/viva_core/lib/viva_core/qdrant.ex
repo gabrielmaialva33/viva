@@ -12,7 +12,8 @@ defmodule VivaCore.Qdrant do
 
   @base_url "http://localhost:6333"
   @collection "viva_memories"
-  @vector_size 1024  # NVIDIA nv-embedqa-e5-v5 dimension
+  # NVIDIA nv-embedqa-e5-v5 dimension
+  @vector_size 1024
 
   # ============================================================================
   # Collection Management
@@ -110,11 +111,12 @@ defmodule VivaCore.Qdrant do
   """
   def upsert_point(id, embedding, payload) do
     # Ensure timestamp is ISO8601 string
-    payload = Map.update(payload, :timestamp, DateTime.utc_now() |> DateTime.to_iso8601(), fn
-      %DateTime{} = dt -> DateTime.to_iso8601(dt)
-      str when is_binary(str) -> str
-      _ -> DateTime.utc_now() |> DateTime.to_iso8601()
-    end)
+    payload =
+      Map.update(payload, :timestamp, DateTime.utc_now() |> DateTime.to_iso8601(), fn
+        %DateTime{} = dt -> DateTime.to_iso8601(dt)
+        str when is_binary(str) -> str
+        _ -> DateTime.utc_now() |> DateTime.to_iso8601()
+      end)
 
     body = %{
       points: [
@@ -154,7 +156,8 @@ defmodule VivaCore.Qdrant do
   """
   def search_with_decay(query_vector, opts \\ []) do
     limit = Keyword.get(opts, :limit, 10)
-    decay_scale = Keyword.get(opts, :decay_scale, 604_800)  # 1 week
+    # 1 week
+    decay_scale = Keyword.get(opts, :decay_scale, 604_800)
     decay_midpoint = Keyword.get(opts, :decay_midpoint, 0.5)
     filter = Keyword.get(opts, :filter, nil)
     now = DateTime.utc_now() |> DateTime.to_iso8601()
@@ -163,15 +166,18 @@ defmodule VivaCore.Qdrant do
     body = %{
       prefetch: %{
         query: query_vector,
-        limit: limit * 2  # prefetch more for decay filtering
+        # prefetch more for decay filtering
+        limit: limit * 2
       },
       query: %{
         formula: %{
           sum: [
-            "$score",  # original similarity
+            # original similarity
+            "$score",
             %{
               mult: [
-                0.3,  # weight for time decay (30%)
+                # weight for time decay (30%)
+                0.3,
                 %{
                   exp_decay: %{
                     x: %{datetime_key: "timestamp"},
@@ -284,11 +290,12 @@ defmodule VivaCore.Qdrant do
   def stats do
     case Req.get("#{@base_url}/collections/#{@collection}") do
       {:ok, %{status: 200, body: %{"result" => result}}} ->
-        {:ok, %{
-          points_count: get_in(result, ["points_count"]) || 0,
-          vectors_count: get_in(result, ["vectors_count"]) || 0,
-          status: get_in(result, ["status"])
-        }}
+        {:ok,
+         %{
+           points_count: get_in(result, ["points_count"]) || 0,
+           vectors_count: get_in(result, ["vectors_count"]) || 0,
+           status: get_in(result, ["status"])
+         }}
 
       {:error, reason} ->
         {:error, reason}

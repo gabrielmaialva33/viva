@@ -16,9 +16,11 @@ defmodule VivaBridge.Memory do
       msg when is_binary(msg) ->
         Logger.info("[Memory] #{msg}")
         :ok
+
       {:ok, msg} ->
         Logger.info("[Memory] #{msg}")
         :ok
+
       {:error, reason} ->
         Logger.error("[Memory] Failed to init: #{inspect(reason)}")
         {:error, reason}
@@ -40,7 +42,9 @@ defmodule VivaBridge.Memory do
   """
   def search(vector, limit \\ 5) do
     case Body.memory_search(vector, limit) do
-      results when is_list(results) -> results
+      results when is_list(results) ->
+        results
+
       {:error, reason} ->
         Logger.error("[Memory] Search failed: #{inspect(reason)}")
         []

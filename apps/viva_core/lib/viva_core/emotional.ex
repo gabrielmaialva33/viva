@@ -591,6 +591,7 @@ defmodule VivaCore.Emotional do
     # The body defines γ (decoherence rate) via L_pressure and L_noise operators
     # High watts/temp = body "measures" mind constantly = forced focus
     dt = 0.5
+
     new_rho =
       VivaCore.Quantum.Emotional.evolve(
         state.quantum_state,
@@ -606,6 +607,7 @@ defmodule VivaCore.Emotional do
 
     if collapsed do
       qualia = VivaCore.Quantum.Emotional.hardware_to_qualia(metrics)
+
       Logger.info(
         "[Emotional] COLLAPSE! Body forced decision. Feeling: #{qualia.thought_pressure}"
       )

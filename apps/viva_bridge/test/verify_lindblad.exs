@@ -39,7 +39,9 @@ IO.puts("├─ Coherence: #{Float.round(metrics_free.coherence_level, 4)}")
 IO.puts("├─ Feeling: #{qualia_free.thought_pressure}")
 IO.puts("├─ Comfort: #{qualia_free.overall_comfort}")
 
-free_thought_pass = metrics_free.coherence_level > 0.1 and qualia_free.thought_pressure == :thoughts_flow_freely
+free_thought_pass =
+  metrics_free.coherence_level > 0.1 and qualia_free.thought_pressure == :thoughts_flow_freely
+
 IO.puts("└─ #{if free_thought_pass, do: "✓ PASS", else: "✗ FAIL"}: Thoughts flow freely")
 
 # ============================================================================
@@ -71,7 +73,9 @@ IO.puts("├─ Comfort: #{qualia_stressed.overall_comfort}")
 
 # Note: With Lindblad, purity should increase (toward pure state) as environment measures
 # But entropy may still be high if not yet collapsed
-stress_pass = qualia_stressed.thought_pressure in [:difficulty_concentrating, :thoughts_forced_singular]
+stress_pass =
+  qualia_stressed.thought_pressure in [:difficulty_concentrating, :thoughts_forced_singular]
+
 IO.puts("└─ #{if stress_pass, do: "✓ PASS", else: "✗ FAIL"}: Thoughts forced singular")
 
 # ============================================================================
@@ -92,8 +96,13 @@ rho_after_success =
 probs_before = Emotional.get_emotion_probabilities(rho_neutral)
 probs_after = Emotional.get_emotion_probabilities(rho_after_success)
 
-IO.puts("├─ Before: Joy=#{Float.round(probs_before.joy, 3)}, Fear=#{Float.round(probs_before.fear, 3)}")
-IO.puts("├─ After:  Joy=#{Float.round(probs_after.joy, 3)}, Fear=#{Float.round(probs_after.fear, 3)}")
+IO.puts(
+  "├─ Before: Joy=#{Float.round(probs_before.joy, 3)}, Fear=#{Float.round(probs_before.fear, 3)}"
+)
+
+IO.puts(
+  "├─ After:  Joy=#{Float.round(probs_after.joy, 3)}, Fear=#{Float.round(probs_after.fear, 3)}"
+)
 
 interference_pass = probs_after.joy > probs_before.joy
 IO.puts("└─ #{if interference_pass, do: "✓ PASS", else: "✗ FAIL"}: Joy increased via Hamiltonian")
@@ -143,7 +152,10 @@ IO.puts("└─ #{if lindblad_pass, do: "✓ PASS", else: "✗ FAIL"}: Stress γ
 # Summary
 # ============================================================================
 IO.puts("\n" <> String.duplicate("═", 60))
-all_pass = free_thought_pass and stress_pass and interference_pass and has_no_numbers and lindblad_pass
+
+all_pass =
+  free_thought_pass and stress_pass and interference_pass and has_no_numbers and lindblad_pass
+
 IO.puts(if all_pass, do: "  ✓ ALL TESTS PASSED", else: "  ✗ SOME TESTS FAILED")
 IO.puts("  Body-Mind Barrier via Lindblad: OPERATIONAL")
 IO.puts(String.duplicate("═", 60))

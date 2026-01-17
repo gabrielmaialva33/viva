@@ -9,8 +9,14 @@ defmodule VivaCore.DreamerTest do
 
   setup do
     # Start dependencies
-    {:ok, emotional} = Emotional.start_link(name: :"emotional_#{:erlang.unique_integer([:positive])}")
-    {:ok, memory} = Memory.start_link(name: :"memory_#{:erlang.unique_integer([:positive])}", backend: :in_memory)
+    {:ok, emotional} =
+      Emotional.start_link(name: :"emotional_#{:erlang.unique_integer([:positive])}")
+
+    {:ok, memory} =
+      Memory.start_link(
+        name: :"memory_#{:erlang.unique_integer([:positive])}",
+        backend: :in_memory
+      )
 
     {:ok, dreamer} =
       Dreamer.start_link(
@@ -138,8 +144,8 @@ defmodule VivaCore.DreamerTest do
       now = DateTime.utc_now() |> DateTime.to_unix()
       one_week_ago = now - 604_800
 
-      recent_decay = :math.exp(-(0) / 604_800) * (1 + :math.log(1 + 0) / 10)
-      old_decay = :math.exp(-(604_800) / 604_800) * (1 + :math.log(1 + 0) / 10)
+      recent_decay = :math.exp(-0 / 604_800) * (1 + :math.log(1 + 0) / 10)
+      old_decay = :math.exp(-604_800 / 604_800) * (1 + :math.log(1 + 0) / 10)
 
       assert recent_decay > old_decay
       assert_in_delta recent_decay, 1.0, 0.01
@@ -168,7 +174,8 @@ defmodule VivaCore.DreamerTest do
       assert_in_delta same_resonance, 1.0, 0.01
 
       # Opposite corners of PAD cube: (1,1,1) vs (-1,-1,-1)
-      opposite_distance = :math.sqrt(4 + 4 + 4)  # sqrt(12)
+      # sqrt(12)
+      opposite_distance = :math.sqrt(4 + 4 + 4)
       opposite_resonance = 1 - opposite_distance / pad_diagonal
       assert_in_delta opposite_resonance, 0.0, 0.01
     end

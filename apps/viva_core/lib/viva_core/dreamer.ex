@@ -465,7 +465,9 @@ defmodule VivaCore.Dreamer do
     end
 
     # Log termination
-    Logger.info("[Dreamer] Terminating: #{inspect(reason)}. #{length(state.thoughts)} thoughts in memory.")
+    Logger.info(
+      "[Dreamer] Terminating: #{inspect(reason)}. #{length(state.thoughts)} thoughts in memory."
+    )
 
     :ok
   end
@@ -478,7 +480,9 @@ defmodule VivaCore.Dreamer do
     # Multiple reflection iterations
     {all_insights, _final_state} =
       Enum.reduce(1..@sleep_cycle_iterations, {[], state}, fn iteration, {acc, s} ->
-        Logger.info("[Dreamer] Sleep reflection iteration #{iteration}/#{@sleep_cycle_iterations}")
+        Logger.info(
+          "[Dreamer] Sleep reflection iteration #{iteration}/#{@sleep_cycle_iterations}"
+        )
 
         case safe_reflection(s, :sleep) do
           {:ok, result, new_s} ->
