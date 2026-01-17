@@ -56,6 +56,9 @@ defmodule VivaBridge.Body do
     body_tick()
   end
 
+  @doc "Applies emotional stimulus directly to ECS"
+  def apply_stimulus(_p, _a, _d), do: :erlang.nif_error(:nif_not_loaded)
+
   def body_engine_get_pad(_engine), do: {0.0, 0.0, 0.0}
   def body_engine_set_pad(_engine, _p, _a, _d), do: :ok
   def body_engine_apply_stimulus(_engine, _p, _a, _d), do: :ok

@@ -219,14 +219,35 @@ fn memory_save() -> NifResult<String> { Ok("Saved".to_string()) }
 #[rustler::nif]
 fn memory_stats(_b: String) -> NifResult<String> { Ok("Stats".to_string()) }
 
+#[rustler::nif]
+fn apply_stimulus(p: f64, a: f64, d: f64) -> NifResult<String> {
+    let mut guard = get_or_init_app().lock().unwrap();
+    let app = &mut guard.0;
+    let world = app.world_mut();
+
+    let mut query = world.query::<&mut EcsEmotionalState>();
+
+    // We assume single entity with EmotionalState (the body)
+    if let Ok(mut emo) = query.get_single_mut(world) {
+        // Apply deltas directly
+        emo.pleasure = (emo.pleasure + p).clamp(-1.0, 1.0);
+        emo.arousal = (emo.arousal + a).clamp(-1.0, 1.0);
+        emo.dominance = (emo.dominance + d).clamp(-1.0, 1.0);
+        Ok("Applied".to_string())
+    } else {
+        Ok("No body found".to_string())
+    }
+}
+
 rustler::init!(
     "Elixir.VivaBridge.Body",
     [
         alive,
         body_tick,
         poll_channel,
-        metabolism_init, // Now implemented
-        metabolism_tick, // Now implemented
+        apply_stimulus, // New NIF
+        metabolism_init,
+        metabolism_tick,
         memory_init,
         memory_store,
         memory_search,

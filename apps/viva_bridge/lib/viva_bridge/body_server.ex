@@ -170,16 +170,19 @@ defmodule VivaBridge.BodyServer do
     # Create the Rust engine
     engine = Body.body_engine_new_with_config(dt, cusp_enabled, cusp_sensitivity, seed)
 
+    # Initial tick to populate state immediately (avoid nil on first get_state)
+    initial_body_state = Body.body_engine_tick(engine)
+
     state = %{
       engine: engine,
       tick_interval: tick_interval,
       pubsub: pubsub,
       topic: topic,
-      last_state: nil,
+      last_state: initial_body_state,
       paused: false
     }
 
-    # Schedule first tick
+    # Schedule subsequent ticks
     schedule_tick(tick_interval)
 
     Logger.info("[BodyServer] Started with interval=#{tick_interval}ms, cusp=#{cusp_enabled}")
@@ -194,7 +197,8 @@ defmodule VivaBridge.BodyServer do
 
   @impl true
   def handle_call(:get_pad, _from, state) do
-    pad = Body.body_engine_get_pad(state.engine)
+    s = state.last_state
+    pad = {s.pleasure, s.arousal, s.dominance}
     {:reply, pad, state}
   end
 
@@ -212,7 +216,7 @@ defmodule VivaBridge.BodyServer do
 
   @impl true
   def handle_cast({:apply_stimulus, p, a, d}, state) do
-    Body.body_engine_apply_stimulus(state.engine, p, a, d)
+    Body.apply_stimulus(p, a, d)
     {:noreply, state}
   end
 
