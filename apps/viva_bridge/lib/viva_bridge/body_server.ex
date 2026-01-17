@@ -52,10 +52,6 @@ defmodule VivaBridge.BodyServer do
   alias VivaBridge.Body
 
   @default_tick_interval 500
-  @default_dt 0.5
-  @default_cusp_enabled true
-  @default_cusp_sensitivity 0.5
-  @default_seed 0
 
   # ============================================================================
   # Client API
@@ -67,9 +63,6 @@ defmodule VivaBridge.BodyServer do
   ## Options
 
   - `:tick_interval` - milliseconds between ticks (default: 500)
-  - `:cusp_enabled` - enable cusp catastrophe dynamics (default: true)
-  - `:cusp_sensitivity` - cusp effect strength 0-1 (default: 0.5)
-  - `:seed` - RNG seed, 0 = use system time (default: 0)
   - `:pubsub` - PubSub module to broadcast state (optional)
   - `:topic` - PubSub topic (default: "body:state")
   - `:name` - GenServer name (default: __MODULE__)
@@ -160,21 +153,14 @@ defmodule VivaBridge.BodyServer do
   @impl true
   def init(opts) do
     tick_interval = Keyword.get(opts, :tick_interval, @default_tick_interval)
-    dt = Keyword.get(opts, :dt, @default_dt)
-    cusp_enabled = Keyword.get(opts, :cusp_enabled, @default_cusp_enabled)
-    cusp_sensitivity = Keyword.get(opts, :cusp_sensitivity, @default_cusp_sensitivity)
-    seed = Keyword.get(opts, :seed, @default_seed)
     pubsub = Keyword.get(opts, :pubsub)
     topic = Keyword.get(opts, :topic, "body:state")
 
-    # Create the Rust engine
-    engine = Body.body_engine_new_with_config(dt, cusp_enabled, cusp_sensitivity, seed)
-
     # Initial tick to populate state immediately (avoid nil on first get_state)
-    initial_body_state = Body.body_engine_tick(engine)
+    # Bevy ECS Body is a singleton - no engine reference needed
+    initial_body_state = Body.body_tick()
 
     state = %{
-      engine: engine,
       tick_interval: tick_interval,
       pubsub: pubsub,
       topic: topic,
@@ -185,7 +171,7 @@ defmodule VivaBridge.BodyServer do
     # Schedule subsequent ticks
     schedule_tick(tick_interval)
 
-    Logger.info("[BodyServer] Started with interval=#{tick_interval}ms, cusp=#{cusp_enabled}")
+    Logger.info("[BodyServer] Started with interval=#{tick_interval}ms")
 
     {:ok, state}
   end
@@ -210,7 +196,7 @@ defmodule VivaBridge.BodyServer do
 
   @impl true
   def handle_cast({:set_pad, p, a, d}, state) do
-    Body.body_engine_set_pad(state.engine, p, a, d)
+    Body.apply_stimulus(p, a, d)
     {:noreply, state}
   end
 
@@ -251,8 +237,8 @@ defmodule VivaBridge.BodyServer do
   # ============================================================================
 
   defp do_tick(state) do
-    # Execute tick in Rust
-    body_state = Body.body_engine_tick(state.engine)
+    # Execute tick in Bevy ECS (singleton)
+    body_state = Body.body_tick()
 
     # Broadcast if configured and PubSub module is available
     maybe_broadcast(state.pubsub, state.topic, body_state)
@@ -285,22 +271,18 @@ defmodule VivaBridge.BodyServer do
     # 3. Experience it! (Learn/Feel)
     # Only if arousal is significant to avoid spamming memory with noise
     if abs(emotion.arousal) > 0.1 do
-      case VivaBridge.Brain.experience(full_narrative, emotion) do
-        {:ok, vector} ->
-          # 4. Store memory (Conceptualize)
-          meta = %{
-            type: "episodic",
-            source: "interoception",
-            content: full_narrative,
-            timestamp: System.os_time(:millisecond),
-            emotion: emotion
-          }
+      {:ok, vector} = VivaBridge.Brain.experience(full_narrative, emotion)
 
-          VivaBridge.Memory.store(vector, meta)
+      # 4. Store memory (Conceptualize)
+      meta = %{
+        type: "episodic",
+        source: "interoception",
+        content: full_narrative,
+        timestamp: System.os_time(:millisecond),
+        emotion: emotion
+      }
 
-        {:error, _} ->
-          :ok
-      end
+      VivaBridge.Memory.store(vector, meta)
     end
 
     {%{state | last_state: body_state}, body_state}
