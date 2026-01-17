@@ -455,6 +455,7 @@ defmodule VivaCore.Emotional do
       thermodynamic_cost: 0.0,
       last_collapse: nil,
       body_server_active: false,
+      last_body_sync: nil,
 
       # Test configuration
       enable_decay: enable_decay?
@@ -611,7 +612,8 @@ defmodule VivaCore.Emotional do
 
     # Disable internal decay when syncing from BodyServer
     # (BodyServer already does O-U + Cusp dynamics)
-    new_state = %{state | pad: new_pad, body_server_active: true}
+    # Track last sync time to detect BodyServer death
+    new_state = %{state | pad: new_pad, body_server_active: true, last_body_sync: System.monotonic_time(:second)}
     {:noreply, new_state}
   end
 
@@ -672,9 +674,15 @@ defmodule VivaCore.Emotional do
      }}
   end
 
+  # Timeout for detecting BodyServer death (3 seconds without sync)
+  @body_sync_timeout_seconds 3
+
   @impl true
   def handle_info(:decay_tick, state) do
     schedule_decay()
+
+    # Check if BodyServer is still alive (received sync within timeout)
+    state = maybe_reactivate_decay(state)
 
     # When BodyServer is active, it handles O-U dynamics in Rust
     # We skip internal decay to avoid duplication
@@ -693,6 +701,28 @@ defmodule VivaCore.Emotional do
       end
 
       {:noreply, %{state | pad: new_pad}}
+    end
+  end
+
+  # Detect BodyServer death by checking sync timeout
+  defp maybe_reactivate_decay(state) do
+    cond do
+      # Not active, nothing to check
+      not state.body_server_active ->
+        state
+
+      # No sync timestamp recorded yet
+      is_nil(state.last_body_sync) ->
+        state
+
+      # Check if sync is stale (BodyServer likely dead)
+      System.monotonic_time(:second) - state.last_body_sync > @body_sync_timeout_seconds ->
+        Logger.warning("[Emotional] BodyServer sync timeout - reactivating internal O-U decay")
+        %{state | body_server_active: false}
+
+      # Sync is recent, keep BodyServer active
+      true ->
+        state
     end
   end
 

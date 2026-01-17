@@ -81,7 +81,14 @@ fn alive() -> String {
 
 #[rustler::nif]
 fn body_tick() -> BodyState {
-    let mut guard = get_or_init_app().lock().unwrap();
+    // Safe lock - return default on poison instead of panic
+    let mut guard = match get_or_init_app().lock() {
+        Ok(g) => g,
+        Err(poisoned) => {
+            eprintln!("[viva_body] WARNING: Mutex poisoned in body_tick, recovering...");
+            poisoned.into_inner() // Recover from poisoned state
+        }
+    };
     let app = &mut guard.0;
 
     app.update();
@@ -229,7 +236,14 @@ fn memory_stats(_b: String) -> NifResult<String> {
 
 #[rustler::nif]
 fn apply_stimulus(p: f64, a: f64, d: f64) -> NifResult<String> {
-    let mut guard = get_or_init_app().lock().unwrap();
+    // Safe lock - recover from poison
+    let mut guard = match get_or_init_app().lock() {
+        Ok(g) => g,
+        Err(poisoned) => {
+            eprintln!("[viva_body] WARNING: Mutex poisoned in apply_stimulus, recovering...");
+            poisoned.into_inner()
+        }
+    };
     let app = &mut guard.0;
     let world = app.world_mut();
 

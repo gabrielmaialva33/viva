@@ -205,12 +205,14 @@ defmodule VivaCore.Senses do
     end
   end
 
-  defp fallback_direct_nif(state) do
+  defp fallback_direct_nif(_state) do
     # Direct NIF call when BodyServer is not available
-    {p, a, d} = VivaBridge.hardware_to_qualia()
+    # NOTE: We only read hardware - PAD sync is skipped because:
+    # 1. hardware_to_qualia() is stubbed (returns 0,0,0)
+    # 2. Internal O-U decay in Emotional handles PAD evolution
     hardware = VivaBridge.feel_hardware()
-    VivaCore.Emotional.apply_hardware_qualia(p, a, d, state.emotional_server)
-    {p, a, d, hardware}
+    # Return neutral PAD (Emotional's internal decay will handle evolution)
+    {0.0, 0.0, 0.0, hardware}
   end
 
   defp do_heartbeat(state) do

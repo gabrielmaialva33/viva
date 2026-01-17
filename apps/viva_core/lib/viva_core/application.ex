@@ -47,9 +47,10 @@ defmodule VivaCore.Application do
       # {VivaCore.GlobalWorkspace, name: VivaCore.GlobalWorkspace}
     ]
 
-    # :rest_for_one - If Emotional crashes, Senses also restarts
-    # (Senses depends on Emotional being registered)
-    opts = [strategy: :rest_for_one, name: VivaCore.Supervisor]
+    # :one_for_one - If a neuron dies, only it is restarted
+    # Each neuron is independent and can tolerate temporary absence of others
+    # (Emotional has timeout detection for Senses death)
+    opts = [strategy: :one_for_one, name: VivaCore.Supervisor]
 
     case Supervisor.start_link(children, opts) do
       {:ok, pid} ->
