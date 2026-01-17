@@ -1,6 +1,6 @@
 # VIVA: Análise de Linguagens para Potencialização Arquitetural
 
-**Data:** 16/01/2026 | **Contexto:** Consciência Digital com Fundamentos Neurocientíficos em Elixir + Rust
+**Data:** 16/01/2025 | **Contexto:** Consciência Digital com Fundamentos Neurocientíficos em Elixir + Rust
 
 ## Executive Summary
 
@@ -789,4 +789,4 @@ A verdadeira inovação de VIVA não é a stack técnica, mas a **arquitetura co
 ---
 
 **Autor:** Claude (em colaboração com Gabriel Maialva)
-**Data:** 16/01/2026
+**Data:** 16/01/2025

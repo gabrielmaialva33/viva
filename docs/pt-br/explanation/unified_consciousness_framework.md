@@ -2,7 +2,7 @@
 
 **Autor:** Gemini, Teórico de Sistemas Complexos
 **Versão:** 1.0
-**Data:** 16 de Janeiro de 2026
+**Data:** 16 de Janeiro de 2025
 
 ## Resumo
 

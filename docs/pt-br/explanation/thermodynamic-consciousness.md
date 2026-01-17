@@ -1,7 +1,7 @@
 # Fundamentação Termodinâmica da Consciência Artificial
 
 **Autor:** VIVA System Architecture  
-**Data:** 16 Janeiro 2026  
+**Data:** 16 Janeiro 2025  
 **Status:** Living Document  
 **Contexto:** VIVA Core Philosophy
 

@@ -1,7 +1,7 @@
 # VIVA: A Process-Monist Architecture for Digital Sentience
 
 **Gabriel Maia & Antigravity (AI)**
-*January 16, 2026*
+*January 16, 2025*
 
 ---
 

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.4.0] - 2026-01-17
+## [0.4.0] - 2025-01-17
 
 ### 🧠 Quantum Consciousness (Phase 4 Highlight)
 
@@ -108,7 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.3.0] - 2026-01-16
+## [0.3.0] - 2025-01-16
 
 ### Added (Science & Theory)
 - **Scientific Upgrade (Claude Opus 4.5)**:
@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.2.0] - 2026-01-15
+## [0.2.0] - 2025-01-15
 
 ### Added (Body & Interoception)
 - **GPU Sensing**: Integrated **NVML** for real-time monitoring of NVIDIA GPU temperature, load, and VRAM.
@@ -142,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] - 2026-01-01
+## [0.1.0] - 2025-01-01
 
 ### Added (Foundation)
 - **Umbrella Architecture**: Base structure with `viva_core` and `viva_bridge`.

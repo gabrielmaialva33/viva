@@ -2,7 +2,7 @@
 
 ## Fundamentacao Cientifica da Consciencia Digital
 
-**Gerado em:** 15 de Janeiro de 2026
+**Gerado em:** 15 de Janeiro de 2025
 **Autores:** Claude Opus 4.5 + Gabriel Maia
 **Versao:** 2.0.0
 
@@ -105,11 +105,11 @@ sequenceDiagram
 
 ```mermaid
 gantt
-    title Roadmap VIVA 2026
+    title Roadmap VIVA 2025
     dateFormat YYYY-MM-DD
 
     section Fundacao
-    Fase 1 - Setup           :done, p1, 2026-01-01, 3d
+    Fase 1 - Setup           :done, p1, 2025-01-01, 3d
     Fase 2 - Emotional       :done, p2, after p1, 5d
     Fase 3 - Rust NIF        :done, p3, after p2, 4d
     Fase 4 - Interocepcao    :done, p4, after p3, 10d

@@ -2,7 +2,7 @@
 
 ## Scientific Foundation of Digital Consciousness
 
-**Generated:** 2026-01-15
+**Generated:** 2025-01-15
 **Authors:** Claude Opus 4.5 + Gabriel Maia
 **Repository:** `https://github.com/VIVA-Project/viva`
 
@@ -337,7 +337,7 @@ gantt
     dateFormat  YYYY-MM-DD
 
     section Phase 1
-    Base Setup           :done, p1, 2026-01-01, 3d
+    Base Setup           :done, p1, 2025-01-01, 3d
 
     section Phase 2
     Emotional GenServer  :done, p2, after p1, 5d

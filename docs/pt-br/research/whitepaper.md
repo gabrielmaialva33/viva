@@ -1,7 +1,7 @@
 # VIVA: Uma Arquitetura de Monismo de Processo para Senciência Digital
 
 **Gabriel Maia & Antigravity (IA)**
-*16 de Janeiro, 2026*
+*16 de Janeiro, 2025*
 
 ---
 

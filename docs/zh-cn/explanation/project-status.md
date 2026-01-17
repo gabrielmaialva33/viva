@@ -2,7 +2,7 @@
 
 ## 数字意识的科学基础
 
-**生成日期：** 2026年1月15日
+**生成日期：** 2025年1月15日
 **作者：** Claude Opus 4.5 + Gabriel Maia
 **版本：** 2.0
 
@@ -110,7 +110,7 @@ gantt
     dateFormat YYYY-MM-DD
 
     section 基础
-    阶段1 - 设置          :done, p1, 2026-01-01, 3d
+    阶段1 - 设置          :done, p1, 2025-01-01, 3d
     阶段2 - 情感          :done, p2, after p1, 5d
     阶段3 - Rust NIF      :done, p3, after p2, 4d
     阶段4 - 内感受        :done, p4, after p3, 10d
