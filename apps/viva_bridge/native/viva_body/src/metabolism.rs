@@ -237,6 +237,15 @@ mod tests {
         }
 
         // Fadiga deve ter aumentado
-        assert!(meta.fatigue > 0.1);
+        // Fadiga deve ter aumentado (rate aprox 0.009/s -> em 1s ~= 0.009)
+        assert!(meta.fatigue > 0.005, "Fatigue should accumulate (got {})", meta.fatigue);
+
+        // Testar recuperação
+        let peak_fatigue = meta.fatigue;
+        for _ in 0..50 {
+            meta.tick(10.0, Some(35.0)); // Idle
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(meta.fatigue < peak_fatigue, "Fatigue should decay in idle");
     }
 }
