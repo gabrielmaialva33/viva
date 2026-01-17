@@ -36,11 +36,12 @@ defmodule VivaCore.SensesTest do
   describe "Senses - Heartbeat" do
     test "pulse/1 forces immediate reading" do
       # Start isolated Emotional for the test
-      {:ok, emotional_pid} = VivaCore.Emotional.start_link(
-        name: :test_emotional_pulse,
-        subscribe_pubsub: false,
-        enable_decay: false
-      )
+      {:ok, emotional_pid} =
+        VivaCore.Emotional.start_link(
+          name: :test_emotional_pulse,
+          subscribe_pubsub: false,
+          enable_decay: false
+        )
 
       {:ok, senses_pid} =
         VivaCore.Senses.start_link(

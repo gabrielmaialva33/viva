@@ -535,9 +535,11 @@ defmodule VivaCore.Emotional do
       weights = @stimulus_weights[stimulus]
 
       new_pad = %{
-        pleasure: clamp(state.pad.pleasure + weights.pleasure * intensity, @min_value, @max_value),
+        pleasure:
+          clamp(state.pad.pleasure + weights.pleasure * intensity, @min_value, @max_value),
         arousal: clamp(state.pad.arousal + weights.arousal * intensity, @min_value, @max_value),
-        dominance: clamp(state.pad.dominance + weights.dominance * intensity, @min_value, @max_value)
+        dominance:
+          clamp(state.pad.dominance + weights.dominance * intensity, @min_value, @max_value)
       }
 
       # Record history
