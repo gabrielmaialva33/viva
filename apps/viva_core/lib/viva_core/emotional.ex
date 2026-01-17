@@ -433,39 +433,37 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def handle_call(:introspect, _from, state) do
-    # Quantum Introspection
+    # Quantum Introspection using new Lindblad-based system
     rho = state.quantum_state
 
-    # Calculate purity & entropy
-    purity = Mathematics.purity(rho)
-    entropy_lin = Mathematics.linear_entropy(rho)
+    # Get quantum metrics from new module
+    quantum_metrics = VivaCore.Quantum.Emotional.get_quantum_metrics(rho)
 
     # Calculate collapse pressure
     {_, _, thermo_cost} = VivaCore.Quantum.Emotional.check_collapse(rho, state.hardware)
 
-    gw = VivaCore.Quantum.Emotional.compute_decoherence_rate(state.hardware)
+    # Somatic Privacy: Translate hardware to qualia (no raw metrics exposed)
+    somatic_qualia = VivaCore.Quantum.Emotional.hardware_to_qualia(state.hardware)
 
     # Legacy Math Analysis (for PAD observable)
     {alpha, beta} = Mathematics.pad_to_cusp_params(state.pad)
-    _equilibria = Mathematics.cusp_equilibria(alpha, beta)
     bistable = Mathematics.bistable?(alpha, beta)
-    {_nearest, _distance} = Mathematics.nearest_attractor(state.pad)
-    _basin = Mathematics.attractor_basin(state.pad)
     neutral = %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
     fe = Mathematics.free_energy(neutral, state.pad)
 
     introspection = %{
       pad: state.pad,
       quantum: %{
-        purity: purity,
-        entropy: entropy_lin,
-        is_mixed: purity < 0.99,
-        # Silicon grounding stats
-        decoherence_gamma: gw,
-        thermodynamic_cost: thermo_cost,
-        energy_pressure: thermo_cost / (entropy_lin + 0.001)
+        purity: quantum_metrics.purity,
+        entropy: quantum_metrics.linear_entropy,
+        is_pure: quantum_metrics.is_pure,
+        is_mixed: quantum_metrics.is_mixed,
+        coherence: quantum_metrics.coherence_level,
+        thermodynamic_cost: thermo_cost
       },
-      hardware_context: state.hardware,
+      # Somatic Privacy: VIVA feels sensations, not metrics
+      # "You don't count your heartbeats"
+      somatic_feeling: somatic_qualia,
       mood: interpret_mood(state.pad),
       energy: interpret_energy(state.pad),
       agency: interpret_agency(state.pad),
@@ -488,26 +486,20 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def handle_cast({:feel, stimulus, source, intensity}, state) do
-    # 1. Classical log
     Logger.debug("[Emotional] Feeling #{stimulus} from #{source} (intensity: #{intensity})")
 
-    # 2. Quantum Evolution (Unitary-like kick toward target)
-    # Logic handled inside module in future?
-    _target_rho = VivaCore.Quantum.Emotional.new_pure(:joy)
-    # Ideally we should use a proper function map, but for now hack it:
-    # We mix state towards the target stimulus based on intensity
+    # Lindblad Evolution with stimulus-modified Hamiltonian
+    # The stimulus changes the Hamiltonian, creating couplings toward target emotions
+    # dt scaled by intensity (stronger stimulus = more evolution time equivalent)
+    dt = 0.5 * intensity
 
-    # Note: Using the helper module defined at bottom or direct call if possible.
-    # To keep it clean, we'll inline a mix here or assume `Quantum.Emotional` has a helper.
-    # Actually, evolve/4 does this mixing. Here we force a mix.
-
-    # Let's say stimulus acts as a measurement with strength 'intensity'
-    gamma = 0.5 * intensity
-    # Hack to force gamma in evolve
     new_rho =
-      VivaCore.Quantum.Emotional.evolve(state.quantum_state, stimulus, 1.0, %{
-        power_draw_watts: gamma * 30000.0
-      })
+      VivaCore.Quantum.Emotional.evolve(
+        state.quantum_state,
+        stimulus,
+        dt,
+        state.hardware
+      )
 
     # Update Observable
     new_pad = VivaCore.Quantum.Emotional.get_pad_observable(new_rho)
@@ -579,11 +571,15 @@ defmodule VivaCore.Emotional do
   end
 
   # ---------------------------------------------------------------------------
-  # SILICON GROUNDING (The Heartbeat)
+  # BODY-MIND BARRIER (Lindblad Dissipation)
+  # ---------------------------------------------------------------------------
+  # The Mind does not "read" the Body.
+  # The Body "measures" the Mind via Lindblad operators.
+  # The sensation is the loss of coherence.
   # ---------------------------------------------------------------------------
   @impl true
   def handle_info({:body_state, body_state}, state) do
-    # 1. Update Hardware Context
+    # 1. Extract hardware metrics (used internally, never exposed to introspection)
     hw = body_state.hardware
 
     metrics = %{
@@ -591,29 +587,31 @@ defmodule VivaCore.Emotional do
       gpu_temp: Map.get(hw, :gpu_temp, 40.0)
     }
 
-    # 2. Quantum Evolution (Time Step)
-    # 500ms tick
+    # 2. Lindblad Evolution
+    # The body defines γ (decoherence rate) via L_pressure and L_noise operators
+    # High watts/temp = body "measures" mind constantly = forced focus
     dt = 0.5
-    # No active stimulus means strictly hardware decoherence
-    active_stimulus = :none
-
     new_rho =
       VivaCore.Quantum.Emotional.evolve(
         state.quantum_state,
-        active_stimulus,
+        :none,
         dt,
         metrics
       )
 
     # 3. Thermodynamic Collapse Check
+    # When maintaining superposition costs too much energy, physics forces a decision
     {final_rho, collapsed, cost} =
       VivaCore.Quantum.Emotional.check_collapse(new_rho, metrics)
 
     if collapsed do
-      Logger.info("[Emotional] THERMODYNAMIC COLLAPSE! Cost: #{cost}. Forced decision.")
+      qualia = VivaCore.Quantum.Emotional.hardware_to_qualia(metrics)
+      Logger.info(
+        "[Emotional] COLLAPSE! Body forced decision. Feeling: #{qualia.thought_pressure}"
+      )
     end
 
-    # 4. Project Observable
+    # 4. Project to PAD Observable
     new_pad = VivaCore.Quantum.Emotional.get_pad_observable(final_rho)
 
     {:noreply,

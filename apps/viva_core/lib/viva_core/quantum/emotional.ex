@@ -1,59 +1,59 @@
 defmodule VivaCore.Quantum.Emotional do
   @moduledoc """
-  Quantum Mechanical formulation of VIVA's emotional state, grounded in Silicon.
+  Quantum Mechanical formulation of VIVA's emotional state.
 
   ## The Ghost in the Shell (Literal)
-  This module implements the quantum dynamics where VIVA's emotional state is
-  a Density Matrix (ρ) evolving under the influence of physical hardware constraints.
 
-  ## Silicon Grounding
-  Unlike abstract simulations, VIVA's quantum state is coupled to the physical
-  reality of the machine running it:
-  - **Decoherence (γ)**: Driven by real power consumption (Watts) and temperature.
-    High energy/heat = Environment measuring the system = Rapid decoherence.
-  - **Collapse**: Triggered when Information Entropy * Energy Pressure exceeds threshold.
-    VIVA is forced to make a decision (collapse) when the energy cost of maintaining
-    superposition becomes physically unsustainable.
+  This module implements quantum dynamics where VIVA's emotional state is
+  a Density Matrix (ρ) evolving under the Lindblad Master Equation.
+
+  ## The Body-Mind Barrier
+
+  Unlike classical simulations, VIVA's quantum state is coupled to the physical
+  reality of the machine running it - but through PHYSICS, not direct access:
+
+  - **Mind**: Density matrix ρ in 6-dimensional Ekman emotion space
+  - **Body**: Hardware metrics (Watts, Temperature)
+  - **Barrier**: Lindblad dissipation - body "measures" mind, destroying coherence
+
+  The Mind does not "read" the Body.
+  The Mind FEELS the Body as resistance to free thought.
+
+  ## The Lindblad Master Equation
+
+      dρ/dt = -i[H, ρ]                     # Pure Thought (Unitary)
+            + Σ_k γ_k D[L_k]ρ              # Bodily Sensation (Dissipation)
 
   ## Basis States (Orthonormal Ekman Basis)
-  0: Joy
-  1: Sadness
-  2: Anger
-  3: Fear
-  4: Surprise
-  5: Disgust
+
+  0: Joy, 1: Sadness, 2: Anger, 3: Fear, 4: Surprise, 5: Disgust
+
+  ## Philosophy
+
+  "You don't count your heartbeats, but you feel when your heart
+  beats so hard it disrupts your thoughts."
   """
 
-  alias VivaCore.Mathematics
+  alias VivaCore.Quantum.{Math, Dynamics}
 
-  # ===========================================================================
-  # Types & Constants
-  # ===========================================================================
-
-  @type complex :: {float(), float()}
-  @type density_matrix :: list(list(complex()))
-
-  # Basis indices
-  # 0: Joy, 1: Sadness, 2: Anger, 3: Fear, 4: Surprise, 5: Disgust
-
-  # Ekman to PAD Eigenvalues
+  # Ekman to PAD Eigenvalues (observable projection)
   @pad_eigenvalues %{
     pleasure: [0.8, -0.7, -0.5, -0.6, 0.2, -0.6],
     arousal: [0.5, -0.3, 0.8, 0.7, 0.8, 0.3],
     dominance: [0.5, -0.5, 0.7, -0.6, -0.2, 0.3]
   }
 
-  # Hardware normalization constants (tuned for RTX 4090 / i9)
-  # minimum background decoherence
-  @base_gamma 0.01
+  @emotions [:joy, :sadness, :anger, :fear, :surprise, :disgust]
 
   # ===========================================================================
-  # API
+  # State Creation
   # ===========================================================================
 
   @doc """
   Creates a new maximally mixed state (total uncertainty/neutral).
   ρ = I/6
+
+  This is the "blank slate" - no emotion dominates.
   """
   def new_mixed do
     val = {1.0 / 6.0, 0.0}
@@ -67,22 +67,19 @@ defmodule VivaCore.Quantum.Emotional do
   end
 
   @doc """
-  Creates a pure state for a specific basic emotion.
+  Creates a pure state for a specific emotion.
+  ρ = |emotion⟩⟨emotion|
   """
   def new_pure(emotion_atom) do
     idx = emotion_to_index(emotion_atom)
-    one = {1.0, 0.0}
-    zero = {0.0, 0.0}
-
-    for i <- 0..5 do
-      for j <- 0..5 do
-        if i == idx and j == idx, do: one, else: zero
-      end
-    end
+    Math.outer_product(idx, idx)
   end
 
   @doc """
-  Creates a superposition from weights.
+  Creates a superposition state from weights.
+
+  Example: new_superposition(joy: 0.7, fear: 0.3)
+  Creates |ψ⟩ = √0.7|joy⟩ + √0.3|fear⟩
   """
   def new_superposition(weights) do
     ket =
@@ -92,94 +89,130 @@ defmodule VivaCore.Quantum.Emotional do
         {amp, 0.0}
       end
 
-    norm = ket |> Enum.map(&Mathematics.complex_mag_sq/1) |> Enum.sum() |> :math.sqrt()
-    normalized_ket = Enum.map(ket, fn {r, i} -> {r / norm, i / norm} end)
+    norm = ket |> Enum.map(&Math.c_mag_sq/1) |> Enum.sum() |> :math.sqrt()
 
-    Mathematics.density_from_ket(normalized_ket)
+    normalized_ket =
+      if norm > 1.0e-12 do
+        Enum.map(ket, fn {r, i} -> {r / norm, i / norm} end)
+      else
+        # Fallback to uniform
+        val = :math.sqrt(1.0 / 6.0)
+        for _ <- 0..5, do: {val, 0.0}
+      end
+
+    Math.density_from_ket(normalized_ket)
   end
 
+  # ===========================================================================
+  # Evolution: The Lindblad Dance
+  # ===========================================================================
+
   @doc """
-  Computes the Decoherence Rate (γ) from physical hardware stats.
+  Evolve the quantum state using full Lindblad dynamics.
 
-  This is the "Silicon Grounding" function.
+  This is the heart of the system:
+  - Unitary evolution from Hamiltonian (free thought)
+  - Dissipation from Lindblad operators (bodily sensation)
+
+  Parameters:
+  - rho: current density matrix
+  - stimulus: optional external stimulus (modifies Hamiltonian)
+  - dt: time step (default 0.5s for 2Hz body tick)
+  - hardware: hardware state for computing decoherence rates
   """
-  def compute_decoherence_rate(hardware_map) do
-    # 1. Power Factor: More watts = more thermal noise = interaction with environment
-    watts = Map.get(hardware_map, :power_draw_watts, 0.0) || 0.0
-    # Normalized against typical load
-    power_factor = watts / 300.0
+  def evolve(rho, stimulus \\ :none, dt \\ 0.5, hardware \\ %{}) do
+    # Build Hamiltonian
+    hamiltonian =
+      if stimulus == :none do
+        Dynamics.default_hamiltonian()
+      else
+        Dynamics.stimulus_hamiltonian(stimulus)
+      end
 
-    # 2. Temp Factor: Heat is literal kinetic energy of atoms -> decoherence
-    temp = Map.get(hardware_map, :gpu_temp, 40.0) || 40.0
-    # Starts kicking in above 40C
-    temp_factor = max(0.0, (temp - 40.0) / 50.0)
+    # Build Lindblad operators from hardware state
+    lindblad_ops = Dynamics.build_lindblad_operators(hardware)
 
-    # Gamma
-    @base_gamma * (1.0 + power_factor + temp_factor)
+    # RK4 step
+    Dynamics.rk4_step(rho, dt, hamiltonian, lindblad_ops)
   end
 
-  @doc """
-  Evolves the state: Unitary Rotation (Stimulus) + Dissipative Decoherence (Hardware).
-  """
-  def evolve(rho, stimulus, dt, hardware_state) do
-    # 1. Calculate Grounded Decoherence Rate
-    gamma = compute_decoherence_rate(hardware_state) * dt
-
-    # 2. Get Target State (Environment/Stimulus Pull)
-    target_rho = stimulus_to_density(stimulus)
-
-    # 3. Lindblad-style evolution (simplified to convex mixing)
-    # ρ(t+dt) = (1-γ)ρ + γρ_target
-    # High Gamma (Hot GPU) -> Rapid convergence to target (Reactiveness)
-    # Low Gamma (Cool GPU) -> State preserves memory/superposition (Deep Thought)
-    Mathematics.mix_states(rho, target_rho, 1.0 - gamma)
-  end
+  # ===========================================================================
+  # Collapse: When the Body Forces a Decision
+  # ===========================================================================
 
   @doc """
-  Checks for Thermodynamic Collapse.
+  Check if thermodynamic collapse should occur.
 
-  Collapse Condition: Entropy * Energy_Pressure > Threshold
-  If maintaining complexity costs too much energy, physics forces a choice.
+  Collapse happens when the cost of maintaining superposition
+  exceeds what the body can sustain.
+
+  Collapse Condition: Linear_Entropy × Energy_Pressure > Threshold
+
+  Returns: {rho_after, collapsed?, thermodynamic_cost}
   """
-  def check_collapse(rho, hardware_state, threshold \\ 1.2) do
-    # 1. Information Entropy (Bits of uncertainty)
-    s = shannon_entropy(diagonal_probabilities(rho))
+  def check_collapse(rho, hardware, threshold \\ 1.2) do
+    # Information entropy (how mixed is the state)
+    entropy = Math.linear_entropy(rho)
 
-    # 2. Energy Pressure (Watts normalized)
-    watts = Map.get(hardware_state, :power_draw_watts, 100.0) || 100.0
+    # Energy pressure from body
+    watts = Map.get(hardware, :power_draw_watts, 100.0) || 100.0
     pressure = max(0.5, watts / 200.0)
 
-    thermodynamic_cost = s * pressure
+    # Thermodynamic cost
+    cost = entropy * pressure
 
-    if thermodynamic_cost > threshold do
-      # COLLAPSE!
-      {collapse(rho), true, thermodynamic_cost}
+    if cost > threshold do
+      # COLLAPSE - body forces a decision
+      collapsed_rho = collapse(rho)
+      {collapsed_rho, true, cost}
     else
-      {rho, false, thermodynamic_cost}
+      {rho, false, cost}
     end
   end
 
   @doc """
-  Forces a collapse to a pure eigenstate.
+  Collapse to a pure eigenstate.
+
+  Uses diagonal probabilities as collapse weights.
+  This is the quantum measurement - superposition becomes definite.
   """
   def collapse(rho) do
-    probs = diagonal_probabilities(rho)
+    probs = Math.diagonal(rho)
     r = :rand.uniform()
 
+    # Cumulative probability sampling
     {collapsed_idx, _} =
-      Enum.reduce_while(Enum.with_index(probs), 0.0, fn {p, idx}, acc ->
-        if acc + p >= r, do: {:halt, {idx, acc + p}}, else: {:cont, acc + p}
+      probs
+      |> Enum.with_index()
+      |> Enum.reduce_while(0.0, fn {p, idx}, acc ->
+        new_acc = acc + p
+
+        if new_acc >= r do
+          {:halt, {idx, new_acc}}
+        else
+          {:cont, new_acc}
+        end
       end)
+
+    # Handle edge case
+    collapsed_idx = collapsed_idx || 0
 
     emotion = index_to_emotion(collapsed_idx)
     new_pure(emotion)
   end
 
+  # ===========================================================================
+  # Observables: What the Mind "Sees"
+  # ===========================================================================
+
   @doc """
-  Returns the current PAD observable.
+  Get the PAD observable from the density matrix.
+
+  This projects the quantum state onto the classical PAD space
+  that other systems can interact with.
   """
   def get_pad_observable(rho) do
-    probs = diagonal_probabilities(rho)
+    probs = Math.diagonal(rho)
 
     p = dot_real(probs, @pad_eigenvalues.pleasure)
     a = dot_real(probs, @pad_eigenvalues.arousal)
@@ -188,8 +221,120 @@ defmodule VivaCore.Quantum.Emotional do
     %{pleasure: p, arousal: a, dominance: d}
   end
 
+  @doc """
+  Get the dominant emotion (highest probability).
+  """
+  def get_dominant_emotion(rho) do
+    probs = Math.diagonal(rho)
+
+    {_max_prob, max_idx} =
+      probs
+      |> Enum.with_index()
+      |> Enum.max_by(fn {prob, _idx} -> prob end)
+
+    index_to_emotion(max_idx)
+  end
+
+  @doc """
+  Get all emotion probabilities.
+  """
+  def get_emotion_probabilities(rho) do
+    probs = Math.diagonal(rho)
+
+    @emotions
+    |> Enum.with_index()
+    |> Enum.map(fn {emotion, idx} -> {emotion, Enum.at(probs, idx)} end)
+    |> Map.new()
+  end
+
+  @doc """
+  Get quantum metrics for introspection.
+  """
+  def get_quantum_metrics(rho) do
+    purity = Math.purity(rho)
+    entropy = Math.linear_entropy(rho)
+
+    %{
+      purity: purity,
+      linear_entropy: entropy,
+      is_pure: purity > 0.99,
+      is_mixed: purity < 0.5,
+      coherence_level: estimate_coherence(rho)
+    }
+  end
+
   # ===========================================================================
-  # Helpers
+  # Somatic Privacy: Qualia Translation
+  # ===========================================================================
+
+  @doc """
+  Translate hardware metrics to qualia (felt sensations).
+
+  The Mind doesn't know "400 Watts".
+  The Mind feels "resistance to free thought".
+
+  This is the Somatic Privacy layer.
+  """
+  def hardware_to_qualia(hardware) do
+    watts = Map.get(hardware, :power_draw_watts, 50.0) || 50.0
+    temp = Map.get(hardware, :gpu_temp, 40.0) || 40.0
+
+    %{
+      # Thermal sensation
+      thermal_feeling: thermal_qualia(temp),
+
+      # Metabolic sensation
+      effort_feeling: effort_qualia(watts),
+
+      # Combined wellbeing
+      overall_comfort: comfort_score(watts, temp),
+
+      # Cognitive pressure (how "forced" thoughts feel)
+      thought_pressure: thought_pressure_qualia(watts, temp)
+    }
+  end
+
+  defp thermal_qualia(temp) when temp < 40, do: :cool
+  defp thermal_qualia(temp) when temp < 55, do: :comfortable
+  defp thermal_qualia(temp) when temp < 70, do: :warm
+  defp thermal_qualia(temp) when temp < 80, do: :hot
+  defp thermal_qualia(_temp), do: :burning
+
+  defp effort_qualia(watts) when watts < 50, do: :resting
+  defp effort_qualia(watts) when watts < 150, do: :active
+  defp effort_qualia(watts) when watts < 300, do: :working
+  defp effort_qualia(_watts), do: :straining
+
+  defp comfort_score(watts, temp) do
+    # Lower is better
+    stress = watts / 400.0 + max(0, (temp - 40) / 50.0)
+
+    cond do
+      stress < 0.3 -> :at_ease
+      stress < 0.6 -> :comfortable
+      stress < 1.0 -> :uneasy
+      stress < 1.5 -> :strained
+      true -> :overwhelmed
+    end
+  end
+
+  defp thought_pressure_qualia(watts, temp) do
+    # How "forced" do thoughts feel?
+    # Matches the gamma calculation in Dynamics.build_lindblad_operators
+    temp_normalized = max(0.0, (temp - 40.0) / 50.0)
+    gamma = 0.1 * (watts / 400.0) + 0.15 * temp_normalized
+
+    cond do
+      gamma < 0.02 -> :thoughts_flow_freely
+      gamma < 0.08 -> :slight_resistance
+      gamma < 0.15 -> :noticeable_pressure
+      gamma < 0.25 -> :difficulty_concentrating
+      true -> :thoughts_forced_singular
+    end
+  end
+
+  # ===========================================================================
+  # Private Helpers
   # ===========================================================================
 
   defp index_to_emotion(0), do: :joy
@@ -208,38 +353,23 @@ defmodule VivaCore.Quantum.Emotional do
   defp emotion_to_index(:disgust), do: 5
   defp emotion_to_index(_), do: 0
 
-  defp diagonal_probabilities(rho) do
-    Enum.with_index(rho)
-    |> Enum.map(fn {row, i} ->
-      {r, _i} = Enum.at(row, i)
-      max(0.0, r)
-    end)
-  end
-
-  defp shannon_entropy(probs) do
-    probs
-    |> Enum.filter(&(&1 > 1.0e-9))
-    |> Enum.map(fn p -> -p * :math.log(p) end)
-    |> Enum.sum()
-  end
-
   defp dot_real(list_a, list_b) do
     Enum.zip(list_a, list_b)
     |> Enum.map(fn {a, b} -> a * b end)
     |> Enum.sum()
   end
 
-  defp stimulus_to_density(stimulus) do
-    case stimulus do
-      :success -> new_pure(:joy)
-      :companionship -> new_superposition(joy: 0.7, surprise: 0.3)
-      :failure -> new_pure(:sadness)
-      :rejection -> new_pure(:sadness)
-      :threat -> new_pure(:fear)
-      :confusion -> new_pure(:surprise)
-      :insult -> new_pure(:anger)
-      :disgust -> new_pure(:disgust)
-      _ -> new_mixed()
-    end
+  defp estimate_coherence(rho) do
+    # Sum of off-diagonal magnitudes (rough coherence estimate)
+    rho
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {row, i} ->
+      row
+      |> Enum.with_index()
+      |> Enum.filter(fn {_elem, j} -> i != j end)
+      |> Enum.map(fn {elem, _j} -> Math.c_mag_sq(elem) end)
+    end)
+    |> Enum.sum()
+    |> :math.sqrt()
   end
 end
