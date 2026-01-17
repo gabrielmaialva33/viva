@@ -3,6 +3,8 @@ defmodule VivaBridge.BodyServerTest do
   alias VivaBridge.BodyServer
 
   @moduletag :capture_log
+  # All tests require the Rust NIF to be compiled
+  @moduletag :nif
 
   # DeepSeek Analysis:
   # The BodyServer is a singleton wrapping a Rust Singleton (ECS World).

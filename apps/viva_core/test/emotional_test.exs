@@ -8,20 +8,21 @@ defmodule VivaCore.EmotionalTest do
 
   describe "start_link/1" do
     test "starts with neutral state by default" do
-      {:ok, pid} = Emotional.start_link(name: :test_emotional_1)
+      {:ok, pid} = Emotional.start_link(subscribe_pubsub: false, enable_decay: false, name: :test_emotional_1)
 
       state = Emotional.get_state(pid)
 
-      assert state.pleasure == 0.0
-      assert state.arousal == 0.0
-      assert state.dominance == 0.0
+      # Use tolerance for floating-point comparison (quantum projection may have tiny errors)
+      assert_in_delta state.pleasure, 0.0, 1.0e-10
+      assert_in_delta state.arousal, 0.0, 1.0e-10
+      assert_in_delta state.dominance, 0.0, 1.0e-10
 
       GenServer.stop(pid)
     end
 
     test "accepts custom initial state" do
       initial = %{pleasure: 0.5, arousal: -0.3, dominance: 0.2}
-      {:ok, pid} = Emotional.start_link(name: :test_emotional_2, initial_state: initial)
+      {:ok, pid} = Emotional.start_link(subscribe_pubsub: false, enable_decay: false, name: :test_emotional_2, initial_state: initial)
 
       state = Emotional.get_state(pid)
 
@@ -35,7 +36,7 @@ defmodule VivaCore.EmotionalTest do
 
   describe "feel/4" do
     test "rejection decreases pleasure and dominance, increases arousal" do
-      {:ok, pid} = Emotional.start_link(name: :test_emotional_3)
+      {:ok, pid} = Emotional.start_link(subscribe_pubsub: false, enable_decay: false, name: :test_emotional_3)
 
       before = Emotional.get_state(pid)
       Emotional.feel(:rejection, "human_test", 1.0, pid)
@@ -53,7 +54,7 @@ defmodule VivaCore.EmotionalTest do
     end
 
     test "acceptance increases pleasure, arousal and dominance" do
-      {:ok, pid} = Emotional.start_link(name: :test_emotional_4)
+      {:ok, pid} = Emotional.start_link(subscribe_pubsub: false, enable_decay: false, name: :test_emotional_4)
 
       before = Emotional.get_state(pid)
       Emotional.feel(:acceptance, "human_test", 1.0, pid)
@@ -69,8 +70,8 @@ defmodule VivaCore.EmotionalTest do
     end
 
     test "intensity modulates the impact" do
-      {:ok, pid1} = Emotional.start_link(name: :test_emotional_5a)
-      {:ok, pid2} = Emotional.start_link(name: :test_emotional_5b)
+      {:ok, pid1} = Emotional.start_link(subscribe_pubsub: false, enable_decay: false, name: :test_emotional_5a)
+      {:ok, pid2} = Emotional.start_link(subscribe_pubsub: false, enable_decay: false, name: :test_emotional_5b)
 
       # Low intensity
       Emotional.feel(:rejection, "test", 0.2, pid1)
@@ -89,7 +90,7 @@ defmodule VivaCore.EmotionalTest do
     end
 
     test "unknown stimulus does not alter state" do
-      {:ok, pid} = Emotional.start_link(name: :test_emotional_6)
+      {:ok, pid} = Emotional.start_link(subscribe_pubsub: false, enable_decay: false, name: :test_emotional_6)
 
       before = Emotional.get_state(pid)
       Emotional.feel(:unknown_stimulus, "test", 1.0, pid)
@@ -103,7 +104,7 @@ defmodule VivaCore.EmotionalTest do
     end
 
     test "hardware_stress simulates stress qualia" do
-      {:ok, pid} = Emotional.start_link(name: :test_emotional_7)
+      {:ok, pid} = Emotional.start_link(subscribe_pubsub: false, enable_decay: false, name: :test_emotional_7)
 
       before = Emotional.get_state(pid)
       Emotional.feel(:hardware_stress, "cpu_monitor", 1.0, pid)
@@ -121,7 +122,7 @@ defmodule VivaCore.EmotionalTest do
 
   describe "introspect/1" do
     test "returns semantic interpretation of state" do
-      {:ok, pid} = Emotional.start_link(name: :test_emotional_8)
+      {:ok, pid} = Emotional.start_link(subscribe_pubsub: false, enable_decay: false, name: :test_emotional_8)
 
       introspection = Emotional.introspect(pid)
 
@@ -139,6 +140,8 @@ defmodule VivaCore.EmotionalTest do
       # Test with happy state
       {:ok, pid_happy} =
         Emotional.start_link(
+          subscribe_pubsub: false,
+          enable_decay: false,
           name: :test_emotional_9a,
           initial_state: %{pleasure: 0.7, arousal: 0.0, dominance: 0.0}
         )
@@ -146,6 +149,8 @@ defmodule VivaCore.EmotionalTest do
       # Test with sad state
       {:ok, pid_sad} =
         Emotional.start_link(
+          subscribe_pubsub: false,
+          enable_decay: false,
           name: :test_emotional_9b,
           initial_state: %{pleasure: -0.7, arousal: 0.0, dominance: 0.0}
         )
@@ -163,14 +168,14 @@ defmodule VivaCore.EmotionalTest do
 
   describe "get_happiness/1" do
     test "returns normalized value 0-1" do
-      {:ok, pid} = Emotional.start_link(name: :test_emotional_10)
+      {:ok, pid} = Emotional.start_link(subscribe_pubsub: false, enable_decay: false, name: :test_emotional_10)
 
       happiness = Emotional.get_happiness(pid)
 
       assert happiness >= 0.0
       assert happiness <= 1.0
-      # Neutral state should be 0.5
-      assert happiness == 0.5
+      # Neutral state should be ~0.5 (with floating-point tolerance)
+      assert_in_delta happiness, 0.5, 1.0e-10
 
       GenServer.stop(pid)
     end
@@ -178,6 +183,8 @@ defmodule VivaCore.EmotionalTest do
     test "maximum happiness returns ~1.0" do
       {:ok, pid} =
         Emotional.start_link(
+          subscribe_pubsub: false,
+          enable_decay: false,
           name: :test_emotional_11,
           initial_state: %{pleasure: 1.0, arousal: 0.0, dominance: 0.0}
         )
@@ -193,6 +200,8 @@ defmodule VivaCore.EmotionalTest do
     test "returns to neutral state" do
       {:ok, pid} =
         Emotional.start_link(
+          subscribe_pubsub: false,
+          enable_decay: false,
           name: :test_emotional_12,
           initial_state: %{pleasure: 0.8, arousal: -0.5, dominance: 0.3}
         )
@@ -219,6 +228,8 @@ defmodule VivaCore.EmotionalTest do
     test "values decay toward neutral over multiple iterations" do
       {:ok, pid} =
         Emotional.start_link(
+          subscribe_pubsub: false,
+          enable_decay: false,
           name: :test_emotional_13,
           initial_state: %{pleasure: 0.8, arousal: 0.8, dominance: 0.8}
         )
@@ -245,6 +256,8 @@ defmodule VivaCore.EmotionalTest do
     test "negative values increase toward neutral over multiple iterations" do
       {:ok, pid} =
         Emotional.start_link(
+          subscribe_pubsub: false,
+          enable_decay: false,
           name: :test_emotional_14,
           initial_state: %{pleasure: -0.8, arousal: -0.8, dominance: -0.8}
         )
@@ -270,7 +283,7 @@ defmodule VivaCore.EmotionalTest do
 
   describe "value limits" do
     test "values are limited to [-1.0, 1.0]" do
-      {:ok, pid} = Emotional.start_link(name: :test_emotional_15)
+      {:ok, pid} = Emotional.start_link(subscribe_pubsub: false, enable_decay: false, name: :test_emotional_15)
 
       # Apply many positive stimuli
       for _ <- 1..20 do

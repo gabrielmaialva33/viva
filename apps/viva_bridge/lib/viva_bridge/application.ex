@@ -8,11 +8,12 @@ defmodule VivaBridge.Application do
   @impl true
   def start(_type, _args) do
     # Check if we should start BodyServer
-    # In test mode or when VIVA_SKIP_NIF=true, we skip it
+    # Skip in test environment or when VIVA_SKIP_NIF=true
     skip_nif = System.get_env("VIVA_SKIP_NIF") == "true"
+    is_test = Mix.env() == :test
 
     children =
-      if skip_nif do
+      if skip_nif or is_test do
         []
       else
         [

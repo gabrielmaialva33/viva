@@ -112,13 +112,33 @@ defmodule VivaCore.Quantum.Dynamics do
           # Rejection: Sadness + slight Anger
           [{@joy, @sadness, strength * 0.8}, {@surprise, @anger, strength * 0.3}]
 
+        :acceptance ->
+          # Acceptance: Joy + reduced Fear/Sadness
+          [{@sadness, @joy, strength * 0.7}, {@fear, @joy, strength * 0.4}]
+
         :companionship ->
           # Companionship: Joy + reduced Fear
           [{@fear, @joy, strength * 0.6}, {@sadness, @joy, strength * 0.4}]
 
+        :loneliness ->
+          # Loneliness: Sadness + slight Fear
+          [{@joy, @sadness, strength * 0.5}, {@surprise, @fear, strength * 0.2}]
+
         :insult ->
           # Insult: Anger + Disgust
           [{@joy, @anger, strength * 0.7}, {@surprise, @disgust, strength * 0.4}]
+
+        :safety ->
+          # Safety: Reduced Fear, increased Joy
+          [{@fear, @joy, strength * 0.5}, {@anger, @joy, strength * 0.2}]
+
+        :hardware_stress ->
+          # Hardware stress: Anger (frustration) + slight Fear
+          [{@joy, @anger, strength * 0.4}, {@surprise, @fear, strength * 0.3}]
+
+        :hardware_comfort ->
+          # Hardware comfort: Joy + reduced Anger
+          [{@anger, @joy, strength * 0.3}, {@fear, @joy, strength * 0.2}]
 
         _ ->
           []

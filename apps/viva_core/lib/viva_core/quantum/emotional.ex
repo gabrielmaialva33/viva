@@ -37,10 +37,21 @@ defmodule VivaCore.Quantum.Emotional do
   alias VivaCore.Quantum.{Math, Dynamics}
 
   # Ekman to PAD Eigenvalues (observable projection)
+  # Normalized so that sum = 0 for each dimension
+  # This ensures maximally mixed state projects to neutral PAD (0, 0, 0)
+  # Calculated using exact fractions to avoid floating-point errors:
+  # - pleasure: orig sum = -1.4, mean = -7/30, centered values sum to 0
+  # - arousal: orig sum = 2.8, mean = 14/30 = 7/15, centered values sum to 0
+  # - dominance: orig sum = 0.2, mean = 1/30, centered values sum to 0
   @pad_eigenvalues %{
-    pleasure: [0.8, -0.7, -0.5, -0.6, 0.2, -0.6],
-    arousal: [0.5, -0.3, 0.8, 0.7, 0.8, 0.3],
-    dominance: [0.5, -0.5, 0.7, -0.6, -0.2, 0.3]
+    # pleasure: 31/30, -14/30, -8/30, -11/30, 13/30, -11/30
+    pleasure: [31 / 30, -14 / 30, -8 / 30, -11 / 30, 13 / 30, -11 / 30],
+    # arousal: orig [0.5, -0.3, 0.8, 0.7, 0.8, 0.3], mean = 14/30
+    # centered: [1/30, -23/30, 10/30, 7/30, 10/30, -5/30]
+    arousal: [1 / 30, -23 / 30, 10 / 30, 7 / 30, 10 / 30, -5 / 30],
+    # dominance: orig [0.5, -0.5, 0.7, -0.6, -0.2, 0.3], mean = 1/30
+    # centered: [14/30, -16/30, 20/30, -19/30, -7/30, 8/30]
+    dominance: [14 / 30, -16 / 30, 20 / 30, -19 / 30, -7 / 30, 8 / 30]
   }
 
   @emotions [:joy, :sadness, :anger, :fear, :surprise, :disgust]

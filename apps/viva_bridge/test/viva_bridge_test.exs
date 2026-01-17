@@ -2,8 +2,10 @@ defmodule VivaBridgeTest do
   use ExUnit.Case
   @moduletag :bridge
 
+  # All tests in this file require the Rust NIF to be compiled
+  @moduletag :nif
+
   describe "Body NIF - ECS Architecture" do
-    @tag :nif
     test "alive/0 returns confirmation" do
       assert VivaBridge.Body.alive() =~ "VIVA body is alive"
     end

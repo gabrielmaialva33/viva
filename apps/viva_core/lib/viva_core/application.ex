@@ -24,6 +24,10 @@ defmodule VivaCore.Application do
     Logger.info("[VivaCore] Starting consciousness... Neurons waking up.")
 
     children = [
+      # PubSub - message bus for inter-neuron communication
+      # Must be first so others can subscribe during init
+      {Phoenix.PubSub, name: Viva.PubSub},
+
       # Emotional Neuron - feels and processes emotions
       {VivaCore.Emotional, name: VivaCore.Emotional},
 

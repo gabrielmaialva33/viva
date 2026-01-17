@@ -95,8 +95,8 @@ defmodule VivaCore.Emotional do
   """
   def start_link(opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
-    initial_state = Keyword.get(opts, :initial_state, @neutral_state)
-    GenServer.start_link(__MODULE__, initial_state, name: name)
+    # Pass all opts to init for subscribe_pubsub and initial_state
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
   @doc """
@@ -388,7 +388,23 @@ defmodule VivaCore.Emotional do
   # ============================================================================
 
   @impl true
-  def init(initial_state) do
+  def init(opts) when is_list(opts) do
+    Logger.info("[Emotional] Emotional neuron starting (Quantum + Silicon Grounded).")
+
+    # Subscribe to Body State (Hardware Sensors) unless disabled (for testing)
+    subscribe? = Keyword.get(opts, :subscribe_pubsub, true)
+    enable_decay? = Keyword.get(opts, :enable_decay, true)
+    initial_state = Keyword.get(opts, :initial_state, %{})
+
+    if subscribe? and Code.ensure_loaded?(Phoenix.PubSub) do
+      Phoenix.PubSub.subscribe(Viva.PubSub, "body:state")
+    end
+
+    do_init(initial_state, enable_decay?)
+  end
+
+  def init(initial_state) when is_map(initial_state) do
+    # Legacy: map-based init (from start_link with initial_state keyword)
     Logger.info("[Emotional] Emotional neuron starting (Quantum + Silicon Grounded).")
 
     # Subscribe to Body State (Hardware Sensors)
@@ -396,12 +412,30 @@ defmodule VivaCore.Emotional do
       Phoenix.PubSub.subscribe(Viva.PubSub, "body:state")
     end
 
+    do_init(initial_state, true)
+  end
+
+  defp do_init(initial_state, enable_decay?) do
+    # Create quantum state
+    quantum_state = VivaCore.Quantum.Emotional.new_mixed()
+
+    # If initial_state is provided, use it; otherwise project from quantum state
+    # This keeps PAD and quantum_state synchronized from the start
+    pad =
+      if initial_state == %{} do
+        # No explicit initial state - sync PAD with quantum projection
+        VivaCore.Quantum.Emotional.get_pad_observable(quantum_state)
+      else
+        # Explicit initial state provided - use it
+        Map.merge(@neutral_state, initial_state)
+      end
+
     state = %{
       # Quantum Density Matrix (6x6)
-      quantum_state: VivaCore.Quantum.Emotional.new_mixed(),
+      quantum_state: quantum_state,
 
-      # Observable projection (PAD) - kept for compatibility
-      pad: Map.merge(@neutral_state, initial_state),
+      # Observable projection (PAD) - synced with quantum or user-provided
+      pad: pad,
 
       # Hardware state for grounding (default values)
       hardware: %{power_draw_watts: 0.0, gpu_temp: 40.0},
@@ -413,7 +447,10 @@ defmodule VivaCore.Emotional do
       # Telemetry for debug
       thermodynamic_cost: 0.0,
       last_collapse: nil,
-      body_server_active: false
+      body_server_active: false,
+
+      # Test configuration
+      enable_decay: enable_decay?
     }
 
     # Use handle_continue to avoid race condition on startup
@@ -422,7 +459,7 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def handle_continue(:start_decay, state) do
-    schedule_decay()
+    if state.enable_decay, do: schedule_decay()
     {:noreply, state}
   end
 
@@ -486,44 +523,43 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def handle_cast({:feel, stimulus, source, intensity}, state) do
-    Logger.debug("[Emotional] Feeling #{stimulus} from #{source} (intensity: #{intensity})")
+    # Check if stimulus is known - if not, ignore it
+    unless Map.has_key?(@stimulus_weights, stimulus) do
+      Logger.debug("[Emotional] Unknown stimulus #{stimulus} from #{source} - ignoring")
+      {:noreply, state}
+    else
+      Logger.debug("[Emotional] Feeling #{stimulus} from #{source} (intensity: #{intensity})")
 
-    # Lindblad Evolution with stimulus-modified Hamiltonian
-    # The stimulus changes the Hamiltonian, creating couplings toward target emotions
-    # dt scaled by intensity (stronger stimulus = more evolution time equivalent)
-    dt = 0.5 * intensity
+      # Use classical PAD stimulus weights for immediate emotional response
+      # The quantum system is reserved for hardware-driven body-mind coupling
+      weights = @stimulus_weights[stimulus]
 
-    new_rho =
-      VivaCore.Quantum.Emotional.evolve(
-        state.quantum_state,
-        stimulus,
-        dt,
-        state.hardware
-      )
+      new_pad = %{
+        pleasure: clamp(state.pad.pleasure + weights.pleasure * intensity, @min_value, @max_value),
+        arousal: clamp(state.pad.arousal + weights.arousal * intensity, @min_value, @max_value),
+        dominance: clamp(state.pad.dominance + weights.dominance * intensity, @min_value, @max_value)
+      }
 
-    # Update Observable
-    new_pad = VivaCore.Quantum.Emotional.get_pad_observable(new_rho)
+      # Record history
+      event = %{
+        stimulus: stimulus,
+        source: source,
+        intensity: intensity,
+        timestamp: DateTime.utc_now(),
+        pad_after: new_pad
+      }
 
-    # Record history
-    event = %{
-      stimulus: stimulus,
-      source: source,
-      intensity: intensity,
-      timestamp: DateTime.utc_now(),
-      pad_after: new_pad
-    }
+      {new_history, new_size} = push_history(state.history, state.history_size, event)
 
-    {new_history, new_size} = push_history(state.history, state.history_size, event)
-
-    {:noreply,
-     %{
-       state
-       | quantum_state: new_rho,
-         pad: new_pad,
-         last_stimulus: {stimulus, source, intensity},
-         history: new_history,
-         history_size: new_size
-     }}
+      {:noreply,
+       %{
+         state
+         | pad: new_pad,
+           last_stimulus: {stimulus, source, intensity},
+           history: new_history,
+           history_size: new_size
+       }}
+    end
   end
 
   @impl true

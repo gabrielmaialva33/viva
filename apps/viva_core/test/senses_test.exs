@@ -36,7 +36,11 @@ defmodule VivaCore.SensesTest do
   describe "Senses - Heartbeat" do
     test "pulse/1 forces immediate reading" do
       # Start isolated Emotional for the test
-      {:ok, emotional_pid} = VivaCore.Emotional.start_link(name: :test_emotional_pulse)
+      {:ok, emotional_pid} = VivaCore.Emotional.start_link(
+        name: :test_emotional_pulse,
+        subscribe_pubsub: false,
+        enable_decay: false
+      )
 
       {:ok, senses_pid} =
         VivaCore.Senses.start_link(
@@ -45,11 +49,11 @@ defmodule VivaCore.SensesTest do
           enabled: false
         )
 
-      # Initial Emotional state is neutral
+      # Initial Emotional state is neutral (with float tolerance)
       initial = VivaCore.Emotional.get_state(:test_emotional_pulse)
-      assert initial.pleasure == 0.0
-      assert initial.arousal == 0.0
-      assert initial.dominance == 0.0
+      assert_in_delta initial.pleasure, 0.0, 1.0e-10
+      assert_in_delta initial.arousal, 0.0, 1.0e-10
+      assert_in_delta initial.dominance, 0.0, 1.0e-10
 
       # Force a pulse
       {:ok, {p, a, d}} = VivaCore.Senses.pulse(:test_senses_pulse)
@@ -182,6 +186,7 @@ defmodule VivaCore.SensesTest do
     end
   end
 
+  @tag :nif
   describe "Senses - Hardware Integration" do
     test "last_reading contains hardware metrics" do
       {:ok, emotional_pid} = VivaCore.Emotional.start_link(name: :test_emotional_hw)

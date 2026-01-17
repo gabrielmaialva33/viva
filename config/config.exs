@@ -21,3 +21,6 @@ import Config
 config :viva_core,
   memory_backend: :rust_native,
   native_memory_path: Path.expand("~/.viva/memory")
+
+# Import environment-specific config
+import_config "#{config_env()}.exs"
