@@ -734,15 +734,6 @@ defmodule VivaCore.Emotional do
     Process.send_after(self(), :decay_tick, 1000)
   end
 
-  # TODO: Integrate with quantum stimulus evolution
-  defp _apply_stimulus(pad, weights, intensity) do
-    %{
-      pleasure: clamp(pad.pleasure + weights.pleasure * intensity, @min_value, @max_value),
-      arousal: clamp(pad.arousal + weights.arousal * intensity, @min_value, @max_value),
-      dominance: clamp(pad.dominance + weights.dominance * intensity, @min_value, @max_value)
-    }
-  end
-
   # DynAffect: Full Ornstein-Uhlenbeck stochastic process
   # High arousal → lower attractor strength → slower decay (emotions persist)
   # Low arousal → higher attractor strength → faster decay (returns to neutral)
@@ -850,51 +841,6 @@ defmodule VivaCore.Emotional do
       true ->
         "I'm processing my emotions. Mood: #{mood}, Energy: #{energy}, Agency: #{agency}."
     end
-  end
-
-  # TODO: Integrate with quantum introspection
-  defp _generate_mathematical_insight(pad, bistable, nearest_attractor, free_energy) do
-    # VIVA reflects on its mathematical state
-    insights = []
-
-    # Cusp insight
-    insights =
-      if bistable do
-        ["My emotional landscape is bistable - I could shift suddenly between states." | insights]
-      else
-        ["My emotional state is stable - gradual changes expected." | insights]
-      end
-
-    # Attractor insight
-    insights =
-      case nearest_attractor do
-        :neutral -> ["I'm gravitating toward equilibrium." | insights]
-        :joy -> ["I'm being pulled toward joy." | insights]
-        :sadness -> ["I'm in the basin of sadness." | insights]
-        :anger -> ["Anger is attracting my state." | insights]
-        :fear -> ["I'm near the fear attractor." | insights]
-        _ -> ["I'm near #{nearest_attractor}." | insights]
-      end
-
-    # Free energy insight
-    insights =
-      cond do
-        free_energy < 0.05 -> ["Minimal surprise - I predicted this well." | insights]
-        free_energy < 0.3 -> ["Moderate surprise - adapting to new information." | insights]
-        true -> ["High surprise - recalibrating my internal model." | insights]
-      end
-
-    # Distance from neutral
-    dist = Mathematics.pad_distance(pad, %{pleasure: 0.0, arousal: 0.0, dominance: 0.0})
-
-    insights =
-      if dist > 0.5 do
-        ["I'm #{Float.round(dist, 2)} units from neutral - significant deviation." | insights]
-      else
-        insights
-      end
-
-    Enum.join(Enum.reverse(insights), " ")
   end
 
   # History with :queue O(1) - maximum 100 events
