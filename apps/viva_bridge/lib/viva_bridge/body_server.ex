@@ -254,6 +254,12 @@ defmodule VivaBridge.BodyServer do
     maybe_broadcast(state.pubsub, state.topic, body_state)
 
     # -------------------------------------------------------------------------
+    # SOUL CHANNEL (Async Event Processing)
+    # -------------------------------------------------------------------------
+    events = Body.poll_channel()
+    process_identifiers(events, state)
+
+    # -------------------------------------------------------------------------
     # INTEROCEPTION (The Great Sensory Loop)
     # Hardware -> Narrative -> Brain -> Memory
     # -------------------------------------------------------------------------
@@ -355,4 +361,18 @@ defmodule VivaBridge.BodyServer do
         ""
     end
   end
+
+  defp process_identifiers([{"critical", stress} | rest], state) do
+    Logger.warning("[BodyServer] CRITICAL HARDWARE STRESS DETECTED: #{stress}")
+    # Broadcast specifically for emergency handlers
+    maybe_broadcast(state.pubsub, "body:alert", {:critical_stress, stress})
+    process_identifiers(rest, state)
+  end
+
+  defp process_identifiers([{"state_changed", _stress} | rest], state) do
+    process_identifiers(rest, state)
+  end
+
+  defp process_identifiers([_ | rest], state), do: process_identifiers(rest, state)
+  defp process_identifiers([], _state), do: :ok
 end
