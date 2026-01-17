@@ -18,9 +18,9 @@ defmodule VivaBridge.Brain do
         Logger.info("[Brain] #{msg}")
         :ok
 
-      {:error, reason} ->
-        Logger.error("[Brain] Failed to init: #{inspect(reason)}")
-        {:error, reason}
+      :stub ->
+        Logger.debug("[Brain] Using stub (NIF not implemented)")
+        :ok
     end
   end
 
@@ -29,10 +29,8 @@ defmodule VivaBridge.Brain do
   If emotional state is intense, learning (synaptic adjustment) occurs automatically.
   """
   def experience(text, %{pleasure: p, arousal: a, dominance: d}) do
-    case Body.brain_experience(text, p, a, d) do
-      vector when is_list(vector) -> {:ok, vector}
-      {:error, reason} -> {:error, reason}
-    end
+    vector = Body.brain_experience(text, p, a, d)
+    {:ok, vector}
   end
 
   # Helper for neutral experience (inference only, mostly)
