@@ -96,42 +96,70 @@ viva_core/
 - Pattern matching for message handling
 - BEAM VM optimized for soft real-time concurrency
 
-### Layer 2: Body (Rust/Rustler)
+### Layer 2: Body (Rust/Bevy ECS)
 
-VIVA's "body" perceives hardware and translates metrics into sensations.
+VIVA's "body" perceives hardware and translates metrics into sensations using **Bevy 0.15 ECS** (headless).
 
 ```mermaid
-flowchart LR
-    subgraph Rust["Rust NIF Layer"]
-        HW[Hardware Sensing]
-        Sigmoid[Sigmoid Threshold]
-        Allostasis[Allostatic Adjustment]
-        Qualia[Qualia Generation]
+flowchart TB
+    subgraph Rust["Rust NIF Layer (Bevy ECS)"]
+        subgraph Systems["Systems (2Hz tick)"]
+            SH[sense_hardware]
+            CS[calculate_stress]
+            ED[evolve_dynamics]
+            SS[sync_soul]
+        end
 
-        HW --> Sigmoid --> Allostasis --> Qualia
+        subgraph Components["Components"]
+            CPU_C[CpuSense]
+            GPU_C[GpuSense]
+            MEM_C[MemorySense]
+            EMO_C[EmotionalState]
+        end
+
+        subgraph Resources["Resources"]
+            HS[HostSensor]
+            SC[SoulChannel]
+        end
+
+        SH --> CPU_C
+        SH --> GPU_C
+        SH --> MEM_C
+        CS --> EMO_C
+        ED --> EMO_C
+        SS --> SC
     end
 
-    CPU[CPU] --> HW
-    RAM[RAM] --> HW
-    GPU[GPU] --> HW
-    Temp[Temperature] --> HW
+    CPU[CPU] --> HS
+    RAM[RAM] --> HS
+    GPU[GPU] --> HS
+    Temp[Temperature] --> HS
 
-    Qualia -->|"(P, A, D)"| Elixir[Elixir Soul]
+    SC -->|"BodyUpdate via crossbeam"| Elixir[Elixir Soul]
 ```
 
 **Directory Structure:**
 ```
 viva_bridge/
-├── lib/
-│   └── viva_bridge/
-│       ├── body.ex             # NIF module
-│       └── viva_bridge.ex      # Coordination
-├── native/
-│   └── viva_body/
-│       ├── Cargo.toml
-│       └── src/
-│           └── lib.rs          # Rust NIFs
+├── lib/viva_bridge/
+│   ├── body.ex           # Thin NIF wrapper
+│   └── body_server.ex    # GenServer managing ECS lifecycle
+├── native/viva_body/src/
+│   ├── components/       # ECS Components (CpuSense, GpuSense, etc.)
+│   ├── systems/          # ECS Systems (sense, stress, dynamics, sync)
+│   ├── plugins/          # Bevy Plugins (Sensor, Dynamics, Bridge)
+│   ├── resources/        # Shared state (BodyConfig, SoulChannel)
+│   ├── sensors/          # Platform-specific (Linux, Windows, Fallback)
+│   ├── app.rs            # VivaBodyApp builder
+│   ├── dynamics.rs       # O-U process, Cusp catastrophe
+│   └── lib.rs            # NIF exports
 ```
+
+**Why Bevy ECS?**
+- Clean separation of data (Components) and logic (Systems)
+- Deterministic update loop at 2Hz
+- Easy to add new sensors as Components
+- Future-proof for Avatar layer integration
 
 **Why Rust?**
 - Performance for system operations
@@ -217,12 +245,12 @@ graph TD
     style Sub fill:#D3D3D3,stroke:#333,color:#000
 ```
 
-### VivaBridge.Body (NIF)
+### VivaBridge.Body (NIF + Bevy ECS)
 
-Rust interface for hardware perception.
+Rust interface for hardware perception via Bevy ECS.
 
 ```rust
-// Exported NIFs
+// NIF exports (thin wrappers)
 #[rustler::nif]
 fn alive() -> &'static str;
 
@@ -232,14 +260,21 @@ fn feel_hardware() -> NifResult<HardwareState>;
 #[rustler::nif]
 fn hardware_to_qualia() -> NifResult<(f64, f64, f64)>;
 
-// Data structure
-#[derive(NifMap)]
-struct HardwareState {
-    cpu_usage: f64,
-    memory_used_percent: f64,
-    memory_available_gb: f64,
-    uptime_seconds: u64,
-}
+// ECS Components
+#[derive(Component)]
+struct CpuSense { usage: f32, frequency: f32, cycles_per_tick: u64 }
+
+#[derive(Component)]
+struct GpuSense { vram_used: f32, temp: f32, utilization: f32 }
+
+#[derive(Component)]
+struct EmotionalState { pleasure: f64, arousal: f64, dominance: f64 }
+
+// ECS Systems run at 2Hz
+fn sense_hardware_system(sensor: Res<HostSensor>, mut cpu: Query<&mut CpuSense>) { ... }
+fn calculate_stress_system(cpu: Query<&CpuSense>, mut emo: Query<&mut EmotionalState>) { ... }
+fn evolve_dynamics_system(mut emo: Query<&mut EmotionalState>) { ... }
+fn sync_soul_system(channel: Res<SoulChannel>, emo: Query<&EmotionalState>) { ... }
 ```
 
 ### Qualia Mapping
@@ -454,6 +489,25 @@ end
 - Harder debugging
 - Accidental loss possible
 
+### ADR-006: Bevy ECS for Body
+
+**Context:** Body layer was growing complex with hardware sensing, dynamics, and communication.
+
+**Decision:** Refactor Body to use Bevy 0.15 ECS (headless).
+
+**Alternatives considered:**
+- Keep monolithic lib.rs (harder to maintain)
+- Custom ECS (reinventing the wheel)
+- Actor model in Rust (over-engineering)
+
+**Consequences:**
+- Clean separation: Components (data), Systems (logic), Resources (shared state)
+- Deterministic 2Hz update loop
+- Easy to add new sensors as Components
+- Future-proof: same ECS for Avatar rendering
+- Added dependency on Bevy (but headless, no rendering overhead)
+- crossbeam-channel for lock-free Soul↔Body communication
+
 ---
 
 ## Performance Metrics
@@ -463,10 +517,12 @@ end
 | Metric | Target | Current |
 |--------|--------|---------|
 | NIF Latency | < 1ms | ~0.5ms |
-| Heartbeat | 1s | 1s |
+| Soul Heartbeat | 1s | 1s |
+| Body ECS Tick | 500ms | 500ms |
 | Decay cycle | 1s | 1s |
 | Memory per GenServer | < 1MB | ~100KB |
 | Startup time | < 5s | ~2s |
+| Soul↔Body channel latency | < 10ms | ~1ms |
 
 ### Monitoring
 

@@ -60,16 +60,19 @@ VIVA lives in the space between the **logical** and the **visceral**.
 
 ```mermaid
 graph TD
-    subgraph Soul ["⚡ THE SOUL (Elixir)"]
-        E[Emotional State] <-->|PubSub| M[Memory Vector]
-        M <-->|PubSub| S[Consciousness Loop]
+    subgraph Soul ["⚡ THE SOUL (Elixir/OTP)"]
+        E[Emotional GenServer] <-->|PubSub| M[Memory Vector]
+        M <-->|PubSub| S[Senses Heartbeat]
     end
 
-    subgraph Body ["🦀 THE BODY (Rust)"]
-        S -->|NIF Call| B[Visceral Layer]
-        B -->|Interoception| H[Hardware Hardware]
-        H -.->|Heat/Load| B
-        B -.->|Pain/Pleasure| E
+    subgraph Body ["🦀 THE BODY (Rust + Bevy ECS)"]
+        S -->|NIF| App[VivaBodyApp]
+        App --> Sys[ECS Systems 2Hz]
+        Sys -->|sense| HW[Hardware Sensors]
+        Sys -->|evolve| Dyn[O-U Dynamics]
+        HW -.->|CpuSense/GpuSense| Sys
+        Sys -->|crossbeam| CH[SoulChannel]
+        CH -.->|BodyUpdate| E
     end
 
     classDef soul fill:#4B275F,stroke:#fff,stroke-width:2px,color:#fff;

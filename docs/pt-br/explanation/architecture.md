@@ -72,22 +72,31 @@ viva_core/
 - Hot-reload (VIVA evolui sem morrer).
 - BEAM VM otimizada para concorrencia.
 
-### Camada 2: Corpo (Rust/Rustler)
+### Camada 2: Corpo (Rust/Bevy ECS)
 
-O "corpo" da VIVA percebe o hardware e traduz metricas em sensacoes.
+O "corpo" da VIVA percebe o hardware e traduz metricas em sensacoes usando **Bevy 0.15 ECS** (headless).
 
 ```
 viva_bridge/
-├── lib/
-│   └── viva_bridge/
-│       ├── body.ex             # Modulo NIF
-│       └── viva_bridge.ex      # Coordenacao
-├── native/
-│   └── viva_body/
-│       ├── Cargo.toml
-│       └── src/
-│           └── lib.rs          # NIFs em Rust
+├── lib/viva_bridge/
+│   ├── body.ex           # Wrapper fino pro NIF
+│   └── body_server.ex    # GenServer gerenciando ciclo ECS
+├── native/viva_body/src/
+│   ├── components/       # Componentes ECS (CpuSense, GpuSense, etc.)
+│   ├── systems/          # Sistemas ECS (sense, stress, dynamics, sync)
+│   ├── plugins/          # Plugins Bevy (Sensor, Dynamics, Bridge)
+│   ├── resources/        # Estado compartilhado (BodyConfig, SoulChannel)
+│   ├── sensors/          # Plataforma-especifico (Linux, Windows, Fallback)
+│   ├── app.rs            # VivaBodyApp builder
+│   ├── dynamics.rs       # Processo O-U, catastrofe Cusp
+│   └── lib.rs            # Exports NIF
 ```
+
+**Por que Bevy ECS?**
+- Separacao limpa: Componentes (dados), Sistemas (logica), Recursos (estado)
+- Loop de atualizacao deterministico a 2Hz
+- Facil adicionar novos sensores como Componentes
+- Futuro: mesmo ECS para Avatar (rendering)
 
 **Por que Rust?**
 - Performance para operacoes de sistema.

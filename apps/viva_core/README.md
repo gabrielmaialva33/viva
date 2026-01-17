@@ -8,13 +8,18 @@
 flowchart LR
     subgraph VivaCore["🧠 VivaCore"]
         Emotional["Emotional<br/>Estado PAD"]
-        Memory["Memory<br/>(stub)"]
+        Memory["Memory<br/>Qdrant"]
+        Dreamer["Dreamer<br/>Consolidação"]
+        Senses["Senses<br/>Heartbeat 1Hz"]
         Supervisor["Supervisor<br/>OTP"]
     end
 
     Supervisor --> Emotional
     Supervisor --> Memory
+    Supervisor --> Senses
     Emotional <-->|"PubSub"| Memory
+    Memory --> Dreamer
+    Senses -->|"sync"| Emotional
 ```
 
 ## Módulos
@@ -64,12 +69,31 @@ VivaCore.Emotional.apply_hardware_qualia(-0.02, 0.05, -0.01)
 | `:threat` | -0.2 | +0.5 | -0.2 |
 | `:safety` | +0.1 | -0.2 | +0.1 |
 
-### `VivaCore.Memory` (stub)
+### `VivaCore.Memory`
 
-Ainda não implementado. Será responsável por:
-- Persistir experiências emocionais
-- Busca semântica de memórias
-- Decay temporal
+Memória semântica via Qdrant:
+
+```elixir
+# Armazenar memória
+VivaCore.Memory.remember("User disse algo importante", %{emotion: :joy})
+
+# Buscar memórias similares
+VivaCore.Memory.recall("algo importante")
+#=> [%{content: "...", score: 0.85, metadata: ...}]
+```
+
+### `VivaCore.Dreamer`
+
+Consolidação de memórias durante "sono":
+
+```elixir
+# Processar memórias recentes
+VivaCore.Dreamer.consolidate()
+```
+
+### `VivaCore.Qdrant`
+
+Cliente HTTP para Qdrant vector database.
 
 ## Filosofia
 

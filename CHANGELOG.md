@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Body Architecture)
+- **Bevy ECS 0.15** (headless): Complete refactor of Body subsystem to Entity-Component-System architecture.
+  - **Components**: `CpuSense`, `GpuSense`, `MemorySense`, `ThermalSense`, `BioRhythm`, `EmotionalState`
+  - **Systems**: `sense_hardware`, `calculate_stress`, `evolve_dynamics`, `sync_soul` (2Hz tick)
+  - **Plugins**: `SensorPlugin`, `DynamicsPlugin`, `BridgePlugin` for modular setup
+  - **Resources**: `BodyConfig`, `HostSensor`, `SoulChannel` for shared state
+- **Platform Sensors**: Abstracted hardware sensing with `trait HostSensor`
+  - Linux: sysinfo + NVML + perf-event
+  - Windows: sysinfo + NVML
+  - Fallback: stub for unsupported platforms
+- **crossbeam-channel**: Lock-free async communication between Soul (Elixir) and Body (Rust)
+  - `BodyUpdate`: StateChanged, CriticalStress, NeedsRest
+  - `SoulCommand`: ApplyStimulus, SetDecay, Shutdown
+
+### Changed
+- **Rustler**: 0.35 → 0.36
+- **sysinfo**: 0.32 → 0.33
+- **Body.ex**: Thin wrapper delegating to Bevy ECS (-574 lines)
+- **lib.rs**: NIF exports only, logic moved to ECS systems (-1705 lines)
+
 ### In Progress
 - Deep integration with **Qdrant** for long-term memory and "soul" persistence.
 - Refinement of the **Global Workspace** (Phase 6) for distributed consciousness.

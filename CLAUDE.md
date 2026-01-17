@@ -69,20 +69,56 @@ VIVA_SKIP_NIF=true mix test
 
 ### Body (apps/viva_bridge)
 
-| Elixir Module | Rust File | Purpose |
-|---------------|-----------|---------|
-| `Body` | `lib.rs` | NIF interface for hardware sensing |
-| `BodyServer` | `dynamics.rs` | State evolution (500ms ticks) |
-| `Brain` | - | High-level coordination |
-| `Memory` | `memory/` | Native vector search (HNSW) |
+| Elixir Module | Purpose |
+|---------------|---------|
+| `Body` | NIF interface (thin wrapper) |
+| `BodyServer` | GenServer managing Bevy ECS lifecycle |
+| `Brain` | High-level coordination |
+| `Memory` | Native vector search (HNSW) |
 
 **Rust crate**: `apps/viva_bridge/native/viva_body/`
 
-Key Rust modules:
-- `dynamics.rs` - Ornstein-Uhlenbeck, Cusp catastrophe
-- `metabolism.rs` - Energy/Entropy/Fatigue model
-- `mirror.rs` - Self-reading (Autoscopia/Protocolo Espelho)
-- `asm.rs` - RDTSC/CPUID inline assembly
+Architecture: **Bevy 0.15 ECS (headless)**
+
+```
+src/
+├── components/          # ECS Components
+│   ├── cpu_sense.rs     # CPU usage, frequency, cycles
+│   ├── gpu_sense.rs     # VRAM, temp, utilization
+│   ├── memory_sense.rs  # RAM/swap percentages
+│   ├── thermal_sense.rs # CPU/GPU temperatures
+│   ├── bio_rhythm.rs    # Circadian, fatigue, ticks
+│   └── emotional_state.rs # PAD model state
+├── systems/             # ECS Systems (2Hz tick)
+│   ├── sense_hardware.rs    # Read from HostSensor
+│   ├── calculate_stress.rs  # stress = (cpu + mem) / 2
+│   ├── evolve_dynamics.rs   # O-U stochastic process
+│   └── sync_soul.rs         # Send BodyUpdate via channel
+├── plugins/             # Bevy Plugins
+│   ├── sensor_plugin.rs   # Platform sensor + sensing systems
+│   ├── dynamics_plugin.rs # Emotional evolution
+│   └── bridge_plugin.rs   # Soul↔Body channel
+├── resources/           # Bevy Resources
+│   ├── body_config.rs   # Tick rate, thresholds
+│   ├── host_sensor.rs   # Box<dyn Sensor>
+│   └── soul_channel.rs  # crossbeam Sender/Receiver
+├── sensors/             # Platform-specific
+│   ├── trait_def.rs     # HostSensor trait
+│   ├── linux.rs         # sysinfo + NVML + perf-event
+│   ├── windows.rs       # sysinfo + NVML
+│   └── fallback.rs      # Stub for unsupported
+├── app.rs               # VivaBodyApp builder
+├── app_wrapper.rs       # Thread-safe NIF wrapper
+├── prelude.rs           # Common re-exports
+├── dynamics.rs          # O-U, Cusp catastrophe
+├── metabolism.rs        # Energy/Entropy/Fatigue
+└── memory/              # HNSW vector search
+```
+
+Key dependencies:
+- `bevy_app`, `bevy_ecs`, `bevy_time` (0.15)
+- `crossbeam-channel` (Soul↔Body async)
+- `sysinfo` (0.33), `nvml-wrapper` (0.10)
 
 ## Emotional Mathematics
 
@@ -190,5 +226,7 @@ Next: Language (LLM), Embodiment (Bevy 3D).
 ## External Dependencies
 
 - **Qdrant** - Vector database for semantic memory
+- **Bevy** - ECS framework for Body simulation (headless, 0.15)
 - **NVML** - NVIDIA GPU monitoring (optional, runtime detection)
 - **sysinfo** - Cross-platform system metrics
+- **crossbeam-channel** - Lock-free Soul↔Body communication
