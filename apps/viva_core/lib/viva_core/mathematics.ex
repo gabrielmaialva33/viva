@@ -776,4 +776,142 @@ defmodule VivaCore.Mathematics do
   defp clamp(value, min, max) do
     value |> max(min) |> min(max)
   end
+
+  # =============================================================================
+  # QUANTUM MATHEMATICS (Density Matrices)
+  # =============================================================================
+
+  @doc """
+  Constructs a pure state density matrix from a state vector (ket).
+
+  ρ = |ψ⟩⟨ψ|
+
+  ## Parameters
+  - `ket`: List of complex amplitudes (tuples {r, i})
+
+  ## Retuns
+  - Density matrix (List of Lists of complex tuples)
+  """
+  def density_from_ket(ket) do
+    # ρ_ij = ψ_i * conj(ψ_j)
+    for i <- ket do
+      for j <- ket do
+        complex_mul(i, complex_conj(j))
+      end
+    end
+  end
+
+  @doc """
+  Computes the trace of a matrix (sum of diagonal elements).
+  For a density matrix, this must represent probabilities and sum to 1.0.
+  """
+  def trace(matrix) do
+    matrix
+    |> Enum.with_index()
+    |> Enum.map(fn {row, i} -> Enum.at(row, i) end)
+    |> Enum.reduce({0.0, 0.0}, &complex_add/2)
+  end
+
+  @doc """
+  Computes the Purity of a state: γ = Tr(ρ²).
+
+  - γ = 1: Pure state (maximum knowledge)
+  - γ < 1: Mixed state (classical uncertainty)
+  - γ = 1/d: Maximally mixed state (total chaos)
+  """
+  def purity(rho) do
+    rho_sq = matrix_mul(rho, rho)
+    # Result is real for Hermitian inputs
+    trace(rho_sq) |> elem(0)
+  end
+
+  @doc """
+  Computes Von Neumann Entropy: S = -Tr(ρ ln ρ).
+
+  Approximation using Taylor expansion for ln(ρ) is complex/heavy.
+  For VIVA, we use Linear Entropy (1 - Purity) as a fast proxy,
+  or standard Shannon entropy of the diagonal (if coherent terms small).
+
+  Here we use Linear Entropy: S_lin = 1 - Tr(ρ²)
+  """
+  def linear_entropy(rho) do
+    1.0 - purity(rho)
+  end
+
+  @doc """
+  Expectation value of an observable.
+
+  ⟨A⟩ = Tr(ρA)
+  """
+  def expectation_value(rho, observable) do
+    # Tr(ρA)
+    product = matrix_mul(rho, observable)
+    trace(product)
+  end
+
+  @doc """
+  Mixes two density matrices (classical statistical mixture).
+
+  ρ_mix = p*ρ1 + (1-p)*ρ2
+  """
+  def mix_states(rho1, rho2, p) do
+    p_compl = 1.0 - p
+
+    Enum.zip(rho1, rho2)
+    |> Enum.map(fn {row1, row2} ->
+      Enum.zip(row1, row2)
+      |> Enum.map(fn {v1, v2} ->
+        complex_add(
+          complex_scale(v1, p),
+          complex_scale(v2, p_compl)
+        )
+      end)
+    end)
+  end
+
+  # --- Complex Number Primitive Ops ---
+
+  # {real, imag} tuples
+
+  def complex_add({r1, i1}, {r2, i2}), do: {r1 + r2, i1 + i2}
+  def complex_sub({r1, i1}, {r2, i2}), do: {r1 - r2, i1 - i2}
+
+  def complex_mul({r1, i1}, {r2, i2}) do
+    {r1 * r2 - i1 * i2, r1 * i2 + r2 * i1}
+  end
+
+  def complex_scale({r, i}, s), do: {r * s, i * s}
+
+  def complex_conj({r, i}), do: {r, -i}
+
+  def complex_mag_sq({r, i}), do: r * r + i * i
+
+  def complex_norm({r, i}), do: :math.sqrt(r * r + i * i)
+
+  # --- Matrix Primitive Ops ---
+
+  def matrix_mul(a, b) do
+    # Naive multiplication O(N^3) - fine for N=6
+    # b_t = transpose(b)
+    b_t = transpose(b)
+
+    for row_a <- a do
+      for col_b <- b_t do
+        dot_product_complex(row_a, col_b)
+      end
+    end
+  end
+
+  def transpose(m) do
+    m
+    |> Enum.zip()
+    |> Enum.map(&Tuple.to_list/1)
+  end
+
+  defp dot_product_complex(vec_a, vec_b) do
+    Enum.zip(vec_a, vec_b)
+    |> Enum.reduce({0.0, 0.0}, fn {x, y}, acc ->
+      complex_add(acc, complex_mul(x, y))
+    end)
+  end
 end
