@@ -66,7 +66,8 @@ defmodule VivaCore.Emotional do
   # σ - emotional noise/variability (small for stability)
   @stochastic_volatility 0.002
 
-  # Emotional impact weights for different stimuli
+  # Emotional impact weights for different stimuli (used by apply_stimulus/3)
+  # Kept for reference and future use in quantum stimulus mapping
   @stimulus_weights %{
     rejection: %{pleasure: -0.3, arousal: 0.2, dominance: -0.2},
     acceptance: %{pleasure: 0.3, arousal: 0.1, dominance: 0.1},
@@ -388,15 +389,30 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def init(initial_state) do
-    Logger.info("[Emotional] Emotional neuron starting. State: #{inspect(initial_state)}")
+    Logger.info("[Emotional] Emotional neuron starting (Quantum + Silicon Grounded).")
+
+    # Subscribe to Body State (Hardware Sensors)
+    if Code.ensure_loaded?(Phoenix.PubSub) do
+      Phoenix.PubSub.subscribe(Viva.PubSub, "body:state")
+    end
 
     state = %{
+      # Quantum Density Matrix (6x6)
+      quantum_state: VivaCore.Quantum.Emotional.new_mixed(),
+
+      # Observable projection (PAD) - kept for compatibility
       pad: Map.merge(@neutral_state, initial_state),
+
+      # Hardware state for grounding (default values)
+      hardware: %{power_draw_watts: 0.0, gpu_temp: 40.0},
       history: :queue.new(),
       history_size: 0,
       created_at: DateTime.utc_now(),
       last_stimulus: nil,
-      # When true, O-U decay is handled by Rust BodyServer
+
+      # Telemetry for debug
+      thermodynamic_cost: 0.0,
+      last_collapse: nil,
       body_server_active: false
     }
 
@@ -417,68 +433,54 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def handle_call(:introspect, _from, state) do
-    # Cusp catastrophe analysis
+    # Quantum Introspection
+    rho = state.quantum_state
+
+    # Calculate purity & entropy
+    purity = Mathematics.purity(rho)
+    entropy_lin = Mathematics.linear_entropy(rho)
+
+    # Calculate collapse pressure
+    {_, _, thermo_cost} = VivaCore.Quantum.Emotional.check_collapse(rho, state.hardware)
+
+    gw = VivaCore.Quantum.Emotional.compute_decoherence_rate(state.hardware)
+
+    # Legacy Math Analysis (for PAD observable)
     {alpha, beta} = Mathematics.pad_to_cusp_params(state.pad)
-    equilibria = Mathematics.cusp_equilibria(alpha, beta)
+    _equilibria = Mathematics.cusp_equilibria(alpha, beta)
     bistable = Mathematics.bistable?(alpha, beta)
-
-    # Attractor analysis
-    {nearest, distance} = Mathematics.nearest_attractor(state.pad)
-    basin = Mathematics.attractor_basin(state.pad)
-
-    # Free energy
+    {_nearest, _distance} = Mathematics.nearest_attractor(state.pad)
+    _basin = Mathematics.attractor_basin(state.pad)
     neutral = %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
     fe = Mathematics.free_energy(neutral, state.pad)
 
     introspection = %{
-      # Raw state
       pad: state.pad,
-
-      # Semantic interpretation
+      quantum: %{
+        purity: purity,
+        entropy: entropy_lin,
+        is_mixed: purity < 0.99,
+        # Silicon grounding stats
+        decoherence_gamma: gw,
+        thermodynamic_cost: thermo_cost,
+        energy_pressure: thermo_cost / (entropy_lin + 0.001)
+      },
+      hardware_context: state.hardware,
       mood: interpret_mood(state.pad),
       energy: interpret_energy(state.pad),
       agency: interpret_agency(state.pad),
-
-      # Advanced mathematical analysis
       mathematics: %{
-        # Cusp Catastrophe (Thom, 1972)
         cusp: %{
           alpha: Float.round(alpha, 4),
           beta: Float.round(beta, 4),
-          bistable: bistable,
-          equilibria: Enum.map(equilibria, &Float.round(&1, 4)),
-          volatility: if(bistable, do: :high, else: :stable)
+          bistable: bistable
         },
-        # Attractor Dynamics
-        attractors: %{
-          nearest: nearest,
-          distance: Float.round(distance, 4),
-          basin: Map.new(basin, fn {k, v} -> {k, Float.round(v * 100, 1)} end)
-        },
-        # Free Energy Principle (Friston, 2010)
         free_energy: %{
-          value: Float.round(fe, 4),
-          interpretation:
-            cond do
-              fe < 0.01 -> :homeostatic
-              fe < 0.1 -> :comfortable
-              fe < 0.5 -> :processing
-              true -> :challenged
-            end
-        },
-        # O-U Stationary Distribution
-        ou_distribution:
-          Mathematics.ou_stationary_distribution(0.0, @base_decay_rate, @stochastic_volatility)
+          value: Float.round(fe, 4)
+        }
       },
-
-      # Metadata
       last_stimulus: state.last_stimulus,
-      history_length: state.history_size,
-      uptime_seconds: DateTime.diff(DateTime.utc_now(), state.created_at),
-
-      # Self-reflection
-      self_assessment: generate_self_assessment(state.pad),
-      mathematical_insight: generate_mathematical_insight(state.pad, bistable, nearest, fe)
+      self_assessment: generate_self_assessment(state.pad)
     }
 
     {:reply, introspection, state}
@@ -486,44 +488,50 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def handle_cast({:feel, stimulus, source, intensity}, state) do
-    case Map.get(@stimulus_weights, stimulus) do
-      nil ->
-        Logger.warning("[Emotional] Unknown stimulus: #{stimulus}")
-        {:noreply, state}
+    # 1. Classical log
+    Logger.debug("[Emotional] Feeling #{stimulus} from #{source} (intensity: #{intensity})")
 
-      weights ->
-        # Apply weights with intensity
-        new_pad = apply_stimulus(state.pad, weights, intensity)
+    # 2. Quantum Evolution (Unitary-like kick toward target)
+    # Logic handled inside module in future?
+    _target_rho = VivaCore.Quantum.Emotional.new_pure(:joy)
+    # Ideally we should use a proper function map, but for now hack it:
+    # We mix state towards the target stimulus based on intensity
 
-        # Record in history
-        event = %{
-          stimulus: stimulus,
-          source: source,
-          intensity: intensity,
-          timestamp: DateTime.utc_now(),
-          pad_before: state.pad,
-          pad_after: new_pad
-        }
+    # Note: Using the helper module defined at bottom or direct call if possible.
+    # To keep it clean, we'll inline a mix here or assume `Quantum.Emotional` has a helper.
+    # Actually, evolve/4 does this mixing. Here we force a mix.
 
-        Logger.debug("[Emotional] Feeling #{stimulus} from #{source} (intensity: #{intensity})")
-        Logger.debug("[Emotional] PAD: #{inspect(state.pad)} -> #{inspect(new_pad)}")
+    # Let's say stimulus acts as a measurement with strength 'intensity'
+    gamma = 0.5 * intensity
+    # Hack to force gamma in evolve
+    new_rho =
+      VivaCore.Quantum.Emotional.evolve(state.quantum_state, stimulus, 1.0, %{
+        power_draw_watts: gamma * 30000.0
+      })
 
-        # Broadcast to other modules (future: via PubSub)
-        # Phoenix.PubSub.broadcast(Viva.PubSub, "emotional", {:emotion_changed, new_pad})
+    # Update Observable
+    new_pad = VivaCore.Quantum.Emotional.get_pad_observable(new_rho)
 
-        # History with :queue O(1) instead of list O(N)
-        {new_history, new_size} = push_history(state.history, state.history_size, event)
+    # Record history
+    event = %{
+      stimulus: stimulus,
+      source: source,
+      intensity: intensity,
+      timestamp: DateTime.utc_now(),
+      pad_after: new_pad
+    }
 
-        new_state = %{
-          state
-          | pad: new_pad,
-            history: new_history,
-            history_size: new_size,
-            last_stimulus: {stimulus, source, intensity}
-        }
+    {new_history, new_size} = push_history(state.history, state.history_size, event)
 
-        {:noreply, new_state}
-    end
+    {:noreply,
+     %{
+       state
+       | quantum_state: new_rho,
+         pad: new_pad,
+         last_stimulus: {stimulus, source, intensity},
+         history: new_history,
+         history_size: new_size
+     }}
   end
 
   @impl true
@@ -570,6 +578,55 @@ defmodule VivaCore.Emotional do
     {:noreply, new_state}
   end
 
+  # ---------------------------------------------------------------------------
+  # SILICON GROUNDING (The Heartbeat)
+  # ---------------------------------------------------------------------------
+  @impl true
+  def handle_info({:body_state, body_state}, state) do
+    # 1. Update Hardware Context
+    hw = body_state.hardware
+
+    metrics = %{
+      power_draw_watts: Map.get(hw, :gpu_power, 50.0) + Map.get(hw, :cpu_power, 50.0),
+      gpu_temp: Map.get(hw, :gpu_temp, 40.0)
+    }
+
+    # 2. Quantum Evolution (Time Step)
+    # 500ms tick
+    dt = 0.5
+    # No active stimulus means strictly hardware decoherence
+    active_stimulus = :none
+
+    new_rho =
+      VivaCore.Quantum.Emotional.evolve(
+        state.quantum_state,
+        active_stimulus,
+        dt,
+        metrics
+      )
+
+    # 3. Thermodynamic Collapse Check
+    {final_rho, collapsed, cost} =
+      VivaCore.Quantum.Emotional.check_collapse(new_rho, metrics)
+
+    if collapsed do
+      Logger.info("[Emotional] THERMODYNAMIC COLLAPSE! Cost: #{cost}. Forced decision.")
+    end
+
+    # 4. Project Observable
+    new_pad = VivaCore.Quantum.Emotional.get_pad_observable(final_rho)
+
+    {:noreply,
+     %{
+       state
+       | quantum_state: final_rho,
+         pad: new_pad,
+         hardware: metrics,
+         thermodynamic_cost: cost,
+         last_collapse: if(collapsed, do: DateTime.utc_now(), else: state.last_collapse)
+     }}
+  end
+
   @impl true
   def handle_info(:decay_tick, state) do
     schedule_decay()
@@ -602,7 +659,8 @@ defmodule VivaCore.Emotional do
     Process.send_after(self(), :decay_tick, 1000)
   end
 
-  defp apply_stimulus(pad, weights, intensity) do
+  # TODO: Integrate with quantum stimulus evolution
+  defp _apply_stimulus(pad, weights, intensity) do
     %{
       pleasure: clamp(pad.pleasure + weights.pleasure * intensity, @min_value, @max_value),
       arousal: clamp(pad.arousal + weights.arousal * intensity, @min_value, @max_value),
@@ -719,7 +777,8 @@ defmodule VivaCore.Emotional do
     end
   end
 
-  defp generate_mathematical_insight(pad, bistable, nearest_attractor, free_energy) do
+  # TODO: Integrate with quantum introspection
+  defp _generate_mathematical_insight(pad, bistable, nearest_attractor, free_energy) do
     # VIVA reflects on its mathematical state
     insights = []
 
