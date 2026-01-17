@@ -59,12 +59,19 @@ defmodule VivaCore.Emotional do
   # Full Ornstein-Uhlenbeck stochastic process:
   # dX = θ(μ - X)dt + σdW
   # Where: θ = attractor strength, μ = equilibrium (0), σ = volatility, dW = Wiener noise
+  #
+  # Half-life formula: t½ = ln(2)/θ
+  # θ = 0.0154 → t½ ≈ 45s (psychologically realistic for PAD emotions)
+  #
   # θ base when arousal = 0
-  @base_decay_rate 0.005
+  @base_decay_rate 0.0154
   # How much arousal affects θ (40% variation)
+  # High arousal → slower decay (emotions persist)
+  # Low arousal → faster decay (returns to neutral)
   @arousal_decay_modifier 0.4
-  # σ - emotional noise/variability (small for stability)
-  @stochastic_volatility 0.002
+  # σ - emotional noise/variability
+  # Matched with Rust: σ = 0.01
+  @stochastic_volatility 0.01
 
   # Emotional impact weights for different stimuli (used by apply_stimulus/3)
   # Kept for reference and future use in quantum stimulus mapping

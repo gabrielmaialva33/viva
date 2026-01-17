@@ -41,39 +41,45 @@ pub struct OUParams {
 
 impl Default for OUParams {
     fn default() -> Self {
+        // Half-life formula: t½ = ln(2)/θ
+        // θ = 0.0154 → t½ ≈ 45s (psychologically realistic for PAD emotions)
+        // Matched with Elixir: VivaCore.Emotional @base_decay_rate
         Self {
-            theta: 0.5, // Moderate mean-reversion
-            mu: 0.0,    // Neutral equilibrium
-            sigma: 0.1, // Low noise
+            theta: 0.0154, // ~45s half-life (realistic emotional decay)
+            mu: 0.0,       // Neutral equilibrium
+            sigma: 0.01,   // Low noise (matched with Elixir)
         }
     }
 }
 
 impl OUParams {
     /// Create params for fast emotional recovery (high theta).
+    /// t½ ≈ 15s - quick bounce-back after stimuli
     pub fn fast_recovery() -> Self {
         Self {
-            theta: 2.0,
+            theta: 0.046, // t½ ≈ 15s
             mu: 0.0,
-            sigma: 0.05,
+            sigma: 0.005,
         }
     }
 
     /// Create params for slow emotional drift (low theta).
+    /// t½ ≈ 2min - emotions persist longer (e.g., melancholy)
     pub fn slow_drift() -> Self {
         Self {
-            theta: 0.1,
+            theta: 0.0058, // t½ ≈ 120s
             mu: 0.0,
-            sigma: 0.2,
+            sigma: 0.02,
         }
     }
 
     /// Create params for volatile emotions (high sigma).
+    /// Normal decay but more noise - emotional instability
     pub fn volatile() -> Self {
         Self {
-            theta: 0.5,
+            theta: 0.0154, // t½ ≈ 45s (same as default)
             mu: 0.0,
-            sigma: 0.3,
+            sigma: 0.05,  // 5x more noise
         }
     }
 }
