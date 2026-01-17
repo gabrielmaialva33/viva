@@ -51,8 +51,11 @@ defmodule VivaBridge do
   Converts bodily sensations into emotional deltas.
 
   Returns `{pleasure_delta, arousal_delta, dominance_delta}`.
+
+  Deprecated: Use `Body.body_tick/0` which includes qualia in state.
   """
-  defdelegate hardware_to_qualia, to: Body
+  @deprecated "Use Body.body_tick/0 - qualia computed in Bevy ECS"
+  def hardware_to_qualia, do: {0.0, 0.0, 0.0}
 
   # @doc """
   # Applies body sensations to VIVA's emotional state.
