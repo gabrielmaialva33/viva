@@ -454,6 +454,10 @@ defmodule VivaCore.Emotional do
       created_at: DateTime.utc_now(),
       last_stimulus: nil,
 
+      # External qualia accumulator (from Arduino, peripherals)
+      # These deltas accumulate and merge with sync_pad to avoid being overwritten
+      external_qualia: %{pleasure: 0.0, arousal: 0.0, dominance: 0.0},
+
       # Telemetry for debug
       thermodynamic_cost: 0.0,
       last_collapse: nil,
@@ -595,17 +599,157 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def handle_cast({:apply_qualia, p_delta, a_delta, d_delta}, state) do
-    new_pad = %{
-      pleasure: clamp(state.pad.pleasure + p_delta, @min_value, @max_value),
-      arousal: clamp(state.pad.arousal + a_delta, @min_value, @max_value),
-      dominance: clamp(state.pad.dominance + d_delta, @min_value, @max_value)
+    # ACCUMULATE deltas instead of applying immediately
+    # These will merge with sync_pad to avoid being overwritten by BodyServer
+    acc = state.external_qualia
+
+    new_acc = %{
+      pleasure: acc.pleasure + p_delta,
+      arousal: acc.arousal + a_delta,
+      dominance: acc.dominance + d_delta
     }
 
     Logger.debug(
-      "[Emotional] Hardware qualia: P#{format_delta(p_delta)}, A#{format_delta(a_delta)}, D#{format_delta(d_delta)}"
+      "[Emotional] Accumulating qualia: P#{format_delta(p_delta)}, A#{format_delta(a_delta)}, D#{format_delta(d_delta)} | " <>
+        "Total: P#{format_delta(new_acc.pleasure)}, A#{format_delta(new_acc.arousal)}, D#{format_delta(new_acc.dominance)}"
     )
 
-    {:noreply, %{state | pad: new_pad, last_stimulus: {:hardware_qualia, "body", 1.0}}}
+    {:noreply,
+     %{state | external_qualia: new_acc, last_stimulus: {:hardware_qualia, "peripheral", 1.0}}}
+  end
+
+  @impl true
+  def handle_cast({:sync_pad, p, a, d}, state) do
+    # Sync from BodyServer - absolute values (BodyServer handles O-U dynamics)
+    # MERGE with accumulated external qualia (Arduino, peripherals)
+    acc = state.external_qualia
+
+    new_pad = %{
+      pleasure: clamp(p + acc.pleasure, @min_value, @max_value),
+      arousal: clamp(a + acc.arousal, @min_value, @max_value),
+      dominance: clamp(d + acc.dominance, @min_value, @max_value)
+    }
+
+    # Log if external qualia was merged
+    if acc.pleasure != 0.0 or acc.arousal != 0.0 or acc.dominance != 0.0 do
+      Logger.debug(
+        "[Emotional] Merging external qualia: Body(#{Float.round(p, 3)}, #{Float.round(a, 3)}, #{Float.round(d, 3)}) + " <>
+          "Peripheral(#{format_delta(acc.pleasure)}, #{format_delta(acc.arousal)}, #{format_delta(acc.dominance)}) = " <>
+          "Final(#{Float.round(new_pad.pleasure, 3)}, #{Float.round(new_pad.arousal, 3)}, #{Float.round(new_pad.dominance, 3)})"
+      )
+    end
+
+    # Reset accumulator after merge
+    # Track last sync time to detect BodyServer death
+    new_state = %{
+      state
+      | pad: new_pad,
+        external_qualia: %{pleasure: 0.0, arousal: 0.0, dominance: 0.0},
+        body_server_active: true,
+        last_body_sync: System.monotonic_time(:second)
+    }
+
+    {:noreply, new_state}
+  end
+
+  # Action Profiles (Effect Matrix) for Active Inference
+  # Each action has an expected effect on PAD state
+  @action_profiles %{
+    # Hardware Actions
+    # Cooling but noisy
+    fan_boost: %{pleasure: 0.05, arousal: 0.1, dominance: 0.1},
+    # Quiet but maybe getting hot
+    fan_quiet: %{pleasure: 0.05, arousal: -0.1, dominance: -0.05},
+
+    # Musical Actions (Internal Regulation)
+    hum_joy: %{pleasure: 0.2, arousal: 0.1, dominance: 0.1},
+    hum_calm: %{pleasure: 0.1, arousal: -0.3, dominance: 0.1},
+    # High arousal/dom for focus
+    hum_focus: %{pleasure: 0.0, arousal: 0.2, dominance: 0.2},
+
+    # Internal Cognitive Actions (Self-Regulation)
+    # Calming down manually
+    suppress_arousal: %{pleasure: -0.05, arousal: -0.2, dominance: 0.1},
+    # Getting excited
+    hype_up: %{pleasure: 0.05, arousal: 0.2, dominance: 0.1}
+  }
+
+  # Predicts next state (t + dt) using O-U dynamics
+  defp predict_next_state(pad, dt \\ 1.0) do
+    # Using simplified O-U drift: dx = -theta * x * dt
+    # This is "passive decay" prediction
+    decay_factor = 1.0 - @base_decay_rate * dt
+
+    %{
+      pleasure: pad.pleasure * decay_factor,
+      arousal: pad.arousal * decay_factor,
+      dominance: pad.dominance * decay_factor
+    }
+  end
+
+  defp execute_action(action, _state) do
+    # Map high-level actions to low-level calls
+    case action do
+      :fan_boost ->
+        # 70% power
+        call_bridge(:set_fan_speed, [200])
+
+      :fan_quiet ->
+        # 40% power
+        call_bridge(:set_fan_speed, [100])
+
+      :hum_joy ->
+        call_bridge(:express_emotion, [:joy])
+
+      :hum_calm ->
+        call_bridge(:express_emotion, [:calm])
+
+      :hum_focus ->
+        # Beeping focus
+        call_bridge(:play_note, [:c4, :quarter])
+
+      :suppress_arousal ->
+        # Purely internal
+        :ok
+
+      :hype_up ->
+        # Purely internal
+        :ok
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp call_bridge(func, args) do
+    # Fire and forget to VivaBridge.Music
+    mask_module = VivaBridge.Music
+
+    if Code.ensure_loaded?(mask_module) do
+      apply(mask_module, func, args)
+    end
+  end
+
+  defp apply_internal_feedback(state, action) do
+    effect = Map.get(@action_profiles, action, %{})
+    # Apply 50% of the expected effect immediately as "anticipatory relief"
+    update_pad(state, %{
+      pleasure: Map.get(effect, :pleasure, 0.0) * 0.5,
+      arousal: Map.get(effect, :arousal, 0.0) * 0.5,
+      dominance: Map.get(effect, :dominance, 0.0) * 0.5
+    })
+  end
+
+  defp update_pad(state, delta) do
+    new_pad = %{
+      pleasure:
+        clamp(state.pad.pleasure + Map.get(delta, :pleasure, 0.0), @min_value, @max_value),
+      arousal: clamp(state.pad.arousal + Map.get(delta, :arousal, 0.0), @min_value, @max_value),
+      dominance:
+        clamp(state.pad.dominance + Map.get(delta, :dominance, 0.0), @min_value, @max_value)
+    }
+
+    %{state | pad: new_pad}
   end
 
   # ---------------------------------------------------------------------------
@@ -618,69 +762,73 @@ defmodule VivaCore.Emotional do
   def handle_info(:active_inference_tick, state) do
     schedule_active_inference()
 
-    # 1. Define Target (Homeostasis)
-    # In future, this could be dynamic (predicted by Dreamer)
-    target = @neutral_state
+    # 1. Hallucinate Goal (Target Prior) - "Where do I WANT to be?"
+    # Call to Dreamer to get the target goal (hallucination)
+    target =
+      case VivaCore.Dreamer.hallucinate_goal(state.pad, VivaCore.Dreamer) do
+        target when is_map(target) -> target
+        # Fallback
+        _ -> @neutral_state
+      end
 
-    # 2. Calculate Free Energy (using internal state directly)
-    # F = Surprise + Complexity
-    fe = Mathematics.free_energy(target, state.pad)
-    fe_metrics = %{free_energy: fe}
+    # 2. Predict Future (Internal Model) - "Where am I GOING?"
+    # What will happen if I do nothing? (Passive prediction)
+    predicted = predict_next_state(state.pad)
 
-    # 3. Active Inference Step
-    # If free energy is high, we actively try to reduce it
-    # This acts as a "will to live" / "will to stability"
+    # 3. Calculate Free Energy
+    # F = Complexity(Target || Predicted) + Error(Relative to Sensation)
+    # Using simpler form: F = Distance(Target, Predicted)
+    # If where I'm going != where I want to be -> High Free Energy (Anxiety)
+    fe = Mathematics.free_energy(target, predicted)
+
+    # 4. Action Selection
+    # If Free Energy is high, we must ACT to change the trajectory.
     state =
-      if fe_metrics.free_energy > 0.1 do
-        # Learning rate is proportional to free energy (higher urgency)
-        # But capped to prevent instability
-        learning_rate = min(0.2, fe_metrics.free_energy * 0.5)
-
-        # Calculate corrective step
-        delta = Mathematics.active_inference_step(state.pad, target, learning_rate)
-
-        # Apply correction (Active Inference)
-        new_pad = %{
-          pleasure: clamp(state.pad.pleasure + delta.pleasure, @min_value, @max_value),
-          arousal: clamp(state.pad.arousal + delta.arousal, @min_value, @max_value),
-          dominance: clamp(state.pad.dominance + delta.dominance, @min_value, @max_value)
+      if fe > 0.05 do
+        # We need to change 'predicted' to match 'target'.
+        # Desired Delta = Target - Predicted
+        desired_delta = %{
+          pleasure: target.pleasure - predicted.pleasure,
+          arousal: target.arousal - predicted.arousal,
+          dominance: target.dominance - predicted.dominance
         }
 
-        # Log significant interventions
-        if fe_metrics.free_energy > 0.5 do
-          Logger.debug(
-            "[Emotional] Active Inference: High FE (#{Float.round(fe_metrics.free_energy, 2)}) triggering correction"
-          )
-        end
+        # Project this desire onto available actions
+        ranked_actions = Mathematics.project_action_gradients(desired_delta, @action_profiles)
 
-        %{state | pad: new_pad}
+        # Pick the best action
+        case List.first(ranked_actions) do
+          {best_action, score} when score > 0 ->
+            # Threshold score to avoid doing useless things
+            execute_action(best_action, state)
+
+            # Log the thought process (stream of consciousness)
+            Logger.debug(
+              "[ActiveInference] FE: #{Float.round(fe, 3)} | Goal: P#{Float.round(target.pleasure, 1)} | Action: #{best_action} (score #{Float.round(score, 2)})"
+            )
+
+            # Update state to reflect action (internal feedback immediately)
+            # In reality, physics takes time, but the mind simulates immediate relief
+            apply_internal_feedback(state, best_action)
+
+          _ ->
+            # No good action found (Helplessness?)
+            # Increase Arousal (Anxiety) as default response to unresolvable FE
+            Logger.debug(
+              "[ActiveInference] FE: #{Float.round(fe, 3)} | No effective action found. Stress increasing."
+            )
+
+            # Fail-safe try to calm down? Or panic? let's stick to panic/stress
+            apply_internal_feedback(state, :suppress_arousal)
+            update_pad(state, %{arousal: 0.05, pleasure: -0.02, dominance: -0.05})
+        end
       else
+        # Low Free Energy - "Flow State"
+        # Just drift naturally
         state
       end
 
     {:noreply, state}
-  end
-
-  @impl true
-  def handle_cast({:sync_pad, p, a, d}, state) do
-    # Sync from BodyServer - absolute values (BodyServer handles O-U dynamics)
-    new_pad = %{
-      pleasure: clamp(p, @min_value, @max_value),
-      arousal: clamp(a, @min_value, @max_value),
-      dominance: clamp(d, @min_value, @max_value)
-    }
-
-    # Disable internal decay when syncing from BodyServer
-    # (BodyServer already does O-U + Cusp dynamics)
-    # Track last sync time to detect BodyServer death
-    new_state = %{
-      state
-      | pad: new_pad,
-        body_server_active: true,
-        last_body_sync: System.monotonic_time(:second)
-    }
-
-    {:noreply, new_state}
   end
 
   # ---------------------------------------------------------------------------
@@ -699,6 +847,43 @@ defmodule VivaCore.Emotional do
       power_draw_watts: Map.get(hw, :gpu_power, 50.0) + Map.get(hw, :cpu_power, 50.0),
       gpu_temp: Map.get(hw, :gpu_temp, 40.0)
     }
+
+    # 1.1 BIO-CYBERNETIC INTEROCEPTION
+    # Calculate physical qualia from hardware state
+
+    # Agency Error: "I command, but body does not obey"
+    # target_fan_rpm stores the PWM value (0-255)
+    target_pwm = Map.get(hw, :target_fan_rpm, 0) || 0
+    current_rpm = Map.get(hw, :fan_rpm, 0) || 0
+
+    # If we want it to spin (PWM > 50) and it's stopped (RPM < 300) -> Agency Loss
+    agency_error =
+      if target_pwm > 50 and current_rpm < 300 do
+        # We are trying to push air but nothing moves
+        1.0
+      else
+        0.0
+      end
+
+    # Thermal Stress: "Entropy is increasing"
+    cpu_temp = Map.get(hw, :cpu_temp) || 40.0
+    gpu_temp = Map.get(hw, :gpu_temp) || 40.0
+    max_temp = max(cpu_temp, gpu_temp)
+
+    thermal_stress =
+      cond do
+        # Critical
+        max_temp > 85.0 -> 1.0
+        # High
+        max_temp > 70.0 -> 0.6
+        # Uncomfortable
+        max_temp > 55.0 -> 0.2
+        true -> 0.0
+      end
+
+    if agency_error > 0.0 do
+      Logger.warning("[Emotional] AGENCY LOSS DETECTED! PWM: #{target_pwm}, RPM: #{current_rpm}")
+    end
 
     # 2. Lindblad Evolution
     # The body defines γ (decoherence rate) via L_pressure and L_noise operators
@@ -727,13 +912,31 @@ defmodule VivaCore.Emotional do
     end
 
     # 4. Project to PAD Observable
-    new_pad = VivaCore.Quantum.Emotional.get_pad_observable(final_rho)
+    quantum_pad = VivaCore.Quantum.Emotional.get_pad_observable(final_rho)
+
+    # 5. Apply Classical Bio-Feedback (Emergent Emotions)
+    # The Body overrides the Mind if the Pain/Entropy is too high.
+
+    # Pleasure penalty from Thermal Stress (Entropy increases = Pleasure decreases)
+    p_delta = -0.6 * thermal_stress
+
+    # Dominance penalty from Agency Error (Loss of control = Impotence)
+    d_delta = -0.9 * agency_error
+
+    # Arousal boost from ANY stress (Survival instinct requires energy)
+    a_delta = 0.4 * (thermal_stress + agency_error)
+
+    final_pad = %{
+      pleasure: clamp(quantum_pad.pleasure + p_delta, @min_value, @max_value),
+      arousal: clamp(quantum_pad.arousal + a_delta, @min_value, @max_value),
+      dominance: clamp(quantum_pad.dominance + d_delta, @min_value, @max_value)
+    }
 
     {:noreply,
      %{
        state
        | quantum_state: final_rho,
-         pad: new_pad,
+         pad: final_pad,
          hardware: metrics,
          thermodynamic_cost: cost,
          last_collapse: if(collapsed, do: DateTime.utc_now(), else: state.last_collapse)
