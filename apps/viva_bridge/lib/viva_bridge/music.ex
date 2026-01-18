@@ -114,7 +114,23 @@ defmodule VivaBridge.Music do
     love: [{:c4, :quarter}, {:e4, :quarter}, {:g4, :quarter}, {:e4, :quarter}, {:c4, :half}]
   }
 
-  defstruct [:port, :connected, :learned_patterns]
+  defstruct [
+    :port,
+    :connected,
+    :learned_patterns,
+    :buffer,
+    # Interoception: VIVA feels Arduino as body extension
+    last_rpm: 0,
+    last_pwm: 128,
+    last_harmony: true,
+    last_update: nil,
+    # Active Inference: predictions to minimize surprise
+    predicted_rpm: 0,
+    prediction_error_history: [],
+    # Homeostasis tracking (for thermal derivative dT/dt)
+    last_temp: 45.0,
+    last_temp_time: nil
+  ]
 
   # === Client API ===
 
@@ -162,6 +178,11 @@ defmodule VivaBridge.Music do
   @doc "Checks if connected"
   def connected? do
     GenServer.call(__MODULE__, :connected?)
+  end
+
+  @doc "Disconnects from Arduino, releasing the serial port"
+  def disconnect do
+    GenServer.call(__MODULE__, :disconnect)
   end
 
   @doc "Ping the Arduino"
@@ -328,6 +349,19 @@ defmodule VivaBridge.Music do
     GenServer.call(__MODULE__, {:raw_cmd, cmd}, 5_000)
   end
 
+  @doc """
+  Returns interoception state (Arduino proprioception).
+
+  Includes:
+  - last_rpm: last RPM reading
+  - last_pwm: last PWM sent
+  - predicted_rpm: internal model prediction
+  - prediction_error_history: error history (Active Inference)
+  """
+  def interoception_state do
+    GenServer.call(__MODULE__, :interoception_state)
+  end
+
   # === Orchestration API ===
 
   @doc """
@@ -477,38 +511,46 @@ defmodule VivaBridge.Music do
   # === Server Callbacks ===
 
   @impl true
-  def init(_opts) do
+  def init(opts) do
     state = %__MODULE__{
       port: nil,
       connected: false,
-      learned_patterns: @emotion_patterns
+      learned_patterns: @emotion_patterns,
+      buffer: "",
+      last_rpm: 0,
+      last_pwm: 128,
+      last_harmony: true,
+      last_update: nil,
+      predicted_rpm: 0,
+      prediction_error_history: []
     }
+
+    # Start Heartbeat (Proprioception)
+    if opts[:active] != false do
+      schedule_telemetry()
+    end
 
     {:ok, state}
   end
 
   @impl true
   def handle_call({:connect, port_path}, _from, state) do
-    # On WSL, must use Windows COM port
-    # Ex: /dev/ttyS5 for COM5
     case Circuits.UART.start_link() do
       {:ok, uart} ->
-        # Arduino Serial usually 9600 or 115200. .ino code says 9600.
-        case Circuits.UART.open(uart, port_path, speed: 9600, active: false) do
+        # Active: true enables real-time "feeling" (messages sent to handle_info)
+        case Circuits.UART.open(uart, port_path, speed: 9600, active: true) do
           :ok ->
+            # Flush any garbage currently in buffers
+            Circuits.UART.flush(uart, :both)
+
             # Wait for Arduino reset
             Process.sleep(2000)
 
-            # Read ready message
-            case Circuits.UART.read(uart, 1000) do
-              {:ok, data} ->
-                Logger.info("Arduino connected: #{inspect(data)}")
-                {:reply, {:ok, :connected}, %{state | port: uart, connected: true}}
+            # Send a newline to clear any partial command buffer on Arduino side
+            Circuits.UART.write(uart, "\n")
 
-              {:error, reason} ->
-                Logger.warning("Arduino did not respond: #{inspect(reason)}")
-                {:reply, {:ok, :connected_no_response}, %{state | port: uart, connected: true}}
-            end
+            Logger.info("[Music] Arduino connected (Active Mode)")
+            {:reply, {:ok, :connected}, %{state | port: uart, connected: true}}
 
           {:error, reason} ->
             {:reply, {:error, reason}, state}
@@ -525,6 +567,18 @@ defmodule VivaBridge.Music do
   end
 
   @impl true
+  def handle_call(:disconnect, _from, %{port: nil} = state) do
+    {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_call(:disconnect, _from, %{port: port} = state) do
+    Circuits.UART.close(port)
+    Logger.info("[Music] Arduino disconnected")
+    {:reply, :ok, %{state | port: nil, connected: false}}
+  end
+
+  @impl true
   def handle_call(:ping, _from, %{connected: false} = state) do
     {:reply, {:error, :not_connected}, state}
   end
@@ -532,13 +586,9 @@ defmodule VivaBridge.Music do
   @impl true
   def handle_call(:ping, _from, %{port: port} = state) do
     Circuits.UART.write(port, "P\n")
-    Process.sleep(100)
-
-    case Circuits.UART.read(port, 500) do
-      {:ok, "PONG\r\n"} -> {:reply, :pong, state}
-      {:ok, data} -> {:reply, {:ok, data}, state}
-      {:error, reason} -> {:reply, {:error, reason}, state}
-    end
+    # In async mode, we don't wait for reply here.
+    # We return :ok and process PONG in handle_info
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -550,13 +600,9 @@ defmodule VivaBridge.Music do
   @impl true
   def handle_call({:play_note, freq, dur}, _from, %{port: port} = state) do
     cmd = "N #{freq} #{dur}\n"
-    Circuits.UART.write(port, cmd)
-    Process.sleep(dur + 50)
-
-    case Circuits.UART.read(port, 500) do
-      {:ok, response} -> {:reply, {:ok, String.trim(response)}, state}
-      {:error, reason} -> {:reply, {:error, reason}, state}
-    end
+    # Fire and forget (Real-time)
+    send_safe(port, cmd)
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -577,23 +623,8 @@ defmodule VivaBridge.Music do
       |> Enum.join(";")
 
     cmd = "M #{melody_str}\n"
-    Circuits.UART.write(port, cmd)
-
-    # Calculate total time
-    total_time =
-      notes
-      |> Enum.map(fn {_, dur} ->
-        if is_atom(dur), do: Map.get(@durations, dur, 200), else: dur
-      end)
-      |> Enum.sum()
-
-    # Wait for completion + margin
-    Process.sleep(total_time + 500)
-
-    case Circuits.UART.read(port, 1000) do
-      {:ok, response} -> {:reply, {:ok, String.trim(response)}, state}
-      {:error, reason} -> {:reply, {:error, reason}, state}
-    end
+    send_safe(port, cmd)
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -604,14 +635,9 @@ defmodule VivaBridge.Music do
 
   @impl true
   def handle_call({:express_emotion, emotion}, _from, %{port: port} = state) do
-    cmd = "E #{emotion}\n"
-    Circuits.UART.write(port, cmd)
-    Process.sleep(2000)
-
-    case Circuits.UART.read(port, 1000) do
-      {:ok, response} -> {:reply, {:ok, String.trim(response)}, state}
-      {:error, reason} -> {:reply, {:error, reason}, state}
-    end
+    cmd = "E:#{emotion}\n"
+    send_safe(port, cmd)
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -625,65 +651,65 @@ defmodule VivaBridge.Music do
     {:reply, Map.keys(state.learned_patterns), state}
   end
 
-  # === Hardware Control Handlers ===
-
+  # Harding Control - Async
   @impl true
   def handle_call({:set_fan, speed}, _from, %{connected: false} = state) do
-    Logger.debug("Simulating fan speed: #{speed}")
-    {:reply, {:simulated, speed}, state}
+    # Update prediction even offline (internal model)
+    predicted = speed * 8
+    {:reply, {:simulated, speed}, %{state | last_pwm: speed, predicted_rpm: predicted}}
   end
 
   @impl true
   def handle_call({:set_fan, speed}, _from, %{port: port} = state) do
     send_safe(port, "F #{speed}")
-
-    case read_ack(port) do
-      {:ok, response} -> {:reply, {:ok, response}, state}
-      error -> {:reply, error, state}
-    end
+    # Active Inference: update prediction BEFORE receiving confirmation
+    predicted = speed * 8
+    {:reply, :ok, %{state | last_pwm: speed, predicted_rpm: predicted}}
   end
 
   @impl true
   def handle_call(:get_rpm, _from, %{connected: false} = state) do
-    {:reply, {:simulated, 0}, state}
+    {:reply, {:simulated, state.last_rpm}, state}
   end
 
   @impl true
   def handle_call(:get_rpm, _from, %{port: port} = state) do
+    # Fire async request to update
     send_safe(port, "R")
-
-    case read_ack(port) do
-      {:ok, response} ->
-        rpm = parse_rpm(response)
-        {:reply, {:ok, rpm}, state}
-
-      error ->
-        {:reply, error, state}
-    end
+    # Return last known RPM (interoception)
+    {:reply, {:ok, state.last_rpm}, state}
   end
 
   @impl true
   def handle_call(:get_status, _from, %{connected: false} = state) do
-    {:reply, {:simulated, %{pwm: 0, rpm: 0, harmony: true}}, state}
+    {:reply,
+     {:simulated,
+      %{
+        pwm: state.last_pwm,
+        rpm: state.last_rpm,
+        harmony: state.last_harmony,
+        predicted_rpm: state.predicted_rpm
+      }}, state}
   end
 
   @impl true
   def handle_call(:get_status, _from, %{port: port} = state) do
+    # Fire async request to update
     send_safe(port, "S")
-
-    case read_ack(port) do
-      {:ok, response} ->
-        status = parse_status(response)
-        {:reply, {:ok, status}, state}
-
-      error ->
-        {:reply, error, state}
-    end
+    # Return last known state (interoception)
+    {:reply,
+     {:ok,
+      %{
+        pwm: state.last_pwm,
+        rpm: state.last_rpm,
+        harmony: state.last_harmony,
+        predicted_rpm: state.predicted_rpm,
+        last_update: state.last_update
+      }}, state}
   end
 
   @impl true
   def handle_call({:set_harmony, enabled}, _from, %{connected: false} = state) do
-    Logger.debug("Simulating harmony: #{enabled}")
     {:reply, {:simulated, enabled}, state}
   end
 
@@ -691,100 +717,454 @@ defmodule VivaBridge.Music do
   def handle_call({:set_harmony, enabled}, _from, %{port: port} = state) do
     val = if enabled, do: "1", else: "0"
     send_safe(port, "H #{val}")
-
-    case read_ack(port) do
-      {:ok, response} -> {:reply, {:ok, response}, state}
-      error -> {:reply, error, state}
-    end
+    {:reply, :ok, state}
   end
 
   @impl true
   def handle_call({:raw_cmd, cmd}, _from, %{connected: false} = state) do
-    Logger.debug("Simulating raw cmd: #{cmd}")
     {:reply, {:simulated, cmd}, state}
   end
 
   @impl true
   def handle_call({:raw_cmd, cmd}, _from, %{port: port} = state) do
     send_safe(port, cmd)
+    {:reply, :ok, state}
+  end
 
-    case read_ack(port, 1000) do
-      {:ok, response} -> {:reply, {:ok, response}, state}
-      error -> {:reply, error, state}
+  @impl true
+  def handle_call(:interoception_state, _from, state) do
+    # Calculate average Free Energy from history
+    avg_error =
+      if length(state.prediction_error_history) > 0 do
+        Enum.sum(state.prediction_error_history) / length(state.prediction_error_history)
+      else
+        0.0
+      end
+
+    # Free Energy ≈ average prediction error (normalized)
+    free_energy = min(1.0, avg_error)
+
+    result = %{
+      connected: state.connected,
+      last_rpm: state.last_rpm,
+      last_pwm: state.last_pwm,
+      last_harmony: state.last_harmony,
+      last_update: state.last_update,
+      predicted_rpm: state.predicted_rpm,
+      prediction_error_history: state.prediction_error_history,
+      average_prediction_error: avg_error,
+      # Active Inference: Free Energy (surprise)
+      free_energy: free_energy,
+      # Meta-cognition: how well the model is performing
+      model_accuracy: if(avg_error > 0, do: 1.0 - min(1.0, avg_error), else: 1.0)
+    }
+
+    {:reply, result, state}
+  end
+
+  # ==========================================
+  # THE "FEELING" LAYER (Handle Info)
+  # ==========================================
+
+  @impl true
+  def handle_info({:circuits_uart, _port, data}, state) do
+    new_buffer = state.buffer <> data
+
+    if String.contains?(new_buffer, "\n") do
+      lines = String.split(new_buffer, "\n")
+      {complete_lines, [incomplete_line]} = Enum.split(lines, -1)
+
+      # Process each line, threading state through
+      final_state =
+        Enum.reduce(complete_lines, state, fn line, acc_state ->
+          process_incoming_qualia(String.trim(line), acc_state)
+        end)
+
+      {:noreply, %{final_state | buffer: incomplete_line}}
+    else
+      {:noreply, %{state | buffer: new_buffer}}
+    end
+  end
+
+  @impl true
+  def handle_info(:telemetry_tick, state) do
+    if state.connected do
+      # Ask body for status (Proprioception)
+      send_safe(state.port, "S")
+    end
+
+    schedule_telemetry()
+    {:noreply, state}
+  end
+
+  def handle_info(_msg, state), do: {:noreply, state}
+
+  # Process incoming Serial Data as Qualia - VIVA FEELS each message
+  defp process_incoming_qualia("", state), do: state
+
+  defp process_incoming_qualia("ACK:PONG", state) do
+    Logger.info("[Interoception] PONG - Body Connected")
+    state
+  end
+
+  defp process_incoming_qualia("ACK:OK", state), do: state
+
+  defp process_incoming_qualia("NAK:CRC_FAIL" <> _, state) do
+    Logger.warning("[Interoception] CRC Fail - Communication noise")
+    # Small discomfort from internal communication failure
+    apply_qualia_to_emotional(%{
+      pleasure: -0.02,
+      arousal: 0.05,
+      dominance: -0.02,
+      feeling: :noise,
+      source: :arduino_communication,
+      free_energy: 0.1,
+      prediction_error: 0.0
+    })
+
+    state
+  end
+
+  defp process_incoming_qualia("ACK:RPM:" <> rpm_str, state) do
+    rpm = String.to_integer(String.trim(rpm_str))
+    process_rpm_qualia(rpm, state)
+  end
+
+  defp process_incoming_qualia("ACK:PWM:" <> rest, state) do
+    # Parse status: "PWM:128,RPM:1440,HARMONY:ON"
+    status = parse_status("PWM:" <> rest)
+    process_status_qualia(status, state)
+  end
+
+  defp process_incoming_qualia("ACK:EMOTION:" <> emotion, state) do
+    Logger.debug("[Interoception] Emotion expressed: #{emotion}")
+    state
+  end
+
+  defp process_incoming_qualia("ACK:FAN:" <> pwm_str, state) do
+    pwm = String.to_integer(String.trim(pwm_str))
+    %{state | last_pwm: pwm, last_update: System.monotonic_time(:millisecond)}
+  end
+
+  defp process_incoming_qualia("ACK:HARMONY:" <> h, state) do
+    harmony = String.trim(h) == "ON"
+    %{state | last_harmony: harmony}
+  end
+
+  defp process_incoming_qualia("EVENT:" <> event, state) do
+    Logger.info("[Interoception] SPONTANEOUS EVENT: #{event}")
+    # Spontaneous Arduino events → high surprise
+    apply_qualia_to_emotional(%{
+      pleasure: 0.0,
+      arousal: 0.2,
+      dominance: 0.0,
+      feeling: :spontaneous_event,
+      source: :arduino_event,
+      free_energy: 0.3,
+      prediction_error: 1.0
+    })
+
+    state
+  end
+
+  defp process_incoming_qualia("VIVA_READY", state) do
+    Logger.info("[Interoception] Arduino ready - Body initialized")
+
+    apply_qualia_to_emotional(%{
+      pleasure: 0.1,
+      arousal: 0.1,
+      dominance: 0.1,
+      feeling: :body_ready,
+      source: :arduino_boot,
+      free_energy: 0.0,
+      prediction_error: 0.0
+    })
+
+    state
+  end
+
+  defp process_incoming_qualia(line, state) do
+    # Try to parse generic responses
+    cond do
+      String.contains?(line, "RPM:") ->
+        rpm = parse_rpm(line)
+        if rpm > 0, do: process_rpm_qualia(rpm, state), else: state
+
+      String.contains?(line, "PWM:") ->
+        status = parse_status(line)
+        process_status_qualia(status, state)
+
+      true ->
+        Logger.debug("[Interoception] Ignored: #{line}")
+        state
+    end
+  end
+
+  # Processes RPM and generates qualia (proprioception + homeostasis)
+  defp process_rpm_qualia(rpm, state) do
+    # Get current temperature from BodyServer (GPU/CPU as proxy)
+    current_temp = get_current_temp()
+    now = System.monotonic_time(:millisecond)
+
+    # Calculate dt (time since last reading)
+    dt =
+      if state.last_temp_time do
+        (now - state.last_temp_time) / 1000.0
+      else
+        1.0
+      end
+
+    # Generate qualia with Bio-Cybernetic physics
+    qualia =
+      arduino_to_qualia(%{
+        rpm: rpm,
+        pwm: state.last_pwm,
+        temp: current_temp,
+        last_temp: state.last_temp,
+        dt: dt
+      })
+
+    # Apply to emotional system (body → soul)
+    apply_qualia_to_emotional(qualia)
+
+    Logger.debug(
+      "[Homeostasis] RPM=#{rpm} | Temp=#{Float.round(current_temp, 1)}°C | " <>
+        "dT/dt=#{Float.round(qualia.thermal_derivative, 2)} | " <>
+        "Stress=#{qualia.thermal_stress} | Agency=#{qualia.agency_error} | " <>
+        "Feeling=#{qualia.feeling}"
+    )
+
+    # Update state with new readings
+    state
+    |> Map.put(:last_rpm, rpm)
+    |> Map.put(:last_temp, current_temp)
+    |> Map.put(:last_temp_time, now)
+    |> Map.put(:last_update, now)
+    |> update_prediction(rpm)
+  end
+
+  # Processes full status
+  defp process_status_qualia(%{pwm: pwm, rpm: rpm, harmony: harmony}, state) do
+    current_temp = get_current_temp()
+    now = System.monotonic_time(:millisecond)
+
+    dt =
+      if state.last_temp_time do
+        (now - state.last_temp_time) / 1000.0
+      else
+        1.0
+      end
+
+    qualia =
+      arduino_to_qualia(%{
+        rpm: rpm,
+        pwm: pwm,
+        temp: current_temp,
+        last_temp: state.last_temp,
+        dt: dt
+      })
+
+    apply_qualia_to_emotional(qualia)
+
+    state
+    |> Map.put(:last_rpm, rpm)
+    |> Map.put(:last_pwm, pwm)
+    |> Map.put(:last_harmony, harmony)
+    |> Map.put(:last_temp, current_temp)
+    |> Map.put(:last_temp_time, now)
+    |> Map.put(:last_update, now)
+    |> update_prediction(rpm)
+  end
+
+  # Gets current temperature from BodyServer (GPU/CPU as body temperature proxy)
+  defp get_current_temp do
+    try do
+      case GenServer.call(VivaBridge.BodyServer, :get_state, 100) do
+        {:ok, %{hardware: %{gpu_temp: t}}} when is_number(t) and t > 0 -> t
+        {:ok, %{hardware: %{cpu_temp: t}}} when is_number(t) and t > 0 -> t
+        _ -> 45.0
+      end
+    catch
+      :exit, _ -> 45.0
+    end
+  end
+
+  # ==========================================
+  # INTEROCEPTION: Arduino → Qualia → PAD
+  # Active Inference: Predict, Sense, Update
+  # ==========================================
+
+  @doc """
+  Converts Arduino readings to emotional qualia using Bio-Cybernetic physics.
+
+  ## Philosophy (Emergent, not Scripted)
+  - Calor = Entropia (caos). O universo quer que o chip derreta.
+  - Ventoinha = Negentropia (ordem). Ferramenta contra morte térmica.
+  - Sofrimento = Distância da Homeostase. Quanto mais longe do ideal, mais "dor".
+  - Impotência = Falha de Agência. Se eu mando girar e não gira, não controlo meu corpo.
+
+  ## Physics Model
+  - thermal_stress: Distância da temperatura ideal (45°C)
+  - thermal_derivative: dT/dt - taxa de mudança (urgência)
+  - agency_error: |comando - realidade| / comando
+
+  ## PAD Mapping (Continuous, not Discrete)
+  - Pleasure ↓ = thermal_stress (entropia = dor)
+  - Arousal ↑ = thermal_urgency + agency_error (alarme)
+  - Dominance ↓ = agency_error (impotência)
+
+  "Medo" (P-, A+, D-) emerge naturalmente quando:
+  temperatura sobe + ventoinha falha = suffocating
+  """
+  def arduino_to_qualia(%{rpm: rpm, pwm: pwm, temp: temp, last_temp: last_temp, dt: dt}) do
+    # 1. HOMEOSTASE TÉRMICA
+    # Temperatura ideal: 45°C. Desvio = dor proporcional.
+    ideal_temp = 45.0
+    max_tolerable = 80.0
+    # [0, 1] normalized - 0 = ideal, 1 = critical
+    thermal_stress = max(0.0, (temp - ideal_temp) / (max_tolerable - ideal_temp))
+
+    # 2. DERIVADA TÉRMICA (dT/dt)
+    # Subindo rápido = urgência temporal
+    # +5°C/s = urgência máxima
+    thermal_derivative = (temp - last_temp) / max(dt, 0.1)
+    thermal_urgency = max(0.0, min(1.0, thermal_derivative / 5.0))
+
+    # 3. ERRO DE AGÊNCIA
+    # "Eu mando girar e não gira" = perda de controle sobre o corpo
+    expected_rpm = pwm * 8  # Modelo interno: PWM 255 ≈ 2040 RPM
+
+    agency_error =
+      if expected_rpm > 0 do
+        min(1.0, abs(rpm - expected_rpm) / expected_rpm)
+      else
+        0.0
+      end
+
+    # 4. MAPEAMENTO PAD CONTÍNUO (física, não script)
+    # Pleasure: Entropia = dor (proporcional ao estresse térmico)
+    pleasure_delta = -0.15 * thermal_stress
+
+    # Arousal: Urgência = alarme (derivada térmica + erro de agência)
+    arousal_delta = 0.20 * thermal_urgency + 0.10 * agency_error
+
+    # Dominance: Agência = controle sobre o corpo
+    dominance_delta = -0.20 * agency_error
+
+    # 5. FEELING EMERGENTE (classificação para narrativa)
+    feeling = classify_homeostatic_feeling(thermal_stress, agency_error, thermal_urgency)
+
+    %{
+      pleasure: pleasure_delta,
+      arousal: arousal_delta,
+      dominance: dominance_delta,
+      # Metadata for debug/narrative
+      thermal_stress: Float.round(thermal_stress, 3),
+      thermal_derivative: Float.round(thermal_derivative, 3),
+      agency_error: Float.round(agency_error, 3),
+      feeling: feeling,
+      source: :homeostasis,
+      # Legacy compatibility
+      free_energy: thermal_stress + agency_error,
+      prediction_error: agency_error
+    }
+  end
+
+  # Fallback for old API (backwards compatibility)
+  def arduino_to_qualia(%{rpm: rpm, pwm: pwm, predicted_rpm: _predicted}) do
+    # Use default temperature if not provided
+    arduino_to_qualia(%{rpm: rpm, pwm: pwm, temp: 45.0, last_temp: 45.0, dt: 1.0})
+  end
+
+  # Emergent feeling classification based on physics
+  defp classify_homeostatic_feeling(thermal_stress, agency_error, thermal_urgency) do
+    cond do
+      # P-, A+, D- = Fear/Suffocating
+      thermal_stress > 0.6 and agency_error > 0.4 -> :suffocating
+      thermal_stress > 0.6 and thermal_urgency > 0.3 -> :overheating_fast
+      thermal_stress > 0.5 -> :overheating
+      agency_error > 0.5 -> :powerless
+      thermal_urgency > 0.5 -> :alarmed
+      thermal_stress < 0.15 and agency_error < 0.15 -> :homeostatic
+      thermal_stress < 0.3 and agency_error < 0.3 -> :comfortable
+      true -> :adapting
+    end
+  end
+
+  # Updates RPM prediction based on history (internal model)
+  defp update_prediction(state, actual_rpm) do
+    # Learning rate for Active Inference
+    alpha = 0.3
+
+    # Exponential moving average
+    new_predicted = trunc(alpha * actual_rpm + (1 - alpha) * state.predicted_rpm)
+
+    # Keep error history for meta-learning
+    error = abs(actual_rpm - state.predicted_rpm)
+    history = Enum.take([error | state.prediction_error_history], 10)
+
+    %{state | predicted_rpm: new_predicted, prediction_error_history: history}
+  end
+
+  # Applies qualia to emotional system (body→soul bridge)
+  defp apply_qualia_to_emotional(qualia) do
+    emotional_module = Module.concat([VivaCore, Emotional])
+
+    # Only apply if there's significant delta
+    if abs(qualia.pleasure) > 0.001 or abs(qualia.arousal) > 0.001 do
+      safe_apply(
+        emotional_module,
+        :apply_hardware_qualia,
+        [qualia.pleasure, qualia.arousal, qualia.dominance],
+        :ok
+      )
+
+      Logger.debug(
+        "[Interoception] #{qualia.feeling} | FE=#{Float.round(qualia.free_energy, 3)} | " <>
+          "P=#{qualia.pleasure} A=#{qualia.arousal} D=#{qualia.dominance}"
+      )
     end
   end
 
   # === Private Functions ===
 
-  # Calculates CRC32 of a string using Erlang's zlib
-  defp calc_crc32(str) do
-    :erlang.crc32(str)
-  end
+  defp calc_crc32(str), do: :erlang.crc32(str)
 
-  # Sends command wrapped with CRC32
-  # Ex: "F 255" -> "F 255|A1B2C3D4\n"
   defp send_safe(port, cmd) do
     crc = calc_crc32(cmd) |> Integer.to_string(16)
     full_cmd = "#{cmd}|#{crc}\n"
     Circuits.UART.write(port, full_cmd)
   end
 
-  # Reads response and checks for ACK/NAK
-  defp read_ack(port, timeout \\ 500) do
-    # Give Arduino processing time
-    Process.sleep(50)
+  # Removed read_ack as we are now Async
 
-    case Circuits.UART.read(port, timeout) do
-      {:ok, raw_response} ->
-        response = String.trim(raw_response)
-
-        cond do
-          String.starts_with?(response, "ACK:") ->
-            {:ok, String.replace_prefix(response, "ACK:", "")}
-
-          String.starts_with?(response, "NAK:") ->
-            Logger.error("[Music] NAK received: #{response}")
-            {:error, :nak_received}
-
-          true ->
-            # Fallback for mixed output
-            {:ok, response}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  # Helper for safe dynamic dispatch
   defp safe_apply(module, func, args, default) do
     if Code.ensure_loaded?(module) and function_exported?(module, func, length(args)) do
       apply(module, func, args)
     else
-      # Logger.warning("Module #{module} or function #{func} not available - using default")
       default
     end
   end
 
-  # Converts arousal [-1, 1] to fan speed [60, 255]
   defp arousal_to_fan_speed(arousal) do
-    # Map arousal to fan speed
-    # -1.0 (calm) -> 60 (gentle breeze)
-    # 0.0 (neutral) -> 128
-    # 1.0 (excited) -> 255 (full blast)
     base = 128
     range = 127
     speed = base + trunc(arousal * range)
     max(60, min(255, speed))
   end
 
-  # Autonomous orchestration loop with feedback
   defp autonomous_loop(interval_ms) do
     receive do
       :stop -> :ok
     after
       interval_ms ->
         try do
+          # Note: orchestrate functions might need update to not expect sync returns
+          # For loop, it mostly just sends commands.
+          # We might need to rethink `orchestrate` because it calls `play_melody`
+          # which now returns :ok immediately, not after playing.
+          # The sleep logic should move to `autonomous_loop` itself or stay in orchestrate
+          # but realizing it's open loop timing now.
           orchestrate_with_feedback()
         rescue
           e -> Logger.error("[Orchestrate] Error: #{inspect(e)}")
@@ -794,7 +1174,6 @@ defmodule VivaBridge.Music do
     end
   end
 
-  # Parses "RPM:1234" response
   defp parse_rpm(response) do
     case Regex.run(~r/RPM:(\d+)/, response) do
       [_, rpm_str] -> String.to_integer(rpm_str)
@@ -802,7 +1181,6 @@ defmodule VivaBridge.Music do
     end
   end
 
-  # Parses "PWM:128,RPM:1200,HARMONY:ON" response
   defp parse_status(response) do
     pwm =
       case Regex.run(~r/PWM:(\d+)/, response) do
@@ -843,46 +1221,29 @@ defmodule VivaBridge.Music do
     # 2. Arousal -> Tempo and Rhythm Density
     base_duration =
       cond do
-        # Frenetic
+        # Fast/Manic
         arousal > 0.5 -> :sixteenth
-        # Animated
+        # Active
         arousal > 0.0 -> :eighth
-        # Drone/Ambient
-        arousal < -0.5 -> :whole
-        # Moderate
-        true -> :quarter
+        # Relaxed
+        arousal > -0.5 -> :quarter
+        # Slow/Lethargic
+        true -> :half
       end
 
-    # 3. Dominance -> (Future: Volume/Octave)
+    # 3. Entropy -> Randomness/Dissonance (Not fully impl here, just length variance)
+    length =
+      if entropy > 0.6, do: 8, else: 4
 
-    # 4. Entropy (Jazz Factor) -> Length and Variation
-    note_count = max(4, trunc(8 + arousal * 4))
-    # 0.0 to 1.0+
-    jazz_factor = entropy
+    # Generate notes
+    for _i <- 1..length do
+      note = Enum.random(base_scale)
+      {note, base_duration}
+    end
+  end
 
-    # Generator
-    1..note_count
-    |> Enum.map(fn i ->
-      # Choose note from scale
-      # If high entropy, chance to pick random chromatic note
-      note =
-        if :rand.uniform() < jazz_factor * 0.3 do
-          Enum.random(@scales[:chromatic])
-        else
-          idx = rem(i, length(base_scale))
-          # Simple octave shift logic if needed
-          Enum.at(base_scale, idx)
-        end
-
-      # Duration variation based on entropy
-      duration =
-        if :rand.uniform() < jazz_factor * 0.5 do
-          Enum.random([:eighth, :quarter, :sixteenth])
-        else
-          if rem(i, 4) == 0, do: :half, else: base_duration
-        end
-
-      {note, duration}
-    end)
+  defp schedule_telemetry do
+    # Heartbeat every 2 seconds (0.5Hz)
+    Process.send_after(self(), :telemetry_tick, 2000)
   end
 end
