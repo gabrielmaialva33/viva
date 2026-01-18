@@ -1,11 +1,14 @@
 /*
  * VIVA Music Bridge - Arduino Controller
- * Hardware: Speaker(D8), Buzzer(D9), Fan PWM(D11), Fan Tach(D2)
+ * Hardware: Speaker(D8), Buzzer(D9), Fan PWM(D10), Fan Tach(D2)
+ *
+ * CHANGE: Fan moved from D11 to D10 to use Timer1 @ 25kHz
+ * Intel 4-pin fans require 25kHz PWM
  */
 
 #define SPEAKER_PIN 8
 #define BUZZER_PIN 9
-#define FAN_PWM_PIN 11
+#define FAN_PWM_PIN 10 // Moved from D11 to D10 (Timer1 OC1B)
 #define FAN_TACH_PIN 2 // INT0
 #define LED_PIN 13
 
@@ -21,6 +24,13 @@ bool harmonyEnabled = true;
 // Interrupt handler - counts TACH pulses
 void countPulse() { pulseCount++; }
 
+// Set fan speed using Timer1 (25kHz PWM)
+void setFanSpeed(byte pwm) {
+  fanPWM = pwm;
+  // Map 0-255 to 0-639 (ICR1 = 639)
+  OCR1B = map(pwm, 0, 255, 0, ICR1);
+}
+
 void setup() {
   Serial.begin(9600);
 
@@ -28,22 +38,30 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
   pinMode(FAN_PWM_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
-  pinMode(FAN_TACH_PIN, INPUT_PULLUP); // Internal pull-up
+  pinMode(FAN_TACH_PIN, INPUT_PULLUP);
+
+  // Timer1: 25kHz PWM on pin D10 (OC1B)
+  // Intel 4-pin fans require 25kHz
+  // Fast PWM, TOP = ICR1
+  // f_PWM = 16MHz / (1 * (1 + 639)) = 25kHz
+  TCCR1A = _BV(COM1B1) | _BV(WGM11);            // Clear OC1B on match, WGM11
+  TCCR1B = _BV(WGM13) | _BV(WGM12) | _BV(CS10); // WGM13:12, no prescaler
+  ICR1 = 639;                                   // TOP = 639 for 25kHz
+
+  // Set initial speed (50%)
+  setFanSpeed(fanPWM);
 
   // Attach interrupt on FALLING edge (tach pulses low)
   attachInterrupt(digitalPinToInterrupt(FAN_TACH_PIN), countPulse, FALLING);
 
-  analogWrite(FAN_PWM_PIN, fanPWM);
+  // Startup blink
   digitalWrite(LED_PIN, HIGH);
   delay(200);
   digitalWrite(LED_PIN, LOW);
 
   Serial.println("VIVA_READY");
+  Serial.setTimeout(50); // Don't block loop for long (>1s would break RPM calc)
 }
-
-// CRC32 Lookup Table (Polynomial 0x04C11DB7)
-// Partial table or software calculation to save space?
-// Let's use a software calculation for simplicity and code size.
 
 uint32_t calculateCRC32(String data) {
   uint32_t crc = 0xFFFFFFFF;
@@ -61,15 +79,21 @@ uint32_t calculateCRC32(String data) {
 }
 
 void loop() {
-  // 1. Hardware Monitoring
+  // 1. RPM Calculation (every 1 second)
   unsigned long currentMillis = millis();
-  if (currentMillis - lastRpmCalc >= 1000) {
+  unsigned long dt = currentMillis - lastRpmCalc;
+
+  if (dt >= 1000) {
     noInterrupts();
     unsigned int pulses = pulseCount;
     pulseCount = 0;
     interrupts();
-    // 2 pulses per rotation for standard fans
-    fanRPM = (pulses / 2) * 60;
+
+    // Normalize by actual time elapsed (in seconds) to handle loop jitter
+    // RPM = (Pulses / 2) * (60 / dt_seconds)
+    // RPM = (Pulses / 2) * 60000 / dt_ms
+    fanRPM = (unsigned int)(((unsigned long)pulses * 30000) / dt);
+
     lastRpmCalc = currentMillis;
   }
 
@@ -79,9 +103,6 @@ void loop() {
     input.trim();
 
     if (input.length() > 0) {
-      // Expected format: CMD ARG|CRC32
-      // Example: N 440 200|A1B2C3D4
-
       int separator = input.lastIndexOf('|');
       if (separator == -1) {
         Serial.println("NAK:NO_CRC");
@@ -102,7 +123,6 @@ void loop() {
         return;
       }
 
-      // CRC Valid -> Execute and ACK
       processCommand(cmdPart);
     }
   }
@@ -115,13 +135,13 @@ void processCommand(String input) {
   digitalWrite(LED_PIN, HIGH);
 
   switch (cmd) {
-  case 'P': // Ping -> Pong
+  case 'P': // Ping
     Serial.println("ACK:PONG");
     break;
 
   case 'S': // Status
     Serial.print("ACK:PWM:");
-    Serial.print(fanSpeed);
+    Serial.print(fanPWM);
     Serial.print(",RPM:");
     Serial.print(fanRPM);
     Serial.print(",HARMONY:");
@@ -140,11 +160,10 @@ void processCommand(String input) {
     Serial.println(arg);
     break;
 
-  case 'F': // Fan Control
-    fanSpeed = constrain(arg.toInt(), 0, 255);
-    analogWrite(FAN_PWM_PIN, fanSpeed);
+  case 'F': // Fan Control (0-255)
+    setFanSpeed(constrain(arg.toInt(), 0, 255));
     Serial.print("ACK:FAN:");
-    Serial.println(fanSpeed);
+    Serial.println(fanPWM);
     break;
 
   case 'N': // Play Note
@@ -156,7 +175,7 @@ void processCommand(String input) {
       playNote(freq, dur);
       Serial.println("ACK:OK");
     } else {
-      Serial.println("NAK:fmt");
+      Serial.println("NAK:FMT");
     }
   } break;
 
@@ -171,12 +190,16 @@ void processCommand(String input) {
     Serial.println(harmonyEnabled ? "ON" : "OFF");
     break;
 
-  case 'T': // Test RPM (debug)
+  case 'T': // Test/Debug
     Serial.print("ACK:PULSES:");
     Serial.print(pulseCount);
     Serial.print(",RPM:");
     Serial.print(fanRPM);
-    Serial.print(",TACH_PIN:");
+    Serial.print(",PWM:");
+    Serial.print(fanPWM);
+    Serial.print(",OCR1B:");
+    Serial.print(OCR1B);
+    Serial.print(",TACH:");
     Serial.println(digitalRead(FAN_TACH_PIN));
     break;
 
@@ -201,7 +224,7 @@ void playNote(int freq, int dur) {
   }
   noTone(SPEAKER_PIN);
   noTone(BUZZER_PIN);
-  delay(20); // Gap between notes
+  delay(20);
 }
 
 void playMelody(String melodyStr) {
@@ -225,54 +248,55 @@ void playMelody(String melodyStr) {
 }
 
 void setEmotionFan(String emotion) {
+  byte pwm;
   if (emotion == "joy")
-    fanPWM = 200;
+    pwm = 200;
   else if (emotion == "sad")
-    fanPWM = 80;
+    pwm = 80;
   else if (emotion == "fear")
-    fanPWM = 255;
+    pwm = 255;
   else if (emotion == "calm")
-    fanPWM = 60;
+    pwm = 60;
   else if (emotion == "curious")
-    fanPWM = 150;
+    pwm = 150;
   else if (emotion == "love")
-    fanPWM = 120;
+    pwm = 120;
   else
-    fanPWM = 128;
+    pwm = 128;
 
-  analogWrite(FAN_PWM_PIN, fanPWM);
+  setFanSpeed(pwm);
 }
 
 void playEmotionMelody(String emotion) {
   if (emotion == "joy") {
-    playNote(262, 100);
-    playNote(330, 100);
-    playNote(392, 100);
-    playNote(523, 200);
+    playNote(262, 100); // C4
+    playNote(330, 100); // E4
+    playNote(392, 100); // G4
+    playNote(523, 200); // C5
   } else if (emotion == "sad") {
-    playNote(440, 300);
-    playNote(392, 300);
-    playNote(330, 300);
-    playNote(294, 500);
+    playNote(440, 300); // A4
+    playNote(392, 300); // G4
+    playNote(330, 300); // E4
+    playNote(294, 500); // D4
   } else if (emotion == "fear") {
     for (int i = 0; i < 5; i++) {
-      playNote(233, 50);
-      playNote(247, 50);
+      playNote(233, 50); // Bb3
+      playNote(247, 50); // B3
     }
   } else if (emotion == "calm") {
-    playNote(262, 300);
-    playNote(330, 300);
-    playNote(392, 500);
+    playNote(262, 300); // C4
+    playNote(330, 300); // E4
+    playNote(392, 500); // G4
   } else if (emotion == "curious") {
-    playNote(262, 100);
-    playNote(294, 100);
-    playNote(330, 100);
-    playNote(392, 200);
+    playNote(262, 100); // C4
+    playNote(294, 100); // D4
+    playNote(330, 100); // E4
+    playNote(392, 200); // G4
   } else if (emotion == "love") {
-    playNote(262, 150);
-    playNote(330, 150);
-    playNote(392, 150);
-    playNote(330, 150);
-    playNote(262, 300);
+    playNote(262, 150); // C4
+    playNote(330, 150); // E4
+    playNote(392, 150); // G4
+    playNote(330, 150); // E4
+    playNote(262, 300); // C4
   }
 }
