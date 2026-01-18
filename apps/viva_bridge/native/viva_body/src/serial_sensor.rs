@@ -1,7 +1,7 @@
 #![allow(dead_code)] // TODO: Remove once wired to a dynamic sensor registry
 use crate::{HardwareState, SensoryInput};
 use serialport::SerialPort;
-use std::io::ErrorKind;
+use std::io::{ErrorKind, Write};
 use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 
@@ -71,30 +71,56 @@ impl SensoryInput for SerialSensor {
             None => return HardwareState::empty(),
         };
 
-        // 2. Read data (Naive implementation: Read line)
-        // Ideally: Use a buffer, look for newline, parse JSON.
-        // For NIF safety, we just try to peek/read available bytes.
+        // 2. Poll Status (Write "S\n")
+        if let Err(e) = port.write_all(b"S\n") {
+             eprintln!("[viva_body] Serial write error (poll): {}", e);
+             // If write fails, maybe connection is dead?
+             // We don't drop the connection immediately to avoid thrashing,
+             // but next read failure will likely drop it.
+             return HardwareState::empty();
+        }
 
+        // 3. Read response
+        // Expected: "ACK:PWM:128,RPM:1500,HARMONY:ON"
         let mut serial_buf: Vec<u8> = vec![0; 1024];
+
+        // Timeout is 100ms from try_connect
         match port.read(serial_buf.as_mut_slice()) {
             Ok(t) if t > 0 => {
                 let data_str = String::from_utf8_lossy(&serial_buf[..t]);
-                // Try to find JSON object structure
-                if let Some(start) = data_str.find('{') {
-                    if let Some(end) = data_str[start..].find('}') {
-                        let json_str = &data_str[start..start + end + 1];
-                        if let Ok(partial_state) = serde_json::from_str::<HardwareState>(json_str) {
-                            return partial_state;
-                        }
-                    }
+                let trimmed = data_str.trim();
+
+                // Parse "ACK:PWM:128,RPM:1500,HARMONY:ON"
+                if trimmed.starts_with("ACK:PWM:") {
+                     let mut state = HardwareState::empty();
+
+                     // Simple parsing
+                     for part in trimmed.split(',') {
+                         if let Some(val_str) = part.strip_prefix("RPM:") {
+                             if let Ok(rpm) = val_str.parse::<u32>() {
+                                 state.fan_rpm = Some(rpm);
+                             }
+                         } else if let Some(val_str) = part.strip_prefix("ACK:PWM:") {
+                             // format is ACK:PWM:128
+                              if let Ok(pwm) = val_str.parse::<u32>() {
+                                 // Map PWM (0-255) to target RPM estimate or just store raw?
+                                 // For now store as target_fan_rpm if we want, or just ignore.
+                                 // Let's store PWM as a proxy for Target for now, or just the PWM value.
+                                 // In body_state we defined target_fan_rpm as u32.
+                                 // Let's store the PWM value there
+                                 state.target_fan_rpm = Some(pwm);
+                             }
+                         }
+                     }
+
+                     return state;
                 }
             }
-            Ok(_) => {}
-            Err(ref e) if e.kind() == ErrorKind::TimedOut => {}
+            Ok(_) => {} // Empty read
+            Err(ref e) if e.kind() == ErrorKind::TimedOut => {} // Timeout is expected if no data
             Err(e) => {
                 eprintln!("[viva_body] Serial read error: {}", e);
-                // Maybe disconnect?
-                *port_guard = None;
+                *port_guard = None; // Force reconnect on error
             }
         }
 

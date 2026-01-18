@@ -32,6 +32,8 @@ pub struct HardwareState {
     pub interrupts: u64,
     pub system_entropy: f32,
     pub os_jitter: f32,
+    pub fan_rpm: Option<u32>,
+    pub target_fan_rpm: Option<u32>,
 }
 
 impl HardwareState {
@@ -64,6 +66,8 @@ impl HardwareState {
             interrupts: 0,
             system_entropy: 0.0,
             os_jitter: 0.0,
+            fan_rpm: None,
+            target_fan_rpm: None,
         }
     }
 }
