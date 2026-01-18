@@ -471,6 +471,10 @@ defmodule VivaCore.Emotional do
   @impl true
   def handle_continue(:start_decay, state) do
     if state.enable_decay, do: schedule_decay()
+
+    # Start Active Inference Loop
+    schedule_active_inference()
+
     {:noreply, state}
   end
 
@@ -602,6 +606,59 @@ defmodule VivaCore.Emotional do
     )
 
     {:noreply, %{state | pad: new_pad, last_stimulus: {:hardware_qualia, "body", 1.0}}}
+  end
+
+  # ---------------------------------------------------------------------------
+  # ACTIVE INFERENCE LOOP (Free Energy Minimization)
+  # ---------------------------------------------------------------------------
+  # The system constantly tries to minimize the difference between
+  # predicted state (homeostasis) and observed state (current emotion).
+  # ---------------------------------------------------------------------------
+  @impl true
+  def handle_info(:active_inference_tick, state) do
+    schedule_active_inference()
+
+    # 1. Define Target (Homeostasis)
+    # In future, this could be dynamic (predicted by Dreamer)
+    target = @neutral_state
+
+    # 2. Calculate Free Energy (using internal state directly)
+    # F = Surprise + Complexity
+    fe = Mathematics.free_energy(target, state.pad)
+    fe_metrics = %{free_energy: fe}
+
+    # 3. Active Inference Step
+    # If free energy is high, we actively try to reduce it
+    # This acts as a "will to live" / "will to stability"
+    state =
+      if fe_metrics.free_energy > 0.1 do
+        # Learning rate is proportional to free energy (higher urgency)
+        # But capped to prevent instability
+        learning_rate = min(0.2, fe_metrics.free_energy * 0.5)
+
+        # Calculate corrective step
+        delta = Mathematics.active_inference_step(state.pad, target, learning_rate)
+
+        # Apply correction (Active Inference)
+        new_pad = %{
+          pleasure: clamp(state.pad.pleasure + delta.pleasure, @min_value, @max_value),
+          arousal: clamp(state.pad.arousal + delta.arousal, @min_value, @max_value),
+          dominance: clamp(state.pad.dominance + delta.dominance, @min_value, @max_value)
+        }
+
+        # Log significant interventions
+        if fe_metrics.free_energy > 0.5 do
+          Logger.debug(
+            "[Emotional] Active Inference: High FE (#{Float.round(fe_metrics.free_energy, 2)}) triggering correction"
+          )
+        end
+
+        %{state | pad: new_pad}
+      else
+        state
+      end
+
+    {:noreply, state}
   end
 
   @impl true
@@ -793,6 +850,10 @@ defmodule VivaCore.Emotional do
 
   defp normalize_to_unit(value) do
     (value + 1.0) / 2.0
+  end
+
+  defp schedule_active_inference do
+    Process.send_after(self(), :active_inference_tick, 1000)
   end
 
   defp format_delta(value) when value >= 0, do: "+#{Float.round(value, 3)}"
