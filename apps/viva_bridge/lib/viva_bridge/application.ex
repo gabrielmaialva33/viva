@@ -14,7 +14,9 @@ defmodule VivaBridge.Application do
 
     children =
       if skip_nif or is_test do
-        []
+        [
+          {VivaBridge.Music, []}
+        ]
       else
         [
           # BodyServer - unified interoception (hardware sensing + emotional dynamics)
@@ -24,7 +26,8 @@ defmodule VivaBridge.Application do
            cusp_enabled: true,
            cusp_sensitivity: 0.5,
            pubsub: Viva.PubSub,
-           topic: "body:state"}
+           topic: "body:state"},
+          {VivaBridge.Music, []}
         ]
       end
 
