@@ -12,10 +12,16 @@ defmodule VivaBridge.Application do
     skip_nif = System.get_env("VIVA_SKIP_NIF") == "true"
     is_test = Mix.env() == :test
 
+    # MetaLearner starts paused by default (safety first)
+    # Enable with: VivaBridge.Firmware.MetaLearner.resume()
+    meta_learner_paused = System.get_env("VIVA_META_LEARNER_ACTIVE") != "true"
+
     children =
       if skip_nif or is_test do
         [
-          {VivaBridge.Music, []}
+          {VivaBridge.Music, []},
+          # MetaLearner monitors performance and triggers evolution
+          {VivaBridge.Firmware.MetaLearner, [paused: meta_learner_paused]}
         ]
       else
         [
@@ -27,7 +33,9 @@ defmodule VivaBridge.Application do
            cusp_sensitivity: 0.5,
            pubsub: Viva.PubSub,
            topic: "body:state"},
-          {VivaBridge.Music, []}
+          {VivaBridge.Music, []},
+          # MetaLearner monitors performance and triggers evolution
+          {VivaBridge.Firmware.MetaLearner, [paused: meta_learner_paused]}
         ]
       end
 
