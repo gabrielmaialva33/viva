@@ -27,7 +27,8 @@ defmodule VivaBridge.MixProject do
   defp deps do
     [
       {:rustler, "~> 0.35.0"},
-      {:phoenix_pubsub, "~> 2.1"}
+      {:phoenix_pubsub, "~> 2.1"},
+      {:circuits_uart, "~> 1.5"}
     ]
   end
 end

@@ -1,31 +1,31 @@
-//! VIVA Metabolism - Termodinâmica Digital
+//! VIVA Metabolism - Digital Thermodynamics
 //!
-//! Modelo metabólico baseado em física real:
-//! - Energia (Joules): Custo computacional
-//! - Entropia (Calor): Desordem acumulada
-//! - Fadiga: Estado de exaustão cognitiva
+//! Metabolic model based on real physics:
+//! - Energy (Joules): Computational cost
+//! - Entropy (Heat): Accumulated disorder
+//! - Fatigue: Cognitive exhaustion state
 //!
-//! Referências teóricas:
-//! - 2ª Lei da Termodinâmica (Entropia)
+//! Theoretical references:
+//! - 2nd Law of Thermodynamics (Entropy)
 //! - Free Energy Principle (Friston, 2010)
-//! - Estruturas Dissipativas (Prigogine, 1977)
+//! - Dissipative Structures (Prigogine, 1977)
 
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
 
-/// Estado metabólico do sistema
+/// System metabolic state
 #[derive(Debug, Clone)]
 pub struct MetabolicState {
-    /// Energia consumida em Joules (custo de "pensar")
+    /// Energy consumed in Joules (cost of "thinking")
     pub energy_joules: f32,
-    /// Stress térmico normalizado: 0.0 (frio) → 1.0 (crítico)
+    /// Normalized thermal stress: 0.0 (cold) → 1.0 (critical)
     pub thermal_stress: f32,
-    /// Tensão elétrica (se disponível)
+    /// Electrical voltage (if available)
     pub voltage_tension: f32,
-    /// Nível de fadiga: 0.0 (fresh) → 1.0 (exhausted)
+    /// Fatigue level: 0.0 (fresh) → 1.0 (exhausted)
     pub fatigue_level: f32,
-    /// Sistema precisa de descanso (trigger para consolidação de memória)
+    /// System needs rest (trigger for memory consolidation)
     pub needs_rest: bool,
 }
 
@@ -41,40 +41,38 @@ impl Default for MetabolicState {
     }
 }
 
-/// Motor metabólico principal
+/// Main metabolic engine
 pub struct Metabolism {
-    /// TDP do processador em Watts (fallback quando RAPL não disponível)
+    /// Processor TDP in Watts (fallback when RAPL not available)
     tdp_watts: f32,
-    /// Energia total consumida (acumulador)
+    /// Total energy consumed (accumulator)
     energy_consumed_j: f64,
-    /// Timestamp da última amostra
+    /// Last sample timestamp
     last_sample: Instant,
-    /// Taxa de recuperação de fadiga por segundo
+    /// Fatigue recovery rate per second
     fatigue_decay: f32,
-    /// Nível atual de fadiga
+    /// Current fatigue level
     fatigue: f32,
-    /// Path do RAPL (Linux)
+    /// RAPL path (Linux)
     rapl_path: Option<String>,
-    /// Último valor de energia RAPL (para calcular delta)
-    last_rapl_uj: Option<u64>,
-    /// Valor máximo do contador RAPL antes de wrap (para overflow)
+    /// Last RAPL energy value (to calculate delta)
+    pub last_rapl_uj: Option<u64>,
+    /// Max RAPL counter value before wrap (for overflow)
     max_rapl_uj: Option<u64>,
 }
 
 impl Metabolism {
-    /// Cria novo motor metabólico
-    ///
     /// # Arguments
-    /// * `tdp_watts` - TDP do processador (ex: 125.0 para i9-13900K)
+    /// * `tdp_watts` - Processor TDP (e.g., 125.0 for i9-13900K)
     pub fn new(tdp_watts: f32) -> Self {
-        // Tentar detectar RAPL no Linux
+        // Try to detect RAPL on Linux
         let (rapl_path, max_rapl_uj) = Self::detect_rapl();
 
         Self {
             tdp_watts,
             energy_consumed_j: 0.0,
             last_sample: Instant::now(),
-            fatigue_decay: 0.05, // 5% de recuperação por segundo em idle
+            fatigue_decay: 0.05, // 5% recovery per second when idle
             fatigue: 0.0,
             rapl_path,
             last_rapl_uj: None,
@@ -82,7 +80,7 @@ impl Metabolism {
         }
     }
 
-    /// Detecta path do RAPL (Intel Running Average Power Limit) e max_energy_range
+    /// Detects RAPL path (Intel Running Average Power Limit) and max_energy_range
     fn detect_rapl() -> (Option<String>, Option<u64>) {
         let rapl_dirs = [
             "/sys/class/powercap/intel-rapl/intel-rapl:0",
@@ -94,7 +92,7 @@ impl Metabolism {
             let max_range_path = format!("{}/max_energy_range_uj", dir);
 
             if Path::new(&energy_path).exists() {
-                // Ler max_energy_range_uj para calcular overflow corretamente
+                // Read max_energy_range_uj to calculate overflow correctly
                 let max_range = fs::read_to_string(&max_range_path)
                     .ok()
                     .and_then(|s| s.trim().parse().ok());
@@ -105,7 +103,7 @@ impl Metabolism {
         (None, None)
     }
 
-    /// Lê energia do RAPL em microjoules
+    /// Reads RAPL energy in microjoules
     fn read_rapl_uj(&self) -> Option<u64> {
         self.rapl_path.as_ref().and_then(|path| {
             fs::read_to_string(path)
@@ -114,73 +112,73 @@ impl Metabolism {
         })
     }
 
-    /// Atualiza estado metabólico com base no uso atual
+    /// Updates metabolic state based on current usage
     ///
     /// # Arguments
-    /// * `cpu_usage` - Uso de CPU em porcentagem (0-100)
-    /// * `cpu_temp` - Temperatura da CPU em Celsius (opcional)
+    /// * `cpu_usage` - CPU usage in percentage (0-100)
+    /// * `cpu_temp` - CPU temperature in Celsius (optional)
     ///
     /// # Returns
-    /// Estado metabólico atualizado
+    /// Updated metabolic state
     pub fn tick(&mut self, cpu_usage: f32, cpu_temp: Option<f32>) -> MetabolicState {
         let now = Instant::now();
         let dt = now.duration_since(self.last_sample).as_secs_f32();
 
-        // 1. Calcular energia consumida (ANTES de atualizar last_sample)
+        // 1. Calculate energy consumed (BEFORE updating last_sample)
         let power_watts = self.estimate_power(cpu_usage, dt);
         let energy_delta_j = power_watts * dt;
         self.energy_consumed_j += energy_delta_j as f64;
 
-        // Atualizar timestamp DEPOIS do cálculo de energia
+        // Update timestamp AFTER energy calculation
         self.last_sample = now;
 
-        // 2. Calcular stress térmico
-        // Baseado em temperatura (simplificação termodinâmica)
+        // 2. Calculate thermal stress
+        // Based on temperature (thermodynamic simplification)
         let base_temp = cpu_temp.unwrap_or(40.0);
-        let thermal_stress = (base_temp - 30.0).max(0.0) / 70.0; // Normalizado 0-1 (30-100C)
+        let thermal_stress = (base_temp - 30.0).max(0.0) / 70.0; // Normalized 0-1 (30-100C)
 
-        // 3. Atualizar fadiga
-        // Fadiga aumenta com uso intenso, diminui em idle
+        // 3. Update fatigue
+        // Fatigue increases with intense usage, decreases when idle
         if cpu_usage > 50.0 {
-            // Trabalho intenso: fadiga aumenta
-            let fatigue_rate = (cpu_usage - 50.0) / 50.0 * 0.01; // Max 1% por segundo em 100%
+            // Intense work: fatigue increases
+            let fatigue_rate = (cpu_usage - 50.0) / 50.0 * 0.01; // Max 1% per second at 100%
             self.fatigue = (self.fatigue + fatigue_rate * dt).min(1.0);
         } else {
-            // Recuperacao: fadiga diminui
+            // Recovery: fatigue decreases
             self.fatigue = (self.fatigue - self.fatigue_decay * dt).max(0.0);
         }
 
-        // 4. Determinar se precisa descansar
+        // 4. Determine if rest is needed
         let needs_rest = self.fatigue > 0.8;
 
         MetabolicState {
             energy_joules: energy_delta_j,
             thermal_stress,
-            voltage_tension: 0.0, // TODO: Ler de sensores se disponivel
+            voltage_tension: 0.0, // TODO: Read from sensors if available
             fatigue_level: self.fatigue,
             needs_rest,
         }
     }
 
-    /// Estima potencia consumida em Watts
+    /// Estimates power consumed in Watts
     ///
     /// # Arguments
-    /// * `cpu_usage` - Uso de CPU em porcentagem (0-100)
-    /// * `dt` - Delta time em segundos desde ultima amostra
+    /// * `cpu_usage` - CPU usage in percentage (0-100)
+    /// * `dt` - Delta time in seconds since last sample
     fn estimate_power(&mut self, cpu_usage: f32, dt: f32) -> f32 {
-        // Tentar RAPL primeiro
+        // Try RAPL first
         if let Some(current_uj) = self.read_rapl_uj() {
             if let Some(last_uj) = self.last_rapl_uj {
                 if dt > 0.0 {
-                    // Delta em microjoules -> Watts
+                    // Delta in microjoules -> Watts
                     let delta_uj = if current_uj >= last_uj {
                         current_uj - last_uj
                     } else {
-                        // Overflow do contador RAPL: calcular wrap corretamente
+                        // RAPL counter overflow: calculate wrap correctly
                         // delta = (max_range - last) + current
                         match self.max_rapl_uj {
                             Some(max_range) => (max_range - last_uj) + current_uj,
-                            // Fallback se max_range nao disponivel: usar u64::MAX
+                            // Fallback if max_range not available: use u64::MAX
                             None => (u64::MAX - last_uj) + current_uj,
                         }
                     };
@@ -191,23 +189,23 @@ impl Metabolism {
             self.last_rapl_uj = Some(current_uj);
         }
 
-        // Fallback: modelo heuristico baseado em TDP
+        // Fallback: heuristic model based on TDP
         // Power = TDP * (idle_fraction + load_fraction * usage)
-        // Assumindo idle = 10% do TDP
+        // Assuming idle = 10% of TDP
         let idle_power = self.tdp_watts * 0.10;
         let load_power = self.tdp_watts * 0.90 * (cpu_usage / 100.0);
         idle_power + load_power
     }
 
-    /// Retorna energia total consumida desde o início
-    pub fn total_energy_joules(&self) -> f64 {
+    /// Returns total energy consumed since start (in Joules)
+    pub fn total_energy(&self) -> f64 {
         self.energy_consumed_j
     }
 
-    /// Reseta contadores (ex: após "sono"/consolidação)
-    pub fn reset(&mut self) {
+    /// Resets period counter (tick)
+    pub fn reset_period(&mut self) {
         self.fatigue = 0.0;
-        // Não reseta energia total (é histórico)
+        // Do not reset total energy (it is historical)
     }
 }
 
@@ -219,7 +217,7 @@ mod tests {
     fn test_metabolism_basic() {
         let mut meta = Metabolism::new(125.0); // i9-13900K TDP
 
-        // Simular tick com CPU idle
+        // Simulate tick with CPU idle
         let state = meta.tick(5.0, Some(35.0));
         assert!(state.energy_joules > 0.0);
         assert!(state.fatigue_level < 0.1);
@@ -230,21 +228,20 @@ mod tests {
     fn test_fatigue_accumulation() {
         let mut meta = Metabolism::new(125.0);
 
-        // Simular trabalho intenso
+        // Simulate intense work
         for _ in 0..100 {
             meta.tick(95.0, Some(80.0));
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
 
-        // Fadiga deve ter aumentado
-        // Fadiga deve ter aumentado (rate aprox 0.009/s -> em 1s ~= 0.009)
+        // Fatigue should have increased (rate approx 0.009/s -> in 1s ~= 0.009)
         assert!(
             meta.fatigue > 0.005,
             "Fatigue should accumulate (got {})",
             meta.fatigue
         );
 
-        // Testar recuperação
+        // Test recovery
         let peak_fatigue = meta.fatigue;
         for _ in 0..50 {
             meta.tick(10.0, Some(35.0)); // Idle

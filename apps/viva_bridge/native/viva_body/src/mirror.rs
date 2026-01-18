@@ -1,17 +1,17 @@
-//! VIVA Mirror - Self-Reading Module (Autoscopia)
+//! VIVA Mirror - Self-Reading Module (Autoscopy)
 //!
-//! Este módulo permite que VIVA leia seu próprio código-fonte.
-//! O código é embedded no binário em compile-time via `include_str!()`.
+//! This module allows VIVA to read its own source code.
+//! The code is embedded in the binary at compile-time via `include_str!()`.
 //!
-//! ## Segurança
-//! - Código é read-only
-//! - Modificações passam por sandbox com whitelist de funções
-//! - Checksums validados antes de qualquer alteração
+//! ## Security
+//! - Code is read-only
+//! - Modifications go through sandbox with function whitelist
+//! - Checksums validated before any changes
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-/// Código-fonte embedded (compile-time)
+/// Embedded source code (compile-time)
 pub mod embedded {
     /// Core library
     pub const LIB_RS: &str = include_str!("lib.rs");
@@ -23,7 +23,7 @@ pub mod embedded {
     pub const METABOLISM: &str = include_str!("metabolism.rs");
 }
 
-/// Metadados de um módulo
+/// Module metadata
 #[derive(Debug, Clone)]
 pub struct SelfModule {
     pub name: &'static str,
@@ -45,14 +45,14 @@ impl SelfModule {
     }
 }
 
-/// Computa hash do conteúdo
+/// Computes hash of content
 fn compute_hash(content: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
     content.hash(&mut hasher);
     hasher.finish()
 }
 
-/// Hash combinado de todas as fontes embedded (detecta mudanças)
+/// Combined hash of all embedded sources (detects changes)
 pub fn source_hash() -> u64 {
     let mut hasher = DefaultHasher::new();
     embedded::LIB_RS.hash(&mut hasher);
@@ -62,7 +62,7 @@ pub fn source_hash() -> u64 {
     hasher.finish()
 }
 
-/// Busca código-fonte por path
+/// Searches source code by path
 pub fn get_source(path: &str) -> Option<&'static str> {
     match path {
         "lib.rs" | "src/lib.rs" => Some(embedded::LIB_RS),
@@ -73,7 +73,7 @@ pub fn get_source(path: &str) -> Option<&'static str> {
     }
 }
 
-/// Lista todos os módulos disponíveis
+/// Lists all available modules
 pub fn list_modules() -> Vec<SelfModule> {
     vec![
         SelfModule::new("lib", "src/lib.rs", embedded::LIB_RS),
@@ -83,7 +83,7 @@ pub fn list_modules() -> Vec<SelfModule> {
     ]
 }
 
-/// Identidade do build
+/// Build identity
 pub struct BuildIdentity {
     pub git_hash: &'static str,
     pub build_time: &'static str,

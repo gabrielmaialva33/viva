@@ -1,8 +1,8 @@
-//! Build script para VIVA Body
+//! Build script for VIVA Body
 //!
-//! Gera constantes em compile-time:
-//! - VIVA_GIT_HASH: Hash curto do commit
-//! - VIVA_BUILD_TIME: Timestamp ISO 8601
+//! Generates compile-time constants:
+//! - VIVA_GIT_HASH: Short commit hash
+//! - VIVA_BUILD_TIME: ISO 8601 timestamp
 
 use std::process::Command;
 

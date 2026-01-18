@@ -1,10 +1,10 @@
 use std::collections::VecDeque;
 
-/// Tamanho do buffer de memória de curto prazo (em ticks de 500ms)
-/// 20 ticks = 10 segundos de histórico
+/// Short-term memory buffer size (in 500ms ticks)
+/// 20 ticks = 10 seconds of history
 const HISTORY_SIZE: usize = 20;
 
-/// Mantém o histórico temporal para análise de ritmo biológico
+/// Maintains temporal history for biological rhythm analysis
 pub struct BioRhythm {
     cpu_history: VecDeque<f32>,
     ctx_switch_history: VecDeque<u64>,
@@ -18,7 +18,7 @@ impl BioRhythm {
         }
     }
 
-    /// Atualiza o estado com novos dados
+    /// Updates the state with new data
     pub fn update(&mut self, cpu_usage: f32, ctx_switches: u64) {
         if self.cpu_history.len() >= HISTORY_SIZE {
             self.cpu_history.pop_front();
@@ -31,15 +31,15 @@ impl BioRhythm {
         self.ctx_switch_history.push_back(ctx_switches);
     }
 
-    /// Calcula a entropia de Shannon (Caos vs Ordem) do uso de CPU
-    /// Retorna 0.0 (Ordem total) a 1.0 (Caos total)
+    /// Calculates Shannon Entropy (Chaos vs Order) of CPU usage
+    /// Returns 0.0 (Total Order) to 1.0 (Total Chaos)
     pub fn cpu_entropy(&self) -> f32 {
         if self.cpu_history.len() < 2 {
             return 0.0;
         }
 
-        // 1. Normalizar valores para distribuição de probabilidade
-        // Criamos histograma de 10 bins (0-10%, 10-20%...)
+        // 1. Normalize values for probability distribution
+        // Create a 10-bin histogram (0-10%, 10-20%...)
         let mut bins = [0.0f32; 10];
         let total = self.cpu_history.len() as f32;
 
@@ -48,7 +48,7 @@ impl BioRhythm {
             bins[idx] += 1.0;
         }
 
-        // 2. Calcular Shannon Entropy: H = -sum(p * log2(p))
+        // 2. Calculate Shannon Entropy: H = -sum(p * log2(p))
         let mut entropy = 0.0;
         for &count in &bins {
             if count > 0.0 {
@@ -57,23 +57,23 @@ impl BioRhythm {
             }
         }
 
-        // Normalizar pelo máximo possível (log2(10 bins) ≈ 3.32)
+        // Normalize by maximum possible (log2(10 bins) ≈ 3.32)
         (entropy / 3.32).clamp(0.0, 1.0)
     }
 
-    /// Calcula o "Jitter" (Desvio Padrão) dos Context Switches
-    /// Indica a instabilidade do sistema operacional
+    /// Calculates the "Jitter" (Standard Deviation) of Context Switches
+    /// Indicates operating system instability
     pub fn context_switch_jitter(&self) -> f32 {
         if self.ctx_switch_history.len() < 2 {
             return 0.0;
         }
 
-        // Precisamos dos deltas, não dos valores absolutos
+        // We need the deltas, not absolute values
         let mut deltas = Vec::new();
         let mut iter = self.ctx_switch_history.iter();
         if let Some(mut last) = iter.next() {
             for val in iter {
-                // Delta simples (pode ser negativo se counter resetar, mas improvável aqui)
+                // Simple delta (can be negative if counter resets, but unlikely here)
                 let delta = if val >= last { val - last } else { 0 };
                 deltas.push(delta as f32);
                 last = val;
@@ -84,15 +84,15 @@ impl BioRhythm {
             return 0.0;
         }
 
-        // Média
+        // Mean
         let mean: f32 = deltas.iter().sum::<f32>() / deltas.len() as f32;
 
-        // Variância
+        // Variance
         let variance: f32 =
             deltas.iter().map(|&x| (x - mean).powi(2)).sum::<f32>() / deltas.len() as f32;
 
-        // Desvio padrão normalizado (Coefficient of Variation)
-        // Se mean for muito baixo, jitter pode explodir, então clampamos
+        // Normalized standard deviation (Coefficient of Variation)
+        // If mean is too low, jitter can explode, so we clamp
         if mean > 1.0 {
             (variance.sqrt() / mean).clamp(0.0, 1.0)
         } else {
