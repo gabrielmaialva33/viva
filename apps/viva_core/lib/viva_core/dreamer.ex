@@ -251,6 +251,24 @@ defmodule VivaCore.Dreamer do
     GenServer.call(server, {:retrieve, query, opts}, 30_000)
   end
 
+  @doc """
+  Active Inference: Hallucinates a goal state (Target Prior).
+  This represents where VIVA *wants* to be in the near future.
+
+  The goal is not static; it shifts based on "whimsy" (random exploration)
+  and "values" (preference for stable attractors).
+
+  ## Parameters
+  - `context` - Map with current context (e.g., current PAD)
+  - `server` - GenServer reference
+
+  ## Returns
+  - Target PAD map %{pleasure: float, arousal: float, dominance: float}
+  """
+  def hallucinate_goal(context \\ %{}, server \\ __MODULE__) do
+    GenServer.call(server, {:hallucinate_goal, context})
+  end
+
   # ============================================================================
   # GenServer Callbacks
   # ============================================================================
@@ -384,6 +402,62 @@ defmodule VivaCore.Dreamer do
   def handle_call({:retrieve, query, opts}, _from, state) do
     result = do_retrieve(query, opts, state)
     {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:hallucinate_goal, context}, _from, state) do
+    # Simple stochastic goal selection for now
+    # In future: Use stored values/memories to bias selection
+
+    # 70% chance of seeking Positive Attractors (Joy, Contentment, Excitement)
+    # 20% chance of seeking Homeostasis (Neutral)
+    # 10% chance of "Morbid Curiosity" (exploring negative states) if dominance is high
+    roll = :rand.uniform()
+
+    current_dom = Map.get(context, :dominance, 0.0)
+
+    target_key =
+      cond do
+        roll < 0.7 ->
+          # Bias towards positive
+          [:joy, :contentment, :excitement] |> Enum.random()
+
+        roll < 0.9 ->
+          :neutral
+
+        true ->
+          # Whimsy/Curiosity (or Dark Side if dominant)
+          if current_dom > 0.5 do
+            # Confrontational
+            [:anger, :fear] |> Enum.random()
+          else
+            [:curious, :calm] |> Enum.random()
+          end
+      end
+
+    # Get attractor coordinates from Mathematics (using raw apply to avoid circ dep if compiled together, but they are same app)
+    # Actually Mathematics is safe to call.
+    attractors = VivaCore.Mathematics.emotional_attractors()
+    # If key missing (e.g. curious not in main list), fallback to neutral
+    target = Map.get(attractors, target_key, attractors.neutral)
+
+    # Add slight noise to make it "organic" goal (not a perfect point)
+    noisy_target = %{
+      pleasure: target.pleasure + (:rand.uniform() - 0.5) * 0.1,
+      arousal: target.arousal + (:rand.uniform() - 0.5) * 0.1,
+      dominance: target.dominance + (:rand.uniform() - 0.5) * 0.1
+    }
+
+    notify_hallucination(target_key, noisy_target)
+
+    {:reply, noisy_target, state}
+  end
+
+  defp notify_hallucination(goal_name, target) do
+    # Optional: log or broadcast the hallucinated goal
+    Logger.debug(
+      "[Dreamer] Hallucinated Goal: #{goal_name} (P#{Float.round(target.pleasure, 2)})"
+    )
   end
 
   @impl true
