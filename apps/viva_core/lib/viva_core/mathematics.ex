@@ -330,6 +330,33 @@ defmodule VivaCore.Mathematics do
     }
   end
 
+  @doc """
+  Projects the desired PAD change onto available action effect vectors.
+  Used to determine which action best achieves the desired emotional shift.
+
+  ## Parameters
+  - `desired_delta`: Map %{pleasure: dp, arousal: da, dominance: dd}
+  - `action_profiles`: Map of action_name -> effect_pad (e.g., %{fan_up: %{arousal: 0.2}})
+
+  ## Returns
+  - List of {action_name, score} sorted by best match.
+    Score is the dot product (cosine similarity * magnitude).
+  """
+  def project_action_gradients(desired_delta, action_profiles) do
+    action_profiles
+    |> Enum.map(fn {action, effect} ->
+      # Dot product: desired · effect
+      # If they point in same direction, score is high
+      score =
+        Map.get(desired_delta, :pleasure, 0.0) * Map.get(effect, :pleasure, 0.0) +
+          Map.get(desired_delta, :arousal, 0.0) * Map.get(effect, :arousal, 0.0) +
+          Map.get(desired_delta, :dominance, 0.0) * Map.get(effect, :dominance, 0.0)
+
+      {action, score}
+    end)
+    |> Enum.sort_by(fn {_action, score} -> -score end)
+  end
+
   # =============================================================================
   # INTEGRATED INFORMATION THEORY Φ (Tononi, 2004, 2023)
   # =============================================================================
