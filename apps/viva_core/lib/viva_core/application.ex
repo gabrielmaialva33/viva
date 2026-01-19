@@ -28,6 +28,10 @@ defmodule VivaCore.Application do
       # Must be first so others can subscribe during init
       {Phoenix.PubSub, name: Viva.PubSub},
 
+      # Body Schema - self-awareness of hardware capabilities
+      # Must start before Emotional so it can configure emotional baseline
+      {VivaCore.BodySchema, name: VivaCore.BodySchema},
+
       # Emotional Neuron - feels and processes emotions
       {VivaCore.Emotional, name: VivaCore.Emotional},
 

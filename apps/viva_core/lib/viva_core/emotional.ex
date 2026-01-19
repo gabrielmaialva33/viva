@@ -229,6 +229,29 @@ defmodule VivaCore.Emotional do
     GenServer.cast(server, {:apply_qualia, pleasure_delta, arousal_delta, dominance_delta})
   end
 
+  @doc """
+  Configures emotional baseline based on body schema.
+
+  Called by BodySchema after Motor Babbling to disable distress
+  for organs that don't exist. For example, if no fan is detected,
+  fan-related agency errors won't cause anxiety.
+
+  ## Parameters
+  - `body_schema` - The BodySchema struct with hardware capabilities
+
+  ## Example
+
+      # After BodySchema probes and finds no fan:
+      VivaCore.Emotional.configure_body_schema(%BodySchema{
+        local_hardware: %{fan_status: :absent}
+      })
+      # Fan-related distress is now disabled
+
+  """
+  def configure_body_schema(body_schema, server \\ __MODULE__) do
+    GenServer.cast(server, {:configure_body_schema, body_schema})
+  end
+
   # ============================================================================
   # Advanced Mathematical Analysis
   # ============================================================================
@@ -458,6 +481,14 @@ defmodule VivaCore.Emotional do
       # These deltas accumulate and merge with sync_pad to avoid being overwritten
       external_qualia: %{pleasure: 0.0, arousal: 0.0, dominance: 0.0},
 
+      # Emotional weights (adjusted by BodySchema based on available organs)
+      # If an organ is absent, its related weight is 0 (no distress for missing limbs)
+      emotional_weights: %{
+        fan_agency_weight: 1.0,
+        thermal_stress_weight: 1.0,
+        gpu_stress_weight: 1.0
+      },
+
       # Telemetry for debug
       thermodynamic_cost: 0.0,
       last_collapse: nil,
@@ -616,6 +647,46 @@ defmodule VivaCore.Emotional do
 
     {:noreply,
      %{state | external_qualia: new_acc, last_stimulus: {:hardware_qualia, "peripheral", 1.0}}}
+  end
+
+  @impl true
+  def handle_cast({:configure_body_schema, body_schema}, state) do
+    # Adjust emotional weights based on body capabilities
+    # If an organ is absent, we don't generate distress for it
+
+    fan_status = body_schema.local_hardware[:fan_status] || :unknown
+    gpu_present = body_schema.local_hardware[:gpu] != nil
+
+    new_weights =
+      case fan_status do
+        :absent ->
+          # No fan = no fan-related anxiety
+          Logger.info("[Emotional] Cooling system ABSENT. Disabling fan-related distress.")
+          %{state.emotional_weights | fan_agency_weight: 0.0}
+
+        :broken ->
+          # Broken fan = heightened anxiety (we SHOULD have one!)
+          Logger.warning("[Emotional] Cooling system BROKEN. High distress enabled.")
+          %{state.emotional_weights | fan_agency_weight: 1.5}
+
+        :working ->
+          Logger.info("[Emotional] Cooling system WORKING. Normal emotional baseline.")
+          %{state.emotional_weights | fan_agency_weight: 1.0}
+
+        _ ->
+          state.emotional_weights
+      end
+
+    # Adjust GPU weight
+    final_weights =
+      if gpu_present do
+        new_weights
+      else
+        Logger.info("[Emotional] No GPU detected. Reducing GPU stress weight.")
+        %{new_weights | gpu_stress_weight: 0.3}
+      end
+
+    {:noreply, %{state | emotional_weights: final_weights}}
   end
 
   @impl true
