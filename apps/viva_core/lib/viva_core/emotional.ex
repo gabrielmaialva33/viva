@@ -603,6 +603,9 @@ defmodule VivaCore.Emotional do
 
       {new_history, new_size} = push_history(state.history, state.history_size, event)
 
+      # Broadcast emotional state (Feromone output)
+      Phoenix.PubSub.broadcast(Viva.PubSub, "emotional:update", {:emotional_state, new_pad})
+
       {:noreply,
        %{
          state
@@ -617,6 +620,8 @@ defmodule VivaCore.Emotional do
   @impl true
   def handle_cast(:decay, state) do
     new_pad = decay_toward_neutral(state.pad)
+    # Broadcast emotional state (Feromone output) - quiet update
+    Phoenix.PubSub.broadcast(Viva.PubSub, "emotional:update", {:emotional_state, new_pad})
     {:noreply, %{state | pad: new_pad}}
   end
 
@@ -719,6 +724,9 @@ defmodule VivaCore.Emotional do
         body_server_active: true,
         last_body_sync: System.monotonic_time(:second)
     }
+
+    # Broadcast emotional state (Feromone output)
+    Phoenix.PubSub.broadcast(Viva.PubSub, "emotional:update", {:emotional_state, new_pad})
 
     {:noreply, new_state}
   end

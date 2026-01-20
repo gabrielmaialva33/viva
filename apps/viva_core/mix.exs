@@ -27,6 +27,7 @@ defmodule VivaCore.MixProject do
   defp deps do
     [
       {:viva_bridge, in_umbrella: true},
+      {:phoenix_pubsub, "~> 2.1"},
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"}
     ]

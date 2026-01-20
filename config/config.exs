@@ -22,5 +22,9 @@ config :viva_core,
   memory_backend: :rust_native,
   native_memory_path: Path.expand("~/.viva/memory")
 
+# Configure Logger to use Console and SporeLogger (Mycelial Memory)
+config :logger,
+  backends: [:console, VivaCore.Logging.SporeLogger]
+
 # Import environment-specific config
 import_config "#{config_env()}.exs"

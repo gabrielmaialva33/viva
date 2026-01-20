@@ -172,6 +172,14 @@ defmodule VivaCore.Memory do
     store(content, %{type: :emotional, emotion: pad_state, importance: 0.7}, server)
   end
 
+  @doc """
+  Async storage for logs (SporeLogger).
+  Fire-and-forget to avoid blocking the Logger system.
+  """
+  def store_log(content, level, server \\ __MODULE__) do
+    GenServer.cast(server, {:store_log, content, level})
+  end
+
   # ============================================================================
   # GenServer Callbacks
   # ============================================================================
@@ -223,70 +231,17 @@ defmodule VivaCore.Memory do
 
   @impl true
   def handle_call({:store, content, metadata}, _from, state) do
-    id = generate_id()
-    now = DateTime.utc_now()
-
-    # Build payload
-    payload = %{
-      content: content,
-      type: Atom.to_string(metadata[:type] || :generic),
-      importance: metadata[:importance] || 0.5,
-      emotion: metadata[:emotion],
-      timestamp: DateTime.to_iso8601(now),
-      access_count: 0,
-      last_accessed: DateTime.to_iso8601(now)
-    }
-
-    result =
-      case state.backend do
-        :qdrant ->
-          # Generate embedding
-          case Embedder.embed(content) do
-            {:ok, embedding} ->
-              Qdrant.upsert_point(id, embedding, payload)
-
-            {:error, reason} ->
-              Logger.error("[Memory] Embedding failed: #{inspect(reason)}")
-              {:error, :embedding_failed}
-          end
-
-        :in_memory ->
-          entry = Map.merge(payload, %{id: id, embedding: Embedder.embed_hash(content)})
-          new_memories = Map.put(state.memories, id, entry)
-          new_index = [id | state.index]
-          {:ok, id, %{state | memories: new_memories, index: new_index}}
-
-        :rust_native ->
-          case Embedder.embed(content) do
-            {:ok, embedding} ->
-              # NativeMemory.store/2 expects (vector, metadata_map)
-              metadata_for_native =
-                payload
-                |> Map.put(:id, id)
-                |> Map.put(:content, content)
-
-              case NativeMemory.store(embedding, metadata_for_native) do
-                "Memory stored" -> {:ok, id}
-                {:ok, _} -> {:ok, id}
-                error -> {:error, error}
-              end
-
-            {:error, reason} ->
-              {:error, reason}
-          end
-      end
-
-    case result do
+    case do_store(content, metadata, state) do
       {:ok, id} ->
         Logger.debug("[Memory] Stored: #{String.slice(content, 0, 50)}...")
-        # Notify Dreamer of new memory
         notify_dreamer(id, metadata[:importance] || 0.5)
         {:reply, {:ok, id}, %{state | store_count: state.store_count + 1}}
 
-      {:ok, id, new_state} ->
+      {:ok, id, new_state_data} ->
         Logger.debug("[Memory] Stored (in-memory): #{String.slice(content, 0, 50)}...")
-        # Notify Dreamer of new memory
         notify_dreamer(id, metadata[:importance] || 0.5)
+        # Handle in-memory state update
+        new_state = Map.merge(state, new_state_data)
         {:reply, {:ok, id}, %{new_state | store_count: new_state.store_count + 1}}
 
       {:error, reason} ->
@@ -452,6 +407,39 @@ defmodule VivaCore.Memory do
     {:noreply, new_state}
   end
 
+  @impl true
+  def handle_cast({:store_log, content, level}, state) do
+    # Treat logs as "System Pain" (Emotional Memory)
+    # High importance for errors, medium for warnings
+    importance = if level == :error, do: 0.9, else: 0.5
+
+    # Generate metadata
+    metadata = %{
+      type: :system_log,
+      level: level,
+      importance: importance,
+      # Pain/Distress
+      emotion: %{pleasure: -0.5, arousal: 0.8, dominance: -0.5}
+    }
+
+    # Inline storage (blocking the memory process briefly, but ensures logs are captured)
+    case do_store(content, metadata, state) do
+      {:ok, id} ->
+        # Logged successfully (don't verify, just accept)
+        notify_dreamer(id, importance)
+        {:noreply, %{state | store_count: state.store_count + 1}}
+
+      {:ok, id, new_state_data} ->
+        notify_dreamer(id, importance)
+        new_state = Map.merge(state, new_state_data)
+        {:noreply, %{new_state | store_count: new_state.store_count + 1}}
+
+      {:error, _reason} ->
+        # Failed to store log - nothing we can do, don't crash the memory
+        {:noreply, state}
+    end
+  end
+
   # ============================================================================
   # Private Functions
   # ============================================================================
@@ -548,6 +536,59 @@ defmodule VivaCore.Memory do
       dot / (mag_a * mag_b)
     else
       0.0
+    end
+  end
+
+  defp do_store(content, metadata, state) do
+    id = generate_id()
+    now = DateTime.utc_now()
+
+    # Build payload
+    payload = %{
+      content: content,
+      type: Atom.to_string(metadata[:type] || :generic),
+      importance: metadata[:importance] || 0.5,
+      emotion: metadata[:emotion],
+      timestamp: DateTime.to_iso8601(now),
+      access_count: 0,
+      last_accessed: DateTime.to_iso8601(now)
+    }
+
+    case state.backend do
+      :qdrant ->
+        # Generate embedding
+        case Embedder.embed(content) do
+          {:ok, embedding} ->
+            Qdrant.upsert_point(id, embedding, payload)
+            {:ok, id}
+
+          {:error, reason} ->
+            Logger.error("[Memory] Embedding failed: #{inspect(reason)}")
+            {:error, :embedding_failed}
+        end
+
+      :in_memory ->
+        entry = Map.merge(payload, %{id: id, embedding: Embedder.embed_hash(content)})
+        # Return state changes
+        {:ok, id, %{memories: Map.put(state.memories, id, entry), index: [id | state.index]}}
+
+      :rust_native ->
+        case Embedder.embed(content) do
+          {:ok, embedding} ->
+            metadata_for_native =
+              payload
+              |> Map.put(:id, id)
+              |> Map.put(:content, content)
+
+            case NativeMemory.store(embedding, metadata_for_native) do
+              "Memory stored" -> {:ok, id}
+              {:ok, _} -> {:ok, id}
+              error -> {:error, error}
+            end
+
+          {:error, reason} ->
+            {:error, reason}
+        end
     end
   end
 end
