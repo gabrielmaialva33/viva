@@ -206,6 +206,14 @@ defmodule VivaBridge.Music do
     GenServer.call(__MODULE__, {:play_melody, notes}, 30_000)
   end
 
+  @doc "Plays a rhythm (list of durations in ms)"
+  def play_rhythm(durations) when is_list(durations) do
+    # Convert durations to notes (fixed pitch for rhythm, distinct per pulse)
+    # Using 220Hz (A3) as a base pulse tone
+    notes = Enum.map(durations, fn dur -> {220, dur} end)
+    play_melody(notes)
+  end
+
   @doc "Expresses an emotion through music"
   def express_emotion(emotion) when emotion in [:joy, :sad, :fear, :calm, :curious, :love] do
     GenServer.call(__MODULE__, {:express_emotion, emotion})
@@ -1032,7 +1040,8 @@ defmodule VivaBridge.Music do
 
     # 3. ERRO DE AGÊNCIA
     # "Eu mando girar e não gira" = perda de controle sobre o corpo
-    expected_rpm = pwm * 8  # Modelo interno: PWM 255 ≈ 2040 RPM
+    # Modelo interno: PWM 255 ≈ 2040 RPM
+    expected_rpm = pwm * 8
 
     agency_error =
       if expected_rpm > 0 do

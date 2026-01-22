@@ -270,19 +270,36 @@ defmodule VivaBridge.BodyServer do
 
     # 3. Experience it! (Learn/Feel)
     # Only if arousal is significant to avoid spamming memory with noise
+    # 3. Experience it! (Learn/Feel)
+    # Only if arousal is significant to avoid spamming memory with noise
     if abs(emotion.arousal) > 0.1 do
-      {:ok, vector} = VivaBridge.Cortex.experience(full_narrative, emotion)
+      case VivaBridge.Cortex.experience(full_narrative, emotion) do
+        {:ok, vector, new_pad_map} ->
+          # 3.1 CORTEX FEEDBACK LOOP (Nucleus controls Cell)
+          # Calculate delta to nudge the Body towards the Brain's state
+          p_delta = new_pad_map.pleasure - emotion.pleasure
+          a_delta = new_pad_map.arousal - emotion.arousal
+          d_delta = new_pad_map.dominance - emotion.dominance
 
-      # 4. Store memory (Conceptualize)
-      meta = %{
-        type: "episodic",
-        source: "interoception",
-        content: full_narrative,
-        timestamp: System.os_time(:millisecond),
-        emotion: emotion
-      }
+          # Damping factor (Plasticity) - don't jump instantly
+          plasticity = 0.5
+          Body.apply_stimulus(p_delta * plasticity, a_delta * plasticity, d_delta * plasticity)
 
-      VivaBridge.Memory.store(vector, meta)
+          # 4. Store memory (Conceptualize)
+          meta = %{
+            type: "episodic",
+            source: "interoception",
+            content: full_narrative,
+            timestamp: System.os_time(:millisecond),
+            emotion: emotion
+          }
+
+          VivaBridge.Memory.store(vector, meta)
+
+        {:error, reason} ->
+          Logger.warning("[BodyServer] Cortex experience failed: #{inspect(reason)}")
+          :ok
+      end
     end
 
     {%{state | last_state: body_state}, body_state}

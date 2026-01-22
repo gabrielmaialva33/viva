@@ -53,15 +53,16 @@ defmodule VivaBridge.Firmware.Evolution do
   alias VivaBridge.Firmware.{Codegen, Uploader}
 
   # Grid dimensions
-  @grid_size 5  # 5x5 = 25 behavioral niches
-  @dimensions 2  # energy_level, melody_complexity
+  # 5x5 = 25 behavioral niches
+  @grid_size 5
+  # energy_level, melody_complexity
+  @dimensions 2
 
   # Evolution parameters
   @initial_population 20
   @iterations_per_run 50
-  @mutation_strength 0.15
-  @iso_sigma 0.05  # Isoline variation sigma
-  @line_sigma 0.1   # Line variation sigma
+  # Parameters
+  # (Attributes removed as they were unused)
 
   # ============================================================================
   # Public API
@@ -103,7 +104,9 @@ defmodule VivaBridge.Firmware.Evolution do
     evaluate_live = Keyword.get(opts, :evaluate_live, false)
     archive = Keyword.get(opts, :archive) || initialize()
 
-    Logger.info("[MAP-Elites] Starting evolution: #{iterations} iterations, live=#{evaluate_live}")
+    Logger.info(
+      "[MAP-Elites] Starting evolution: #{iterations} iterations, live=#{evaluate_live}"
+    )
 
     final_archive =
       Enum.reduce(1..iterations, archive, fn i, acc ->
@@ -132,7 +135,10 @@ defmodule VivaBridge.Firmware.Evolution do
             if rem(i, 10) == 0 do
               filled = count_filled_cells(new_archive)
               best = best_fitness(new_archive)
-              Logger.info("[MAP-Elites] Iteration #{i}: #{filled} cells, best fitness: #{Float.round(best, 4)}")
+
+              Logger.info(
+                "[MAP-Elites] Iteration #{i}: #{filled} cells, best fitness: #{Float.round(best, 4)}"
+              )
             end
 
             new_archive
@@ -141,7 +147,10 @@ defmodule VivaBridge.Firmware.Evolution do
 
     # Summary
     summary = summarize_archive(final_archive)
-    Logger.info("[MAP-Elites] Evolution complete: #{summary.filled_cells} cells, coverage: #{summary.coverage}%")
+
+    Logger.info(
+      "[MAP-Elites] Evolution complete: #{summary.filled_cells} cells, coverage: #{summary.coverage}%"
+    )
 
     {:ok, final_archive, summary}
   end
@@ -173,14 +182,15 @@ defmodule VivaBridge.Firmware.Evolution do
     %{
       grid_size: @grid_size,
       dimensions: @dimensions,
-      elites: Enum.map(elites, fn {{row, col}, genotype} ->
-        %{
-          cell: {row, col},
-          genotype: genotype,
-          descriptors: compute_descriptors(genotype),
-          fitness: genotype.fitness
-        }
-      end),
+      elites:
+        Enum.map(elites, fn {{row, col}, genotype} ->
+          %{
+            cell: {row, col},
+            genotype: genotype,
+            descriptors: compute_descriptors(genotype),
+            fitness: genotype.fitness
+          }
+        end),
       exported_at: DateTime.utc_now()
     }
   end
@@ -215,7 +225,10 @@ defmodule VivaBridge.Firmware.Evolution do
     current = Map.get(archive, {row, col})
 
     if current == nil or genotype.fitness > current.fitness do
-      Logger.debug("[MAP-Elites] New elite at (#{row},#{col}): fitness=#{Float.round(genotype.fitness, 4)}")
+      Logger.debug(
+        "[MAP-Elites] New elite at (#{row},#{col}): fitness=#{Float.round(genotype.fitness, 4)}"
+      )
+
       Map.put(archive, {row, col}, genotype)
     else
       archive
@@ -306,12 +319,14 @@ defmodule VivaBridge.Firmware.Evolution do
   defp random_genotype do
     base = Codegen.default_genotype()
 
-    %{base |
-      generation: 0,
-      fitness: 0.0,
-      emotions: random_emotions(),
-      harmony_ratio: 1.5 + :rand.uniform() * 1.5,  # 1.5 to 3.0
-      timer: %{prescaler: 1, top: random_timer_top()}
+    %{
+      base
+      | generation: 0,
+        fitness: 0.0,
+        emotions: random_emotions(),
+        # 1.5 to 3.0
+        harmony_ratio: 1.5 + :rand.uniform() * 1.5,
+        timer: %{prescaler: 1, top: random_timer_top()}
     }
   end
 
@@ -319,11 +334,14 @@ defmodule VivaBridge.Firmware.Evolution do
     emotion_names = [:joy, :sad, :fear, :calm, :curious, :love]
 
     for name <- emotion_names, into: %{} do
-      {name, %{
-        pwm: :rand.uniform(256) - 1,  # 0-255
-        melody: random_melody(3 + :rand.uniform(5)),  # 3-7 notes
-        repeat: if(name == :fear, do: 3 + :rand.uniform(5), else: nil)
-      }}
+      {name,
+       %{
+         # 0-255
+         pwm: :rand.uniform(256) - 1,
+         # 3-7 notes
+         melody: random_melody(3 + :rand.uniform(5)),
+         repeat: if(name == :fear, do: 3 + :rand.uniform(5), else: nil)
+       }}
     end
   end
 
@@ -343,7 +361,8 @@ defmodule VivaBridge.Firmware.Evolution do
     # freq 25kHz → TOP 639
     # freq 20kHz → TOP 799
     # freq 30kHz → TOP 532
-    532 + :rand.uniform(268)  # 532 to 800
+    # 532 to 800
+    532 + :rand.uniform(268)
   end
 
   # ============================================================================
@@ -352,12 +371,14 @@ defmodule VivaBridge.Firmware.Evolution do
 
   defp mutate(parent) do
     # Apply multiple mutation types
-    offspring = parent
-    |> mutate_emotions()
-    |> mutate_harmony()
-    |> mutate_timer()
-    |> Map.put(:generation, parent.generation + 1)
-    |> Map.put(:fitness, 0.0)  # Reset fitness for re-evaluation
+    offspring =
+      parent
+      |> mutate_emotions()
+      |> mutate_harmony()
+      |> mutate_timer()
+      |> Map.put(:generation, parent.generation + 1)
+      # Reset fitness for re-evaluation
+      |> Map.put(:fitness, 0.0)
 
     offspring
   end
@@ -469,7 +490,7 @@ defmodule VivaBridge.Firmware.Evolution do
     timer_score = compute_timer_score(genotype)
 
     # Combined fitness (0 to 1)
-    fitness = (pwm_diversity * 0.4) + (melody_coherence * 0.4) + (timer_score * 0.2)
+    fitness = pwm_diversity * 0.4 + melody_coherence * 0.4 + timer_score * 0.2
 
     %{genotype | fitness: fitness}
   end
@@ -507,7 +528,8 @@ defmodule VivaBridge.Firmware.Evolution do
 
           consonant_count / max(length(ratios), 1)
         else
-          0.5  # Single note is neutral
+          # Single note is neutral
+          0.5
         end
       end)
 
@@ -559,7 +581,8 @@ defmodule VivaBridge.Firmware.Evolution do
         max(0, 1.0 - error / 1000.0)
 
       _ ->
-        0.5  # Neutral if no data
+        # Neutral if no data
+        0.5
     end
   end
 
@@ -580,7 +603,8 @@ defmodule VivaBridge.Firmware.Evolution do
       filled_cells: filled,
       coverage: Float.round(filled / total * 100, 1),
       best_fitness: if(Enum.empty?(fitnesses), do: 0.0, else: Enum.max(fitnesses)),
-      avg_fitness: if(Enum.empty?(fitnesses), do: 0.0, else: Enum.sum(fitnesses) / length(fitnesses)),
+      avg_fitness:
+        if(Enum.empty?(fitnesses), do: 0.0, else: Enum.sum(fitnesses) / length(fitnesses)),
       min_fitness: if(Enum.empty?(fitnesses), do: 0.0, else: Enum.min(fitnesses))
     }
   end
