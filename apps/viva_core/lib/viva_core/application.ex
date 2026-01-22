@@ -63,7 +63,10 @@ defmodule VivaCore.Application do
 
       # GLOBAL WORKSPACE (Thoughtseeds)
       # The theater of consciousness where mental objects compete
-      {VivaCore.Consciousness.Workspace, name: VivaCore.Consciousness.Workspace}
+      {VivaCore.Consciousness.Workspace, name: VivaCore.Consciousness.Workspace},
+
+      # Inner Monologue - Stream of consciousness
+      {VivaCore.InnerMonologue, []}
 
       # Future neurons:
       # {VivaCore.Optimizer, name: VivaCore.Optimizer},
