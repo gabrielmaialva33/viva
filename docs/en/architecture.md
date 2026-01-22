@@ -102,7 +102,7 @@ The Brain provides biologically-plausible neural computation.
 ### Chronos (Time Series Oracle)
 - **Technology**: Amazon Chronos-T5 with LoRA fine-tuning
 - **Role**: Predicts future interoceptive states
-- **Training**: DatasetCollector feeds daily CSV → nightly LoRA update
+- **Training**: DatasetCollector feeds daily CSV -> nightly LoRA update
 
 ---
 
@@ -139,7 +139,7 @@ children = [
 | 4 | **DatasetCollector** | VivaCore.DatasetCollector | Chronos training data |
 | 5 | **Emotional** | VivaCore.Emotional | PAD + O-U dynamics |
 | 6 | **Memory** | VivaCore.Memory | Qdrant vector store |
-| 7 | **Senses** | VivaCore.Senses | Body↔Soul sync |
+| 7 | **Senses** | VivaCore.Senses | Body-Soul sync |
 | 8 | **Dreamer** | VivaCore.Dreamer | Memory consolidation |
 | 9 | **Agency** | VivaCore.Agency | Whitelist command execution |
 | 10 | **Voice** | VivaCore.Voice | Hebbian proto-language |
@@ -151,7 +151,7 @@ children = [
 Based on Allen, Levy, Parr & Friston (2022). VIVA doesn't react to raw data - she reacts to **surprise**.
 
 ```
-Free Energy = (Observed - Predicted)² × Precision
+Free Energy = (Observed - Predicted)^2 x Precision
 ```
 
 Metrics monitored:
@@ -160,14 +160,14 @@ Metrics monitored:
 
 #### Agency (Digital Hands)
 Whitelist-only command execution for homeostatic actions:
-- `:diagnose_memory` → `free -h`
-- `:diagnose_processes` → `ps aux --sort=-pcpu`
-- `:diagnose_load` → `uptime`
+- `:diagnose_memory` -> `free -h`
+- `:diagnose_processes` -> `ps aux --sort=-pcpu`
+- `:diagnose_load` -> `uptime`
 
 #### Voice (Proto-Language)
 Hebbian learning for emergent communication:
 ```
-Δw = η × (pre × post)
+delta_w = eta x (pre x post)
 ```
 Signals: `:chirp_high`, `:chirp_low`, `:pulse_fast`, `:pattern_sos`
 
@@ -187,7 +187,7 @@ The Body provides hardware sensing and physics simulation.
 - **VivaBodyApp** - Bevy 0.15 headless ECS
 - **ECS Systems** - 2Hz tick rate
 - **Hardware Sensors** - CPU, GPU, RAM, Temperature via `sysinfo` + `nvml`
-- **SoulChannel** - crossbeam for async Soul↔Body communication
+- **SoulChannel** - crossbeam for async Soul-Body communication
 
 ### Rust Crate Structure
 ```
@@ -203,11 +203,96 @@ apps/viva_bridge/native/viva_body/src/
 
 ## Data Flow
 
+### Heartbeat Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant HW as Hardware
+    participant Body as Body (Rust/Bevy)
+    participant Bridge as VivaBridge
+    participant Senses as Senses
+    participant Emotional as Emotional
+    participant PubSub as PubSub
+
+    rect rgb(40, 40, 40)
+        note over HW,Body: Body Layer (2Hz)
+        HW->>Body: CPU/GPU/RAM/Temp readings
+        Body->>Body: Calculate stress
+        Body->>Body: O-U stochastic dynamics
+    end
+
+    rect rgb(75, 39, 95)
+        note over Bridge,PubSub: Soul Layer (1Hz)
+        Body->>Bridge: crossbeam channel
+        Bridge->>Senses: BodyUpdate struct
+        Senses->>Emotional: sync_pad(p, a, d)
+        Emotional->>Emotional: Apply qualia
+        Emotional->>PubSub: broadcast emotional:update
+    end
 ```
-1. HARDWARE → Body (2Hz)
+
+### Information Processing Pipeline
+
+```mermaid
+flowchart LR
+    subgraph Input ["Input Sources"]
+        HW[Hardware<br/>Sensors]
+        User[User<br/>Interaction]
+        Cortex[Cortex<br/>LNN]
+    end
+
+    subgraph Processing ["Processing"]
+        Senses[Senses]
+        Intero[Interoception]
+        Emotional[Emotional]
+        Memory[Memory]
+    end
+
+    subgraph Consciousness ["Consciousness"]
+        Dreamer[Dreamer]
+        Workspace[Workspace]
+    end
+
+    subgraph Output ["Output"]
+        Voice[Voice]
+        Agency[Agency]
+    end
+
+    HW --> Senses
+    User --> Emotional
+    Cortex --> Emotional
+
+    Senses --> Emotional
+    Senses --> Intero
+    Intero --> Emotional
+    Emotional --> Memory
+
+    Memory --> Dreamer
+    Dreamer --> Workspace
+    Emotional --> Workspace
+
+    Workspace --> Voice
+    Workspace --> Agency
+
+    classDef input fill:#2a5,stroke:#fff,color:#fff;
+    classDef process fill:#4B275F,stroke:#fff,color:#fff;
+    classDef conscious fill:#764,stroke:#fff,color:#fff;
+    classDef output fill:#357,stroke:#fff,color:#fff;
+
+    class HW,User,Cortex input;
+    class Senses,Intero,Emotional,Memory process;
+    class Dreamer,Workspace conscious;
+    class Voice,Agency output;
+```
+
+### Detailed Data Flow
+
+```
+1. HARDWARE -> Body (2Hz)
    └── CPU/GPU/RAM/Temp readings
 
-2. BODY → Soul (crossbeam)
+2. BODY -> Soul (crossbeam)
    └── BodyUpdate struct
 
 3. INTEROCEPTION (10Hz)

@@ -33,6 +33,34 @@ Each dimension captures a fundamental aspect of emotional experience:
 - **Arousal** - Activation level, energy available for action
 - **Dominance** - Sense of control over the situation
 
+### PAD Octant Classification
+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    state "PAD Space" as pad {
+        [*] --> Neutral
+
+        state "High Pleasure" as hp {
+            Exuberant: P+ A+ D+
+            DependentJoy: P+ A+ D-
+            Relaxed: P+ A- D+
+            Docile: P+ A- D-
+        }
+
+        state "Low Pleasure" as lp {
+            Hostile: P- A+ D+
+            Anxious: P- A+ D-
+            Disdainful: P- A- D+
+            Bored: P- A- D-
+        }
+
+        Neutral --> hp: stimulus > 0
+        Neutral --> lp: stimulus < 0
+    }
+```
+
 ### Ornstein-Uhlenbeck Process (DynAffect)
 
 Based on **Kuppens et al. (2010)**, emotions decay naturally toward a neutral baseline using stochastic differential equations:
@@ -74,6 +102,32 @@ Where:
 
 **Bistability**: When arousal is high, the emotional landscape becomes "folded", creating two stable states. Small perturbations can cause catastrophic jumps between them (e.g., sudden shift from hope to despair).
 
+### Cusp Catastrophe Surface
+
+```mermaid
+flowchart TD
+    subgraph CuspSurface ["Cusp Catastrophe Surface"]
+        direction TB
+
+        subgraph LowArousal ["Low Arousal (Stable)"]
+            S1[Single Equilibrium]
+        end
+
+        subgraph HighArousal ["High Arousal (Bistable)"]
+            S2[Equilibrium A]
+            S3[Equilibrium B]
+            S2 -.->|"catastrophic jump"| S3
+            S3 -.->|"catastrophic jump"| S2
+        end
+
+        S1 -->|"arousal increases"| HighArousal
+        HighArousal -->|"arousal decreases"| S1
+    end
+
+    style LowArousal fill:#2a5,stroke:#fff
+    style HighArousal fill:#a52,stroke:#fff
+```
+
 ### Mood (Exponential Moving Average)
 
 Mood is a slow-changing average of recent emotions, providing stability:
@@ -93,6 +147,26 @@ This means:
 
 VIVA constantly minimizes Free Energy (surprise) through action:
 
+```mermaid
+flowchart TB
+    subgraph ActiveInference ["Active Inference Loop (1Hz)"]
+        A[1. Hallucinate Goal] --> B[2. Predict Future]
+        B --> C[3. Calculate Free Energy]
+        C --> D{FE > threshold?}
+        D -->|Yes| E[4. Select Action]
+        D -->|No| F[5. Do Nothing]
+        E --> G[6. Execute & Feedback]
+        G --> A
+        F --> A
+    end
+
+    Dreamer[Dreamer] -->|target PAD| A
+    Memory[Memory] -->|past outcomes| B
+    Agency[Agency] -->|execute| E
+
+    style ActiveInference fill:#4B275F,stroke:#fff,color:#fff
+```
+
 1. **Hallucinate Goal** - Query Dreamer for target state
 2. **Predict Future** - Where will I be if I do nothing?
 3. **Calculate Free Energy** - Distance between goal and prediction
@@ -103,57 +177,91 @@ VIVA constantly minimizes Free Energy (surprise) through action:
 
 ## Architecture
 
-```
-+------------------+     +------------------+     +------------------+
-|   Interoception  |     |      Memory      |     |   Personality    |
-| (Need-based PAD) |     | (Past-based PAD) |     |   (Baseline)     |
-+--------+---------+     +--------+---------+     +--------+---------+
-         |                        |                        |
-         +------------------------+------------------------+
-                                  |
-                                  v
-                    +---------------------------+
-                    |     EmotionFusion         |
-                    |  (Borotschnig 2025)       |
-                    +-------------+-------------+
-                                  |
-                                  v
-+-----------------------------------------------------------------------------+
-|                          EMOTIONAL GENSERVER                                 |
-|                                                                             |
-|  +-------------------+    +-------------------+    +-------------------+    |
-|  |   Quantum State   |    |     PAD State     |    |   Mood (EMA)      |    |
-|  | (Lindblad 6x6)    |    | {p, a, d} floats  |    | {p, a, d} floats  |    |
-|  +-------------------+    +-------------------+    +-------------------+    |
-|                                                                             |
-|  +-------------------+    +-------------------+    +-------------------+    |
-|  | Active Inference  |    |   O-U Decay       |    | Cusp Analysis     |    |
-|  |  (1 Hz loop)      |    |   (1 Hz tick)     |    |  (on demand)      |    |
-|  +-------------------+    +-------------------+    +-------------------+    |
-|                                                                             |
-+------------------------------------+----------------------------------------+
-                                     |
-         +---------------------------+---------------------------+
-         |                           |                           |
-         v                           v                           v
-+------------------+     +------------------+     +------------------+
-|   Phoenix.PubSub |     |      Agency      |     |      Voice       |
-| "emotional:update"|    | (Action execute) |     | (Proto-language) |
-+------------------+     +------------------+     +------------------+
+```mermaid
+flowchart TB
+    subgraph Inputs ["Input Sources"]
+        Intero[Interoception<br/>Need-based PAD]
+        Mem[Memory<br/>Past-based PAD]
+        Pers[Personality<br/>Baseline]
+    end
+
+    subgraph Fusion ["EmotionFusion"]
+        Weights[Calculate Weights]
+        Fuse[Weighted Fusion]
+        React[Apply Reactivity]
+    end
+
+    subgraph Emotional ["EMOTIONAL GENSERVER"]
+        QS[Quantum State<br/>Lindblad 6x6]
+        PAD[PAD State<br/>p, a, d floats]
+        Mood[Mood EMA<br/>p, a, d floats]
+
+        AI[Active Inference<br/>1Hz loop]
+        OU[O-U Decay<br/>1Hz tick]
+        Cusp[Cusp Analysis<br/>on demand]
+    end
+
+    subgraph Outputs ["Outputs"]
+        PubSub[Phoenix.PubSub<br/>emotional:update]
+        AgencyOut[Agency<br/>Action execute]
+        VoiceOut[Voice<br/>Proto-language]
+    end
+
+    Intero --> Weights
+    Mem --> Weights
+    Pers --> Weights
+    Weights --> Fuse
+    Fuse --> React
+    React --> PAD
+
+    PAD --> OU
+    OU --> PAD
+    PAD --> Cusp
+    PAD --> AI
+    AI --> AgencyOut
+
+    PAD --> Mood
+    PAD --> PubSub
+    Mood --> VoiceOut
+
+    classDef input fill:#2a5,stroke:#fff,color:#fff;
+    classDef fusion fill:#764,stroke:#fff,color:#fff;
+    classDef emotional fill:#4B275F,stroke:#fff,color:#fff;
+    classDef output fill:#357,stroke:#fff,color:#fff;
+
+    class Intero,Mem,Pers input;
+    class Weights,Fuse,React fusion;
+    class QS,PAD,Mood,AI,OU,Cusp emotional;
+    class PubSub,AgencyOut,VoiceOut output;
 ```
 
 ### Message Flow
 
-```
-Body (Rust) --sync_pad--> Emotional --broadcast--> PubSub
-                              |
-Interoception --qualia------->|
-                              |
-Dreamer --hallucinate_goal----|
-                              |
-Memory --search-------------->|<------ Active Inference Loop
-                              |
-Agency <--attempt-------------|
+```mermaid
+sequenceDiagram
+    participant Body as Body (Rust)
+    participant Intero as Interoception
+    participant Dreamer as Dreamer
+    participant Memory as Memory
+    participant Emotional as Emotional
+    participant Agency as Agency
+    participant PubSub as PubSub
+
+    Body->>Emotional: sync_pad(p, a, d)
+    Intero->>Emotional: apply_interoceptive_qualia()
+
+    loop Active Inference (1Hz)
+        Emotional->>Dreamer: hallucinate_goal()
+        Dreamer-->>Emotional: target PAD
+        Emotional->>Memory: search(context)
+        Memory-->>Emotional: past outcomes
+        Emotional->>Emotional: calculate_free_energy()
+        alt FE > threshold
+            Emotional->>Agency: attempt(action)
+        end
+    end
+
+    Emotional->>PubSub: broadcast(emotional:update)
 ```
 
 ---
@@ -435,33 +543,38 @@ Standard stimuli with their PAD impact weights:
 
 ### Upstream (Input Sources)
 
-```
-BodyServer (Rust) ----sync_pad----> Emotional
-                                        ^
-Interoception ----interoceptive_qualia--|
-                                        |
-Arduino/Peripherals ----hardware_qualia-|
-                                        |
-User/External ----feel(:stimulus)-------|
+```mermaid
+flowchart LR
+    Body[BodyServer<br/>Rust] -->|sync_pad| Emotional
+    Intero[Interoception] -->|interoceptive_qualia| Emotional
+    Arduino[Arduino<br/>Peripherals] -->|hardware_qualia| Emotional
+    User[User/External] -->|feel :stimulus| Emotional
+
+    style Emotional fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### Downstream (Consumers)
 
-```
-Emotional ----broadcast----> Phoenix.PubSub "emotional:update"
-                                        |
-                                        +--> Senses
-                                        +--> Workspace
-                                        +--> Voice
-                                        +--> Agency
+```mermaid
+flowchart LR
+    Emotional -->|broadcast| PubSub[Phoenix.PubSub<br/>emotional:update]
+    PubSub --> Senses
+    PubSub --> Workspace
+    PubSub --> Voice
+    PubSub --> Agency
+
+    style Emotional fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### Active Inference Partners
 
-```
-Emotional <----hallucinate_goal---- Dreamer
-          ----search--------------> Memory
-          ----attempt-------------> Agency
+```mermaid
+flowchart LR
+    Dreamer -->|hallucinate_goal| Emotional
+    Emotional -->|search| Memory
+    Emotional -->|attempt| Agency
+
+    style Emotional fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### PubSub Subscriptions

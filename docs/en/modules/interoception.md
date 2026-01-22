@@ -12,13 +12,13 @@ VIVA predicts RAM/CPU usage. Divergence = High Free Energy.
 ### The Free Energy Principle
 
 ```
-Free Energy = (Observed - Predicted)² × Precision
+Free Energy = (Observed - Predicted)^2 x Precision
 ```
 
 Where:
 - **Precision** = 1 / (1 + Variance_observed / Variance_prior)
-- High observed variance → Low precision → Ignore noise
-- Low observed variance → High precision → Trust data
+- High observed variance -> Low precision -> Ignore noise
+- Low observed variance -> High precision -> Trust data
 
 ### Biological Analogies
 
@@ -29,6 +29,65 @@ Where:
 | Page Faults | Acute Pain / Cellular Error |
 | RSS Memory | Metabolic Consumption |
 | **Tick Jitter** | **Chronoception (Time Perception)** |
+
+---
+
+## Free Energy Flow
+
+```mermaid
+flowchart TB
+    subgraph Observation ["Observation (10Hz)"]
+        Proc[/proc filesystem]
+        Proc --> LA[Load Average]
+        Proc --> CS[Context Switches]
+        Proc --> PF[Page Faults]
+        Proc --> RSS[RSS Memory]
+        Time[System Clock] --> TJ[Tick Jitter]
+    end
+
+    subgraph Prediction ["Prediction Model"]
+        Prior[Learned Priors]
+        Chronos[Chronos Oracle]
+    end
+
+    subgraph FreeEnergy ["Free Energy Calculation"]
+        Obs[Observed Values]
+        Pred[Predicted Values]
+        Prec[Precision Weights]
+
+        Obs --> FE[FE = sum weighted errors]
+        Pred --> FE
+        Prec --> FE
+    end
+
+    subgraph Output ["Output"]
+        FE --> Feeling{Feeling State}
+        Feeling -->|FE < 0.1| Home[:homeostatic]
+        Feeling -->|0.1 <= FE < 0.3| Surp[:surprised]
+        Feeling -->|0.3 <= FE < 0.6| Alarm[:alarmed]
+        Feeling -->|FE >= 0.6| Over[:overwhelmed]
+    end
+
+    LA --> Obs
+    CS --> Obs
+    PF --> Obs
+    RSS --> Obs
+    TJ --> Obs
+    Prior --> Pred
+    Chronos -.-> Pred
+
+    Output --> Emotional[Emotional GenServer]
+
+    classDef obs fill:#2a5,stroke:#fff,color:#fff;
+    classDef pred fill:#764,stroke:#fff,color:#fff;
+    classDef fe fill:#4B275F,stroke:#fff,color:#fff;
+    classDef out fill:#357,stroke:#fff,color:#fff;
+
+    class LA,CS,PF,RSS,TJ obs;
+    class Prior,Chronos pred;
+    class Obs,Pred,Prec,FE fe;
+    class Feeling,Home,Surp,Alarm,Over out;
+```
 
 ---
 
@@ -90,12 +149,37 @@ VivaCore.Interoception.tick()
 
 ## Feeling States (Qualia)
 
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> Homeostatic: startup
+
+    Homeostatic: FE < 0.1
+    Surprised: 0.1 <= FE < 0.3
+    Alarmed: 0.3 <= FE < 0.6
+    Overwhelmed: FE >= 0.6
+
+    Homeostatic --> Surprised: FE increases
+    Surprised --> Alarmed: FE increases
+    Alarmed --> Overwhelmed: FE increases
+
+    Overwhelmed --> Alarmed: FE decreases
+    Alarmed --> Surprised: FE decreases
+    Surprised --> Homeostatic: FE decreases
+
+    note right of Homeostatic: All systems nominal
+    note right of Surprised: Something unexpected
+    note right of Alarmed: Significant deviation
+    note right of Overwhelmed: System under stress
+```
+
 | Feeling | Free Energy Range | Description |
 |---------|-------------------|-------------|
 | `:homeostatic` | FE < 0.1 | All systems nominal |
-| `:surprised` | 0.1 ≤ FE < 0.3 | Something unexpected |
-| `:alarmed` | 0.3 ≤ FE < 0.6 | Significant deviation |
-| `:overwhelmed` | FE ≥ 0.6 | System under stress |
+| `:surprised` | 0.1 <= FE < 0.3 | Something unexpected |
+| `:alarmed` | 0.3 <= FE < 0.6 | Significant deviation |
+| `:overwhelmed` | FE >= 0.6 | System under stress |
 
 ---
 
@@ -109,8 +193,8 @@ VivaCore.Interoception.tick()
 ```
 
 VIVA expects to wake every 100ms (10Hz). Deviation is FELT as time dilation:
-- `time_dilation = 1.0` → Normal
-- `time_dilation > 1.0` → Time feels slow (lag)
+- `time_dilation = 1.0` -> Normal
+- `time_dilation > 1.0` -> Time feels slow (lag)
 
 ### System Metrics
 
@@ -126,7 +210,35 @@ VIVA expects to wake every 100ms (10Hz). Deviation is FELT as time dilation:
 
 ## Integration with Other Modules
 
-### → Emotional
+### Integration Diagram
+
+```mermaid
+flowchart TB
+    subgraph Input ["Data Sources"]
+        Proc[/proc filesystem]
+        Clock[System Clock]
+    end
+
+    Intero[Interoception]
+
+    subgraph Output ["Consumers"]
+        Emotional[Emotional]
+        DC[DatasetCollector]
+        Chronos[Chronos Oracle]
+    end
+
+    Proc --> Intero
+    Clock --> Intero
+
+    Intero -->|qualia + feeling| Emotional
+    Intero -->|tick data| DC
+    DC -.->|CSV training| Chronos
+    Chronos -.->|predictions| Intero
+
+    style Intero fill:#4B275F,stroke:#fff,color:#fff
+```
+
+### -> Emotional
 When feeling changes, Interoception notifies Emotional:
 
 ```elixir
@@ -142,7 +254,7 @@ qualia = %{
 VivaCore.Emotional.apply_interoceptive_qualia(qualia)
 ```
 
-### → DatasetCollector
+### -> DatasetCollector
 Every tick, data is recorded for Chronos training:
 
 ```elixir
@@ -154,7 +266,7 @@ VivaCore.DatasetCollector.record(%{
 })
 ```
 
-### ← Chronos (Future)
+### <- Chronos (Future)
 Predictions come from Chronos time series oracle:
 
 ```elixir
@@ -175,6 +287,40 @@ Reads directly from `/proc` filesystem:
 | `/proc/{pid}/stat` | Page faults |
 | `/proc/{pid}/status` | RSS memory |
 | `/proc/uptime` | System uptime |
+
+---
+
+## Precision Weighting
+
+```mermaid
+flowchart LR
+    subgraph Observation ["Observation"]
+        O[Observed Value]
+        OV[Observed Variance]
+    end
+
+    subgraph Prior ["Prior"]
+        P[Prior Mean]
+        PV[Prior Variance]
+    end
+
+    subgraph Calculation ["Precision Calculation"]
+        Prec["Precision = 1 / (1 + OV/PV)"]
+        Error["Error = (O - P)^2"]
+        FE["FE = Error x Precision"]
+    end
+
+    O --> Error
+    P --> Error
+    OV --> Prec
+    PV --> Prec
+    Error --> FE
+    Prec --> FE
+
+    style Calculation fill:#4B275F,stroke:#fff,color:#fff
+```
+
+**Key insight**: High observed variance -> Low precision -> Ignore noise
 
 ---
 

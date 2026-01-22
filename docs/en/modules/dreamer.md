@@ -15,7 +15,7 @@ In reflection, scattered experiences become coherent meaning.
 ### Retrieval Scoring (DRE - Dream Retrieval Engine)
 
 ```
-S(m, q) = w_r · D(m) + w_s · Sim(m, q) + w_i · I(m) + w_e · E(m)
+S(m, q) = w_r * D(m) + w_s * Sim(m, q) + w_i * I(m) + w_e * E(m)
 ```
 
 | Component | Weight | Description |
@@ -25,21 +25,62 @@ S(m, q) = w_r · D(m) + w_s · Sim(m, q) + w_i · I(m) + w_e · E(m)
 | **I(m)** | 0.2 | Memory importance |
 | **E(m)** | 0.2 | Emotional resonance |
 
+### DRE Scoring Pipeline
+
+```mermaid
+flowchart LR
+    subgraph Input ["Query Input"]
+        Q[Query]
+        Mem[Memory m]
+    end
+
+    subgraph Components ["Score Components"]
+        D["D(m)<br/>Recency"]
+        Sim["Sim(m,q)<br/>Similarity"]
+        I["I(m)<br/>Importance"]
+        E["E(m)<br/>Emotion"]
+    end
+
+    subgraph Weights ["Weights"]
+        WD[0.2]
+        WS[0.4]
+        WI[0.2]
+        WE[0.2]
+    end
+
+    subgraph Output ["Combined Score"]
+        Sum["S(m,q) = sum"]
+    end
+
+    Mem --> D
+    Q --> Sim
+    Mem --> Sim
+    Mem --> I
+    Mem --> E
+
+    D --> WD --> Sum
+    Sim --> WS --> Sum
+    I --> WI --> Sum
+    E --> WE --> Sum
+
+    style Components fill:#4B275F,stroke:#fff,color:#fff
+```
+
 ### Decay Function (with Spaced Repetition)
 
 ```
-D(m) = e^(-age/τ) × (1 + min(0.5, log(1 + access_count) / κ))
+D(m) = e^(-age/tau) x (1 + min(0.5, log(1 + access_count) / kappa))
 ```
 
 Where:
-- τ = 604,800 seconds (1 week)
-- κ = 10.0 (repetition boost divisor)
+- tau = 604,800 seconds (1 week)
+- kappa = 10.0 (repetition boost divisor)
 - Maximum boost from access capped at 50%
 
 ### Emotional Resonance
 
 ```
-E(m) = max(0, 1 - ||PAD_m - PAD_current|| / √12)
+E(m) = max(0, 1 - ||PAD_m - PAD_current|| / sqrt(12))
 ```
 
 Distance in PAD space normalized to [0, 1].
@@ -128,7 +169,7 @@ Reflection is triggered when ANY condition is met:
 
 | Trigger | Threshold | Description |
 |---------|-----------|-------------|
-| **Importance** | Σ importance ≥ 15.0 | Accumulated importance from new memories |
+| **Importance** | sum importance >= 15.0 | Accumulated importance from new memories |
 | **Time** | > 1 hour since last | Activity time limit |
 | **Sleep** | Manual/Circadian | Deep reflection cycle |
 
@@ -146,26 +187,65 @@ Reflection is triggered when ANY condition is met:
 
 ## The Reflection Process
 
+```mermaid
+flowchart TB
+    subgraph Trigger ["Trigger Conditions"]
+        Imp[Importance >= 15.0]
+        Time[Time > 1 hour]
+        Sleep[Sleep Cycle]
+    end
+
+    subgraph Reflection ["Reflection Process"]
+        FP[1. Generate Focal Points<br/>Topics from recent memories]
+        Ret[2. Retrieve Relevant Memories<br/>DRE composite scoring]
+        Syn[3. Synthesize Insights<br/>Generate depth=1 thoughts]
+        Meta[4. Meta-Reflection<br/>depth=2 insights]
+        Con[5. Memory Consolidation<br/>Episodic -> Semantic]
+    end
+
+    subgraph Output ["Output"]
+        Thoughts[New Thoughts]
+        Feedback[Emotional Feedback]
+    end
+
+    Imp --> FP
+    Time --> FP
+    Sleep --> FP
+
+    FP --> Ret
+    Ret --> Syn
+    Syn --> Meta
+    Meta --> Con
+
+    Syn --> Thoughts
+    Con --> Thoughts
+    Thoughts --> Feedback
+
+    style Reflection fill:#4B275F,stroke:#fff,color:#fff
+```
+
+### Process Steps
+
 ```
 1. GENERATE FOCAL POINTS
-   └── Extract topics from recent memories
-   └── "What have I learned about {topic}?"
+   - Extract topics from recent memories
+   - "What have I learned about {topic}?"
 
 2. RETRIEVE RELEVANT MEMORIES
-   └── Use composite scoring (DRE)
-   └── Rank by recency + similarity + importance + emotion
+   - Use composite scoring (DRE)
+   - Rank by recency + similarity + importance + emotion
 
 3. SYNTHESIZE INSIGHTS
-   └── Generate observations from retrieved memories
-   └── Store as depth=1 thoughts
+   - Generate observations from retrieved memories
+   - Store as depth=1 thoughts
 
 4. (SLEEP CYCLE ONLY) META-REFLECTION
-   └── Reflect on recent thoughts
-   └── Generate depth=2 insights
+   - Reflect on recent thoughts
+   - Generate depth=2 insights
 
 5. MEMORY CONSOLIDATION
-   └── Episodic → Semantic promotion
-   └── Important memories become long-term knowledge
+   - Episodic -> Semantic promotion
+   - Important memories become long-term knowledge
 ```
 
 ---
@@ -177,7 +257,7 @@ Instead of random goal selection, Dreamer uses memory to find what has worked:
 ```elixir
 def calculate_personal_baseline(state) do
   # Search for memories with positive emotional outcomes
-  {:ok, memories} = Memory.search("estados positivos felicidade alívio sucesso", limit: 10)
+  {:ok, memories} = Memory.search("estados positivos felicidade alivio sucesso", limit: 10)
 
   # Calculate mean of successful PAD states
   pads = Enum.map(memories, & &1.emotion)
@@ -191,14 +271,48 @@ end
 
 ### Yerkes-Dodson Optimal Arousal
 
+```mermaid
+flowchart TB
+    subgraph Context ["Current PAD Context"]
+        D[Dominance]
+        P[Pleasure]
+    end
+
+    subgraph Decision ["Optimal Arousal Decision"]
+        C1{D > 0.3 AND P > 0?}
+        C2{D > 0.3 AND P < 0?}
+        C3{D < -0.3?}
+        Default[Default]
+    end
+
+    subgraph Output ["Optimal Arousal"]
+        A1[0.4 - Can be excited]
+        A2[0.3 - Needs activation]
+        A3[0.0 - Needs calm]
+        A4[0.15 - Slight engagement]
+    end
+
+    D --> C1
+    P --> C1
+    C1 -->|Yes| A1
+    C1 -->|No| C2
+    C2 -->|Yes| A2
+    C2 -->|No| C3
+    C3 -->|Yes| A3
+    C3 -->|No| Default
+    Default --> A4
+
+    style Decision fill:#4B275F,stroke:#fff,color:#fff
+```
+
 ```elixir
 def calculate_optimal_arousal(current_pad) do
   cond do
-    # High dominance + positive → can be excited
+    # High dominance + positive -> can be excited
     dominance > 0.3 and pleasure > 0 -> 0.4
-    # High dominance + negative → needs activation to fix
+    # High dominance + negative -> needs activation to fix
     dominance > 0.3 and pleasure < 0 -> 0.3
-    # Low dominance → needs calm to recover
+    # Low dominance -> needs calm to recover
     dominance < -0.3 -> 0.0
     # Default: slight engagement
     true -> 0.15
@@ -226,7 +340,7 @@ score = Mathematics.consolidation_score(
 
 ### Consolidation Threshold
 
-Memories with score ≥ **0.7** are promoted:
+Memories with score >= **0.7** are promoted:
 
 ```elixir
 Memory.store(content, %{
@@ -240,6 +354,38 @@ Memory.store(content, %{
 ---
 
 ## Emotional Feedback Loop
+
+```mermaid
+flowchart LR
+    subgraph Retrieval ["Memory Retrieval"]
+        Mem[Retrieved Memories]
+        Avg[Calculate avg_pleasure]
+    end
+
+    subgraph Decision ["Feedback Decision"]
+        Check{avg_pleasure?}
+        Pos[> 0.1]
+        Neg[< -0.1]
+        Neu[neutral]
+    end
+
+    subgraph Output ["Emotional Feedback"]
+        Lucid[:lucid_insight]
+        Grim[:grim_realization]
+        None[No feedback]
+    end
+
+    Mem --> Avg
+    Avg --> Check
+    Check --> Pos --> Lucid
+    Check --> Neg --> Grim
+    Check --> Neu --> None
+
+    Lucid --> Emotional[Emotional.feel()]
+    Grim --> Emotional
+
+    style Decision fill:#4B275F,stroke:#fff,color:#fff
+```
 
 Dreamer affects Emotional state based on memory valence:
 
@@ -306,6 +452,35 @@ iex> VivaCore.Dreamer.retrieve_with_scoring("successful actions")
 # Generate goal (for Active Inference)
 iex> VivaCore.Dreamer.hallucinate_goal(%{pleasure: -0.1, arousal: 0.2, dominance: 0.0})
 %{pleasure: 0.2, arousal: 0.15, dominance: 0.1}
+```
+
+---
+
+## Integration Diagram
+
+```mermaid
+flowchart TB
+    subgraph Input ["Input Sources"]
+        Memory[Memory Module]
+        Emotional[Emotional State]
+    end
+
+    Dreamer[Dreamer]
+
+    subgraph Output ["Consumers"]
+        Workspace[Workspace]
+        EmotionalOut[Emotional Feedback]
+        MemoryOut[Memory Consolidation]
+    end
+
+    Memory -->|new memories| Dreamer
+    Emotional -->|current PAD| Dreamer
+
+    Dreamer -->|insights| Workspace
+    Dreamer -->|:lucid_insight / :grim_realization| EmotionalOut
+    Dreamer -->|consolidated memories| MemoryOut
+
+    style Dreamer fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ---
