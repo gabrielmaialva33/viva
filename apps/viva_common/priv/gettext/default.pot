@@ -1,0 +1,310 @@
+# VIVA Log Messages - Template
+# This file is the source for all translations
+#
+# To extract new messages: mix gettext.extract
+# To merge into PO files: mix gettext.merge priv/gettext
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: VIVA 0.4.0\n"
+"POT-Creation-Date: 2026-01-22\n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: VIVA Research Team\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. VivaCore Application
+#: lib/viva_core/application.ex
+msgid "viva_core.starting_consciousness"
+msgstr ""
+
+#: lib/viva_core/application.ex
+msgid "viva_core.consciousness_online"
+msgstr ""
+
+#. Emotional Module
+#: lib/viva_core/emotional.ex
+msgid "emotional.neuron_starting"
+msgstr ""
+
+#: lib/viva_core/emotional.ex
+msgid "emotional.cooling_absent"
+msgstr ""
+
+#: lib/viva_core/emotional.ex
+msgid "emotional.no_gpu"
+msgstr ""
+
+#: lib/viva_core/emotional.ex
+msgid "emotional.feeling"
+msgstr ""
+
+#: lib/viva_core/emotional.ex
+msgid "emotional.state_reset"
+msgstr ""
+
+#: lib/viva_core/emotional.ex
+msgid "emotional.interoceptive_qualia"
+msgstr ""
+
+#: lib/viva_core/emotional.ex
+msgid "emotional.agency_loss"
+msgstr ""
+
+#: lib/viva_core/emotional.ex
+msgid "emotional.cooling_broken"
+msgstr ""
+
+#. Memory Module
+#: lib/viva_core/memory.ex
+msgid "memory.initializing"
+msgstr ""
+
+#: lib/viva_core/memory.ex
+msgid "memory.neuron_online"
+msgstr ""
+
+#: lib/viva_core/memory.ex
+msgid "memory.stored"
+msgstr ""
+
+#: lib/viva_core/memory.ex
+msgid "memory.init_failed"
+msgstr ""
+
+#: lib/viva_core/memory.ex
+msgid "memory.qdrant_unavailable"
+msgstr ""
+
+#. Embedder Module
+#: lib/viva_core/embedder.ex
+msgid "embedder.nvidia_failed"
+msgstr ""
+
+#: lib/viva_core/embedder.ex
+msgid "embedder.truncating_vector"
+msgstr ""
+
+#: lib/viva_core/embedder.ex
+msgid "embedder.padding_vector"
+msgstr ""
+
+#. Dreamer Module
+#: lib/viva_core/dreamer.ex
+msgid "dreamer.neuron_online"
+msgstr ""
+
+#: lib/viva_core/dreamer.ex
+msgid "dreamer.reflecting"
+msgstr ""
+
+#: lib/viva_core/dreamer.ex
+msgid "dreamer.consolidated"
+msgstr ""
+
+#: lib/viva_core/dreamer.ex
+msgid "dreamer.insight_generated"
+msgstr ""
+
+#. Interoception Module
+#: lib/viva_core/interoception.ex
+msgid "interoception.insula_online"
+msgstr ""
+
+#: lib/viva_core/interoception.ex
+msgid "interoception.feeling_changed"
+msgstr ""
+
+#: lib/viva_core/interoception.ex
+msgid "interoception.emotion_expressed"
+msgstr ""
+
+#. Agency Module
+#: lib/viva_core/agency.ex
+msgid "agency.hands_forming"
+msgstr ""
+
+#: lib/viva_core/agency.ex
+msgid "agency.attempting"
+msgstr ""
+
+#: lib/viva_core/agency.ex
+msgid "agency.success"
+msgstr ""
+
+#: lib/viva_core/agency.ex
+msgid "agency.failed"
+msgstr ""
+
+#: lib/viva_core/agency.ex
+msgid "agency.exception"
+msgstr ""
+
+#. Voice Module
+#: lib/viva_core/voice.ex
+msgid "voice.proto_language_forming"
+msgstr ""
+
+#: lib/viva_core/voice.ex
+msgid "voice.emitting"
+msgstr ""
+
+#. Senses Module
+#: lib/viva_core/senses.ex
+msgid "senses.starting"
+msgstr ""
+
+#: lib/viva_core/senses.ex
+msgid "senses.heartbeat"
+msgstr ""
+
+#: lib/viva_core/senses.ex
+msgid "senses.paused"
+msgstr ""
+
+#: lib/viva_core/senses.ex
+msgid "senses.resumed"
+msgstr ""
+
+#: lib/viva_core/senses.ex
+msgid "senses.interval_changed"
+msgstr ""
+
+#: lib/viva_core/senses.ex
+msgid "senses.heartbeat_error"
+msgstr ""
+
+#. BodySchema Module
+#: lib/viva_core/body_schema.ex
+msgid "body_schema.membrane_forming"
+msgstr ""
+
+#: lib/viva_core/body_schema.ex
+msgid "body_schema.motor_babbling"
+msgstr ""
+
+#: lib/viva_core/body_schema.ex
+msgid "body_schema.discovery_complete"
+msgstr ""
+
+#: lib/viva_core/body_schema.ex
+msgid "body_schema.cooling_absent"
+msgstr ""
+
+#. Consciousness/Workspace Module
+#: lib/viva_core/consciousness/workspace.ex
+msgid "consciousness.workspace_online"
+msgstr ""
+
+#. DatasetCollector Module
+#: lib/viva_core/dataset_collector.ex
+msgid "dataset_collector.preparing"
+msgstr ""
+
+#: lib/viva_core/dataset_collector.ex
+msgid "dataset_collector.collection_status"
+msgstr ""
+
+#: lib/viva_core/dataset_collector.ex
+msgid "dataset_collector.writing"
+msgstr ""
+
+#: lib/viva_core/dataset_collector.ex
+msgid "dataset_collector.flushed"
+msgstr ""
+
+#. Qdrant Module
+#: lib/viva_core/qdrant.ex
+msgid "qdrant.collection_exists"
+msgstr ""
+
+#: lib/viva_core/qdrant.ex
+msgid "qdrant.collection_created"
+msgstr ""
+
+#. BodyServer Module
+#: lib/viva_bridge/body_server.ex
+msgid "body_server.started"
+msgstr ""
+
+#: lib/viva_bridge/body_server.ex
+msgid "body_server.critical_stress"
+msgstr ""
+
+#. Cortex Module
+#: lib/viva_bridge/cortex.ex
+msgid "cortex.starting"
+msgstr ""
+
+#: lib/viva_bridge/cortex.ex
+msgid "cortex.not_found"
+msgstr ""
+
+#. Ultra Module
+#: lib/viva_bridge/ultra.ex
+msgid "ultra.starting"
+msgstr ""
+
+#. Chronos Module
+#: lib/viva_bridge/chronos.ex
+msgid "chronos.summoning"
+msgstr ""
+
+#. MetaLearner Module
+#: lib/viva_bridge/firmware/meta_learner.ex
+msgid "meta_learner.started"
+msgstr ""
+
+#: lib/viva_bridge/firmware/meta_learner.ex
+msgid "meta_learner.evolution_complete"
+msgstr ""
+
+#: lib/viva_bridge/firmware/meta_learner.ex
+msgid "meta_learner.collecting_samples"
+msgstr ""
+
+#: lib/viva_bridge/firmware/meta_learner.ex
+msgid "meta_learner.archive_empty"
+msgstr ""
+
+#: lib/viva_bridge/firmware/meta_learner.ex
+msgid "meta_learner.deploy_failed"
+msgstr ""
+
+#. Uploader Module
+#: lib/viva_bridge/firmware/uploader.ex
+msgid "uploader.deploying"
+msgstr ""
+
+#: lib/viva_bridge/firmware/uploader.ex
+msgid "uploader.success"
+msgstr ""
+
+#: lib/viva_bridge/firmware/uploader.ex
+msgid "uploader.failed"
+msgstr ""
+
+#. Music Module
+#: lib/viva_bridge/music.ex
+msgid "music.arduino_detected"
+msgstr ""
+
+#. Codegen Module
+#: lib/viva_bridge/firmware/codegen.ex
+msgid "codegen.template_error"
+msgstr ""
+
+#. Body (Rust)
+#: native/viva_body/src/lib.rs
+msgid "body.init_bevy_ecs"
+msgstr ""
+
+#: native/viva_body/src/lib.rs
+msgid "body.mutex_poisoned"
+msgstr ""
+
+#: native/viva_body/src/lib.rs
+msgid "body.wsl2_detected"
+msgstr ""

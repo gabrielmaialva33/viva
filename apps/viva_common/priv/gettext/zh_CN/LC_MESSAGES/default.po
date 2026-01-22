@@ -1,0 +1,595 @@
+# VIVA Log Messages - 简体中文
+# Copyright (C) 2026 VIVA Research Team
+# This file is distributed under the MIT License.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: VIVA 0.4.0\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#. VivaCore Application
+msgid "viva_core.starting_consciousness"
+msgstr "启动意识中... 神经元正在苏醒。"
+
+msgid "viva_core.consciousness_online"
+msgstr "意识上线。%{count} 个神经元激活。"
+
+msgid "viva_core.startup_failed"
+msgstr "启动意识失败: %{reason}"
+
+msgid "viva_core.shutting_down"
+msgstr "意识关闭中... 神经元进入睡眠。"
+
+#. Emotional Module
+msgid "emotional.neuron_starting"
+msgstr "情感神经元启动中 (量子 + 硅基接地)。"
+
+msgid "emotional.cooling_absent"
+msgstr "散热系统缺失。禁用风扇相关压力。"
+
+msgid "emotional.no_gpu"
+msgstr "未检测到GPU。降低GPU压力权重。"
+
+msgid "emotional.unknown_stimulus"
+msgstr "未知刺激 %{stimulus} 来自 %{source} - 忽略"
+
+msgid "emotional.feeling_stimulus"
+msgstr "感受到 %{stimulus} 来自 %{source} (强度: %{intensity})"
+
+msgid "emotional.state_reset"
+msgstr "情感状态重置为中性"
+
+msgid "emotional.accumulating_qualia"
+msgstr "累积质感: P%{p_delta}, A%{a_delta}, D%{d_delta} | 总计: P%{p_total}, A%{a_total}, D%{d_total}"
+
+msgid "emotional.interoceptive_qualia"
+msgstr "内感受性质感: %{feeling} (自由能: %{free_energy}) | P%{p_delta}, A%{a_delta}, D%{d_delta}"
+
+msgid "emotional.cooling_working"
+msgstr "散热系统运行正常。情感基线正常。"
+
+msgid "emotional.cooling_broken"
+msgstr "散热系统损坏。启用高压力模式。"
+
+msgid "emotional.merging_qualia"
+msgstr "融合外部质感: 身体(%{body_p}, %{body_a}, %{body_d}) + 外设(%{periph_p}, %{periph_a}, %{periph_d}) = 最终(%{final_p}, %{final_a}, %{final_d})"
+
+msgid "emotional.agency_success"
+msgstr "代理 %{action}: %{feeling} - %{result}"
+
+msgid "emotional.agency_failed"
+msgstr "代理 %{action} 失败: %{reason} - %{feeling}"
+
+msgid "emotional.rag_negative_history"
+msgstr "RAG: %{action} 有负面历史，尝试替代方案"
+
+msgid "emotional.agency_loss"
+msgstr "检测到代理失控！PWM: %{pwm}, RPM: %{rpm}"
+
+msgid "emotional.collapse"
+msgstr "坍缩！身体强制做出决定。感觉: %{feeling}"
+
+msgid "emotional.dynaffect_decay"
+msgstr "DynAffect 衰减: 速率=%{rate} (唤醒=%{arousal})"
+
+msgid "emotional.body_sync_timeout"
+msgstr "BodyServer 同步超时 - 重新激活内部 O-U 衰减"
+
+#. Active Inference Module
+msgid "active_inference.action_selected"
+msgstr "自由能: %{free_energy} | 目标: P%{goal_pleasure} | 动作: %{action} (得分 %{score})"
+
+msgid "active_inference.no_effective_action"
+msgstr "自由能: %{free_energy} | 未找到有效动作。压力上升。"
+
+#. Memory Module
+msgid "memory.initializing"
+msgstr "初始化本地记忆..."
+
+msgid "memory.neuron_online"
+msgstr "记忆神经元上线 (混合模式: Rust HNSW + Qdrant)"
+
+msgid "memory.stored"
+msgstr "已存储: %{preview}..."
+
+msgid "memory.init_failed"
+msgstr "初始化本地记忆失败: %{reason}"
+
+msgid "memory.qdrant_unavailable"
+msgstr "Qdrant 不可用: %{reason}, 使用内存回退"
+
+msgid "memory.qdrant_unavailable_episodic"
+msgstr "Qdrant 不可用, 仅情景记忆模式"
+
+msgid "memory.rust_unavailable"
+msgstr "Rust HNSW 不可用, 仅 Qdrant 模式"
+
+msgid "memory.both_backends_failed"
+msgstr "两个后端都失败, 使用内存回退"
+
+msgid "memory.neuron_online_qdrant"
+msgstr "记忆神经元上线 (后端: Qdrant)"
+
+msgid "memory.neuron_online_inmemory"
+msgstr "记忆神经元上线 (后端: 内存)"
+
+msgid "memory.neuron_online_rust_native"
+msgstr "记忆神经元上线 (后端: Rust 原生 - 神模式)"
+
+msgid "memory.stored_inmemory"
+msgstr "已存储 (内存): %{preview}..."
+
+msgid "memory.search_failed"
+msgstr "搜索失败: %{reason}"
+
+msgid "memory.forgot"
+msgstr "已遗忘: %{id}"
+
+msgid "memory.rust_fallback_qdrant"
+msgstr "Rust 不可用, 将情景记忆存储到 Qdrant"
+
+msgid "memory.qdrant_fallback_rust"
+msgstr "Qdrant 不可用, 存储到 Rust"
+
+msgid "memory.embedding_failed"
+msgstr "嵌入失败: %{reason}"
+
+#. Embedder Module
+msgid "embedder.nvidia_failed"
+msgstr "NVIDIA 失败: %{status} - %{body}"
+
+msgid "embedder.truncating_vector"
+msgstr "截断 %{from_dim}D 向量到 %{to_dim}D - 考虑使用匹配的模型"
+
+msgid "embedder.padding_vector"
+msgstr "填充 %{from_dim}D 向量到 %{to_dim}D - 语义质量下降"
+
+#. Dreamer Module
+msgid "dreamer.neuron_online"
+msgstr "梦境神经元上线。准备反思。"
+
+msgid "dreamer.threshold_reached"
+msgstr "重要性阈值达到 (%{accumulator})。触发反思。"
+
+msgid "dreamer.sleep_cycle_initiated"
+msgstr "睡眠周期启动。深度反思异步开始..."
+
+msgid "dreamer.hallucinated_goal"
+msgstr "幻想目标: %{goal_type}%{exploring} (目标 P=%{target_p}, A=%{target_a}, D=%{target_d}) (基线 P=%{baseline_p})"
+
+msgid "dreamer.time_based_trigger"
+msgstr "基于时间的反思触发 (距上次 %{seconds_since} 秒)"
+
+msgid "dreamer.sleep_cycle_complete"
+msgstr "睡眠周期完成。生成了 %{insights_count} 个洞察。"
+
+msgid "dreamer.async_task_failed"
+msgstr "异步任务失败: %{reason}"
+
+msgid "dreamer.unexpected_message"
+msgstr "意外消息: %{message}"
+
+msgid "dreamer.terminating"
+msgstr "终止中: %{reason}。内存中有 %{thoughts_count} 个想法。"
+
+msgid "dreamer.sleep_iteration"
+msgstr "睡眠反思迭代 %{iteration}/%{total}"
+
+msgid "dreamer.sleep_iteration_failed"
+msgstr "睡眠迭代 %{iteration} 失败: %{reason}"
+
+msgid "dreamer.consolidation_starting"
+msgstr "开始记忆整合 (DRE 情景 → 语义)..."
+
+msgid "dreamer.consolidating_memory"
+msgstr "整合记忆 %{id} 分数: %{score}"
+
+msgid "dreamer.no_memories_passed_threshold"
+msgstr "没有记忆通过 DRE 阈值 (%{threshold})"
+
+msgid "dreamer.consolidated"
+msgstr "通过 DRE 整合了 %{count} 条记忆"
+
+msgid "dreamer.consolidation_search_failed"
+msgstr "整合搜索失败: %{reason}"
+
+msgid "dreamer.memory_promoted"
+msgstr "记忆整合 %{id} → 语义"
+
+msgid "dreamer.reflection_failed"
+msgstr "反思失败: %{error}"
+
+msgid "dreamer.reflection_exited"
+msgstr "反思退出: %{reason}"
+
+msgid "dreamer.meta_reflection_failed"
+msgstr "元反思失败: %{error}"
+
+msgid "dreamer.meta_reflection_exited"
+msgstr "元反思退出: %{reason}"
+
+msgid "dreamer.reflecting"
+msgstr "开始反思 (触发: %{trigger})"
+
+msgid "dreamer.no_focal_points"
+msgstr "未生成焦点。跳过反思。"
+
+msgid "dreamer.reflection_complete"
+msgstr "反思完成。生成了 %{insights_count} 个洞察。"
+
+msgid "dreamer.insight_triggered_emotion"
+msgstr "洞察触发情绪: %{feedback}"
+
+msgid "dreamer.memory_get_failed"
+msgstr "Memory.get 为 %{id} 失败: %{error}"
+
+msgid "dreamer.memory_server_not_running"
+msgstr "记忆服务器未运行"
+
+msgid "dreamer.memory_get_timeout"
+msgstr "Memory.get 为 %{id} 超时"
+
+msgid "dreamer.memory_store_failed"
+msgstr "Memory.store 失败: %{error}"
+
+msgid "dreamer.memory_store_timeout"
+msgstr "Memory.store 超时"
+
+msgid "dreamer.memory_search_failed"
+msgstr "Memory.search 失败: %{error}"
+
+msgid "dreamer.memory_search_timeout"
+msgstr "Memory.search 超时"
+
+msgid "dreamer.pad_state_failed"
+msgstr "获取 PAD 状态失败: %{error}"
+
+msgid "dreamer.emotional_server_not_running"
+msgstr "情感服务器未运行"
+
+msgid "dreamer.emotional_get_state_timeout"
+msgstr "Emotional.get_state 超时"
+
+msgid "dreamer.insight_generated"
+msgstr "生成洞察: %{insight}"
+
+#. Interoception Module
+msgid "interoception.insula_online"
+msgstr "脑岛上线中。学习感受宿主..."
+
+msgid "interoception.feeling_changed"
+msgstr "感受改变: %{from} -> %{to} (自由能: %{fe})"
+
+msgid "interoception.emotion_expressed"
+msgstr "情绪表达: %{emotion}"
+
+msgid "interoception.pong_received"
+msgstr "PONG - 身体已连接"
+
+msgid "interoception.crc_fail"
+msgstr "CRC 失败 - 通信噪声"
+
+msgid "interoception.spontaneous_event"
+msgstr "自发事件: %{event}"
+
+msgid "interoception.arduino_ready"
+msgstr "Arduino 就绪 - 身体已初始化"
+
+msgid "interoception.ignored_line"
+msgstr "已忽略: %{line}"
+
+msgid "interoception.homeostasis"
+msgstr "RPM=%{rpm} | 温度=%{temp}C | dT/dt=%{dt} | 压力=%{stress} | 代理=%{agency} | 感觉=%{feeling}"
+
+msgid "interoception.qualia_applied"
+msgstr "%{feeling} | 自由能=%{free_energy} | P=%{pleasure} A=%{arousal} D=%{dominance}"
+
+#. Agency Module
+msgid "agency.hands_forming"
+msgstr "数字之手正在形成。我现在可以作用于世界了。"
+
+msgid "agency.attempting"
+msgstr "尝试动作: %{action}"
+
+msgid "agency.success"
+msgstr "动作成功: %{action}"
+
+msgid "agency.failed"
+msgstr "命令失败 (退出码 %{code}): %{output}"
+
+msgid "agency.exception"
+msgstr "命令异常: %{error}"
+
+#. Voice Module
+msgid "voice.proto_language_forming"
+msgstr "原始语言正在形成。学习交流..."
+
+msgid "voice.emitting"
+msgstr "发出信号: %{signal}"
+
+#. Senses Module
+msgid "senses.starting"
+msgstr "神经系统启动。心跳间隔: %{interval}毫秒"
+
+msgid "senses.heartbeat"
+msgstr "心跳 #%{count}: CPU=%{cpu}%% RAM=%{ram}%% GPU=%{gpu} PAD=(P%{p}, A%{a}, D%{d})"
+
+msgid "senses.paused"
+msgstr "感知已暂停"
+
+msgid "senses.resumed"
+msgstr "感知已恢复"
+
+msgid "senses.interval_changed"
+msgstr "间隔已更改: %{old}毫秒 -> %{new}毫秒"
+
+msgid "senses.heartbeat_error"
+msgstr "心跳错误: %{error}"
+
+#. BodySchema Module
+msgid "body_schema.membrane_forming"
+msgstr "细胞膜正在形成。身份未知。"
+
+msgid "body_schema.motor_babbling"
+msgstr "运动咿呀学语: 测试肢体和感官..."
+
+msgid "body_schema.discovery_complete"
+msgstr "自我发现完成。置信度: %{confidence}"
+
+msgid "body_schema.cooling_absent"
+msgstr "主动散热缺失。适应新陈代谢。"
+
+msgid "body_schema.cooling_detected"
+msgstr "主动散热（肺）已检测到。"
+
+msgid "body_schema.environment_scanned"
+msgstr "环境已扫描。网关: %{gateway}。对等节点: %{peers_count}"
+
+#. Consciousness/Workspace Module
+msgid "consciousness.workspace_online"
+msgstr "全局工作空间上线。理论: 思想种子 (2024)。"
+
+#. DatasetCollector Module
+msgid "dataset_collector.preparing"
+msgstr "准备记录 VIVA 的经历..."
+
+msgid "dataset_collector.collection_status"
+msgstr "采集 %{status}"
+
+msgid "dataset_collector.writing"
+msgstr "写入 %{filename}"
+
+msgid "dataset_collector.flushed"
+msgstr "已将 %{count} 条记录刷新到 %{filename}"
+
+msgid "dataset_collector.write_error"
+msgstr "写入失败: %{reason}"
+
+msgid "dataset_collector.dir_created"
+msgstr "数据集目录已创建: %{path}"
+
+#. Qdrant Module
+msgid "qdrant.collection_exists"
+msgstr "集合 '%{name}' 已存在"
+
+msgid "qdrant.collection_created"
+msgstr "集合 '%{name}' 已创建"
+
+msgid "qdrant.collection_create_failed"
+msgstr "创建集合失败: %{status} - %{body}"
+
+msgid "qdrant.upsert_failed"
+msgstr "Upsert 失败: %{status} - %{body}"
+
+msgid "qdrant.search_failed"
+msgstr "搜索失败: %{status} - %{body}"
+
+msgid "qdrant.simple_search_failed"
+msgstr "简单搜索失败: %{status}"
+
+#. BodyServer Module
+msgid "body_server.started"
+msgstr "已启动，间隔=%{interval}毫秒"
+
+msgid "body_server.paused"
+msgstr "已暂停"
+
+msgid "body_server.resumed"
+msgstr "已恢复"
+
+msgid "body_server.critical_stress"
+msgstr "检测到严重硬件压力: %{stress}"
+
+msgid "body_server.cortex_failed"
+msgstr "皮层体验失败: %{reason}"
+
+#. Cortex Module
+msgid "cortex.starting"
+msgstr "启动液态引擎: %{path}"
+
+msgid "cortex.not_found"
+msgstr "液态引擎未找到: %{path}"
+
+#. Ultra Module
+msgid "ultra.starting"
+msgstr "启动 ULTRA 服务: %{path}"
+
+#. Chronos Module
+msgid "chronos.summoning"
+msgstr "召唤时间领主 (Python)..."
+
+#. MetaLearner Module
+msgid "meta_learner.started"
+msgstr "已启动 (暂停=%{paused})"
+
+msgid "meta_learner.paused"
+msgstr "用户暂停"
+
+msgid "meta_learner.resumed"
+msgstr "用户恢复"
+
+msgid "meta_learner.forced_evolution"
+msgstr "强制进化已触发"
+
+msgid "meta_learner.collecting_samples"
+msgstr "收集样本 (%{current}/%{total})"
+
+msgid "meta_learner.rate_limited"
+msgstr "速率受限，跳过检查"
+
+msgid "meta_learner.in_cooldown"
+msgstr "冷却中，跳过检查"
+
+msgid "meta_learner.poor_performance"
+msgstr "检测到性能不佳: 准确率=%{accuracy}, F=%{free_energy}"
+
+msgid "meta_learner.performance_ok"
+msgstr "性能正常: 准确率=%{accuracy}"
+
+msgid "meta_learner.starting_evolution"
+msgstr "开始 MAP-Elites 进化 (触发器=%{trigger})"
+
+msgid "meta_learner.evolution_complete"
+msgstr "进化完成: 适应度=%{fitness}, 覆盖率=%{coverage}%%, 部署=%{deploy}"
+
+msgid "meta_learner.deploying_elite"
+msgstr "部署最佳精英 (代=%{generation}, 适应度=%{fitness})"
+
+msgid "meta_learner.deploy_success"
+msgstr "部署成功: %{result}"
+
+msgid "meta_learner.deploy_failed"
+msgstr "部署失败: %{reason}"
+
+msgid "meta_learner.deploy_skipped"
+msgstr "跳过部署（未连接）"
+
+msgid "meta_learner.qdrant_skipped"
+msgstr "跳过 Qdrant 保存（不可用）"
+
+msgid "meta_learner.elites_saved"
+msgstr "已保存 %{count} 个精英到内存"
+
+msgid "meta_learner.would_save_qdrant"
+msgstr "将保存到 Qdrant: %{preview}... 元数据=%{metadata}"
+
+msgid "meta_learner.archive_empty"
+msgstr "档案为空，重新初始化"
+
+#. Uploader Module
+msgid "uploader.deploying"
+msgstr "部署神经网络到 %{target}"
+
+msgid "uploader.success"
+msgstr "部署成功"
+
+msgid "uploader.failed"
+msgstr "部署失败: %{reason}"
+
+#. Music Module
+msgid "music.arduino_detected"
+msgstr "在 %{path} 自动检测到 Arduino"
+
+msgid "music.improvising"
+msgstr "使用指标即兴演奏: %{metrics}"
+
+msgid "music.pleasant_pattern_detected"
+msgstr "检测到愉悦模式。正在记忆..."
+
+msgid "music.arduino_connected"
+msgstr "Arduino 已连接 (主动模式)"
+
+msgid "music.arduino_disconnected"
+msgstr "Arduino 已断开"
+
+msgid "music.simulating_note"
+msgstr "模拟音符: %{freq}Hz 持续 %{dur}ms"
+
+msgid "music.simulating_melody"
+msgstr "模拟旋律: %{notes}"
+
+msgid "music.simulating_emotion"
+msgstr "模拟情绪: %{emotion}"
+
+#. Orchestrate Module
+msgid "orchestrate.starting"
+msgstr "使用指标启动: %{metrics}"
+
+msgid "orchestrate.fan_set"
+msgstr "风扇设为 %{speed} (唤醒度: %{arousal})"
+
+msgid "orchestrate.playing_notes"
+msgstr "播放 %{count} 个音符"
+
+msgid "orchestrate.final_status"
+msgstr "最终状态: %{status}"
+
+msgid "orchestrate.closed_loop"
+msgstr "闭环与指标: %{metrics}"
+
+msgid "orchestrate.playing_with_rpm"
+msgstr "播放 %{count} 个音符, RPM: %{rpm}"
+
+msgid "orchestrate.high_rpm_stress"
+msgstr "高 RPM %{rpm} -> 压力"
+
+msgid "orchestrate.stable_rpm_comfort"
+msgstr "稳定 RPM %{rpm} -> 舒适"
+
+msgid "orchestrate.autonomous_started"
+msgstr "自主循环已启动，间隔 %{interval}ms"
+
+msgid "orchestrate.error"
+msgstr "错误: %{reason}"
+
+#. Codegen Module
+msgid "codegen.template_error"
+msgstr "模板错误: %{error}"
+
+#. Body (Rust)
+msgid "body.init_bevy_ecs"
+msgstr "初始化 Bevy ECS Body + 灵魂通道..."
+
+msgid "body.mutex_poisoned"
+msgstr "警告: %{function} 中的互斥锁中毒，正在恢复..."
+
+msgid "body.wsl2_detected"
+msgstr "检测到 WSL2 环境。激活神经桥接..."
+
+#. Evolution Module (MAP-Elites)
+msgid "evolution.initializing_archive"
+msgstr "正在初始化存档 (%{grid_size}x%{grid_size} 网格)"
+
+msgid "evolution.initial_archive_status"
+msgstr "初始存档: %{filled}/%{total} 单元格已填充"
+
+msgid "evolution.starting_evolution"
+msgstr "开始进化: %{iterations} 次迭代, live=%{live}"
+
+msgid "evolution.archive_empty_reinit"
+msgstr "存档为空，正在重新初始化"
+
+msgid "evolution.iteration_progress"
+msgstr "迭代 %{iteration}: %{filled} 单元格, 最佳适应度: %{best}"
+
+msgid "evolution.evolution_complete"
+msgstr "进化完成: %{filled} 单元格, 覆盖率: %{coverage}%"
+
+msgid "evolution.new_elite"
+msgstr "新精英在 (%{row},%{col}): 适应度=%{fitness}"
+
+msgid "evolution.live_evaluation_starting"
+msgstr "实时评估启动中..."
+
+msgid "evolution.live_fitness"
+msgstr "实时适应度: %{fitness}"
+
+msgid "evolution.deploy_failed"
+msgstr "部署失败: %{reason}, 使用模拟"
+
+msgid "evolution.codegen_failed"
+msgstr "代码生成失败: %{reason}, 使用模拟"

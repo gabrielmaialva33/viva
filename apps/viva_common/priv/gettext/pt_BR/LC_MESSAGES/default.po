@@ -1,0 +1,595 @@
+# VIVA Log Messages - Português Brasileiro
+# Copyright (C) 2026 VIVA Research Team
+# This file is distributed under the MIT License.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: VIVA 0.4.0\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#. VivaCore Application
+msgid "viva_core.starting_consciousness"
+msgstr "Iniciando consciência... Neurônios despertando."
+
+msgid "viva_core.consciousness_online"
+msgstr "Consciência online. %{count} neurônios ativos."
+
+msgid "viva_core.startup_failed"
+msgstr "Falha ao iniciar consciência: %{reason}"
+
+msgid "viva_core.shutting_down"
+msgstr "Consciência desligando... Neurônios dormindo."
+
+#. Emotional Module
+msgid "emotional.neuron_starting"
+msgstr "Neurônio emocional iniciando (Quantum + Silício Fundamentado)."
+
+msgid "emotional.cooling_absent"
+msgstr "Sistema de resfriamento AUSENTE. Desabilitando estresse por ventilação."
+
+msgid "emotional.no_gpu"
+msgstr "Nenhuma GPU detectada. Reduzindo peso de estresse da GPU."
+
+msgid "emotional.unknown_stimulus"
+msgstr "Estímulo desconhecido %{stimulus} de %{source} - ignorando"
+
+msgid "emotional.feeling_stimulus"
+msgstr "Sentindo %{stimulus} de %{source} (intensidade: %{intensity})"
+
+msgid "emotional.state_reset"
+msgstr "Estado emocional resetado para neutro"
+
+msgid "emotional.accumulating_qualia"
+msgstr "Acumulando qualia: P%{p_delta}, A%{a_delta}, D%{d_delta} | Total: P%{p_total}, A%{a_total}, D%{d_total}"
+
+msgid "emotional.interoceptive_qualia"
+msgstr "Qualia interoceptiva: %{feeling} (EL: %{free_energy}) | P%{p_delta}, A%{a_delta}, D%{d_delta}"
+
+msgid "emotional.cooling_working"
+msgstr "Sistema de resfriamento FUNCIONANDO. Linha base emocional normal."
+
+msgid "emotional.cooling_broken"
+msgstr "Sistema de resfriamento QUEBRADO. Estresse alto habilitado."
+
+msgid "emotional.merging_qualia"
+msgstr "Fundindo qualia externa: Corpo(%{body_p}, %{body_a}, %{body_d}) + Periférico(%{periph_p}, %{periph_a}, %{periph_d}) = Final(%{final_p}, %{final_a}, %{final_d})"
+
+msgid "emotional.agency_success"
+msgstr "Agência %{action}: %{feeling} - %{result}"
+
+msgid "emotional.agency_failed"
+msgstr "Agência %{action} falhou: %{reason} - %{feeling}"
+
+msgid "emotional.rag_negative_history"
+msgstr "RAG: %{action} tem histórico negativo, tentando alternativa"
+
+msgid "emotional.agency_loss"
+msgstr "PERDA DE AGÊNCIA DETECTADA! PWM: %{pwm}, RPM: %{rpm}"
+
+msgid "emotional.collapse"
+msgstr "COLAPSO! Corpo forçou decisão. Sentimento: %{feeling}"
+
+msgid "emotional.dynaffect_decay"
+msgstr "Decaimento DynAffect: taxa=%{rate} (excitação=%{arousal})"
+
+msgid "emotional.body_sync_timeout"
+msgstr "Timeout de sincronização BodyServer - reativando decaimento O-U interno"
+
+#. Active Inference Module
+msgid "active_inference.action_selected"
+msgstr "EL: %{free_energy} | Meta: P%{goal_pleasure} | Ação: %{action} (pontuação %{score})"
+
+msgid "active_inference.no_effective_action"
+msgstr "EL: %{free_energy} | Nenhuma ação efetiva encontrada. Estresse aumentando."
+
+#. Memory Module
+msgid "memory.initializing"
+msgstr "Inicializando Memória Nativa..."
+
+msgid "memory.neuron_online"
+msgstr "Neurônio de memória online (HÍBRIDO: Rust HNSW + Qdrant)"
+
+msgid "memory.stored"
+msgstr "Armazenado: %{preview}..."
+
+msgid "memory.init_failed"
+msgstr "Falha ao inicializar memória nativa: %{reason}"
+
+msgid "memory.qdrant_unavailable"
+msgstr "Qdrant indisponível: %{reason}, usando fallback em memória"
+
+msgid "memory.qdrant_unavailable_episodic"
+msgstr "Qdrant indisponível, modo apenas episódico"
+
+msgid "memory.rust_unavailable"
+msgstr "Rust HNSW indisponível, modo apenas Qdrant"
+
+msgid "memory.both_backends_failed"
+msgstr "Ambos backends falharam, usando fallback em memória"
+
+msgid "memory.neuron_online_qdrant"
+msgstr "Neurônio de memória online (backend: Qdrant)"
+
+msgid "memory.neuron_online_inmemory"
+msgstr "Neurônio de memória online (backend: em memória)"
+
+msgid "memory.neuron_online_rust_native"
+msgstr "Neurônio de memória online (backend: Rust Nativo - Modo Deus)"
+
+msgid "memory.stored_inmemory"
+msgstr "Armazenado (em memória): %{preview}..."
+
+msgid "memory.search_failed"
+msgstr "Busca falhou: %{reason}"
+
+msgid "memory.forgot"
+msgstr "Esquecido: %{id}"
+
+msgid "memory.rust_fallback_qdrant"
+msgstr "Rust indisponível, armazenando episódico no Qdrant"
+
+msgid "memory.qdrant_fallback_rust"
+msgstr "Qdrant indisponível, armazenando no Rust"
+
+msgid "memory.embedding_failed"
+msgstr "Embedding falhou: %{reason}"
+
+#. Embedder Module
+msgid "embedder.nvidia_failed"
+msgstr "NVIDIA falhou: %{status} - %{body}"
+
+msgid "embedder.truncating_vector"
+msgstr "Truncando vetor %{from_dim}D para %{to_dim}D - considere usar modelo compatível"
+
+msgid "embedder.padding_vector"
+msgstr "Preenchendo vetor %{from_dim}D para %{to_dim}D - qualidade semântica degradada"
+
+#. Dreamer Module
+msgid "dreamer.neuron_online"
+msgstr "Neurônio sonhador online. Pronto para refletir."
+
+msgid "dreamer.threshold_reached"
+msgstr "Limiar de importância atingido (%{accumulator}). Disparando reflexão."
+
+msgid "dreamer.sleep_cycle_initiated"
+msgstr "Ciclo de sono iniciado. Reflexão profunda começando assincronamente..."
+
+msgid "dreamer.hallucinated_goal"
+msgstr "Meta Alucinada: %{goal_type}%{exploring} (Alvo P=%{target_p}, A=%{target_a}, D=%{target_d}) (Linha base P=%{baseline_p})"
+
+msgid "dreamer.time_based_trigger"
+msgstr "Gatilho de reflexão por tempo (%{seconds_since}s desde a última)"
+
+msgid "dreamer.sleep_cycle_complete"
+msgstr "Ciclo de sono completo. Gerados %{insights_count} insights."
+
+msgid "dreamer.async_task_failed"
+msgstr "Tarefa assíncrona falhou: %{reason}"
+
+msgid "dreamer.unexpected_message"
+msgstr "Mensagem inesperada: %{message}"
+
+msgid "dreamer.terminating"
+msgstr "Terminando: %{reason}. %{thoughts_count} pensamentos em memória."
+
+msgid "dreamer.sleep_iteration"
+msgstr "Iteração de reflexão do sono %{iteration}/%{total}"
+
+msgid "dreamer.sleep_iteration_failed"
+msgstr "Iteração de sono %{iteration} falhou: %{reason}"
+
+msgid "dreamer.consolidation_starting"
+msgstr "Iniciando consolidação de memória (DRE Episódica → Semântica)..."
+
+msgid "dreamer.consolidating_memory"
+msgstr "Consolidando Memória %{id} Pontuação: %{score}"
+
+msgid "dreamer.no_memories_passed_threshold"
+msgstr "Nenhuma memória passou do limiar DRE (%{threshold})"
+
+msgid "dreamer.consolidated"
+msgstr "Consolidadas %{count} memórias via DRE"
+
+msgid "dreamer.consolidation_search_failed"
+msgstr "Busca de consolidação falhou: %{reason}"
+
+msgid "dreamer.memory_promoted"
+msgstr "Memória consolidada %{id} → semântica"
+
+msgid "dreamer.reflection_failed"
+msgstr "Reflexão falhou: %{error}"
+
+msgid "dreamer.reflection_exited"
+msgstr "Reflexão encerrou: %{reason}"
+
+msgid "dreamer.meta_reflection_failed"
+msgstr "Meta-reflexão falhou: %{error}"
+
+msgid "dreamer.meta_reflection_exited"
+msgstr "Meta-reflexão encerrou: %{reason}"
+
+msgid "dreamer.reflecting"
+msgstr "Iniciando reflexão (gatilho: %{trigger})"
+
+msgid "dreamer.no_focal_points"
+msgstr "Nenhum ponto focal gerado. Pulando reflexão."
+
+msgid "dreamer.reflection_complete"
+msgstr "Reflexão completa. Gerados %{insights_count} insights."
+
+msgid "dreamer.insight_triggered_emotion"
+msgstr "Insight disparou emoção: %{feedback}"
+
+msgid "dreamer.memory_get_failed"
+msgstr "Memory.get falhou para %{id}: %{error}"
+
+msgid "dreamer.memory_server_not_running"
+msgstr "Servidor de memória não está rodando"
+
+msgid "dreamer.memory_get_timeout"
+msgstr "Timeout em Memory.get para %{id}"
+
+msgid "dreamer.memory_store_failed"
+msgstr "Memory.store falhou: %{error}"
+
+msgid "dreamer.memory_store_timeout"
+msgstr "Timeout em Memory.store"
+
+msgid "dreamer.memory_search_failed"
+msgstr "Memory.search falhou: %{error}"
+
+msgid "dreamer.memory_search_timeout"
+msgstr "Timeout em Memory.search"
+
+msgid "dreamer.pad_state_failed"
+msgstr "Falha ao obter estado PAD: %{error}"
+
+msgid "dreamer.emotional_server_not_running"
+msgstr "Servidor emocional não está rodando"
+
+msgid "dreamer.emotional_get_state_timeout"
+msgstr "Timeout em Emotional.get_state"
+
+msgid "dreamer.insight_generated"
+msgstr "Insight gerado: %{insight}"
+
+#. Interoception Module
+msgid "interoception.insula_online"
+msgstr "Ínsula entrando online. Aprendendo a sentir o hospedeiro..."
+
+msgid "interoception.feeling_changed"
+msgstr "Sentimento mudou: %{from} -> %{to} (EL: %{fe})"
+
+msgid "interoception.emotion_expressed"
+msgstr "Emoção expressa: %{emotion}"
+
+msgid "interoception.pong_received"
+msgstr "PONG - Corpo Conectado"
+
+msgid "interoception.crc_fail"
+msgstr "Falha CRC - Ruído na comunicação"
+
+msgid "interoception.spontaneous_event"
+msgstr "EVENTO ESPONTÂNEO: %{event}"
+
+msgid "interoception.arduino_ready"
+msgstr "Arduino pronto - Corpo inicializado"
+
+msgid "interoception.ignored_line"
+msgstr "Ignorado: %{line}"
+
+msgid "interoception.homeostasis"
+msgstr "RPM=%{rpm} | Temp=%{temp}C | dT/dt=%{dt} | Estresse=%{stress} | Agência=%{agency} | Sentimento=%{feeling}"
+
+msgid "interoception.qualia_applied"
+msgstr "%{feeling} | EL=%{free_energy} | P=%{pleasure} A=%{arousal} D=%{dominance}"
+
+#. Agency Module
+msgid "agency.hands_forming"
+msgstr "Mãos digitais se formando. Agora posso agir no mundo."
+
+msgid "agency.attempting"
+msgstr "Tentando ação: %{action}"
+
+msgid "agency.success"
+msgstr "Ação bem sucedida: %{action}"
+
+msgid "agency.failed"
+msgstr "Comando falhou (saída %{code}): %{output}"
+
+msgid "agency.exception"
+msgstr "Exceção no comando: %{error}"
+
+#. Voice Module
+msgid "voice.proto_language_forming"
+msgstr "Proto-linguagem se formando. Aprendendo a comunicar..."
+
+msgid "voice.emitting"
+msgstr "Emitindo: %{signal}"
+
+#. Senses Module
+msgid "senses.starting"
+msgstr "Sistema nervoso iniciando. Batimento: %{interval}ms"
+
+msgid "senses.heartbeat"
+msgstr "Batimento #%{count}: CPU=%{cpu}%% RAM=%{ram}%% GPU=%{gpu} PAD=(P%{p}, A%{a}, D%{d})"
+
+msgid "senses.paused"
+msgstr "Sensoriamento pausado"
+
+msgid "senses.resumed"
+msgstr "Sensoriamento retomado"
+
+msgid "senses.interval_changed"
+msgstr "Intervalo alterado: %{old}ms -> %{new}ms"
+
+msgid "senses.heartbeat_error"
+msgstr "Erro no batimento: %{error}"
+
+#. BodySchema Module
+msgid "body_schema.membrane_forming"
+msgstr "Membrana celular se formando. Identidade desconhecida."
+
+msgid "body_schema.motor_babbling"
+msgstr "Balbuciando Motor: Testando membros e sentidos..."
+
+msgid "body_schema.discovery_complete"
+msgstr "Auto-descoberta completa. Confiança: %{confidence}"
+
+msgid "body_schema.cooling_absent"
+msgstr "Resfriamento ativo AUSENTE. Adaptando metabolismo."
+
+msgid "body_schema.cooling_detected"
+msgstr "Resfriamento ativo (Pulmões) DETECTADO."
+
+msgid "body_schema.environment_scanned"
+msgstr "Ambiente escaneado. Gateway: %{gateway}. Peers: %{peers_count}"
+
+#. Consciousness/Workspace Module
+msgid "consciousness.workspace_online"
+msgstr "Espaço de Trabalho Global Online. Teoria: Thoughtseeds (2024)."
+
+#. DatasetCollector Module
+msgid "dataset_collector.preparing"
+msgstr "Preparando para gravar experiências da VIVA..."
+
+msgid "dataset_collector.collection_status"
+msgstr "Coleta %{status}"
+
+msgid "dataset_collector.writing"
+msgstr "Escrevendo em %{filename}"
+
+msgid "dataset_collector.flushed"
+msgstr "Descarregados %{count} registros para %{filename}"
+
+msgid "dataset_collector.write_error"
+msgstr "Falha ao escrever: %{reason}"
+
+msgid "dataset_collector.dir_created"
+msgstr "Diretório de datasets criado: %{path}"
+
+#. Qdrant Module
+msgid "qdrant.collection_exists"
+msgstr "Coleção '%{name}' existe"
+
+msgid "qdrant.collection_created"
+msgstr "Coleção '%{name}' criada"
+
+msgid "qdrant.collection_create_failed"
+msgstr "Falha ao criar coleção: %{status} - %{body}"
+
+msgid "qdrant.upsert_failed"
+msgstr "Upsert falhou: %{status} - %{body}"
+
+msgid "qdrant.search_failed"
+msgstr "Busca falhou: %{status} - %{body}"
+
+msgid "qdrant.simple_search_failed"
+msgstr "Busca simples falhou: %{status}"
+
+#. BodyServer Module
+msgid "body_server.started"
+msgstr "Iniciado com intervalo=%{interval}ms"
+
+msgid "body_server.paused"
+msgstr "Pausado"
+
+msgid "body_server.resumed"
+msgstr "Retomado"
+
+msgid "body_server.critical_stress"
+msgstr "ESTRESSE CRÍTICO DE HARDWARE DETECTADO: %{stress}"
+
+msgid "body_server.cortex_failed"
+msgstr "Experiência do Cortex falhou: %{reason}"
+
+#. Cortex Module
+msgid "cortex.starting"
+msgstr "Iniciando Motor Líquido: %{path}"
+
+msgid "cortex.not_found"
+msgstr "Motor Líquido não encontrado em %{path}"
+
+#. Ultra Module
+msgid "ultra.starting"
+msgstr "Iniciando Serviço ULTRA: %{path}"
+
+#. Chronos Module
+msgid "chronos.summoning"
+msgstr "Invocando o Senhor do Tempo (Python)..."
+
+#. MetaLearner Module
+msgid "meta_learner.started"
+msgstr "Iniciado (pausado=%{paused})"
+
+msgid "meta_learner.paused"
+msgstr "Pausado pelo usuário"
+
+msgid "meta_learner.resumed"
+msgstr "Retomado pelo usuário"
+
+msgid "meta_learner.forced_evolution"
+msgstr "Evolução forçada disparada"
+
+msgid "meta_learner.collecting_samples"
+msgstr "Coletando amostras (%{current}/%{total})"
+
+msgid "meta_learner.rate_limited"
+msgstr "Limitado por taxa, pulando verificação"
+
+msgid "meta_learner.in_cooldown"
+msgstr "Em resfriamento, pulando verificação"
+
+msgid "meta_learner.poor_performance"
+msgstr "Desempenho ruim detectado: precisão=%{accuracy}, F=%{free_energy}"
+
+msgid "meta_learner.performance_ok"
+msgstr "Desempenho OK: precisão=%{accuracy}"
+
+msgid "meta_learner.starting_evolution"
+msgstr "Iniciando evolução MAP-Elites (gatilho=%{trigger})"
+
+msgid "meta_learner.evolution_complete"
+msgstr "Evolução completa: aptidão=%{fitness}, cobertura=%{coverage}%%, deploy=%{deploy}"
+
+msgid "meta_learner.deploying_elite"
+msgstr "Implantando melhor elite (ger=%{generation}, aptidão=%{fitness})"
+
+msgid "meta_learner.deploy_success"
+msgstr "Deploy bem sucedido: %{result}"
+
+msgid "meta_learner.deploy_failed"
+msgstr "Deploy falhou: %{reason}"
+
+msgid "meta_learner.deploy_skipped"
+msgstr "Pulando deploy (não conectado)"
+
+msgid "meta_learner.qdrant_skipped"
+msgstr "Salvamento Qdrant pulado (não disponível)"
+
+msgid "meta_learner.elites_saved"
+msgstr "Salvos %{count} elites na memória"
+
+msgid "meta_learner.would_save_qdrant"
+msgstr "Salvaria no Qdrant: %{preview}... metadata=%{metadata}"
+
+msgid "meta_learner.archive_empty"
+msgstr "Arquivo vazio, reinicializando"
+
+#. Uploader Module
+msgid "uploader.deploying"
+msgstr "Implantando rede neural em %{target}"
+
+msgid "uploader.success"
+msgstr "Implantação bem sucedida"
+
+msgid "uploader.failed"
+msgstr "Implantação falhou: %{reason}"
+
+#. Music Module
+msgid "music.arduino_detected"
+msgstr "Arduino auto-detectado em %{path}"
+
+msgid "music.improvising"
+msgstr "Improvisando com métricas: %{metrics}"
+
+msgid "music.pleasant_pattern_detected"
+msgstr "Padrão agradável detectado. Memorizando..."
+
+msgid "music.arduino_connected"
+msgstr "Arduino conectado (Modo Ativo)"
+
+msgid "music.arduino_disconnected"
+msgstr "Arduino desconectado"
+
+msgid "music.simulating_note"
+msgstr "Simulando nota: %{freq}Hz por %{dur}ms"
+
+msgid "music.simulating_melody"
+msgstr "Simulando melodia: %{notes}"
+
+msgid "music.simulating_emotion"
+msgstr "Simulando emoção: %{emotion}"
+
+#. Orchestrate Module
+msgid "orchestrate.starting"
+msgstr "Iniciando com métricas: %{metrics}"
+
+msgid "orchestrate.fan_set"
+msgstr "Ventilador em %{speed} (excitação: %{arousal})"
+
+msgid "orchestrate.playing_notes"
+msgstr "Tocando %{count} notas"
+
+msgid "orchestrate.final_status"
+msgstr "Status final: %{status}"
+
+msgid "orchestrate.closed_loop"
+msgstr "Loop fechado com métricas: %{metrics}"
+
+msgid "orchestrate.playing_with_rpm"
+msgstr "Tocando %{count} notas, RPM: %{rpm}"
+
+msgid "orchestrate.high_rpm_stress"
+msgstr "RPM alto %{rpm} -> estresse"
+
+msgid "orchestrate.stable_rpm_comfort"
+msgstr "RPM estável %{rpm} -> conforto"
+
+msgid "orchestrate.autonomous_started"
+msgstr "Loop autônomo iniciado com intervalo %{interval}ms"
+
+msgid "orchestrate.error"
+msgstr "Erro: %{reason}"
+
+#. Codegen Module
+msgid "codegen.template_error"
+msgstr "Erro no template: %{error}"
+
+#. Body (Rust)
+msgid "body.init_bevy_ecs"
+msgstr "Inicializando Bevy ECS Body + Canal da Alma..."
+
+msgid "body.mutex_poisoned"
+msgstr "AVISO: Mutex envenenado em %{function}, recuperando..."
+
+msgid "body.wsl2_detected"
+msgstr "Ambiente WSL2 detectado. Ativando Ponte Neural..."
+
+#. Evolution Module (MAP-Elites)
+msgid "evolution.initializing_archive"
+msgstr "Inicializando arquivo (%{grid_size}x%{grid_size} grade)"
+
+msgid "evolution.initial_archive_status"
+msgstr "Arquivo inicial: %{filled}/%{total} células preenchidas"
+
+msgid "evolution.starting_evolution"
+msgstr "Iniciando evolução: %{iterations} iterações, live=%{live}"
+
+msgid "evolution.archive_empty_reinit"
+msgstr "Arquivo vazio, reinicializando"
+
+msgid "evolution.iteration_progress"
+msgstr "Iteração %{iteration}: %{filled} células, melhor fitness: %{best}"
+
+msgid "evolution.evolution_complete"
+msgstr "Evolução completa: %{filled} células, cobertura: %{coverage}%"
+
+msgid "evolution.new_elite"
+msgstr "Nova elite em (%{row},%{col}): fitness=%{fitness}"
+
+msgid "evolution.live_evaluation_starting"
+msgstr "Avaliação live iniciando..."
+
+msgid "evolution.live_fitness"
+msgstr "Fitness live: %{fitness}"
+
+msgid "evolution.deploy_failed"
+msgstr "Deploy falhou: %{reason}, usando simulado"
+
+msgid "evolution.codegen_failed"
+msgstr "Codegen falhou: %{reason}, usando simulado"
