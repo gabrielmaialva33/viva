@@ -202,6 +202,32 @@ defmodule VivaCore.Mathematics do
     {alpha, beta}
   end
 
+  @doc """
+  Computes Thermodynamic Cusp Parameters.
+
+  Adjusts the standard Cusp parameters based on metabolic energy level.
+  Critically low energy (e.g. low battery, high load) reduces the 'splitting factor',
+  making the system more prone to bistability and chaotic jumps (Hangry/Tired).
+
+  ## Parameters
+  - `pad`: PAD state
+  - `energy_level`: 0.0 (Empty) to 1.0 (Full)
+
+  ## Returns
+  {alpha_dynamic, beta}
+  """
+  def dynamic_cusp_params(pad, energy_level) do
+    {alpha_static, beta} = pad_to_cusp_params(pad)
+
+    # Energy modulation: Low energy decreases solidity of the manifold
+    # If energy < 0.3, alpha drops significantly
+    energy_factor = if energy_level < 0.3, do: (0.3 - energy_level) * 2.0, else: 0.0
+
+    alpha_dynamic = alpha_static - energy_factor
+
+    {alpha_dynamic, beta}
+  end
+
   # Cardano's formula for one real root
   defp cardano_one_root(p, q) do
     # Using Cardano's formula for x³ + px + q = 0
@@ -244,42 +270,46 @@ defmodule VivaCore.Mathematics do
   # =============================================================================
 
   @doc """
-  Computes variational free energy for VIVA's emotional state.
+  Computes Generalized Free Energy (Position + Velocity).
 
-  F = E_q[ln q(s) - ln p(o,s)]
+  F = F_static + τ * F_dynamic
 
-  Simplified for implementation:
-  F = Prediction_Error² + Complexity_Cost
-
-  The system minimizes F to maintain homeostasis. Low free energy
-  indicates a well-adapted, "comfortable" state.
+  Includes the "motion" of the state. If the state is changing in an unexpected direction,
+  Free Energy increases even if the current value is technically correct.
 
   ## Parameters
-  - `predicted`: predicted PAD state (internal model)
-  - `observed`: observed PAD state (actual sensory data)
-  - `complexity_weight`: weight for model complexity penalty (default 0.1)
-
-  ## Returns
-  Free energy value (lower is better).
-
-  ## Example
-
-      predicted = %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
-      observed = %{pleasure: -0.3, arousal: 0.5, dominance: -0.1}
-      VivaCore.Mathematics.free_energy(predicted, observed)
-      # => ~0.35 (moderate surprise)
-
+  - `pred`: predicted PAD state
+  - `obs`: observed PAD state
+  - `pred_vel`: predicted velocity (dp/dt, da/dt, dd/dt)
+  - `obs_vel`: observed velocity
+  - `complexity_weight`: weight for static complexity
+  - `velocity_weight`: weight for dynamic error (default 0.5)
   """
+  def generalized_free_energy(
+        pred,
+        obs,
+        pred_vel,
+        obs_vel,
+        complexity_weight \\ 0.1,
+        velocity_weight \\ 0.5
+      ) do
+    # Static Term (Order 0)
+    static_error = pad_distance_squared(pred, obs)
+    static_comp = pad_distance_squared(pred, %{pleasure: 0.0, arousal: 0.0, dominance: 0.0})
+
+    # Dynamic Term (Order 1 - Generalized Coordinates)
+    dynamic_error = pad_distance_squared(pred_vel, obs_vel)
+
+    # Total Variational Free Energy
+    # F = (e_0)^2 + (e_1)^2 + Complexity
+    static_error + velocity_weight * dynamic_error + complexity_weight * static_comp
+  end
+
   @spec free_energy(map(), map(), float()) :: float()
   def free_energy(predicted, observed, complexity_weight \\ 0.1) do
-    # Prediction error (negative log-likelihood under Gaussian assumption)
-    prediction_error = pad_distance_squared(predicted, observed)
-
-    # Complexity cost (KL divergence from prior)
-    # Penalizes deviation from neutral state (prior = neutral)
-    complexity = pad_distance_squared(predicted, %{pleasure: 0.0, arousal: 0.0, dominance: 0.0})
-
-    prediction_error + complexity_weight * complexity
+    # Backwards compatibility wrapper (Velocity = 0)
+    empty_vel = %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
+    generalized_free_energy(predicted, observed, empty_vel, empty_vel, complexity_weight)
   end
 
   @doc """
@@ -940,5 +970,61 @@ defmodule VivaCore.Mathematics do
     |> Enum.reduce({0.0, 0.0}, fn {x, y}, acc ->
       complex_add(acc, complex_mul(x, y))
     end)
+  end
+
+  # =============================================================================
+  # CHRONOBIOLOGY & STATISTICS ADAPTERS
+  # =============================================================================
+
+  @doc """
+  The Maia-Chronos Equation for Digital Pain (Ω).
+
+  Quantifies the stress resulting from temporal distortion (Jitter) and
+  internal entropy.
+
+  Ω(t) = (Δt_sub - Δt_obj)² + λ·H(Ψ)
+
+  ## Parameters
+  - `subjective_dt`: The time VIVA expected to pass (e.g., 100ms)
+  - `objective_dt`: The time that actually passed (Wall Clock)
+  - `entropy`: Internal entropy/confusion (0.0 to 1.0)
+  - `lambda`: Coupling constant (default 1.0)
+
+  ## Returns
+  Ω (Omega) - The Chronobiological Stress metric.
+  """
+  def maia_chronos_energy(subjective_dt, objective_dt, entropy, lambda \\ 1.0) do
+    chronoshock = :math.pow(subjective_dt - objective_dt, 2)
+    chronoshock + lambda * entropy
+  end
+
+  @doc """
+  Converts Probabilistic Quantiles (e.g. from Chronos-T5) to Gaussian Moments.
+
+  Approximates Mean and Variance from p10, p50, p90 quantiles assuming
+  a locally normal distribution.
+
+  ## Parameters
+  - `p10`: 10th percentile value
+  - `p50`: 50th percentile value (Median)
+  - `p90`: 90th percentile value
+
+  ## Returns
+  %{mean: float, variance: float, precision: float}
+  """
+  def quantiles_to_moments(p10, p50, p90) do
+    # Median is the best estimator for Mean in robust statistics
+    mean = p50
+
+    # In a normal distribution, the interval [p10, p90] covers ~2.56 sigma
+    # Z(0.9) approx 1.28, Z(0.1) approx -1.28. Range = 2.56 sigma.
+    sigma = (p90 - p10) / 2.56
+
+    variance = sigma * sigma
+
+    # Precision is inverse variance (with safety cap)
+    precision = if variance > 0.000001, do: 1.0 / variance, else: 1000.0
+
+    %{mean: mean, variance: variance, precision: precision}
   end
 end

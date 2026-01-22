@@ -37,6 +37,10 @@ defmodule VivaCore.Application do
       # Must start before Emotional to provide Free Energy signals
       {VivaCore.Interoception, name: VivaCore.Interoception},
 
+      # DatasetCollector - captures interoceptive ticks for Chronos training
+      # Receives data from Interoception, writes to priv/datasets/
+      {VivaCore.DatasetCollector, name: VivaCore.DatasetCollector},
+
       # Emotional Neuron - feels and processes emotions
       {VivaCore.Emotional, name: VivaCore.Emotional},
 

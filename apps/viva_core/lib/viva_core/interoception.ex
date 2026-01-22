@@ -342,6 +342,16 @@ defmodule VivaCore.Interoception do
       notify_emotional_change(state.feeling, feeling, total_fe)
     end
 
+    # 10. RECORD: Send tick data to DatasetCollector for Chronos training
+    record_for_training(%{
+      observations: observations,
+      predictions: predictions,
+      free_energies: free_energies,
+      precisions: precisions,
+      feeling: feeling,
+      time_dilation: time_dilation
+    })
+
     %{
       state
       | load_avg: raw.load_avg,
@@ -361,6 +371,21 @@ defmodule VivaCore.Interoception do
         uptime_seconds: raw.uptime_seconds,
         last_tick: now
     }
+  end
+
+  # ============================================================================
+  # Dataset Recording (for Chronos training)
+  # ============================================================================
+
+  defp record_for_training(tick_data) do
+    # Non-blocking cast to DatasetCollector
+    try do
+      VivaCore.DatasetCollector.record(tick_data)
+    catch
+      :exit, _ ->
+        # DatasetCollector not started yet - that's fine
+        :ok
+    end
   end
 
   # ============================================================================
