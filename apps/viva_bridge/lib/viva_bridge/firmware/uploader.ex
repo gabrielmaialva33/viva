@@ -18,8 +18,8 @@ defmodule VivaBridge.Firmware.Uploader do
   @fqbn "arduino:avr:nano"
   @sketch_dir "/tmp/viva_firmware"
   @backup_dir "/tmp/viva_firmware_backup"
-  @verify_timeout 5_000
-  @upload_timeout 30_000
+  # @verify_timeout 5_000
+  # @upload_timeout 30_000
 
   # ============================================================================
   # Public API

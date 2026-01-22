@@ -17,7 +17,7 @@ defmodule VivaBridge.Memory do
         VivaLog.info(:memory, :neuron_online_rust_native)
         :ok
 
-      {:ok, msg} ->
+      {:ok, _msg} ->
         VivaLog.info(:memory, :neuron_online_rust_native)
         :ok
 
