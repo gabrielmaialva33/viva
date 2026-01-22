@@ -12,7 +12,7 @@ defmodule VivaBridge.Firmware.Uploader do
                                             rollback on failure
   """
 
-  require Logger
+  require VivaLog
 
   @arduino_cli System.get_env("ARDUINO_CLI_PATH", "/home/mrootx/.local/bin/arduino-cli")
   @fqbn "arduino:avr:nano"
@@ -40,11 +40,11 @@ defmodule VivaBridge.Firmware.Uploader do
          {:ok, detected_port} <- detect_port(port),
          {:ok, _} <- upload(sketch_path, detected_port),
          :ok <- verify_alive(detected_port) do
-      Logger.info("[Uploader] Deploy successful: gen=#{generation} port=#{detected_port}")
+      VivaLog.info(:uploader, :deploy_successful, generation: generation, port: detected_port)
       {:ok, %{port: detected_port, generation: generation}}
     else
       {:error, reason} = error ->
-        Logger.error("[Uploader] Deploy failed: #{inspect(reason)}, attempting rollback")
+        VivaLog.error(:uploader, :deploy_failed, reason: inspect(reason))
         rollback()
         error
     end
@@ -76,7 +76,7 @@ defmodule VivaBridge.Firmware.Uploader do
         parse_board_list(output)
 
       {error, _} ->
-        Logger.error("[Uploader] Failed to list boards: #{error}")
+        VivaLog.error(:uploader, :board_list_failed, error: error)
         {:error, :board_list_failed}
     end
   end
@@ -87,7 +87,7 @@ defmodule VivaBridge.Firmware.Uploader do
   Returns `:ok` or `{:error, reason}`.
   """
   def verify_alive(port) do
-    Logger.info("[Uploader] Verifying firmware on #{port}...")
+    VivaLog.info(:uploader, :verifying_firmware, port: port)
 
     # Wait for Arduino to boot after upload
     Process.sleep(2_000)
@@ -96,18 +96,19 @@ defmodule VivaBridge.Firmware.Uploader do
     case VivaBridge.Music.connect(port) do
       {:ok, _} ->
         Process.sleep(500)
+
         case ping_with_retry(3) do
           :ok ->
-            Logger.info("[Uploader] Firmware responding on #{port}")
+            VivaLog.info(:uploader, :firmware_responding, port: port)
             :ok
 
           {:error, reason} ->
-            Logger.error("[Uploader] Firmware not responding: #{inspect(reason)}")
+            VivaLog.error(:uploader, :firmware_not_responding, reason: inspect(reason))
             {:error, {:verify_failed, reason}}
         end
 
       {:error, reason} ->
-        Logger.error("[Uploader] Failed to connect: #{inspect(reason)}")
+        VivaLog.error(:uploader, :connect_failed, reason: inspect(reason))
         {:error, {:connect_failed, reason}}
     end
   end
@@ -116,15 +117,17 @@ defmodule VivaBridge.Firmware.Uploader do
   Get info about installed arduino-cli and cores.
   """
   def info do
-    version = case System.cmd(@arduino_cli, ["version"], stderr_to_stdout: true) do
-      {output, 0} -> String.trim(output)
-      _ -> "unknown"
-    end
+    version =
+      case System.cmd(@arduino_cli, ["version"], stderr_to_stdout: true) do
+        {output, 0} -> String.trim(output)
+        _ -> "unknown"
+      end
 
-    cores = case System.cmd(@arduino_cli, ["core", "list"], stderr_to_stdout: true) do
-      {output, 0} -> String.trim(output)
-      _ -> "none"
-    end
+    cores =
+      case System.cmd(@arduino_cli, ["core", "list"], stderr_to_stdout: true) do
+        {output, 0} -> String.trim(output)
+        _ -> "none"
+      end
 
     %{
       arduino_cli: @arduino_cli,
@@ -144,34 +147,34 @@ defmodule VivaBridge.Firmware.Uploader do
 
     with :ok <- File.mkdir_p(sketch_path),
          :ok <- File.write(ino_file, ino_code) do
-      Logger.debug("[Uploader] Wrote sketch to #{ino_file}")
+      VivaLog.debug(:uploader, :wrote_sketch, path: ino_file)
       {:ok, sketch_path}
     else
       {:error, reason} ->
-        Logger.error("[Uploader] Failed to write sketch: #{inspect(reason)}")
+        VivaLog.error(:uploader, :write_sketch_failed, reason: inspect(reason))
         {:error, {:write_failed, reason}}
     end
   end
 
   defp compile(sketch_path) do
-    Logger.info("[Uploader] Compiling #{sketch_path}...")
+    VivaLog.info(:uploader, :compiling, path: sketch_path)
 
     args = ["compile", "--fqbn", @fqbn, sketch_path]
 
     case System.cmd(@arduino_cli, args, stderr_to_stdout: true) do
       {output, 0} ->
-        Logger.info("[Uploader] Compile successful")
-        Logger.debug("[Uploader] #{output}")
+        VivaLog.info(:uploader, :compile_successful)
+        VivaLog.debug(:uploader, :compile_output, output: output)
         {:ok, output}
 
       {error, code} ->
-        Logger.error("[Uploader] Compile failed (code #{code}): #{error}")
+        VivaLog.error(:uploader, :compile_failed, code: code, error: error)
         {:error, {:compile_failed, error}}
     end
   end
 
   defp upload(sketch_path, port) do
-    Logger.info("[Uploader] Uploading to #{port}...")
+    VivaLog.info(:uploader, :uploading, port: port)
 
     # Disconnect Music module if connected (release serial port)
     VivaBridge.Music.disconnect()
@@ -181,12 +184,12 @@ defmodule VivaBridge.Firmware.Uploader do
 
     case System.cmd(@arduino_cli, args, stderr_to_stdout: true) do
       {output, 0} ->
-        Logger.info("[Uploader] Upload successful")
-        Logger.debug("[Uploader] #{output}")
+        VivaLog.info(:uploader, :upload_successful)
+        VivaLog.debug(:uploader, :upload_output, output: output)
         {:ok, output}
 
       {error, code} ->
-        Logger.error("[Uploader] Upload failed (code #{code}): #{error}")
+        VivaLog.error(:uploader, :upload_failed, code: code, error: error)
         {:error, {:upload_failed, error}}
     end
   end
@@ -195,13 +198,15 @@ defmodule VivaBridge.Firmware.Uploader do
     case Jason.decode(json) do
       {:ok, %{"detected_ports" => ports}} when is_list(ports) ->
         # Find Arduino Nano or compatible
-        arduino = Enum.find(ports, fn port ->
-          boards = get_in(port, ["matching_boards"]) || []
-          Enum.any?(boards, fn board ->
-            fqbn = board["fqbn"] || ""
-            String.contains?(fqbn, "arduino:avr")
+        arduino =
+          Enum.find(ports, fn port ->
+            boards = get_in(port, ["matching_boards"]) || []
+
+            Enum.any?(boards, fn board ->
+              fqbn = board["fqbn"] || ""
+              String.contains?(fqbn, "arduino:avr")
+            end)
           end)
-        end)
 
         case arduino do
           %{"port" => %{"address" => address}} ->
@@ -236,9 +241,12 @@ defmodule VivaBridge.Firmware.Uploader do
   end
 
   defp ping_with_retry(0), do: {:error, :no_response}
+
   defp ping_with_retry(attempts) do
     case VivaBridge.Music.ping() do
-      :ok -> :ok
+      :ok ->
+        :ok
+
       {:error, _} ->
         Process.sleep(1_000)
         ping_with_retry(attempts - 1)
@@ -253,7 +261,7 @@ defmodule VivaBridge.Firmware.Uploader do
       backup_path = Path.join(@backup_dir, "viva_evolved")
       File.mkdir_p!(backup_path)
       File.cp!(current_ino, Path.join(backup_path, "viva_evolved.ino"))
-      Logger.debug("[Uploader] Backed up current firmware")
+      VivaLog.debug(:uploader, :backed_up_firmware)
     end
 
     :ok
@@ -263,20 +271,20 @@ defmodule VivaBridge.Firmware.Uploader do
     backup_ino = Path.join([@backup_dir, "viva_evolved", "viva_evolved.ino"])
 
     if File.exists?(backup_ino) do
-      Logger.warning("[Uploader] Rolling back to previous firmware...")
+      VivaLog.warning(:uploader, :rolling_back)
 
       with {:ok, port} <- detect_port(),
            sketch_path = Path.join(@backup_dir, "viva_evolved"),
            {:ok, _} <- upload(sketch_path, port) do
-        Logger.info("[Uploader] Rollback successful")
+        VivaLog.info(:uploader, :rollback_successful)
         :ok
       else
         {:error, reason} ->
-          Logger.error("[Uploader] Rollback failed: #{inspect(reason)}")
+          VivaLog.error(:uploader, :rollback_failed, reason: inspect(reason))
           {:error, {:rollback_failed, reason}}
       end
     else
-      Logger.warning("[Uploader] No backup available for rollback")
+      VivaLog.warning(:uploader, :no_backup_available)
       {:error, :no_backup}
     end
   end

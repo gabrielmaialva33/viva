@@ -7,7 +7,7 @@ defmodule VivaBridge.Cortex do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   # ============================================================================
   # Public API
@@ -81,14 +81,14 @@ defmodule VivaBridge.Cortex do
 
     script_path = if File.exists?(candidate_1), do: candidate_1, else: candidate_2
 
-    Logger.info("[VivaBridge.Cortex] Resolved script path: #{script_path}")
+    VivaLog.info(:cortex, :resolved_script_path, path: script_path)
 
     if File.exists?(script_path) do
-      Logger.info("[VivaBridge.Cortex] Starting Liquid Engine: #{script_path}")
+      VivaLog.info(:cortex, :starting_liquid_engine, path: script_path)
       port = Port.open({:spawn, "python3 -u #{script_path}"}, [:binary, :line])
       {:ok, %{port: port, requests: %{}}}
     else
-      Logger.error("[VivaBridge.Cortex] Liquid Engine not found at #{script_path}")
+      VivaLog.error(:cortex, :liquid_engine_not_found, path: script_path)
       {:stop, :enoent}
     end
   end
@@ -124,14 +124,14 @@ defmodule VivaBridge.Cortex do
         handle_response(response, state)
 
       {:error, _} ->
-        Logger.warning("[VivaBridge.Cortex] Invalid JSON: #{line}")
+        VivaLog.warning(:cortex, :invalid_json, line: line)
         {:noreply, state}
     end
   end
 
   @impl true
   def handle_info({:EXIT, _port, reason}, state) do
-    Logger.error("[VivaBridge.Cortex] Liquid Engine Died: #{inspect(reason)}")
+    VivaLog.error(:cortex, :liquid_engine_died, reason: inspect(reason))
     {:stop, reason, state}
   end
 

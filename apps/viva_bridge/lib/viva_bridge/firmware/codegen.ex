@@ -26,7 +26,7 @@ defmodule VivaBridge.Firmware.Codegen do
       }
   """
 
-  require Logger
+  require VivaLog
 
   @template_path "priv/templates/viva_music.ino.eex"
 
@@ -40,12 +40,12 @@ defmodule VivaBridge.Firmware.Codegen do
       pins: %{speaker: 8, buzzer: 9, fan_pwm: 10, fan_tach: 2, led: 13},
       timer: %{prescaler: 1, top: 639},
       emotions: %{
-        joy:     %{pwm: 200, melody: [{262, 100}, {330, 100}, {392, 100}, {523, 200}]},
-        sad:     %{pwm: 80,  melody: [{440, 300}, {392, 300}, {330, 300}, {294, 500}]},
-        fear:    %{pwm: 255, melody: [{233, 50}, {247, 50}], repeat: 5},
-        calm:    %{pwm: 60,  melody: [{262, 300}, {330, 300}, {392, 500}]},
+        joy: %{pwm: 200, melody: [{262, 100}, {330, 100}, {392, 100}, {523, 200}]},
+        sad: %{pwm: 80, melody: [{440, 300}, {392, 300}, {330, 300}, {294, 500}]},
+        fear: %{pwm: 255, melody: [{233, 50}, {247, 50}], repeat: 5},
+        calm: %{pwm: 60, melody: [{262, 300}, {330, 300}, {392, 500}]},
         curious: %{pwm: 150, melody: [{262, 100}, {294, 100}, {330, 100}, {392, 200}]},
-        love:    %{pwm: 120, melody: [{262, 150}, {330, 150}, {392, 150}, {330, 150}, {262, 300}]}
+        love: %{pwm: 120, melody: [{262, 150}, {330, 150}, {392, 150}, {330, 150}, {262, 300}]}
       },
       harmony_ratio: 2.0,
       serial_baud: 9600,
@@ -67,7 +67,7 @@ defmodule VivaBridge.Firmware.Codegen do
         {:ok, code}
       rescue
         e ->
-          Logger.error("[Codegen] Template error: #{inspect(e)}")
+          VivaLog.error(:codegen, :template_error, error: inspect(e))
           {:error, {:template_error, e}}
       end
     else
@@ -118,7 +118,8 @@ defmodule VivaBridge.Firmware.Codegen do
   end
 
   # Timer validation - must produce valid PWM frequency
-  defp validate_timer(%{prescaler: p, top: t}) when p in [1, 8, 64, 256, 1024] and t > 0 and t <= 65535 do
+  defp validate_timer(%{prescaler: p, top: t})
+       when p in [1, 8, 64, 256, 1024] and t > 0 and t <= 65535 do
     freq = 16_000_000 / (p * (1 + t))
 
     if freq >= 20_000 and freq <= 30_000 do
@@ -158,7 +159,7 @@ defmodule VivaBridge.Firmware.Codegen do
       g.harmony_ratio < 1.0 or g.harmony_ratio > 4.0 ->
         {:error, {:harmony_ratio_out_of_bounds, g.harmony_ratio}}
 
-      g.serial_baud not in [9600, 19200, 38400, 57600, 115200] ->
+      g.serial_baud not in [9600, 19200, 38400, 57600, 115_200] ->
         {:error, {:invalid_baud_rate, g.serial_baud}}
 
       g.serial_timeout < 10 or g.serial_timeout > 1000 ->

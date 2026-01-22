@@ -27,19 +27,26 @@ defmodule VivaBridge.Firmware.MetaLearner do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   alias VivaBridge.Firmware.Evolution
   alias VivaBridge.Music
 
   # Configuration
-  @check_interval 60_000          # Check every 60 seconds
-  @evolution_threshold 0.3        # Evolve if accuracy < 30%
-  @free_energy_threshold 0.7      # Evolve if Free Energy > 0.7
-  @min_samples 10                 # Need at least 10 samples
-  @cooldown_after_evolution 300_000  # 5 min cooldown after evolution
-  @rate_limit_ms 3_600_000        # Max 1 evolution per hour
-  @evolution_iterations 50        # MAP-Elites iterations per run
+  # Check every 60 seconds
+  @check_interval 60_000
+  # Evolve if accuracy < 30%
+  @evolution_threshold 0.3
+  # Evolve if Free Energy > 0.7
+  @free_energy_threshold 0.7
+  # Need at least 10 samples
+  @min_samples 10
+  # 5 min cooldown after evolution
+  @cooldown_after_evolution 300_000
+  # Max 1 evolution per hour
+  @rate_limit_ms 3_600_000
+  # MAP-Elites iterations per run
+  @evolution_iterations 50
 
   # ============================================================================
   # Public API
@@ -117,7 +124,7 @@ defmodule VivaBridge.Firmware.MetaLearner do
       schedule_check()
     end
 
-    Logger.info("[MetaLearner] Started (paused=#{paused})")
+    VivaLog.info(:meta_learner, :started, paused: paused)
     {:ok, state}
   end
 
@@ -141,13 +148,13 @@ defmodule VivaBridge.Firmware.MetaLearner do
 
   @impl true
   def handle_call(:pause, _from, state) do
-    Logger.info("[MetaLearner] Paused by user")
+    VivaLog.info(:meta_learner, :paused)
     {:reply, :ok, %{state | paused: true}}
   end
 
   @impl true
   def handle_call(:resume, _from, state) do
-    Logger.info("[MetaLearner] Resumed by user")
+    VivaLog.info(:meta_learner, :resumed)
     schedule_check()
     {:reply, :ok, %{state | paused: false}}
   end
@@ -158,7 +165,7 @@ defmodule VivaBridge.Firmware.MetaLearner do
       remaining = time_until_can_evolve(state)
       {:reply, {:error, {:rate_limited, remaining}}, state}
     else
-      Logger.info("[MetaLearner] Forced evolution triggered")
+      VivaLog.info(:meta_learner, :forced_evolution)
       new_state = run_evolution(state, :forced)
       {:reply, {:ok, new_state.best_fitness}, new_state}
     end
@@ -214,27 +221,38 @@ defmodule VivaBridge.Firmware.MetaLearner do
     cond do
       # Not enough samples yet
       length(state.samples) < @min_samples ->
-        Logger.debug("[MetaLearner] Collecting samples (#{length(state.samples)}/#{@min_samples})")
+        VivaLog.debug(:meta_learner, :collecting_samples,
+          current: length(state.samples),
+          total: @min_samples
+        )
+
         state
 
       # Rate limited
       rate_limited?(state) ->
-        Logger.debug("[MetaLearner] Rate limited, skipping check")
+        VivaLog.debug(:meta_learner, :rate_limited)
         state
 
       # In cooldown after evolution
       in_cooldown?(state) ->
-        Logger.debug("[MetaLearner] In cooldown, skipping check")
+        VivaLog.debug(:meta_learner, :in_cooldown)
         state
 
       # Performance is poor - trigger evolution
       should_evolve?(stats) ->
-        Logger.info("[MetaLearner] Poor performance detected: accuracy=#{Float.round(stats.avg_accuracy, 3)}, F=#{Float.round(stats.avg_free_energy, 3)}")
+        VivaLog.info(:meta_learner, :poor_performance,
+          accuracy: Float.round(stats.avg_accuracy, 3),
+          free_energy: Float.round(stats.avg_free_energy, 3)
+        )
+
         run_evolution(state, :automatic)
 
       # Everything is fine
       true ->
-        Logger.debug("[MetaLearner] Performance OK: accuracy=#{Float.round(stats.avg_accuracy, 3)}")
+        VivaLog.debug(:meta_learner, :performance_ok,
+          accuracy: Float.round(stats.avg_accuracy, 3)
+        )
+
         state
     end
   end
@@ -272,6 +290,7 @@ defmodule VivaBridge.Firmware.MetaLearner do
   end
 
   defp compute_stats([]), do: %{avg_accuracy: 0.5, avg_free_energy: 0.5, variance: 0.0}
+
   defp compute_stats(samples) do
     n = length(samples)
 
@@ -279,15 +298,18 @@ defmodule VivaBridge.Firmware.MetaLearner do
     avg_free_energy = Enum.sum(Enum.map(samples, & &1.free_energy)) / n
 
     # Compute variance of free energy
-    variance = if n > 1 do
-      squared_diffs = Enum.map(samples, fn s ->
-        diff = s.free_energy - avg_free_energy
-        diff * diff
-      end)
-      Enum.sum(squared_diffs) / (n - 1)
-    else
-      0.0
-    end
+    variance =
+      if n > 1 do
+        squared_diffs =
+          Enum.map(samples, fn s ->
+            diff = s.free_energy - avg_free_energy
+            diff * diff
+          end)
+
+        Enum.sum(squared_diffs) / (n - 1)
+      else
+        0.0
+      end
 
     %{
       avg_accuracy: avg_accuracy,
@@ -299,7 +321,7 @@ defmodule VivaBridge.Firmware.MetaLearner do
 
   defp should_evolve?(stats) do
     stats.avg_accuracy < @evolution_threshold or
-    stats.avg_free_energy > @free_energy_threshold
+      stats.avg_free_energy > @free_energy_threshold
   end
 
   defp can_evolve?(state) do
@@ -308,7 +330,9 @@ defmodule VivaBridge.Firmware.MetaLearner do
 
   defp rate_limited?(state) do
     case state.last_evolution do
-      nil -> false
+      nil ->
+        false
+
       last ->
         elapsed = System.system_time(:millisecond) - last
         elapsed < @rate_limit_ms
@@ -317,7 +341,9 @@ defmodule VivaBridge.Firmware.MetaLearner do
 
   defp in_cooldown?(state) do
     case state.last_evolution do
-      nil -> false
+      nil ->
+        false
+
       last ->
         elapsed = System.system_time(:millisecond) - last
         elapsed < @cooldown_after_evolution
@@ -326,7 +352,9 @@ defmodule VivaBridge.Firmware.MetaLearner do
 
   defp time_until_can_evolve(state) do
     case state.last_evolution do
-      nil -> 0
+      nil ->
+        0
+
       last ->
         elapsed = System.system_time(:millisecond) - last
         remaining = @rate_limit_ms - elapsed
@@ -335,18 +363,20 @@ defmodule VivaBridge.Firmware.MetaLearner do
   end
 
   defp run_evolution(state, trigger) do
-    Logger.info("[MetaLearner] Starting MAP-Elites evolution (trigger=#{trigger})")
+    VivaLog.info(:meta_learner, :starting_evolution, trigger: trigger)
     start_time = System.system_time(:millisecond)
 
     # Initialize or continue from existing archive
     archive = state.current_archive || Evolution.initialize()
 
     # Run evolution
-    {:ok, final_archive, stats} = Evolution.run(
-      archive: archive,
-      iterations: @evolution_iterations,
-      evaluate_live: false  # Use simulated for safety; enable evaluate_live: true for real hardware
-    )
+    {:ok, final_archive, stats} =
+      Evolution.run(
+        archive: archive,
+        iterations: @evolution_iterations,
+        # Use simulated for safety; enable evaluate_live: true for real hardware
+        evaluate_live: false
+      )
 
     elapsed = System.system_time(:millisecond) - start_time
 
@@ -372,15 +402,21 @@ defmodule VivaBridge.Firmware.MetaLearner do
     # Save to Qdrant
     save_elites_to_memory(final_archive)
 
-    Logger.info("[MetaLearner] Evolution complete: fitness=#{Float.round(best_fitness, 4)}, coverage=#{stats.coverage}%, deploy=#{inspect(deploy_result)}")
+    VivaLog.info(:meta_learner, :evolution_complete,
+      fitness: Float.round(best_fitness, 4),
+      coverage: stats.coverage,
+      deploy: inspect(deploy_result)
+    )
 
-    %{state |
-      last_evolution: System.system_time(:millisecond),
-      evolution_count: state.evolution_count + 1,
-      current_archive: final_archive,
-      best_fitness: best_fitness,
-      history: [history_entry | Enum.take(state.history, 99)],
-      samples: []  # Clear samples after evolution
+    %{
+      state
+      | last_evolution: System.system_time(:millisecond),
+        evolution_count: state.evolution_count + 1,
+        current_archive: final_archive,
+        best_fitness: best_fitness,
+        history: [history_entry | Enum.take(state.history, 99)],
+        # Clear samples after evolution
+        samples: []
     }
   end
 
@@ -389,7 +425,10 @@ defmodule VivaBridge.Firmware.MetaLearner do
   defp maybe_deploy_best(%{genotype: genotype} = elite) do
     # Only deploy if Music module is connected
     if Music.connected?() do
-      Logger.info("[MetaLearner] Deploying best elite (gen=#{genotype.generation}, fitness=#{Float.round(elite.fitness, 4)})")
+      VivaLog.info(:meta_learner, :deploying_elite,
+        generation: genotype.generation,
+        fitness: Float.round(elite.fitness, 4)
+      )
 
       alias VivaBridge.Firmware.{Codegen, Uploader}
 
@@ -397,15 +436,15 @@ defmodule VivaBridge.Firmware.MetaLearner do
 
       case Uploader.deploy(ino_code, generation: genotype.generation) do
         {:ok, result} ->
-          Logger.info("[MetaLearner] Deploy successful: #{inspect(result)}")
+          VivaLog.info(:meta_learner, :deploy_success, result: inspect(result))
           {:ok, result}
 
         {:error, reason} ->
-          Logger.error("[MetaLearner] Deploy failed: #{inspect(reason)}")
+          VivaLog.error(:meta_learner, :deploy_failed, reason: inspect(reason))
           {:error, reason}
       end
     else
-      Logger.debug("[MetaLearner] Skipping deploy (not connected)")
+      VivaLog.debug(:meta_learner, :deploy_skipped)
       :not_connected
     end
   end
@@ -430,11 +469,11 @@ defmodule VivaBridge.Firmware.MetaLearner do
         # Use Qdrant MCP if available
         save_to_qdrant(info, elite)
       rescue
-        _ -> Logger.debug("[MetaLearner] Qdrant save skipped (not available)")
+        _ -> VivaLog.debug(:meta_learner, :qdrant_skipped)
       end
     end)
 
-    Logger.info("[MetaLearner] Saved #{length(elites)} elites to memory")
+    VivaLog.info(:meta_learner, :elites_saved, count: length(elites))
   end
 
   defp save_to_qdrant(info, elite) do
@@ -449,6 +488,9 @@ defmodule VivaBridge.Firmware.MetaLearner do
       complexity: elem(elite.descriptors, 1)
     }
 
-    Logger.debug("[MetaLearner] Would save to Qdrant: #{String.slice(info, 0, 100)}... metadata=#{inspect(metadata)}")
+    VivaLog.debug(:meta_learner, :would_save_qdrant,
+      preview: String.slice(info, 0, 100),
+      metadata: inspect(metadata)
+    )
   end
 end

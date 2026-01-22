@@ -47,7 +47,7 @@ defmodule VivaBridge.BodyServer do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   alias VivaBridge.Body
 
@@ -171,7 +171,7 @@ defmodule VivaBridge.BodyServer do
     # Schedule subsequent ticks
     schedule_tick(tick_interval)
 
-    Logger.info("[BodyServer] Started with interval=#{tick_interval}ms")
+    VivaLog.info(:body_server, :started, interval: tick_interval)
 
     {:ok, state}
   end
@@ -208,13 +208,13 @@ defmodule VivaBridge.BodyServer do
 
   @impl true
   def handle_cast(:pause, state) do
-    Logger.debug("[BodyServer] Paused")
+    VivaLog.debug(:body_server, :paused)
     {:noreply, %{state | paused: true}}
   end
 
   @impl true
   def handle_cast(:resume, state) do
-    Logger.debug("[BodyServer] Resumed")
+    VivaLog.debug(:body_server, :resumed)
     schedule_tick(state.tick_interval)
     {:noreply, %{state | paused: false}}
   end
@@ -297,7 +297,7 @@ defmodule VivaBridge.BodyServer do
           VivaBridge.Memory.store(vector, meta)
 
         {:error, reason} ->
-          Logger.warning("[BodyServer] Cortex experience failed: #{inspect(reason)}")
+          VivaLog.warning(:body_server, :cortex_failed, reason: inspect(reason))
           :ok
       end
     end
@@ -366,7 +366,7 @@ defmodule VivaBridge.BodyServer do
   end
 
   defp process_identifiers([{"critical", stress} | rest], state) do
-    Logger.warning("[BodyServer] CRITICAL HARDWARE STRESS DETECTED: #{stress}")
+    VivaLog.warning(:body_server, :critical_stress, stress: stress)
     # Broadcast specifically for emergency handlers
     maybe_broadcast(state.pubsub, "body:alert", {:critical_stress, stress})
     process_identifiers(rest, state)

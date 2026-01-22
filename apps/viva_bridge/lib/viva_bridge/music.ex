@@ -18,7 +18,7 @@ defmodule VivaBridge.Music do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   # Musical Notes (Frequencies in Hz) - Full Chromatic
   @notes %{
@@ -150,7 +150,7 @@ defmodule VivaBridge.Music do
         {:error, :no_arduino_found}
 
       path ->
-        Logger.info("[Music] Auto-detected Arduino at #{path}")
+        VivaLog.info(:music, :arduino_detected, path: path)
         connect(path)
     end
   end
@@ -254,7 +254,7 @@ defmodule VivaBridge.Music do
   @doc "Improvises a melody based on current state (Meta-Learning Loop)"
   def improvise do
     metrics = get_musical_metrics()
-    Logger.info("Improvising with metrics: #{inspect(metrics)}")
+    VivaLog.info(:music, :improvising, metrics: inspect(metrics))
 
     melody =
       generate_melody(
@@ -268,7 +268,7 @@ defmodule VivaBridge.Music do
 
     # Meta-Learning: If VIVA liked what it played (High Pleasure, Low/Controlled Entropy), save it
     if metrics.pad.pleasure > 0.3 and metrics.entropy < 0.5 do
-      Logger.info("Pleasant pattern detected. Memorizing...")
+      VivaLog.info(:music, :pleasant_pattern_detected)
 
       remember_pattern(
         :improv_vibes,
@@ -384,12 +384,12 @@ defmodule VivaBridge.Music do
   """
   def orchestrate do
     metrics = get_musical_metrics()
-    Logger.info("[Orchestrate] Starting with metrics: #{inspect(metrics)}")
+    VivaLog.info(:orchestrate, :starting, metrics: inspect(metrics))
 
     # 1. Set fan speed based on arousal
     fan_speed = arousal_to_fan_speed(metrics.pad.arousal)
     set_fan_speed(fan_speed)
-    Logger.info("[Orchestrate] Fan set to #{fan_speed} (arousal: #{metrics.pad.arousal})")
+    VivaLog.info(:orchestrate, :fan_set, speed: fan_speed, arousal: metrics.pad.arousal)
 
     # 2. Generate and play melody
     melody =
@@ -400,12 +400,12 @@ defmodule VivaBridge.Music do
         metrics.entropy
       )
 
-    Logger.info("[Orchestrate] Playing #{length(melody)} notes")
+    VivaLog.info(:orchestrate, :playing_notes, count: length(melody))
     play_melody(melody)
 
     # 3. Get status after playing
     status = get_status()
-    Logger.info("[Orchestrate] Final status: #{inspect(status)}")
+    VivaLog.info(:orchestrate, :final_status, status: inspect(status))
 
     {:ok,
      %{
@@ -422,7 +422,7 @@ defmodule VivaBridge.Music do
   """
   def orchestrate_with_feedback do
     metrics = get_musical_metrics()
-    Logger.info("[Orchestrate+] Closed-loop with metrics: #{inspect(metrics)}")
+    VivaLog.info(:orchestrate, :closed_loop, metrics: inspect(metrics))
 
     # 1. Set fan based on arousal
     fan_speed = arousal_to_fan_speed(metrics.pad.arousal)
@@ -454,7 +454,7 @@ defmodule VivaBridge.Music do
         updated_metrics.entropy
       )
 
-    Logger.info("[Orchestrate+] Playing #{length(melody)} notes, RPM: #{rpm}")
+    VivaLog.info(:orchestrate, :playing_with_rpm, count: length(melody), rpm: rpm)
     play_melody(melody)
     status = get_status()
 
@@ -475,11 +475,11 @@ defmodule VivaBridge.Music do
 
     cond do
       rpm > expected_rpm * 1.3 ->
-        Logger.debug("[Feedback] High RPM #{rpm} → stress")
+        VivaLog.debug(:orchestrate, :high_rpm_stress, rpm: rpm)
         safe_apply(emotional_module, :feel, [:threat, "hardware_stress", 0.2], :ok)
 
       rpm > 0 and abs(rpm - expected_rpm) < expected_rpm * 0.2 ->
-        Logger.debug("[Feedback] Stable RPM #{rpm} → comfort")
+        VivaLog.debug(:orchestrate, :stable_rpm_comfort, rpm: rpm)
         safe_apply(emotional_module, :feel, [:success, "hardware_comfort", 0.1], :ok)
 
       true ->
@@ -499,7 +499,7 @@ defmodule VivaBridge.Music do
   """
   def start_autonomous(interval_ms \\ 10_000) do
     pid = spawn_link(fn -> autonomous_loop(interval_ms) end)
-    Logger.info("[Orchestrate] Autonomous loop started with interval #{interval_ms}ms")
+    VivaLog.info(:orchestrate, :autonomous_started, interval: interval_ms)
     {:ok, pid}
   end
 
@@ -557,7 +557,7 @@ defmodule VivaBridge.Music do
             # Send a newline to clear any partial command buffer on Arduino side
             Circuits.UART.write(uart, "\n")
 
-            Logger.info("[Music] Arduino connected (Active Mode)")
+            VivaLog.info(:music, :arduino_connected)
             {:reply, {:ok, :connected}, %{state | port: uart, connected: true}}
 
           {:error, reason} ->
@@ -582,7 +582,7 @@ defmodule VivaBridge.Music do
   @impl true
   def handle_call(:disconnect, _from, %{port: port} = state) do
     Circuits.UART.close(port)
-    Logger.info("[Music] Arduino disconnected")
+    VivaLog.info(:music, :arduino_disconnected)
     {:reply, :ok, %{state | port: nil, connected: false}}
   end
 
@@ -601,7 +601,7 @@ defmodule VivaBridge.Music do
 
   @impl true
   def handle_call({:play_note, freq, dur}, _from, %{connected: false} = state) do
-    Logger.debug("Simulating note: #{freq}Hz for #{dur}ms")
+    VivaLog.debug(:music, :simulating_note, freq: freq, dur: dur)
     {:reply, {:simulated, freq, dur}, state}
   end
 
@@ -615,7 +615,7 @@ defmodule VivaBridge.Music do
 
   @impl true
   def handle_call({:play_melody, notes}, _from, %{connected: false} = state) do
-    Logger.debug("Simulating melody: #{inspect(notes)}")
+    VivaLog.debug(:music, :simulating_melody, notes: inspect(notes))
     {:reply, {:simulated, length(notes)}, state}
   end
 
@@ -637,7 +637,7 @@ defmodule VivaBridge.Music do
 
   @impl true
   def handle_call({:express_emotion, emotion}, _from, %{connected: false} = state) do
-    Logger.debug("Simulating emotion: #{emotion}")
+    VivaLog.debug(:music, :simulating_emotion, emotion: emotion)
     {:reply, {:simulated, emotion}, state}
   end
 
@@ -811,14 +811,14 @@ defmodule VivaBridge.Music do
   defp process_incoming_qualia("", state), do: state
 
   defp process_incoming_qualia("ACK:PONG", state) do
-    Logger.info("[Interoception] PONG - Body Connected")
+    VivaLog.info(:interoception, :pong_received)
     state
   end
 
   defp process_incoming_qualia("ACK:OK", state), do: state
 
   defp process_incoming_qualia("NAK:CRC_FAIL" <> _, state) do
-    Logger.warning("[Interoception] CRC Fail - Communication noise")
+    VivaLog.warning(:interoception, :crc_fail)
     # Small discomfort from internal communication failure
     apply_qualia_to_emotional(%{
       pleasure: -0.02,
@@ -845,7 +845,7 @@ defmodule VivaBridge.Music do
   end
 
   defp process_incoming_qualia("ACK:EMOTION:" <> emotion, state) do
-    Logger.debug("[Interoception] Emotion expressed: #{emotion}")
+    VivaLog.debug(:interoception, :emotion_expressed, emotion: emotion)
     state
   end
 
@@ -860,7 +860,7 @@ defmodule VivaBridge.Music do
   end
 
   defp process_incoming_qualia("EVENT:" <> event, state) do
-    Logger.info("[Interoception] SPONTANEOUS EVENT: #{event}")
+    VivaLog.info(:interoception, :spontaneous_event, event: event)
     # Spontaneous Arduino events → high surprise
     apply_qualia_to_emotional(%{
       pleasure: 0.0,
@@ -876,7 +876,7 @@ defmodule VivaBridge.Music do
   end
 
   defp process_incoming_qualia("VIVA_READY", state) do
-    Logger.info("[Interoception] Arduino ready - Body initialized")
+    VivaLog.info(:interoception, :arduino_ready)
 
     apply_qualia_to_emotional(%{
       pleasure: 0.1,
@@ -903,7 +903,7 @@ defmodule VivaBridge.Music do
         process_status_qualia(status, state)
 
       true ->
-        Logger.debug("[Interoception] Ignored: #{line}")
+        VivaLog.debug(:interoception, :ignored_line, line: line)
         state
     end
   end
@@ -935,11 +935,13 @@ defmodule VivaBridge.Music do
     # Apply to emotional system (body → soul)
     apply_qualia_to_emotional(qualia)
 
-    Logger.debug(
-      "[Homeostasis] RPM=#{rpm} | Temp=#{Float.round(current_temp, 1)}°C | " <>
-        "dT/dt=#{Float.round(qualia.thermal_derivative, 2)} | " <>
-        "Stress=#{qualia.thermal_stress} | Agency=#{qualia.agency_error} | " <>
-        "Feeling=#{qualia.feeling}"
+    VivaLog.debug(:interoception, :homeostasis,
+      rpm: rpm,
+      temp: Float.round(current_temp, 1),
+      dt: Float.round(qualia.thermal_derivative, 2),
+      stress: qualia.thermal_stress,
+      agency: qualia.agency_error,
+      feeling: qualia.feeling
     )
 
     # Update state with new readings
@@ -1128,9 +1130,12 @@ defmodule VivaBridge.Music do
         :ok
       )
 
-      Logger.debug(
-        "[Interoception] #{qualia.feeling} | FE=#{Float.round(qualia.free_energy, 3)} | " <>
-          "P=#{qualia.pleasure} A=#{qualia.arousal} D=#{qualia.dominance}"
+      VivaLog.debug(:interoception, :qualia_applied,
+        feeling: qualia.feeling,
+        free_energy: Float.round(qualia.free_energy, 3),
+        pleasure: qualia.pleasure,
+        arousal: qualia.arousal,
+        dominance: qualia.dominance
       )
     end
   end
@@ -1176,7 +1181,7 @@ defmodule VivaBridge.Music do
           # but realizing it's open loop timing now.
           orchestrate_with_feedback()
         rescue
-          e -> Logger.error("[Orchestrate] Error: #{inspect(e)}")
+          e -> VivaLog.error(:orchestrate, :error, reason: inspect(e))
         end
 
         autonomous_loop(interval_ms)

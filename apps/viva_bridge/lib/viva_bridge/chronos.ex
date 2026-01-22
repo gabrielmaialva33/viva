@@ -5,7 +5,7 @@ defmodule VivaBridge.Chronos do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   # ============================================================================
   # Client API
@@ -34,7 +34,7 @@ defmodule VivaBridge.Chronos do
 
   @impl true
   def init(_opts) do
-    Logger.info("[Chronos] Summoning the Time Lord (Python)...")
+    VivaLog.info(:chronos, :summoning_time_lord)
 
     # Path to script
     script = Application.app_dir(:viva_bridge, "priv/python/chronos_service.py")
@@ -82,14 +82,14 @@ defmodule VivaBridge.Chronos do
         # Actually standard python bridge logic sends stderr elsewhere usually,
         # but here we capturing stout. If it's just a log msg, ignore json error)
         # However, for simplicity, we assume robust JSON.
-        Logger.debug("[Chronos][Py] #{line}")
+        VivaLog.debug(:chronos, :python_output, line: line)
         {:noreply, state}
     end
   end
 
   @impl true
   def handle_info({_port, {:exit_status, status}}, state) do
-    Logger.error("[Chronos] Python process died with status: #{status}")
+    VivaLog.error(:chronos, :python_died, status: status)
     {:stop, :port_died, state}
   end
 

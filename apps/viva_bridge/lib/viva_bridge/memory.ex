@@ -4,25 +4,25 @@ defmodule VivaBridge.Memory do
   Wraps the Rust NIFs for vectors and storage.
   """
   alias VivaBridge.Body
-  require Logger
+  require VivaLog
 
   @doc """
   Initializes the memory system (HNSW/Sqlite).
   """
   def init do
-    Logger.info("[Memory] Initializing Native Memory...")
+    VivaLog.info(:memory, :initializing)
     # Default backend: "hnsw"
     case Body.memory_init("hnsw") do
       msg when is_binary(msg) ->
-        Logger.info("[Memory] #{msg}")
+        VivaLog.info(:memory, :neuron_online_rust_native)
         :ok
 
       {:ok, msg} ->
-        Logger.info("[Memory] #{msg}")
+        VivaLog.info(:memory, :neuron_online_rust_native)
         :ok
 
       {:error, reason} ->
-        Logger.error("[Memory] Failed to init: #{inspect(reason)}")
+        VivaLog.error(:memory, :init_failed, reason: inspect(reason))
         {:error, reason}
     end
   end
@@ -46,7 +46,7 @@ defmodule VivaBridge.Memory do
         results
 
       {:error, reason} ->
-        Logger.error("[Memory] Search failed: #{inspect(reason)}")
+        VivaLog.error(:memory, :search_failed, reason: inspect(reason))
         []
     end
   end

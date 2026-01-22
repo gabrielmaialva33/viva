@@ -48,7 +48,7 @@ defmodule VivaBridge.Firmware.Evolution do
   https://arxiv.org/abs/1504.04909
   """
 
-  require Logger
+  require VivaLog
 
   alias VivaBridge.Firmware.{Codegen, Uploader}
 
@@ -72,7 +72,7 @@ defmodule VivaBridge.Firmware.Evolution do
   Initialize a new MAP-Elites archive with random genotypes.
   """
   def initialize do
-    Logger.info("[MAP-Elites] Initializing archive (#{@grid_size}x#{@grid_size} grid)")
+    VivaLog.info(:evolution, :initializing_archive, grid_size: @grid_size)
 
     archive = create_empty_archive()
 
@@ -86,7 +86,11 @@ defmodule VivaBridge.Firmware.Evolution do
       end)
 
     filled = count_filled_cells(archive)
-    Logger.info("[MAP-Elites] Initial archive: #{filled}/#{@grid_size * @grid_size} cells filled")
+
+    VivaLog.info(:evolution, :initial_archive_status,
+      filled: filled,
+      total: @grid_size * @grid_size
+    )
 
     archive
   end
@@ -104,16 +108,14 @@ defmodule VivaBridge.Firmware.Evolution do
     evaluate_live = Keyword.get(opts, :evaluate_live, false)
     archive = Keyword.get(opts, :archive) || initialize()
 
-    Logger.info(
-      "[MAP-Elites] Starting evolution: #{iterations} iterations, live=#{evaluate_live}"
-    )
+    VivaLog.info(:evolution, :starting_evolution, iterations: iterations, live: evaluate_live)
 
     final_archive =
       Enum.reduce(1..iterations, archive, fn i, acc ->
         # Select random parent from archive
         case select_parent(acc) do
           nil ->
-            Logger.warning("[MAP-Elites] Archive empty, reinitializing")
+            VivaLog.warning(:evolution, :archive_empty_reinit)
             initialize()
 
           parent ->
@@ -136,8 +138,10 @@ defmodule VivaBridge.Firmware.Evolution do
               filled = count_filled_cells(new_archive)
               best = best_fitness(new_archive)
 
-              Logger.info(
-                "[MAP-Elites] Iteration #{i}: #{filled} cells, best fitness: #{Float.round(best, 4)}"
+              VivaLog.info(:evolution, :iteration_progress,
+                iteration: i,
+                filled: filled,
+                best: Float.round(best, 4)
               )
             end
 
@@ -148,8 +152,9 @@ defmodule VivaBridge.Firmware.Evolution do
     # Summary
     summary = summarize_archive(final_archive)
 
-    Logger.info(
-      "[MAP-Elites] Evolution complete: #{summary.filled_cells} cells, coverage: #{summary.coverage}%"
+    VivaLog.info(:evolution, :evolution_complete,
+      filled: summary.filled_cells,
+      coverage: summary.coverage
     )
 
     {:ok, final_archive, summary}
@@ -225,8 +230,10 @@ defmodule VivaBridge.Firmware.Evolution do
     current = Map.get(archive, {row, col})
 
     if current == nil or genotype.fitness > current.fitness do
-      Logger.debug(
-        "[MAP-Elites] New elite at (#{row},#{col}): fitness=#{Float.round(genotype.fitness, 4)}"
+      VivaLog.debug(:evolution, :new_elite,
+        row: row,
+        col: col,
+        fitness: Float.round(genotype.fitness, 4)
       )
 
       Map.put(archive, {row, col}, genotype)
@@ -546,7 +553,7 @@ defmodule VivaBridge.Firmware.Evolution do
 
   # Live fitness evaluation - uploads firmware and measures real Free Energy
   defp evaluate_live(genotype) do
-    Logger.info("[MAP-Elites] Live evaluation starting...")
+    VivaLog.info(:evolution, :live_evaluation_starting)
 
     case Codegen.generate(genotype) do
       {:ok, ino_code} ->
@@ -557,17 +564,17 @@ defmodule VivaBridge.Firmware.Evolution do
 
             # Measure Free Energy from interoception
             fitness = measure_free_energy()
-            Logger.info("[MAP-Elites] Live fitness: #{Float.round(fitness, 4)}")
+            VivaLog.info(:evolution, :live_fitness, fitness: Float.round(fitness, 4))
 
             %{genotype | fitness: fitness}
 
           {:error, reason} ->
-            Logger.warning("[MAP-Elites] Deploy failed: #{inspect(reason)}, using simulated")
+            VivaLog.warning(:evolution, :deploy_failed, reason: inspect(reason))
             evaluate_simulated(genotype)
         end
 
       {:error, reason} ->
-        Logger.warning("[MAP-Elites] Codegen failed: #{inspect(reason)}, using simulated")
+        VivaLog.warning(:evolution, :codegen_failed, reason: inspect(reason))
         evaluate_simulated(genotype)
     end
   end

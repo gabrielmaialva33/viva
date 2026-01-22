@@ -9,7 +9,7 @@ defmodule VivaBridge.Ultra do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   # ============================================================================
   # Public API
@@ -52,8 +52,19 @@ defmodule VivaBridge.Ultra do
     GenServer.call(__MODULE__, {:find_path, start_node, end_node, max_hops}, 20_000)
   end
 
+  @doc """
+  Converts text or concept into a semantic vector embedding.
+  Returns {:ok, [float]} or {:error, reason}
+  """
+  def embed(text) do
+    case GenServer.call(__MODULE__, {:embed, text}, 10_000) do
+      %{"embedding" => list} -> {:ok, list}
+      error -> {:error, error}
+    end
+  end
+
   def ping do
-    GenServer.call(__MODULE__, :ping)
+    GenServer.call(__MODULE__, :ping, 30_000)
   end
 
   # ============================================================================
@@ -66,13 +77,13 @@ defmodule VivaBridge.Ultra do
     script_path = Path.join([File.cwd!(), "services", "ultra", "ultra_service.py"])
 
     if File.exists?(script_path) do
-      Logger.info("[VivaBridge.Ultra] Starting ULTRA Service: #{script_path}")
+      VivaLog.info(:ultra, :starting_service, path: script_path)
 
       port = Port.open({:spawn, "python3 -u #{script_path}"}, [:binary, :line])
 
-      {:ok, %{port: port, requests: %{}}}
+      {:ok, %{port: port, requests: %{}, buffer: ""}}
     else
-      Logger.error("[VivaBridge.Ultra] Service script not found at #{script_path}")
+      VivaLog.error(:ultra, :script_not_found, path: script_path)
       {:stop, :enoent}
     end
   end
@@ -85,6 +96,7 @@ defmodule VivaBridge.Ultra do
         {:predict_links, h, r, k} -> {"predict_links", %{head: h, relation: r, top_k: k}}
         {:infer_relations, h, t, k} -> {"infer_relations", %{head: h, tail: t, top_k: k}}
         {:find_path, s, e, hops} -> {"find_path", %{start: s, end: e, max_hops: hops}}
+        {:embed, t} -> {"embed", %{text: t}}
         :ping -> {"ping", %{}}
       end
 
@@ -108,20 +120,33 @@ defmodule VivaBridge.Ultra do
   end
 
   @impl true
-  def handle_info({port, {:data, {:eol, line}}}, state) when port == state.port do
-    case Jason.decode(line) do
+  def handle_info({port, {:data, {:noeol, chunk}}}, state) when port == state.port do
+    {:noreply, %{state | buffer: state.buffer <> chunk}}
+  end
+
+  @impl true
+  def handle_info({port, {:data, {:eol, chunk}}}, state) when port == state.port do
+    full_line = state.buffer <> chunk
+
+    case Jason.decode(full_line) do
       {:ok, response} ->
         handle_response(response, state)
 
       {:error, _} ->
-        Logger.warning("[VivaBridge.Ultra] Invalid JSON from Python: #{line}")
-        {:noreply, state}
+        VivaLog.warning(:ultra, :invalid_json, snippet: String.slice(full_line, 0, 100))
+
+        {:noreply, %{state | buffer: ""}}
+    end
+    # Reset buffer after processing line
+    |> case do
+      {:noreply, new_state} -> {:noreply, %{new_state | buffer: ""}}
+      other -> other
     end
   end
 
   @impl true
   def handle_info({:EXIT, _port, reason}, state) do
-    Logger.error("[VivaBridge.Ultra] Port crashed: #{inspect(reason)}")
+    VivaLog.error(:ultra, :port_crashed, reason: reason)
     {:stop, reason, state}
   end
 
@@ -134,7 +159,7 @@ defmodule VivaBridge.Ultra do
     if from do
       GenServer.reply(from, result)
     else
-      Logger.warning("[VivaBridge.Ultra] Received response for unknown ID: #{req_id}")
+      VivaLog.warning(:ultra, :unknown_response_id, id: req_id)
     end
 
     {:noreply, %{state | requests: new_requests}}
