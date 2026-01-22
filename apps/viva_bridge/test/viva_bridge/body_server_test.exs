@@ -50,6 +50,7 @@ defmodule VivaBridge.BodyServerTest do
     assert p >= -1.0 and p <= 1.0
   end
 
+  @tag :external
   test "apply_stimulus/4 modifies emotional state" do
     # 1. Get baseline
     {p1, _a1, _d1} = BodyServer.get_pad()

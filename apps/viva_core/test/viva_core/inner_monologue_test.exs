@@ -26,12 +26,14 @@ defmodule VivaCore.InnerMonologueTest do
     end
   end
 
+  @tag :external
   test "generates narrative" do
     narrative = InnerMonologue.generate()
     assert is_binary(narrative)
     assert String.length(narrative) > 5
   end
 
+  @tag :external
   test "history returns recent entries" do
     # Force some generations
     InnerMonologue.generate()

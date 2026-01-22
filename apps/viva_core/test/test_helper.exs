@@ -4,4 +4,6 @@ case Process.whereis(Viva.PubSub) do
   _pid -> :already_started
 end
 
-ExUnit.start()
+# Exclude external tests by default (LLM, Python services)
+# Run with: mix test --include external
+ExUnit.start(exclude: [:external])
