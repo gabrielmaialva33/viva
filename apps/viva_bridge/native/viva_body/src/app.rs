@@ -1,5 +1,6 @@
 use crate::prelude::*;
 // Plugins
+use crate::physics::PhysicsPlugin;
 use crate::plugins::bridge_plugin::BridgePlugin;
 use crate::plugins::dynamics_plugin::DynamicsPlugin;
 use crate::plugins::sensor_plugin::SensorPlugin;
@@ -36,7 +37,10 @@ pub fn create_body_app() -> App {
     app.add_plugins(DynamicsPlugin);
     app.add_plugins(BridgePlugin);
 
-    // 3. Spawn Primary Body Entity
+    // 3. Physics (Jolt) - Active Inference predictions
+    app.add_plugins(PhysicsPlugin::default());
+
+    // 4. Spawn Primary Body Entity
     app.world_mut().spawn((
         Name::new("VIVA Physical Body"),
         CpuSense::default(),
