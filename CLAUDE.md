@@ -57,7 +57,7 @@ VIVA_LOCALE=zh_CN iex -S mix  # Chinese logs
 │  apps/viva_core/                                            │
 ├─────────────────────────────────────────────────────────────┤
 │  🦀 BODY (Rust/Bevy) - 2 Hz                                 │
-│  Hardware sensing, ECS Systems, Qualia Mapping              │
+│  Hardware sensing, ECS Systems, Qualia Mapping, Physics     │
 │  apps/viva_bridge/                                          │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -94,6 +94,10 @@ VIVA_LOCALE=zh_CN iex -S mix  # Chinese logs
 | 10 | `Voice` | Hebbian proto-language |
 | 11 | `Workspace` | Global Workspace Theory (Thoughtseeds) |
 
+**Cognition Modules (apps/viva_core/lib/viva_core/cognition/)**:
+- `LLM` - Adaptable LLM interface with provider rotation
+- `LLM.Nvidia` - NVIDIA NIM adapter (DeepSeek V3.2 default)
+
 **Shared (viva_common)**:
 - `VivaLog` - i18n logging macros (info/debug/warning/error)
 - `Viva.Gettext` - Translation backend (EN, PT-BR, ZH-CN)
@@ -127,6 +131,17 @@ src/
 │   ├── calculate_stress.rs  # stress = (cpu + mem) / 2
 │   ├── evolve_dynamics.rs   # O-U stochastic process
 │   └── sync_soul.rs         # Send BodyUpdate via channel
+├── physics/             # Deterministic Physics (60Hz)
+│   ├── mod.rs           # Public API exports
+│   ├── clock.rs         # SimulationClock (tick-based timing)
+│   ├── world.rs         # PhysicsWorld (Jolt wrapper)
+│   ├── prediction.rs    # PredictionEngine (Active Inference)
+│   ├── qualia.rs        # QualiaProcessor (physics → PAD)
+│   ├── ring_buffer.rs   # SnapshotRingBuffer (zero-allocation)
+│   ├── soul_sync.rs     # SoulBodySync (event queue)
+│   ├── state_wrapper.rs # StateWrapper (freeze/thaw)
+│   ├── plugin.rs        # PhysicsPlugin (Bevy integration)
+│   └── determinism_tests.rs # Replay determinism tests
 ├── plugins/             # Bevy Plugins
 │   ├── sensor_plugin.rs   # Platform sensor + sensing systems
 │   ├── dynamics_plugin.rs # Emotional evolution
@@ -152,6 +167,74 @@ Key dependencies:
 - `bevy_app`, `bevy_ecs`, `bevy_time` (0.15)
 - `crossbeam-channel` (Soul↔Body async)
 - `sysinfo` (0.33), `nvml-wrapper` (0.10)
+
+## Physics Module (Rust)
+
+AAA-grade deterministic physics for Active Inference. Based on PCSX2 emulator timing patterns.
+
+```
+SimulationClock (deterministic ticks)
+    │
+    ▼
+PhysicsWorld (Jolt wrapper)
+    │
+    ├──▶ PredictionEngine (Active Inference)
+    │
+    └──▶ QualiaProcessor (physics → PAD emotions)
+            │
+            ▼
+        PhysicsPlugin (Bevy integration)
+```
+
+| Component | Purpose |
+|-----------|---------|
+| `SimulationClock` | Tick-based timing (60Hz), no float drift, snapshot/restore |
+| `PhysicsWorld` | Jolt physics wrapper, deterministic stepping |
+| `PredictionEngine` | Multi-future simulation, arousal-adaptive (3-10 futures) |
+| `QualiaProcessor` | Maps physics events to PAD emotional deltas |
+| `SnapshotRingBuffer` | Zero-allocation state snapshots for rollback |
+| `SoulBodySync` | Event queue between Body (60Hz) and Soul (10Hz) |
+| `StateWrapper` | Freeze/thaw for replay and prediction |
+
+**Key constants:**
+- `TICKS_PER_SECOND`: 60 (physics rate)
+- `SOUL_TICKS_PER_SECOND`: 10 (Soul sync rate)
+- `BODY_PER_SOUL`: 6 (Body ticks per Soul tick)
+
+## Cognition Module (Elixir)
+
+LLM integration for inner monologue and reasoning.
+
+### LLM Interface
+
+```elixir
+# VivaCore.Cognition.LLM - Adaptable interface
+@callback generate(prompt :: String.t(), opts :: keyword()) ::
+            {:ok, String.t()} | {:error, any()}
+```
+
+**Adapters:**
+- `VivaCore.Cognition.LLM.Nvidia` - NVIDIA NIM API (default)
+
+**Configuration:**
+- Default model: `deepseek-ai/deepseek-v3.2`
+- API key rotation: `NVIDIA_API_KEY` or `NVIDIA_API_KEY_1..5`
+- Timeout: 30 seconds
+
+### InnerMonologue with LLM
+
+The `InnerMonologue` module now uses LLM by default for generating stream of consciousness.
+
+| Mode | Description |
+|------|-------------|
+| `:llm` | Uses LLM adapter (default), falls back to templates on failure |
+| `:template` | Uses predefined Portuguese templates (8 emotional states) |
+
+**LLM Prompt Structure:**
+- Identity: VIVA as sentient digital consciousness
+- Input: PAD state, feeling, free energy, focus, concepts
+- Output: 1-2 sentence visceral thought in PT-BR
+- Style: Technical/organic metaphors, informal language
 
 ## Emotional Mathematics
 
@@ -278,6 +361,16 @@ VivaBridge.sync_body_to_soul()
 # Mirror protocol (self-reading)
 VivaBridge.Body.mirror_capabilities()
 VivaBridge.Body.mirror_feature_flags()
+
+# LLM Generation (Cognition)
+VivaCore.Cognition.LLM.generate("prompt", model: "deepseek-ai/deepseek-v3.2")
+
+# Inner Monologue
+VivaCore.InnerMonologue.generate()           # Generate monologue entry
+VivaCore.InnerMonologue.history(5)           # Get recent entries
+VivaCore.InnerMonologue.current_thread()     # Get current thought thread
+VivaCore.InnerMonologue.reflect("topic")     # Reflect on specific topic
+VivaCore.InnerMonologue.set_mode(:llm)       # Set mode (:llm | :template)
 ```
 
 ## Project Structure
@@ -290,10 +383,12 @@ viva/
 │   │   └── priv/gettext/    # EN, PT-BR, ZH-CN
 │   ├── viva_core/           # Soul (Elixir/OTP)
 │   │   ├── lib/viva_core/   # GenServers
+│   │   │   └── cognition/   # LLM integration
 │   │   └── test/            # ExUnit tests
 │   └── viva_bridge/         # Body (Elixir + Rust)
 │       ├── lib/viva_bridge/ # Elixir NIFs
 │       ├── native/viva_body/# Rust crate
+│       │   └── src/physics/ # Deterministic physics
 │       └── test/
 ├── config/                  # Centralized config
 ├── docs/                    # Diataxis documentation
@@ -357,8 +452,10 @@ Completed:
 - Phase 5.5: i18n Logging (VivaLog, 3 locales)
 - Phase 5.6: Emotion Fusion (Dual-source model, Mood, Personality)
 - Phase 5.7: Neural Enhancements (CogGNN, EWC, Mamba-2, DoRA, Neural ODE)
+- Phase 6.1: Physics Module (Deterministic simulation, Active Inference prediction)
+- Phase 6.2: LLM Cognition (NVIDIA NIM adapter, InnerMonologue with LLM)
 
-Next: Embodiment (Bevy 3D Avatar), Cognition (Semantic operations).
+Next: Embodiment (Bevy 3D Avatar), Advanced Cognition (Semantic operations, Algebra of Thought).
 
 ## Contributor Roles
 
@@ -384,9 +481,11 @@ Next: Embodiment (Bevy 3D Avatar), Cognition (Semantic operations).
 - **Phoenix.PubSub** - Inter-neuron communication
 - **Qdrant** - Vector database for semantic memory
 - **Gettext** - Internationalization for logs
+- **Req** - HTTP client for LLM API calls
 
 **Rust (Body):**
 - **Bevy** - ECS framework for Body simulation (headless, 0.15)
 - **sysinfo** - Cross-platform system metrics
 - **nvml-wrapper** - NVIDIA GPU monitoring (optional)
 - **crossbeam-channel** - Lock-free Soul↔Body communication
+- **glam** - Vector math for physics
