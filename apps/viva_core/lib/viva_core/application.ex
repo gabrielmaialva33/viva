@@ -32,6 +32,11 @@ defmodule VivaCore.Application do
       # Must start before Emotional so it can configure emotional baseline
       {VivaCore.BodySchema, name: VivaCore.BodySchema},
 
+      # Interoception - the Digital Insula
+      # Precision-weighted prediction error on host metrics
+      # Must start before Emotional to provide Free Energy signals
+      {VivaCore.Interoception, name: VivaCore.Interoception},
+
       # Emotional Neuron - feels and processes emotions
       {VivaCore.Emotional, name: VivaCore.Emotional},
 
@@ -42,7 +47,15 @@ defmodule VivaCore.Application do
       {VivaCore.Senses, name: VivaCore.Senses},
 
       # Dreamer - reflection and memory consolidation
-      {VivaCore.Dreamer, name: VivaCore.Dreamer}
+      {VivaCore.Dreamer, name: VivaCore.Dreamer},
+
+      # Agency - digital hands for self-diagnosis
+      # Safe command execution to resolve interoceptive distress
+      {VivaCore.Agency, name: VivaCore.Agency},
+
+      # Voice - proto-language with Hebbian learning
+      # Emergent communication through babbling and association
+      {VivaCore.Voice, name: VivaCore.Voice}
 
       # Future neurons:
       # {VivaCore.Optimizer, name: VivaCore.Optimizer},

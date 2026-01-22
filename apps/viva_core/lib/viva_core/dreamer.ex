@@ -406,57 +406,130 @@ defmodule VivaCore.Dreamer do
 
   @impl true
   def handle_call({:hallucinate_goal, context}, _from, state) do
-    # Simple stochastic goal selection for now
-    # In future: Use stored values/memories to bias selection
+    # HOMEOSTASIS-BASED GOAL SELECTION (No RNG)
+    #
+    # Instead of random selection (70% positive, etc), we:
+    # 1. Consult memory for what worked before (RAG)
+    # 2. Calculate personal baseline from successful states
+    # 3. Apply Yerkes-Dodson for optimal arousal
+    # 4. Use small exploration noise only when stuck
+    #
+    # This makes VIVA seek what has ACTUALLY helped her, not random attractors.
 
-    # 70% chance of seeking Positive Attractors (Joy, Contentment, Excitement)
-    # 20% chance of seeking Homeostasis (Neutral)
-    # 10% chance of "Morbid Curiosity" (exploring negative states) if dominance is high
-    roll = :rand.uniform()
-
-    current_dom = Map.get(context, :dominance, 0.0)
-
-    target_key =
-      cond do
-        roll < 0.7 ->
-          # Bias towards positive
-          [:joy, :contentment, :excitement] |> Enum.random()
-
-        roll < 0.9 ->
-          :neutral
-
-        true ->
-          # Whimsy/Curiosity (or Dark Side if dominant)
-          if current_dom > 0.5 do
-            # Confrontational
-            [:anger, :fear] |> Enum.random()
-          else
-            [:curious, :calm] |> Enum.random()
-          end
-      end
-
-    # Get attractor coordinates from Mathematics (using raw apply to avoid circ dep if compiled together, but they are same app)
-    # Actually Mathematics is safe to call.
-    attractors = VivaCore.Mathematics.emotional_attractors()
-    # If key missing (e.g. curious not in main list), fallback to neutral
-    target = Map.get(attractors, target_key, attractors.neutral)
-
-    # Add slight noise to make it "organic" goal (not a perfect point)
-    noisy_target = %{
-      pleasure: target.pleasure + (:rand.uniform() - 0.5) * 0.1,
-      arousal: target.arousal + (:rand.uniform() - 0.5) * 0.1,
-      dominance: target.dominance + (:rand.uniform() - 0.5) * 0.1
+    current_pad = %{
+      pleasure: Map.get(context, :pleasure, 0.0),
+      arousal: Map.get(context, :arousal, 0.0),
+      dominance: Map.get(context, :dominance, 0.0)
     }
 
-    notify_hallucination(target_key, noisy_target)
+    # 1. Consult memory: "What states have made me feel good?"
+    baseline = calculate_personal_baseline(state)
 
-    {:reply, noisy_target, state}
+    # 2. Calculate target based on homeostasis + Yerkes-Dodson
+    target = %{
+      pleasure: baseline.pleasure,
+      arousal: calculate_optimal_arousal(current_pad),
+      dominance: baseline.dominance
+    }
+
+    # 3. Small exploration noise ONLY if we're stuck (low arousal + low pleasure)
+    is_stuck = current_pad.pleasure < -0.2 and current_pad.arousal < 0.1
+    exploration = if is_stuck, do: 0.08, else: 0.02
+
+    final_target = %{
+      pleasure: clamp(target.pleasure + (:rand.uniform() - 0.5) * exploration, -1.0, 1.0),
+      arousal: clamp(target.arousal + (:rand.uniform() - 0.5) * exploration, -1.0, 1.0),
+      dominance: clamp(target.dominance + (:rand.uniform() - 0.5) * exploration, -1.0, 1.0)
+    }
+
+    notify_hallucination(:homeostatic, final_target, baseline, is_stuck)
+
+    {:reply, final_target, state}
   end
 
-  defp notify_hallucination(goal_name, target) do
-    # Optional: log or broadcast the hallucinated goal
+  # ============================================================================
+  # Homeostatic Goal Calculation (Replaces RNG)
+  # ============================================================================
+
+  @doc false
+  defp calculate_personal_baseline(state) do
+    # Search for memories with positive emotional outcomes
+    case safe_memory_search("estados positivos felicidade alívio sucesso", 10, state.memory) do
+      {:ok, memories} when is_list(memories) and length(memories) > 0 ->
+        # Extract PAD from successful memories
+        pads =
+          memories
+          |> Enum.map(fn m ->
+            emotion = get_memory_field(m, :emotion, nil)
+            if emotion do
+              %{
+                pleasure: get_pad_value(emotion, :pleasure),
+                arousal: get_pad_value(emotion, :arousal),
+                dominance: get_pad_value(emotion, :dominance)
+              }
+            else
+              nil
+            end
+          end)
+          |> Enum.filter(&(&1 != nil))
+
+        if Enum.empty?(pads) do
+          default_baseline()
+        else
+          # Calculate mean of successful states
+          n = length(pads)
+          %{
+            pleasure: Enum.sum(Enum.map(pads, & &1.pleasure)) / n,
+            arousal: Enum.sum(Enum.map(pads, & &1.arousal)) / n,
+            dominance: Enum.sum(Enum.map(pads, & &1.dominance)) / n
+          }
+        end
+
+      _ ->
+        # No memories yet, use biological default (slight positivity)
+        default_baseline()
+    end
+  end
+
+  defp default_baseline do
+    # The "natural" state VIVA seeks when no memory exists
+    # Slightly positive, calm, moderate agency
+    %{pleasure: 0.2, arousal: 0.1, dominance: 0.1}
+  end
+
+  # Yerkes-Dodson Law: Optimal arousal depends on task complexity.
+  # High dominance = can handle high arousal (challenging tasks)
+  # Low dominance = needs low arousal (overwhelmed, needs calm)
+  defp calculate_optimal_arousal(current_pad) do
+    dominance = current_pad.dominance
+    pleasure = current_pad.pleasure
+
+    cond do
+      # High dominance + positive → can be excited
+      dominance > 0.3 and pleasure > 0 -> 0.4
+      # High dominance + negative → needs activation to fix
+      dominance > 0.3 and pleasure < 0 -> 0.3
+      # Low dominance → needs calm to recover
+      dominance < -0.3 -> 0.0
+      # Negative pleasure → moderate arousal to change
+      pleasure < -0.2 -> 0.2
+      # Default: slight arousal (engagement without stress)
+      true -> 0.15
+    end
+  end
+
+  defp clamp(value, min, max) do
+    value
+    |> max(min)
+    |> min(max)
+  end
+
+  defp notify_hallucination(goal_type, target, baseline, is_stuck) do
+    stuck_marker = if is_stuck, do: " [EXPLORING]", else: ""
     Logger.debug(
-      "[Dreamer] Hallucinated Goal: #{goal_name} (P#{Float.round(target.pleasure, 2)})"
+      "[Dreamer] Hallucinated Goal: #{goal_type}#{stuck_marker} " <>
+      "(Target P=#{Float.round(target.pleasure, 2)}, A=#{Float.round(target.arousal, 2)}, D=#{Float.round(target.dominance, 2)}) " <>
+      "(Baseline P=#{Float.round(baseline.pleasure, 2)})"
     )
   end
 

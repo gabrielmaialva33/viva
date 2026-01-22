@@ -34,6 +34,8 @@ defmodule VivaBridge.Application do
            pubsub: Viva.PubSub,
            topic: "body:state"},
           {VivaBridge.Music, []},
+          # Chronos - The Time Lord (Transformer-based Interoception)
+          {VivaBridge.Chronos, []},
           # MetaLearner monitors performance and triggers evolution
           {VivaBridge.Firmware.MetaLearner, [paused: meta_learner_paused]}
         ]

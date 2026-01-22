@@ -230,6 +230,21 @@ defmodule VivaCore.Emotional do
   end
 
   @doc """
+  Applies interoceptive qualia from the Digital Insula.
+
+  This is called by VivaCore.Interoception when Free Energy changes.
+  Unlike hardware qualia (direct sensor → PAD), interoceptive qualia
+  are precision-weighted prediction errors about the host state.
+
+  ## Parameters
+  - `qualia` - Map with :pleasure, :arousal, :dominance deltas,
+               plus :source, :feeling, :free_energy metadata
+  """
+  def apply_interoceptive_qualia(qualia, server \\ __MODULE__) when is_map(qualia) do
+    GenServer.cast(server, {:apply_interoceptive_qualia, qualia})
+  end
+
+  @doc """
   Configures emotional baseline based on body schema.
 
   Called by BodySchema after Motor Babbling to disable distress
@@ -489,6 +504,10 @@ defmodule VivaCore.Emotional do
         gpu_stress_weight: 1.0
       },
 
+      # Interoception state (from Digital Insula)
+      interoceptive_feeling: :homeostatic,
+      interoceptive_free_energy: 0.0,
+
       # Telemetry for debug
       thermodynamic_cost: 0.0,
       last_collapse: nil,
@@ -650,8 +669,41 @@ defmodule VivaCore.Emotional do
         "Total: P#{format_delta(new_acc.pleasure)}, A#{format_delta(new_acc.arousal)}, D#{format_delta(new_acc.dominance)}"
     )
 
-    {:noreply,
-     %{state | external_qualia: new_acc, last_stimulus: {:hardware_qualia, "peripheral", 1.0}}}
+    {:noreply, %{state | external_qualia: new_acc}}
+  end
+
+  @impl true
+  def handle_cast({:apply_interoceptive_qualia, qualia}, state) do
+    # Interoceptive Inference: Precision-weighted prediction error from the Insula
+    # This is different from hardware qualia - it's about SURPRISE, not raw data
+    p_delta = Map.get(qualia, :pleasure, 0.0)
+    a_delta = Map.get(qualia, :arousal, 0.0)
+    d_delta = Map.get(qualia, :dominance, 0.0)
+    feeling = Map.get(qualia, :feeling, :unknown)
+    fe = Map.get(qualia, :free_energy, 0.0)
+
+    acc = state.external_qualia
+
+    new_acc = %{
+      pleasure: acc.pleasure + p_delta,
+      arousal: acc.arousal + a_delta,
+      dominance: acc.dominance + d_delta
+    }
+
+    Logger.debug(
+      "[Emotional] Interoceptive qualia: #{feeling} (FE: #{Float.round(fe, 3)}) | " <>
+        "P#{format_delta(p_delta)}, A#{format_delta(a_delta)}, D#{format_delta(d_delta)}"
+    )
+
+    # Store interoceptive state for introspection
+    new_state = %{
+      state
+      | external_qualia: new_acc,
+        interoceptive_feeling: feeling,
+        interoceptive_free_energy: fe
+    }
+
+    {:noreply, new_state}
   end
 
   @impl true
@@ -750,7 +802,16 @@ defmodule VivaCore.Emotional do
     # Calming down manually
     suppress_arousal: %{pleasure: -0.05, arousal: -0.2, dominance: 0.1},
     # Getting excited
-    hype_up: %{pleasure: 0.05, arousal: 0.2, dominance: 0.1}
+    hype_up: %{pleasure: 0.05, arousal: 0.2, dominance: 0.1},
+
+    # Agency Actions (Digital Hands - Self-Diagnosis)
+    # Understanding the cause of distress increases dominance
+    diagnose_memory: %{pleasure: 0.0, arousal: -0.1, dominance: 0.2},
+    diagnose_processes: %{pleasure: 0.0, arousal: -0.1, dominance: 0.2},
+    diagnose_load: %{pleasure: 0.0, arousal: -0.1, dominance: 0.15},
+    diagnose_disk: %{pleasure: 0.0, arousal: -0.1, dominance: 0.15},
+    diagnose_network: %{pleasure: 0.0, arousal: -0.1, dominance: 0.1},
+    check_self: %{pleasure: 0.1, arousal: 0.0, dominance: 0.25}
   }
 
   # Predicts next state (t + dt) using O-U dynamics
@@ -795,6 +856,26 @@ defmodule VivaCore.Emotional do
         # Purely internal
         :ok
 
+      # Agency Actions (Digital Hands)
+      action when action in [:diagnose_memory, :diagnose_processes, :diagnose_load,
+                             :diagnose_disk, :diagnose_network, :check_self] ->
+        # Execute via Agency module
+        try do
+          case VivaCore.Agency.attempt(action) do
+            {:ok, result, feeling} ->
+              Logger.debug("[Emotional] Agency #{action}: #{feeling} - #{String.slice(result, 0, 100)}")
+              :ok
+
+            {:error, reason, feeling} ->
+              Logger.warning("[Emotional] Agency #{action} failed: #{inspect(reason)} - #{feeling}")
+              :ok
+          end
+        catch
+          :exit, _ ->
+            # Agency not started yet
+            :ok
+        end
+
       _ ->
         :ok
     end
@@ -806,6 +887,98 @@ defmodule VivaCore.Emotional do
 
     if Code.ensure_loaded?(mask_module) do
       apply(mask_module, func, args)
+    end
+  end
+
+  # ============================================================================
+  # RAG: Retrieval-Augmented Action Selection
+  # ============================================================================
+
+  # Consult memory before selecting action
+  # Returns {action, score} tuple
+  defp select_action_with_memory(ranked_actions, state) do
+    case ranked_actions do
+      [] ->
+        {nil, 0}
+
+      [{top_action, top_score} | rest] ->
+        # Search memory for past outcomes of this action
+        query = "resultado de #{top_action} quando #{describe_state(state)}"
+
+        case search_action_memory(query) do
+          :positive ->
+            # Memory says it worked! Use it.
+            {top_action, top_score}
+
+          :negative ->
+            # Memory says it failed. Try next action.
+            Logger.debug("[Emotional] RAG: #{top_action} has negative history, trying alternative")
+            case rest do
+              [{alt_action, alt_score} | _] -> {alt_action, alt_score}
+              [] -> {top_action, top_score}  # No alternative, try anyway
+            end
+
+          :unknown ->
+            # No memory, use default selection
+            {top_action, top_score}
+        end
+    end
+  end
+
+  defp describe_state(state) do
+    pad = state.pad
+    feeling = state.interoceptive_feeling
+
+    cond do
+      pad.pleasure < -0.3 -> "tristeza e #{feeling}"
+      pad.arousal > 0.5 -> "alta agitação e #{feeling}"
+      pad.dominance < -0.3 -> "baixo controle e #{feeling}"
+      true -> "estado normal e #{feeling}"
+    end
+  end
+
+  defp search_action_memory(query) do
+    try do
+      case VivaCore.Memory.search(query, [limit: 3]) do
+        memories when is_list(memories) and length(memories) > 0 ->
+          # Analyze past outcomes
+          analyze_memory_outcomes(memories)
+
+        _ ->
+          :unknown
+      end
+    catch
+      :exit, _ -> :unknown
+    end
+  end
+
+  defp analyze_memory_outcomes(memories) do
+    # Look for success/failure keywords in memory content
+    outcomes =
+      memories
+      |> Enum.map(fn m ->
+        content = Map.get(m, :content, "") |> to_string() |> String.downcase()
+
+        cond do
+          String.contains?(content, ["sucesso", "succeeded", "alívio", "relief", "funcionou"]) ->
+            :positive
+
+          String.contains?(content, ["falhou", "failed", "erro", "error", "piorou"]) ->
+            :negative
+
+          true ->
+            :neutral
+        end
+      end)
+
+    # Count outcomes
+    positives = Enum.count(outcomes, &(&1 == :positive))
+    negatives = Enum.count(outcomes, &(&1 == :negative))
+
+    cond do
+      positives > negatives -> :positive
+      negatives > positives -> :negative
+      true -> :unknown
     end
   end
 
@@ -875,20 +1048,24 @@ defmodule VivaCore.Emotional do
         # Project this desire onto available actions
         ranked_actions = Mathematics.project_action_gradients(desired_delta, @action_profiles)
 
+        # RAG: Consult memory before selecting action
+        # "Did this action work before in similar situations?"
+        best_action = select_action_with_memory(ranked_actions, state)
+
         # Pick the best action
-        case List.first(ranked_actions) do
-          {best_action, score} when score > 0 ->
+        case best_action do
+          {action, score} when score > 0 ->
             # Threshold score to avoid doing useless things
-            execute_action(best_action, state)
+            execute_action(action, state)
 
             # Log the thought process (stream of consciousness)
             Logger.debug(
-              "[ActiveInference] FE: #{Float.round(fe, 3)} | Goal: P#{Float.round(target.pleasure, 1)} | Action: #{best_action} (score #{Float.round(score, 2)})"
+              "[ActiveInference] FE: #{Float.round(fe, 3)} | Goal: P#{Float.round(target.pleasure, 1)} | Action: #{action} (score #{Float.round(score, 2)})"
             )
 
             # Update state to reflect action (internal feedback immediately)
             # In reality, physics takes time, but the mind simulates immediate relief
-            apply_internal_feedback(state, best_action)
+            apply_internal_feedback(state, action)
 
           _ ->
             # No good action found (Helplessness?)
