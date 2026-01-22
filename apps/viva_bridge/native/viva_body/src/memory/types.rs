@@ -17,10 +17,15 @@ pub fn unix_timestamp_now() -> i64 {
 }
 
 /// Vector dimension for embeddings (semantic only)
-pub const VECTOR_DIM: usize = 384;
+/// NVIDIA nv-embedqa-e5-v5 returns 1024D
+/// Ollama all-minilm returns 384D
+/// We support both via flexible validation
+pub const VECTOR_DIM: usize = 1024;
+pub const VECTOR_DIM_SMALL: usize = 384;
 
 /// Augmented Vector dimension (semantic + PAD)
 pub const AUGMENTED_DIM: usize = VECTOR_DIM + 3;
+pub const AUGMENTED_DIM_SMALL: usize = VECTOR_DIM_SMALL + 3;
 
 /// Memory type enum
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

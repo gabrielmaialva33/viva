@@ -215,13 +215,18 @@ impl HnswMemory {
 
     /// Store a memory with its embedding
     pub fn store(&self, embedding: &[f32], meta: MemoryMeta) -> Result<u64> {
-        // Accept either base dimension OR augmented dimension
-        if embedding.len() != VECTOR_DIM && embedding.len() != AUGMENTED_DIM {
+        // Accept both NVIDIA (1024D) and Ollama (384D) dimensions
+        let valid_dims = [
+            VECTOR_DIM,
+            AUGMENTED_DIM,
+            VECTOR_DIM_SMALL,
+            AUGMENTED_DIM_SMALL,
+        ];
+        if !valid_dims.contains(&embedding.len()) {
             bail!(
-                "Invalid embedding dimension: {} (expected {} or {})",
+                "Invalid embedding dimension: {} (expected one of {:?})",
                 embedding.len(),
-                VECTOR_DIM,
-                AUGMENTED_DIM
+                valid_dims
             );
         }
 
@@ -275,12 +280,18 @@ impl HnswMemory {
         query: &[f32],
         options: &SearchOptions,
     ) -> Result<Vec<MemorySearchResult>> {
-        if query.len() != VECTOR_DIM && query.len() != AUGMENTED_DIM {
+        // Accept both NVIDIA (1024D) and Ollama (384D) dimensions
+        let valid_dims = [
+            VECTOR_DIM,
+            AUGMENTED_DIM,
+            VECTOR_DIM_SMALL,
+            AUGMENTED_DIM_SMALL,
+        ];
+        if !valid_dims.contains(&query.len()) {
             bail!(
-                "Invalid query dimension: {} (expected {} or {})",
+                "Invalid query dimension: {} (expected one of {:?})",
                 query.len(),
-                VECTOR_DIM,
-                AUGMENTED_DIM
+                valid_dims
             );
         }
 
