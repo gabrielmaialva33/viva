@@ -33,7 +33,39 @@ import torch.nn as nn
 from torch_geometric.data import Data
 from sentence_transformers import SentenceTransformer
 
+# CogGNN import - deferred to avoid circular dependency
+CogGNN = None
+
+# Mamba import - deferred for optional dependency
+MambaProcessor = None
+
 logger = logging.getLogger(__name__)
+
+
+def _load_cog_gnn():
+    """Lazy load CogGNN to avoid import issues."""
+    global CogGNN
+    if CogGNN is None:
+        from cog_gnn import CogGNN as _CogGNN
+        CogGNN = _CogGNN
+    return CogGNN
+
+
+def _load_mamba():
+    """Lazy load Mamba processor."""
+    global MambaProcessor
+    if MambaProcessor is None:
+        try:
+            from mamba_temporal import MambaTemporalProcessor, MambaFallback, is_available
+            if is_available():
+                MambaProcessor = MambaTemporalProcessor
+            else:
+                MambaProcessor = MambaFallback
+            logger.info(f"Mamba processor loaded: {MambaProcessor.__name__}")
+        except ImportError as e:
+            logger.warning(f"Mamba processor not available: {e}")
+            MambaProcessor = None
+    return MambaProcessor
 
 
 @dataclass
@@ -164,6 +196,17 @@ class UltraEngine:
         self.kg = KnowledgeGraph()
         self._loaded = False
         self._semantic_model = None
+
+        # CogGNN state
+        self.cog_gnn = None
+        self._last_attention: Optional[torch.Tensor] = None
+        self._attended_nodes: List[str] = []
+        self._node_embeddings: Optional[torch.Tensor] = None
+        self._updated_embeddings: Optional[torch.Tensor] = None
+
+        # Mamba temporal processor state
+        self.mamba_processor = None
+        self._mamba_available = False
 
         logger.info(f"UltraEngine initialized (device={self.config.device})")
 
@@ -479,6 +522,344 @@ class UltraEngine:
                     queue.append((t, hops + 1))
 
         return []  # No path found
+
+    # =========================================================================
+    # CogGNN Methods (Cognitive Graph Neural Network)
+    # =========================================================================
+
+    def init_cog_gnn(self, in_dim: int = 384, hidden_dim: int = 64) -> bool:
+        """
+        Initialize the Cognitive GNN for emotional graph reasoning.
+
+        Args:
+            in_dim: Input embedding dimension (384 for MiniLM)
+            hidden_dim: Hidden layer dimension
+
+        Returns:
+            True if initialization successful
+        """
+        try:
+            CogGNNClass = _load_cog_gnn()
+            self.cog_gnn = CogGNNClass(
+                in_dim=in_dim,
+                hidden_dim=hidden_dim,
+                pad_dim=3,
+                dropout=0.1
+            )
+            self.cog_gnn.to(self.config.device)
+            self.cog_gnn.eval()  # Inference mode
+            logger.info(f"CogGNN initialized (hidden={hidden_dim}, device={self.config.device})")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to initialize CogGNN: {e}")
+            return False
+
+    def propagate_thought(
+        self,
+        concept: str,
+        pad: List[float],
+        top_k: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Run GNN message passing with emotional context.
+
+        Propagates a thought through the knowledge graph, using PAD emotional
+        state to modulate attention. This implements the NeuCFlow-inspired
+        3-layer architecture: Unconscious → Conscious → Attention.
+
+        Args:
+            concept: The concept/thought to propagate
+            pad: PAD emotional state [pleasure, arousal, dominance]
+            top_k: Number of top attended nodes to return
+
+        Returns:
+            Dict with attended_nodes, attention_scores, and updated_concept
+        """
+        # Ensure CogGNN is initialized
+        if self.cog_gnn is None:
+            if not self.init_cog_gnn():
+                return {
+                    "error": "CogGNN not initialized",
+                    "attended_nodes": [],
+                    "attention_scores": []
+                }
+
+        # Need nodes in the graph
+        if len(self.kg.entities) == 0:
+            return {
+                "error": "Knowledge graph is empty",
+                "attended_nodes": [],
+                "attention_scores": []
+            }
+
+        # Get semantic embeddings for all nodes
+        if self._node_embeddings is None or self._node_embeddings.size(0) != len(self.kg.entities):
+            embeddings = []
+            for entity in self.kg.entities:
+                emb = self.get_embedding(entity)
+                if not emb:
+                    # Fallback to random if embedding fails
+                    emb = torch.randn(384).tolist()
+                embeddings.append(emb)
+            self._node_embeddings = torch.tensor(embeddings, dtype=torch.float32)
+
+        # Convert KG to PyG format
+        data = self.kg.to_pyg_data()
+
+        # Prepare tensors
+        x = self._node_embeddings.to(self.config.device)
+        edge_index = data.edge_index.to(self.config.device)
+        pad_tensor = torch.tensor(pad, dtype=torch.float32, device=self.config.device)
+
+        # Handle edge case: no edges
+        if edge_index.size(1) == 0:
+            # Create self-loops for message passing
+            num_nodes = x.size(0)
+            edge_index = torch.stack([
+                torch.arange(num_nodes, device=self.config.device),
+                torch.arange(num_nodes, device=self.config.device)
+            ])
+
+        # Run CogGNN forward pass
+        with torch.no_grad():
+            updated_x, attention = self.cog_gnn(x, edge_index, pad_tensor)
+
+        # Store for conscious_focus()
+        self._last_attention = attention
+        self._updated_embeddings = updated_x
+
+        # Get top-k attended nodes
+        if attention is not None:
+            attention_flat = attention.squeeze()
+            k = min(top_k, len(self.kg.entities))
+            top_values, top_indices = torch.topk(attention_flat, k)
+
+            attended_nodes = [self.kg.entities[i] for i in top_indices.cpu().tolist()]
+            attention_scores = top_values.cpu().tolist()
+        else:
+            attended_nodes = []
+            attention_scores = []
+
+        self._attended_nodes = attended_nodes
+
+        # Get concept embedding and find similarity with attended nodes
+        concept_emb = self.get_embedding(concept)
+        updated_concept = None
+        if concept_emb and len(attended_nodes) > 0:
+            # Find which attended node is most similar to concept
+            concept_tensor = torch.tensor(concept_emb, dtype=torch.float32)
+            similarities = []
+            for i, node in enumerate(attended_nodes):
+                if node in self.kg.entity_to_id:
+                    node_idx = self.kg.entity_to_id[node]
+                    node_emb = self._node_embeddings[node_idx]
+                    sim = torch.cosine_similarity(concept_tensor.unsqueeze(0), node_emb.unsqueeze(0))
+                    similarities.append((node, sim.item(), attention_scores[i]))
+
+            if similarities:
+                # Best match considering both similarity and attention
+                best = max(similarities, key=lambda x: x[1] * 0.5 + x[2] * 0.5)
+                updated_concept = best[0]
+
+        return {
+            "attended_nodes": attended_nodes,
+            "attention_scores": attention_scores,
+            "updated_concept": updated_concept,
+            "pad_used": pad,
+            "num_nodes": len(self.kg.entities),
+            "num_edges": data.edge_index.size(1) if data.edge_index.size(1) > 0 else len(self.kg.entities)
+        }
+
+    def conscious_focus(self) -> List[str]:
+        """
+        Return nodes with highest attention from last propagation.
+
+        This represents the current "conscious focus" - which thoughts/memories
+        have won the competition for attention in the Global Workspace.
+
+        Returns:
+            List of entity names currently in focus
+        """
+        return self._attended_nodes
+
+    def propagate_with_query(
+        self,
+        query: str,
+        pad: List[float],
+        top_k: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Propagate with query-conditioned attention.
+
+        Combines GNN attention with query similarity for focused retrieval.
+
+        Args:
+            query: Query string to find relevant nodes
+            pad: PAD emotional state
+            top_k: Number of results
+
+        Returns:
+            Dict with relevance-scored nodes
+        """
+        # First run standard propagation
+        result = self.propagate_thought(query, pad, top_k=len(self.kg.entities))
+
+        if "error" in result:
+            return result
+
+        # Get query embedding
+        query_emb = self.get_embedding(query)
+        if not query_emb:
+            return result
+
+        query_tensor = torch.tensor(query_emb, dtype=torch.float32)
+
+        # Score all nodes by combined attention + query similarity
+        scored_nodes = []
+        for i, entity in enumerate(self.kg.entities):
+            # Get attention score
+            attn = 0.0
+            if self._last_attention is not None:
+                attn = self._last_attention[i].item()
+
+            # Get query similarity
+            node_emb = self._node_embeddings[i]
+            sim = torch.cosine_similarity(
+                query_tensor.unsqueeze(0),
+                node_emb.unsqueeze(0)
+            ).item()
+
+            # Combined score: 50% attention, 50% similarity
+            combined = attn * 0.5 + sim * 0.5
+            scored_nodes.append((entity, combined, attn, sim))
+
+        # Sort by combined score
+        scored_nodes.sort(key=lambda x: x[1], reverse=True)
+        top_nodes = scored_nodes[:top_k]
+
+        return {
+            "query": query,
+            "results": [
+                {
+                    "entity": n[0],
+                    "combined_score": n[1],
+                    "attention": n[2],
+                    "similarity": n[3]
+                }
+                for n in top_nodes
+            ],
+            "pad_used": pad
+        }
+
+    # =========================================================================
+    # Mamba Temporal Processor (O(n) sequence processing)
+    # =========================================================================
+
+    def init_mamba(self, d_model: int = 384, n_layers: int = 2, output_dim: int = 60) -> bool:
+        """
+        Initialize Mamba temporal processor.
+
+        Args:
+            d_model: Input embedding dimension (default: 384 for MiniLM)
+            n_layers: Number of Mamba layers (default: 2)
+            output_dim: Context vector dimension (default: 60)
+
+        Returns:
+            True if initialized successfully
+        """
+        MambaClass = _load_mamba()
+        if MambaClass is None:
+            logger.warning("Mamba processor not available")
+            self._mamba_available = False
+            return False
+
+        try:
+            self.mamba_processor = MambaClass(
+                d_model=d_model,
+                n_layers=n_layers,
+                output_dim=output_dim
+            )
+            self.mamba_processor.eval()
+            self._mamba_available = True
+            logger.info(f"Mamba processor initialized: {MambaClass.__name__}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to initialize Mamba: {e}")
+            self._mamba_available = False
+            return False
+
+    def process_memory_sequence(
+        self,
+        memory_embeddings: List[List[float]],
+        timestamps: Optional[List[float]] = None
+    ) -> Dict[str, Any]:
+        """
+        Process a sequence of memory embeddings through Mamba.
+
+        Takes a history of memory embeddings and produces a compact
+        context vector that captures temporal patterns.
+
+        Args:
+            memory_embeddings: List of embedding vectors [[e1], [e2], ...]
+            timestamps: Optional timestamps for temporal ordering
+
+        Returns:
+            Dict with 'context' vector and 'metadata'
+        """
+        if not self._mamba_available or self.mamba_processor is None:
+            # Try to initialize if not already done
+            if not self.init_mamba():
+                return {
+                    "error": "Mamba processor not available",
+                    "context": self._fallback_context(memory_embeddings)
+                }
+
+        if not memory_embeddings or len(memory_embeddings) == 0:
+            return {
+                "error": "No embeddings provided",
+                "context": [0.0] * 60
+            }
+
+        try:
+            context, metadata = self.mamba_processor.process_memory_sequence(
+                memory_embeddings, timestamps
+            )
+            return {
+                "context": context,
+                "metadata": metadata,
+                "success": True
+            }
+        except Exception as e:
+            logger.error(f"Mamba processing failed: {e}")
+            return {
+                "error": str(e),
+                "context": self._fallback_context(memory_embeddings)
+            }
+
+    def _fallback_context(self, embeddings: List[List[float]]) -> List[float]:
+        """Fallback context computation when Mamba is unavailable."""
+        if not embeddings:
+            return [0.0] * 60
+
+        # Simple mean + truncate to 60 dims
+        import numpy as np
+        arr = np.array(embeddings)
+        mean = np.mean(arr, axis=0)
+
+        if len(mean) >= 60:
+            return mean[:60].tolist()
+        else:
+            # Pad if needed
+            return np.pad(mean, (0, 60 - len(mean))).tolist()
+
+    def mamba_stats(self) -> Dict[str, Any]:
+        """Get Mamba processor statistics."""
+        return {
+            "available": self._mamba_available,
+            "processor_type": type(self.mamba_processor).__name__ if self.mamba_processor else None,
+            "d_model": getattr(self.mamba_processor, 'd_model', None) if self.mamba_processor else None,
+            "output_dim": getattr(self.mamba_processor, 'output_dim', None) if self.mamba_processor else None
+        }
 
     @property
     def is_loaded(self) -> bool:
