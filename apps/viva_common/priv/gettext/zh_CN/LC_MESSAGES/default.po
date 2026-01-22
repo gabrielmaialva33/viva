@@ -593,3 +593,19 @@ msgstr "部署失败: %{reason}, 使用模拟"
 
 msgid "evolution.codegen_failed"
 msgstr "代码生成失败: %{reason}, 使用模拟"
+
+# Personality module
+msgid "personality.valence.positive"
+msgstr "积极"
+
+msgid "personality.valence.neutral"
+msgstr "中性"
+
+msgid "personality.energy.energetic"
+msgstr "活跃"
+
+msgid "personality.energy.calm"
+msgstr "平静"
+
+msgid "personality.describe"
+msgstr "我是%{traits}。我的情绪基线是%{valence}和%{energy}。我的反应性是%{reactivity}。"

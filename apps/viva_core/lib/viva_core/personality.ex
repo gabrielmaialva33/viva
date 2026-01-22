@@ -199,11 +199,20 @@ defmodule VivaCore.Personality do
       |> Enum.map(&Atom.to_string/1)
       |> Enum.join(", ")
 
-    valence = if personality.baseline.pleasure > 0, do: "positive", else: "neutral"
-    energy = if personality.baseline.arousal > 0.1, do: "energetic", else: "calm"
+    valence = if personality.baseline.pleasure > 0,
+      do: Gettext.dgettext(Viva.Gettext, "default", "personality.valence.positive"),
+      else: Gettext.dgettext(Viva.Gettext, "default", "personality.valence.neutral")
 
-    "I am #{trait_str}. My emotional baseline is #{valence} and #{energy}. " <>
-    "My reactivity is #{Float.round(personality.reactivity, 2)}."
+    energy = if personality.baseline.arousal > 0.1,
+      do: Gettext.dgettext(Viva.Gettext, "default", "personality.energy.energetic"),
+      else: Gettext.dgettext(Viva.Gettext, "default", "personality.energy.calm")
+
+    Gettext.dgettext(Viva.Gettext, "default", "personality.describe", %{
+      traits: trait_str,
+      valence: valence,
+      energy: energy,
+      reactivity: Float.round(personality.reactivity, 2)
+    })
   end
 
   @doc """

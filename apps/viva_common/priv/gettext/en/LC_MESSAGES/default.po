@@ -593,3 +593,19 @@ msgstr "Deploy failed: %{reason}, using simulated"
 
 msgid "evolution.codegen_failed"
 msgstr "Codegen failed: %{reason}, using simulated"
+
+# Personality module
+msgid "personality.valence.positive"
+msgstr "positive"
+
+msgid "personality.valence.neutral"
+msgstr "neutral"
+
+msgid "personality.energy.energetic"
+msgstr "energetic"
+
+msgid "personality.energy.calm"
+msgstr "calm"
+
+msgid "personality.describe"
+msgstr "I am %{traits}. My emotional baseline is %{valence} and %{energy}. My reactivity is %{reactivity}."
