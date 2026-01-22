@@ -4,10 +4,15 @@
 # Build:
 #   docker build -t viva-ultra .
 #
-# Run:
-#   docker run -p 8765:8765 --gpus all viva-ultra
+# Run (stdio mode for Elixir Port):
+#   docker run -i --gpus all viva-ultra
+#
+# The service communicates via stdin/stdout JSON protocol.
 
-FROM nvidia/cuda:11.8-devel-ubuntu22.04
+FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Install Python
 RUN apt-get update && apt-get install -y \
@@ -18,34 +23,34 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Install PyTorch with CUDA
+# Install PyTorch with CUDA 12.1
 RUN pip3 install --no-cache-dir \
-    torch==2.1.0 --index-url https://download.pytorch.org/whl/cu118
+    torch==2.2.0 --index-url https://download.pytorch.org/whl/cu121
 
-# Install PyG dependencies
+# Install PyG (torch-geometric) dependencies
+# Using pre-built wheels for torch 2.2.0 + CUDA 12.1
 RUN pip3 install --no-cache-dir \
-    torch-scatter==2.1.2 \
-    torch-sparse==0.6.18 \
-    torch-geometric==2.4.0 \
-    -f https://data.pyg.org/whl/torch-2.1.0+cu118.html
+    torch-scatter \
+    torch-sparse \
+    torch-geometric \
+    -f https://data.pyg.org/whl/torch-2.2.0+cu121.html
 
-# Install other dependencies
-COPY requirements.txt .
+# Install ULTRA dependencies
+# numpy<2 required for torch 2.2.0 compatibility
 RUN pip3 install --no-cache-dir \
-    fastapi>=0.109.0 \
-    uvicorn[standard]>=0.27.0 \
-    pydantic>=2.5.0 \
     ninja \
     easydict \
     pyyaml \
-    httpx>=0.26.0 \
-    numpy>=1.24.0
+    "numpy>=1.24.0,<2" \
+    huggingface_hub>=0.20.0
 
-# Download ULTRA checkpoint
+# Download ULTRA checkpoint from HuggingFace
+# Files: model.safetensors (684KB), config.json, modeling.py, ultra/ folder
 RUN mkdir -p /app/ckpts && \
     python3 -c "from huggingface_hub import hf_hub_download; \
-    hf_hub_download(repo_id='mgalkin/ultra_50g', filename='ultra_50g.pth', local_dir='/app/ckpts')" || \
-    echo "Checkpoint download skipped - will run in mock mode"
+    hf_hub_download(repo_id='mgalkin/ultra_50g', filename='model.safetensors', local_dir='/app/ckpts'); \
+    hf_hub_download(repo_id='mgalkin/ultra_50g', filename='config.json', local_dir='/app/ckpts')" || \
+    echo 'Checkpoint download skipped - will run in mock mode'
 
 # Copy application code
 COPY . .
@@ -55,7 +60,7 @@ ENV CUDA_HOME=/usr/local/cuda
 ENV PATH="${CUDA_HOME}/bin:${PATH}"
 ENV LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}"
 ENV ULTRA_CHECKPOINT=/app/ckpts/ultra_50g.pth
+ENV PYTHONUNBUFFERED=1
 
-EXPOSE 8765
-
-CMD ["python3", "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8765"]
+# Stdio service - no port needed
+CMD ["python3", "-u", "ultra_service.py"]
