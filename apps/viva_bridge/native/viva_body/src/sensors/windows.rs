@@ -48,8 +48,10 @@ impl SensorReader for WindowsSensor {
         for comp in &self.components {
             let label = comp.label().to_lowercase();
             if label.contains("cpu") || label.contains("core") || label.contains("package") {
-                temp = Some(comp.temperature());
-                break; // Just take the first one for now
+                temp = comp.temperature();
+                if temp.is_some() {
+                    break; // Just take the first one for now
+                }
             }
         }
 
@@ -93,11 +95,12 @@ impl SensorReader for WindowsSensor {
 
     fn read_thermal(&mut self) -> ThermalReading {
         // Aggregate mostly from components
-        let mut max_t = 0.0;
+        let mut max_t: f32 = 0.0;
         for comp in &self.components {
-            let t = comp.temperature();
-            if t > max_t {
-                max_t = t;
+            if let Some(t) = comp.temperature() {
+                if t > max_t {
+                    max_t = t;
+                }
             }
         }
 
