@@ -28,6 +28,9 @@ defmodule VivaCore.Application do
       # Must be first so others can subscribe during init
       {Phoenix.PubSub, name: Viva.PubSub},
 
+      # Redis Connection for Personality persistence
+      {Redix, name: :redix},
+
       # Body Schema - self-awareness of hardware capabilities
       # Must start before Emotional so it can configure emotional baseline
       {VivaCore.BodySchema, name: VivaCore.BodySchema},
