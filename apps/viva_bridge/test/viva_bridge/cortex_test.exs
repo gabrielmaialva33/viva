@@ -2,7 +2,8 @@ defmodule VivaBridge.CortexTest do
   use ExUnit.Case
   alias VivaBridge.Cortex
 
-  # @moduletag :capture_log
+  # Requires Python Cortex service running
+  @moduletag :external
 
   setup do
     # Ensure Cortex is running for each test

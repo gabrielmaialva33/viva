@@ -54,7 +54,7 @@ jobs:
           VIVA_SKIP_NIF: true
 
       - name: Run tests
-        run: mix test --exclude nif
+        run: mix test --exclude nif --exclude external
         env:
           VIVA_SKIP_NIF: true
 
