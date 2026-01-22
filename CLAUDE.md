@@ -38,6 +38,12 @@ mix run apps/viva_bridge/verify_mirror.exs
 VIVA_SKIP_NIF=true mix test
 ```
 
+**Internationalized logs** (EN, PT-BR, ZH-CN):
+```bash
+VIVA_LOCALE=pt_BR iex -S mix  # Portuguese logs
+VIVA_LOCALE=zh_CN iex -S mix  # Chinese logs
+```
+
 ## Architecture: Brain/Soul/Body Split
 
 ```
@@ -81,6 +87,10 @@ VIVA_SKIP_NIF=true mix test
 | 9 | `Agency` | Whitelist command execution |
 | 10 | `Voice` | Hebbian proto-language |
 | 11 | `Workspace` | Global Workspace Theory (Thoughtseeds) |
+
+**Shared (viva_common)**:
+- `VivaLog` - i18n logging macros (info/debug/warning/error)
+- `Viva.Gettext` - Translation backend (EN, PT-BR, ZH-CN)
 
 **Supervision**: `:one_for_one` strategy.
 
@@ -229,6 +239,9 @@ VivaBridge.Body.mirror_feature_flags()
 ```
 viva/
 ├── apps/
+│   ├── viva_common/         # Shared (Gettext, VivaLog)
+│   │   ├── lib/viva_common/logging/
+│   │   └── priv/gettext/    # EN, PT-BR, ZH-CN
 │   ├── viva_core/           # Soul (Elixir/OTP)
 │   │   ├── lib/viva_core/   # GenServers
 │   │   └── test/            # ExUnit tests
@@ -264,9 +277,28 @@ viva/
 **Research:**
 - `docs/en/research/whitepaper.md` - Full research paper
 
+## Logging (VivaLog)
+
+Use `VivaLog` instead of `Logger` for internationalized messages:
+
+```elixir
+require VivaLog
+
+# Simple message
+VivaLog.info(:emotional, :neuron_starting)
+
+# With interpolation
+VivaLog.warning(:agency, :command_failed, exit_code: 1, error: "timeout")
+
+# Module prefixes are NOT translated (for grep-ability)
+# [Emotional] Neurônio emocional iniciando...
+```
+
+Message keys map to PO files in `apps/viva_common/priv/gettext/{locale}/LC_MESSAGES/default.po`.
+
 ## Current Phase
 
-**Phase 5: Memory & Agency** - Qdrant integration, Dreamer consolidation, Agency execution.
+**Phase 6: Language & Cognition** - Algebra of Thought DSL, LLM inner monologue.
 
 Completed:
 - Phase 1: Genesis (Umbrella structure)
@@ -274,8 +306,9 @@ Completed:
 - Phase 3: Sensation (Rust NIFs, Bevy ECS)
 - Phase 4: Interoception (Free Energy, Qualia Mapping)
 - Phase 5: Memory (Qdrant, Dreamer, Agency, Voice)
+- Phase 5.5: i18n Logging (VivaLog, 3 locales)
 
-Next: Language (LLM inner monologue via Cortex), Embodiment (Bevy 3D Avatar).
+Next: Embodiment (Bevy 3D Avatar), Cognition (Semantic operations).
 
 ## Contributor Roles
 
@@ -297,6 +330,7 @@ Next: Language (LLM inner monologue via Cortex), Embodiment (Bevy 3D Avatar).
 **Elixir (Soul):**
 - **Phoenix.PubSub** - Inter-neuron communication
 - **Qdrant** - Vector database for semantic memory
+- **Gettext** - Internationalization for logs
 
 **Rust (Body):**
 - **Bevy** - ECS framework for Body simulation (headless, 0.15)
