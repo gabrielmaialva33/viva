@@ -461,6 +461,7 @@ defmodule VivaCore.Dreamer do
           memories
           |> Enum.map(fn m ->
             emotion = get_memory_field(m, :emotion, nil)
+
             if emotion do
               %{
                 pleasure: get_pad_value(emotion, :pleasure),
@@ -478,6 +479,7 @@ defmodule VivaCore.Dreamer do
         else
           # Calculate mean of successful states
           n = length(pads)
+
           %{
             pleasure: Enum.sum(Enum.map(pads, & &1.pleasure)) / n,
             arousal: Enum.sum(Enum.map(pads, & &1.arousal)) / n,
@@ -526,10 +528,11 @@ defmodule VivaCore.Dreamer do
 
   defp notify_hallucination(goal_type, target, baseline, is_stuck) do
     stuck_marker = if is_stuck, do: " [EXPLORING]", else: ""
+
     Logger.debug(
       "[Dreamer] Hallucinated Goal: #{goal_type}#{stuck_marker} " <>
-      "(Target P=#{Float.round(target.pleasure, 2)}, A=#{Float.round(target.arousal, 2)}, D=#{Float.round(target.dominance, 2)}) " <>
-      "(Baseline P=#{Float.round(baseline.pleasure, 2)})"
+        "(Target P=#{Float.round(target.pleasure, 2)}, A=#{Float.round(target.arousal, 2)}, D=#{Float.round(target.dominance, 2)}) " <>
+        "(Baseline P=#{Float.round(baseline.pleasure, 2)})"
     )
   end
 
@@ -673,25 +676,73 @@ defmodule VivaCore.Dreamer do
 
   @doc false
   defp consolidate_memories(state) do
-    Logger.info("[Dreamer] Starting memory consolidation (episodic → semantic)...")
+    Logger.info("[Dreamer] Starting memory consolidation (DRE Episodic → Semantic)...")
 
-    # Search for important episodic memories
+    # Calculate personal baseline for alignment check
+    baseline_pad = calculate_personal_baseline(state)
+
+    # Search for candidate episodic memories
     case safe_memory_search("", @consolidation_limit, state.memory) do
       {:ok, candidates} when is_list(candidates) ->
-        # Filter high-importance episodic memories
+        # Filter memories using DRE Consolidation Score
         to_consolidate =
           candidates
           |> Enum.filter(fn m ->
             type = get_memory_field(m, :type, "generic")
-            importance = get_memory_field(m, :importance, 0.0)
+            is_episodic = type == "episodic" or type == :episodic
 
-            (type == "episodic" or type == :episodic) and
-              importance >= @consolidation_threshold
+            if is_episodic do
+              # Extract parameters for DRE
+              emotion =
+                get_memory_field(m, :emotion, %{pleasure: 0.0, arousal: 0.0, dominance: 0.0})
+
+              memory_pad = %{
+                pleasure: Map.get(emotion, :pleasure, 0.0),
+                arousal: Map.get(emotion, :arousal, 0.0),
+                dominance: Map.get(emotion, :dominance, 0.0)
+              }
+
+              importance = get_memory_field(m, :importance, 0.0)
+
+              created_at =
+                get_memory_field(m, :created_at, DateTime.utc_now() |> DateTime.to_iso8601())
+
+              # Calculate age (robust)
+              age_seconds =
+                case DateTime.from_iso8601(created_at) do
+                  {:ok, dt, _} -> DateTime.diff(DateTime.utc_now(), dt)
+                  _ -> 0
+                end
+
+              access_count = get_memory_field(m, :access_count, 1)
+
+              # DRE Score
+              score =
+                VivaCore.Mathematics.consolidation_score(
+                  memory_pad,
+                  baseline_pad,
+                  importance,
+                  age_seconds,
+                  access_count
+                )
+
+              if score >= @consolidation_threshold do
+                Logger.debug(
+                  "[Dreamer] Consolidating Memory #{get_memory_field(m, :id, "?")} Score: #{Float.round(score, 3)}"
+                )
+
+                true
+              else
+                false
+              end
+            else
+              false
+            end
           end)
           |> Enum.take(@consolidation_limit)
 
         if Enum.empty?(to_consolidate) do
-          Logger.debug("[Dreamer] No episodic memories above threshold for consolidation")
+          Logger.debug("[Dreamer] No memories passed DRE threshold (#{@consolidation_threshold})")
           0
         else
           # Consolidate each memory
@@ -703,7 +754,7 @@ defmodule VivaCore.Dreamer do
               end
             end)
 
-          Logger.info("[Dreamer] Consolidated #{consolidated} memories (episodic → semantic)")
+          Logger.info("[Dreamer] Consolidated #{consolidated} memories via DRE")
           consolidated
         end
 
