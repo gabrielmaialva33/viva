@@ -1108,19 +1108,21 @@ defmodule VivaCore.Emotional do
     }
 
     # 0.5 Fuse emotions
-    fusion_result = EmotionFusion.fuse(
-      need_pad,
-      past_result.aggregate_pad,
-      personality,
-      state.mood,
-      fusion_context
-    )
+    fusion_result =
+      EmotionFusion.fuse(
+        need_pad,
+        past_result.aggregate_pad,
+        personality,
+        state.mood,
+        fusion_context
+      )
 
     # 0.6 Update state with fused emotion and mood
-    state = %{state |
-      pad: fusion_result.fused_pad,
-      mood: fusion_result.mood,
-      personality: personality
+    state = %{
+      state
+      | pad: fusion_result.fused_pad,
+        mood: fusion_result.mood,
+        personality: personality
     }
 
     # =========================================================================
@@ -1394,17 +1396,19 @@ defmodule VivaCore.Emotional do
     fe = state.interoceptive_free_energy
 
     # Base PAD from interoceptive state
-    base = case feeling do
-      :homeostatic -> %{pleasure: 0.1, arousal: -0.1, dominance: 0.1}
-      :surprised -> %{pleasure: 0.0, arousal: 0.2, dominance: 0.0}
-      :alarmed -> %{pleasure: -0.2, arousal: 0.4, dominance: -0.1}
-      :overwhelmed -> %{pleasure: -0.4, arousal: 0.6, dominance: -0.3}
-      _ -> %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
-    end
+    base =
+      case feeling do
+        :homeostatic -> %{pleasure: 0.1, arousal: -0.1, dominance: 0.1}
+        :surprised -> %{pleasure: 0.0, arousal: 0.2, dominance: 0.0}
+        :alarmed -> %{pleasure: -0.2, arousal: 0.4, dominance: -0.1}
+        :overwhelmed -> %{pleasure: -0.4, arousal: 0.6, dominance: -0.3}
+        _ -> %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
+      end
 
     # Modulate by Free Energy magnitude
     # Higher FE → more negative pleasure, higher arousal
-    fe_factor = min(1.0, fe / 2.0)  # Normalize FE to [0, 1]
+    # Normalize FE to [0, 1]
+    fe_factor = min(1.0, fe / 2.0)
 
     %{
       pleasure: base.pleasure - fe_factor * 0.2,
@@ -1418,30 +1422,33 @@ defmodule VivaCore.Emotional do
     feeling = state.interoceptive_feeling
 
     # Create a situation description for memory retrieval
-    mood_desc = cond do
-      pad.pleasure > 0.3 -> "feliz"
-      pad.pleasure < -0.3 -> "triste"
-      true -> "neutro"
-    end
+    mood_desc =
+      cond do
+        pad.pleasure > 0.3 -> "feliz"
+        pad.pleasure < -0.3 -> "triste"
+        true -> "neutro"
+      end
 
-    arousal_desc = cond do
-      pad.arousal > 0.3 -> "agitado"
-      pad.arousal < -0.3 -> "calmo"
-      true -> "equilibrado"
-    end
+    arousal_desc =
+      cond do
+        pad.arousal > 0.3 -> "agitado"
+        pad.arousal < -0.3 -> "calmo"
+        true -> "equilibrado"
+      end
 
-    dominance_desc = cond do
-      pad.dominance > 0.3 -> "confiante"
-      pad.dominance < -0.3 -> "impotente"
-      true -> "estável"
-    end
+    dominance_desc =
+      cond do
+        pad.dominance > 0.3 -> "confiante"
+        pad.dominance < -0.3 -> "impotente"
+        true -> "estável"
+      end
 
     "estado emocional #{mood_desc} #{arousal_desc} #{dominance_desc} sentindo #{feeling}"
   end
 
   defp safe_retrieve_past_emotions(situation) do
     try do
-      VivaCore.Dreamer.retrieve_past_emotions(situation, [limit: 10, min_similarity: 0.3])
+      VivaCore.Dreamer.retrieve_past_emotions(situation, limit: 10, min_similarity: 0.3)
     rescue
       _ ->
         %{

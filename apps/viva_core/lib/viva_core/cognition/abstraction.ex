@@ -47,16 +47,18 @@ defmodule VivaCore.Cognition.Abstraction do
     # Simple octant classification based on signs
     cond do
       p >= 0 and a >= 0 and d >= 0 -> :exuberant
-      p >= 0 and a >= 0 and d < 0  -> :dependent
-      p >= 0 and a < 0  and d >= 0 -> :relaxed
-      p >= 0 and a < 0  and d < 0  -> :docile
-      p < 0  and a >= 0 and d >= 0 -> :hostile
-      p < 0  and a >= 0 and d < 0  -> :anxious
-      p < 0  and a < 0  and d >= 0 -> :disdainful
-      p < 0  and a < 0  and d < 0  -> :bored
-      true -> :balanced # Fallback for exact zeros if not covered
+      p >= 0 and a >= 0 and d < 0 -> :dependent
+      p >= 0 and a < 0 and d >= 0 -> :relaxed
+      p >= 0 and a < 0 and d < 0 -> :docile
+      p < 0 and a >= 0 and d >= 0 -> :hostile
+      p < 0 and a >= 0 and d < 0 -> :anxious
+      p < 0 and a < 0 and d >= 0 -> :disdainful
+      p < 0 and a < 0 and d < 0 -> :bored
+      # Fallback for exact zeros if not covered
+      true -> :balanced
     end
   end
+
   def pad_to_concept(_), do: :balanced
 
   @doc """

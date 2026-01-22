@@ -79,7 +79,7 @@ impl OUParams {
         Self {
             theta: 0.0154, // t½ ≈ 45s (same as default)
             mu: 0.0,
-            sigma: 0.05,  // 5x more noise
+            sigma: 0.05, // 5x more noise
         }
     }
 }

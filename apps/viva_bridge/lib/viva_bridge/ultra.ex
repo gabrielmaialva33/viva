@@ -279,24 +279,55 @@ defmodule VivaBridge.Ultra do
   def handle_call(request, from, state) do
     {command, args} =
       case request do
-        {:build_graph, mems} -> {"build_graph", %{memories: mems}}
-        {:predict_links, h, r, k} -> {"predict_links", %{head: h, relation: r, top_k: k}}
-        {:infer_relations, h, t, k} -> {"infer_relations", %{head: h, tail: t, top_k: k}}
-        {:find_path, s, e, hops} -> {"find_path", %{start: s, end: e, max_hops: hops}}
-        {:embed, t} -> {"embed", %{text: t}}
-        :ping -> {"ping", %{}}
+        {:build_graph, mems} ->
+          {"build_graph", %{memories: mems}}
+
+        {:predict_links, h, r, k} ->
+          {"predict_links", %{head: h, relation: r, top_k: k}}
+
+        {:infer_relations, h, t, k} ->
+          {"infer_relations", %{head: h, tail: t, top_k: k}}
+
+        {:find_path, s, e, hops} ->
+          {"find_path", %{start: s, end: e, max_hops: hops}}
+
+        {:embed, t} ->
+          {"embed", %{text: t}}
+
+        :ping ->
+          {"ping", %{}}
+
         # CogGNN commands
-        {:init_cog_gnn, in_dim, hidden_dim} -> {"init_cog_gnn", %{in_dim: in_dim, hidden_dim: hidden_dim}}
-        {:propagate, concept, pad, top_k} -> {"propagate", %{concept: concept, pad: pad, top_k: top_k}}
-        :conscious_focus -> {"conscious_focus", %{}}
-        {:propagate_query, query, pad, top_k} -> {"propagate_query", %{query: query, pad: pad, top_k: top_k}}
+        {:init_cog_gnn, in_dim, hidden_dim} ->
+          {"init_cog_gnn", %{in_dim: in_dim, hidden_dim: hidden_dim}}
+
+        {:propagate, concept, pad, top_k} ->
+          {"propagate", %{concept: concept, pad: pad, top_k: top_k}}
+
+        :conscious_focus ->
+          {"conscious_focus", %{}}
+
+        {:propagate_query, query, pad, top_k} ->
+          {"propagate_query", %{query: query, pad: pad, top_k: top_k}}
+
         # EWC commands
         {:protect_memory, mem_id, emb, related, score} ->
-          {"protect_memory", %{memory_id: mem_id, embedding: emb, related_embeddings: related, consolidation_score: score}}
+          {"protect_memory",
+           %{
+             memory_id: mem_id,
+             embedding: emb,
+             related_embeddings: related,
+             consolidation_score: score
+           }}
+
         {:ewc_penalty, emb, affected_ids} ->
           {"ewc_penalty", %{embedding: emb, affected_memory_ids: affected_ids}}
-        :ewc_stats -> {"ewc_stats", %{}}
-        :ewc_decay -> {"ewc_decay", %{}}
+
+        :ewc_stats ->
+          {"ewc_stats", %{}}
+
+        :ewc_decay ->
+          {"ewc_decay", %{}}
       end
 
     # Generate request ID

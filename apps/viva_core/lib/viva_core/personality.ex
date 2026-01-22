@@ -46,12 +46,12 @@ defmodule VivaCore.Personality do
   ]
 
   @type t :: %__MODULE__{
-    baseline: %{pleasure: float(), arousal: float(), dominance: float()},
-    reactivity: float(),
-    volatility: float(),
-    traits: [atom()],
-    last_adapted: DateTime.t() | nil
-  }
+          baseline: %{pleasure: float(), arousal: float(), dominance: float()},
+          reactivity: float(),
+          volatility: float(),
+          traits: [atom()],
+          last_adapted: DateTime.t() | nil
+        }
 
   @type pad :: %{pleasure: float(), arousal: float(), dominance: float()}
 
@@ -124,11 +124,12 @@ defmodule VivaCore.Personality do
       # Update traits based on dominant patterns
       new_traits = infer_traits(new_baseline, experiences)
 
-      updated = %{personality |
-        baseline: new_baseline,
-        reactivity: new_reactivity,
-        traits: new_traits,
-        last_adapted: DateTime.utc_now()
+      updated = %{
+        personality
+        | baseline: new_baseline,
+          reactivity: new_reactivity,
+          traits: new_traits,
+          last_adapted: DateTime.utc_now()
       }
 
       VivaLog.info(:personality, :adapted,
@@ -161,31 +162,37 @@ defmodule VivaCore.Personality do
 
     # 1. Blend raw emotion with baseline
     blended = %{
-      pleasure: (1 - personality_weight) * get_value(raw_pad, :pleasure) +
-                personality_weight * personality.baseline.pleasure,
-      arousal: (1 - personality_weight) * get_value(raw_pad, :arousal) +
-               personality_weight * personality.baseline.arousal,
-      dominance: (1 - personality_weight) * get_value(raw_pad, :dominance) +
-                 personality_weight * personality.baseline.dominance
+      pleasure:
+        (1 - personality_weight) * get_value(raw_pad, :pleasure) +
+          personality_weight * personality.baseline.pleasure,
+      arousal:
+        (1 - personality_weight) * get_value(raw_pad, :arousal) +
+          personality_weight * personality.baseline.arousal,
+      dominance:
+        (1 - personality_weight) * get_value(raw_pad, :dominance) +
+          personality_weight * personality.baseline.dominance
     }
 
     # 2. Apply reactivity to deviation from baseline
     %{
-      pleasure: apply_reactivity_dim(
-        blended.pleasure,
-        personality.baseline.pleasure,
-        personality.reactivity
-      ),
-      arousal: apply_reactivity_dim(
-        blended.arousal,
-        personality.baseline.arousal,
-        personality.reactivity
-      ),
-      dominance: apply_reactivity_dim(
-        blended.dominance,
-        personality.baseline.dominance,
-        personality.reactivity
-      )
+      pleasure:
+        apply_reactivity_dim(
+          blended.pleasure,
+          personality.baseline.pleasure,
+          personality.reactivity
+        ),
+      arousal:
+        apply_reactivity_dim(
+          blended.arousal,
+          personality.baseline.arousal,
+          personality.reactivity
+        ),
+      dominance:
+        apply_reactivity_dim(
+          blended.dominance,
+          personality.baseline.dominance,
+          personality.reactivity
+        )
     }
     |> clamp_pad()
   end
@@ -195,17 +202,20 @@ defmodule VivaCore.Personality do
   """
   @spec describe(t()) :: String.t()
   def describe(%__MODULE__{} = personality) do
-    trait_str = personality.traits
+    trait_str =
+      personality.traits
       |> Enum.map(&Atom.to_string/1)
       |> Enum.join(", ")
 
-    valence = if personality.baseline.pleasure > 0,
-      do: Gettext.dgettext(Viva.Gettext, "default", "personality.valence.positive"),
-      else: Gettext.dgettext(Viva.Gettext, "default", "personality.valence.neutral")
+    valence =
+      if personality.baseline.pleasure > 0,
+        do: Gettext.dgettext(Viva.Gettext, "default", "personality.valence.positive"),
+        else: Gettext.dgettext(Viva.Gettext, "default", "personality.valence.neutral")
 
-    energy = if personality.baseline.arousal > 0.1,
-      do: Gettext.dgettext(Viva.Gettext, "default", "personality.energy.energetic"),
-      else: Gettext.dgettext(Viva.Gettext, "default", "personality.energy.calm")
+    energy =
+      if personality.baseline.arousal > 0.1,
+        do: Gettext.dgettext(Viva.Gettext, "default", "personality.energy.energetic"),
+        else: Gettext.dgettext(Viva.Gettext, "default", "personality.energy.calm")
 
     Gettext.dgettext(Viva.Gettext, "default", "personality.describe", %{
       traits: trait_str,
@@ -233,6 +243,7 @@ defmodule VivaCore.Personality do
 
         {:ok, json} ->
           data = Jason.decode!(json)
+
           personality = %__MODULE__{
             baseline: %{
               pleasure: data["baseline"]["pleasure"],
@@ -244,6 +255,7 @@ defmodule VivaCore.Personality do
             traits: Enum.map(data["traits"], &String.to_atom/1),
             last_adapted: parse_datetime(data["last_adapted"])
           }
+
           {:ok, personality}
 
         {:error, reason} ->
@@ -267,10 +279,11 @@ defmodule VivaCore.Personality do
         "reactivity" => personality.reactivity,
         "volatility" => personality.volatility,
         "traits" => Enum.map(personality.traits, &Atom.to_string/1),
-        "last_adapted" => if(personality.last_adapted,
-          do: DateTime.to_iso8601(personality.last_adapted),
-          else: nil
-        )
+        "last_adapted" =>
+          if(personality.last_adapted,
+            do: DateTime.to_iso8601(personality.last_adapted),
+            else: nil
+          )
       }
 
       case Redix.command(:redix, ["SET", @persistence_key, Jason.encode!(data)]) do
@@ -283,6 +296,7 @@ defmodule VivaCore.Personality do
   end
 
   defp parse_datetime(nil), do: nil
+
   defp parse_datetime(iso_string) do
     case DateTime.from_iso8601(iso_string) do
       {:ok, dt, _} -> dt
@@ -293,16 +307,17 @@ defmodule VivaCore.Personality do
   defp aggregate_experiences(experiences) do
     count = length(experiences)
 
-    total = Enum.reduce(experiences, neutral_pad(), fn exp, acc ->
-      pad = Map.get(exp, :pad, neutral_pad())
-      intensity = Map.get(exp, :intensity, 1.0)
+    total =
+      Enum.reduce(experiences, neutral_pad(), fn exp, acc ->
+        pad = Map.get(exp, :pad, neutral_pad())
+        intensity = Map.get(exp, :intensity, 1.0)
 
-      %{
-        pleasure: acc.pleasure + get_value(pad, :pleasure) * intensity,
-        arousal: acc.arousal + get_value(pad, :arousal) * intensity,
-        dominance: acc.dominance + get_value(pad, :dominance) * intensity
-      }
-    end)
+        %{
+          pleasure: acc.pleasure + get_value(pad, :pleasure) * intensity,
+          arousal: acc.arousal + get_value(pad, :arousal) * intensity,
+          dominance: acc.dominance + get_value(pad, :dominance) * intensity
+        }
+      end)
 
     %{
       pleasure: total.pleasure / count,
@@ -329,7 +344,8 @@ defmodule VivaCore.Personality do
       # High variance → increase reactivity slightly
       # Low variance → decrease reactivity slightly
       variance = calculate_pad_variance(pads)
-      adjustment = (variance - 0.1) * 0.1  # Small adjustment based on variance
+      # Small adjustment based on variance
+      adjustment = (variance - 0.1) * 0.1
 
       # Clamp reactivity to reasonable range [0.5, 2.0]
       (current_reactivity + adjustment)
@@ -341,20 +357,22 @@ defmodule VivaCore.Personality do
   defp calculate_pad_variance(pads) do
     count = length(pads)
 
-    mean = Enum.reduce(pads, neutral_pad(), fn pad, acc ->
-      %{
-        pleasure: acc.pleasure + get_value(pad, :pleasure) / count,
-        arousal: acc.arousal + get_value(pad, :arousal) / count,
-        dominance: acc.dominance + get_value(pad, :dominance) / count
-      }
-    end)
+    mean =
+      Enum.reduce(pads, neutral_pad(), fn pad, acc ->
+        %{
+          pleasure: acc.pleasure + get_value(pad, :pleasure) / count,
+          arousal: acc.arousal + get_value(pad, :arousal) / count,
+          dominance: acc.dominance + get_value(pad, :dominance) / count
+        }
+      end)
 
-    variance = Enum.reduce(pads, 0.0, fn pad, acc ->
-      dp = get_value(pad, :pleasure) - mean.pleasure
-      da = get_value(pad, :arousal) - mean.arousal
-      dd = get_value(pad, :dominance) - mean.dominance
-      acc + (dp * dp + da * da + dd * dd) / 3.0
-    end)
+    variance =
+      Enum.reduce(pads, 0.0, fn pad, acc ->
+        dp = get_value(pad, :pleasure) - mean.pleasure
+        da = get_value(pad, :arousal) - mean.arousal
+        dd = get_value(pad, :dominance) - mean.dominance
+        acc + (dp * dp + da * da + dd * dd) / 3.0
+      end)
 
     variance / count
   end

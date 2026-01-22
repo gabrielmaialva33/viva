@@ -220,9 +220,8 @@ fn memory_init(path: Option<String>) -> NifResult<String> {
 #[rustler::nif]
 fn memory_store(vector: Vec<f32>, metadata_json: String) -> NifResult<String> {
     // Get or init memory
-    let mem_lock = MEMORY.get_or_init(|| {
-        Mutex::new(VivaMemory::new().expect("Failed to create VivaMemory"))
-    });
+    let mem_lock =
+        MEMORY.get_or_init(|| Mutex::new(VivaMemory::new().expect("Failed to create VivaMemory")));
 
     let mut guard = mem_lock
         .lock()

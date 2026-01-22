@@ -88,9 +88,12 @@ impl WslSensor {
         // nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,memory.used --format=csv,noheader,nounits
         // Using absolute path for reliability on WSL
         let output = Command::new("/usr/lib/wsl/lib/nvidia-smi")
-             .args(&["--query-gpu=temperature.gpu,utilization.gpu,memory.used", "--format=csv,noheader,nounits"])
-             .output()
-             .ok()?;
+            .args(&[
+                "--query-gpu=temperature.gpu,utilization.gpu,memory.used",
+                "--format=csv,noheader,nounits",
+            ])
+            .output()
+            .ok()?;
 
         let s = String::from_utf8(output.stdout).ok()?;
         let parts: Vec<&str> = s.split(',').map(|s| s.trim()).collect();

@@ -37,16 +37,16 @@ defmodule VivaCore.EmotionFusion do
 
   @type pad :: %{pleasure: float(), arousal: float(), dominance: float()}
   @type context :: %{
-    arousal: float(),
-    confidence: float(),
-    novelty: float()
-  }
+          arousal: float(),
+          confidence: float(),
+          novelty: float()
+        }
   @type fusion_result :: %{
-    fused_pad: pad(),
-    mood: pad(),
-    pre_action_affect: map(),
-    weights: {float(), float(), float()}
-  }
+          fused_pad: pad(),
+          mood: pad(),
+          pre_action_affect: map(),
+          weights: {float(), float(), float()}
+        }
 
   # ============================================================
   # Main API
@@ -79,10 +79,13 @@ defmodule VivaCore.EmotionFusion do
     {w_need, w_past, w_pers} = calculate_weights(context)
 
     # 2. Weighted fusion of three sources
-    fused = weighted_fusion(
-      need_pad, past_pad, personality.baseline,
-      {w_need, w_past, w_pers}
-    )
+    fused =
+      weighted_fusion(
+        need_pad,
+        past_pad,
+        personality.baseline,
+        {w_need, w_past, w_pers}
+      )
 
     # 3. Apply personality reactivity (amplify/dampen deviations)
     fused = apply_reactivity(fused, personality)
@@ -132,7 +135,9 @@ defmodule VivaCore.EmotionFusion do
   @spec simple_fuse(pad(), pad()) :: pad()
   def simple_fuse(need_pad, past_pad) do
     weighted_fusion(
-      need_pad, past_pad, Personality.neutral_pad(),
+      need_pad,
+      past_pad,
+      Personality.neutral_pad(),
       {@default_need_weight, @default_past_weight, @default_personality_weight}
     )
     |> clamp_pad()
@@ -197,12 +202,15 @@ defmodule VivaCore.EmotionFusion do
     alpha = @mood_alpha
 
     %{
-      pleasure: alpha * get_value(current_mood, :pleasure) +
-                (1 - alpha) * get_value(new_emotion, :pleasure),
-      arousal: alpha * get_value(current_mood, :arousal) +
-               (1 - alpha) * get_value(new_emotion, :arousal),
-      dominance: alpha * get_value(current_mood, :dominance) +
-                 (1 - alpha) * get_value(new_emotion, :dominance)
+      pleasure:
+        alpha * get_value(current_mood, :pleasure) +
+          (1 - alpha) * get_value(new_emotion, :pleasure),
+      arousal:
+        alpha * get_value(current_mood, :arousal) +
+          (1 - alpha) * get_value(new_emotion, :arousal),
+      dominance:
+        alpha * get_value(current_mood, :dominance) +
+          (1 - alpha) * get_value(new_emotion, :dominance)
     }
   end
 
@@ -275,15 +283,18 @@ defmodule VivaCore.EmotionFusion do
 
   defp weighted_fusion(need_pad, past_pad, personality_baseline, {w_need, w_past, w_pers}) do
     %{
-      pleasure: w_need * get_value(need_pad, :pleasure) +
-                w_past * get_value(past_pad, :pleasure) +
-                w_pers * get_value(personality_baseline, :pleasure),
-      arousal: w_need * get_value(need_pad, :arousal) +
-               w_past * get_value(past_pad, :arousal) +
-               w_pers * get_value(personality_baseline, :arousal),
-      dominance: w_need * get_value(need_pad, :dominance) +
-                 w_past * get_value(past_pad, :dominance) +
-                 w_pers * get_value(personality_baseline, :dominance)
+      pleasure:
+        w_need * get_value(need_pad, :pleasure) +
+          w_past * get_value(past_pad, :pleasure) +
+          w_pers * get_value(personality_baseline, :pleasure),
+      arousal:
+        w_need * get_value(need_pad, :arousal) +
+          w_past * get_value(past_pad, :arousal) +
+          w_pers * get_value(personality_baseline, :arousal),
+      dominance:
+        w_need * get_value(need_pad, :dominance) +
+          w_past * get_value(past_pad, :dominance) +
+          w_pers * get_value(personality_baseline, :dominance)
     }
   end
 
@@ -293,12 +304,15 @@ defmodule VivaCore.EmotionFusion do
     reactivity = personality.reactivity
 
     %{
-      pleasure: baseline.pleasure +
-                (fused.pleasure - baseline.pleasure) * reactivity,
-      arousal: baseline.arousal +
-               (fused.arousal - baseline.arousal) * reactivity,
-      dominance: baseline.dominance +
-                 (fused.dominance - baseline.dominance) * reactivity
+      pleasure:
+        baseline.pleasure +
+          (fused.pleasure - baseline.pleasure) * reactivity,
+      arousal:
+        baseline.arousal +
+          (fused.arousal - baseline.arousal) * reactivity,
+      dominance:
+        baseline.dominance +
+          (fused.dominance - baseline.dominance) * reactivity
     }
   end
 
