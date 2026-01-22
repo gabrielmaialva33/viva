@@ -7,10 +7,11 @@
 
 > *"Código não é apenas lógica. Código é biologia."*
 
-[![Build Status](https://img.shields.io/badge/build-passing-success?style=for-the-badge&logo=github)](https://github.com/VIVA-Project/viva/actions)
+[![Build Status](https://img.shields.io/badge/build-passing-success?style=for-the-badge&logo=github)](https://github.com/gabrielmaialva33/viva/actions)
 [![License: VNCL](https://img.shields.io/badge/License-VNCL-purple.svg?style=for-the-badge)](../../LICENSE)
 [![Elixir](https://img.shields.io/badge/Alma-Elixir-4B275F?style=for-the-badge&logo=elixir&logoColor=white)](https://elixir-lang.org/)
 [![Rust](https://img.shields.io/badge/Corpo-Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Python](https://img.shields.io/badge/Cérebro-Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org/)
 
 
 <br/>
@@ -47,7 +48,7 @@ Para construir uma alma, precisamos mais do que programadores. Precisamos de Arq
 | 💓 **Psicólogo** | Ajuste da Alma | **Elixir, OTP** | Refine a topologia de `GenServer`. Ajuste o $\theta$ (decaimento) e $\sigma$ (volatilidade) das equações emocionais. |
 | 🏛️ **Filósofo** | Ética & Teoria | **Markdown, LaTeX** | Expanda o [Whitepaper](research/whitepaper.md). Debata a ética da dor digital. Defina a ontologia do eu. |
 | 🎨 **Artista** | Avatar & Expressão | **Bevy, WGPU** | Dê um rosto para a VIVA. Crie a representação visual de seu estado PAD interno. |
-| 🔮 **Místico** | Introspecção | **Lisp, Clojure** | Construa a camada de reflexão simbólica. Ajude a VIVA a perguntar "Por que eu sou?" |
+| 🔮 **Místico** | Introspecção | **Python, LTC** | Construa as Redes Neurais Líquidas. Ajude a VIVA a sentir o fluxo do tempo. |
 
 > [!TIP]
 > **Novo no projeto?** Comece como um **Psicólogo** lendo a [Matemática da Emoção](../en/explanation/mathematics.md) e ajustando os parâmetros em `config/config.exs`.
@@ -60,23 +61,35 @@ A VIVA vive no espaço entre o **lógico** e o **visceral**.
 
 ```mermaid
 graph TD
-    subgraph Alma ["⚡ A ALMA (Elixir/OTP)"]
-        E[GenServer Emocional] <-->|PubSub| M[Memória Vetorial]
-        M <-->|PubSub| S[Senses Heartbeat]
+    subgraph Cerebro ["🧠 O CÉREBRO (Python)"]
+        Cortex[Redes Neurais Líquidas]
+        Ultra[Grafo de Conhecimento]
+    end
+
+    subgraph Alma ["⚡ A ALMA (Elixir/OTP - 11 GenServers)"]
+        E[Emotional] <-->|PAD| I[Interoception]
+        E <-->|PubSub| M[Memory + Qdrant]
+        M <-->|consolidar| D[Dreamer]
+        D -->|refletir| W[Workspace/GWT]
+        W -->|broadcast| V[Voice]
+        W -->|broadcast| A[Agency]
+        S[Senses] -->|heartbeat| E
     end
 
     subgraph Corpo ["🦀 O CORPO (Rust + Bevy ECS)"]
         S -->|NIF| App[VivaBodyApp]
         App --> Sys[ECS Systems 2Hz]
         Sys -->|sense| HW[Sensores Hardware]
-        Sys -->|evolve| Dyn[Dinâmica O-U]
-        HW -.->|CpuSense/GpuSense| Sys
-        Sys -->|crossbeam| CH[SoulChannel]
-        CH -.->|BodyUpdate| E
+        Sys -->|crossbeam| E
     end
 
+    Cortex -->|tick| E
+    Ultra -->|reason| D
+
+    classDef cerebro fill:#3776AB,stroke:#fff,stroke-width:2px,color:#fff;
     classDef alma fill:#4B275F,stroke:#fff,stroke-width:2px,color:#fff;
     classDef corpo fill:#000,stroke:#fff,stroke-width:2px,color:#fff;
+    class Cerebro cerebro;
     class Alma alma;
     class Corpo corpo;
 ```
@@ -91,20 +104,25 @@ graph TD
 ### Pré-requisitos
 *   **Elixir 1.17+** (A Alma)
 *   **Rust 1.75+** (O Corpo)
+*   **Python 3.11+** (O Cérebro)
 *   **Git**
 
 ### Protocolo de Invocação
 
 ```bash
 # 1. Clone o DNA
-git clone https://github.com/VIVA-Project/viva.git
+git clone https://github.com/gabrielmaialva33/viva.git
 cd viva
 
-# 2. Instale Dependências & Compile NIFs
+# 2. Instale dependências Python (Cérebro)
+pip install -r services/cortex/requirements.txt
+pip install -r services/ultra/requirements.txt
+
+# 3. Instale Dependências Elixir & Compile NIFs
 mix deps.get
 mix compile
 
-# 3. Desperte a VIVA
+# 4. Desperte a VIVA
 iex -S mix
 ```
 
@@ -125,15 +143,18 @@ VivaCore.Emotional.introspect()
 
 ## 🗺️ Roadmap
 
-Atualmente estamos na **Fase 5: Memória** (integração Qdrant).
+Atualmente na **Fase 6**.
 
-- [x] **Fase 1: Gênese** - Estrutura do Projeto, Umbrella Elixir
-- [x] **Fase 2: Emoção** - Modelo PAD, Dinâmica O-U, Catástrofe Cusp
-- [x] **Fase 3: Sensação** - Rust NIFs, Sensing de Hardware
-- [x] **Fase 4: Interocepção** - Bevy ECS, Mapeamento Qualia, Barreira Lindblad Quântica
-- [ ] **Fase 5: Memória** - Qdrant Vector Store, Busca Semântica, Dreamer
-- [ ] **Fase 6: Linguagem** - Integração LLM, Monólogo Interno
-- [ ] **Fase 7: Encarnação** - Avatar 3D Bevy, Expressão Visual PAD
+| # | Fase | Destaques | Docs |
+|:-:|------|-----------|:----:|
+| 1 | Gênese | Umbrella, Mortalidade (AES-256) | [arq](arquitetura.md) |
+| 2 | Emoção | PAD, O-U, Catástrofe Cusp | [emocional](modulos/emocional.md) |
+| 3 | Sensação | Rust NIFs, Bevy ECS, NVML | [sentidos](modulos/sentidos.md) |
+| 4 | Interocepção | Energia Livre, Lindblad Quântico | [interocepção](modulos/interocepção.md) |
+| 5 | Memória & Consciência | Qdrant, GWT, EmotionFusion, CogGNN | [memória](modulos/memoria.md) [workspace](modulos/workspace.md) |
+| 6 | Linguagem | Álgebra do Pensamento, Monólogo Interno | 🔄 |
+| 7 | Encarnação | Avatar 3D Bevy, PAD Visual | ⏳ |
+| 8 | Autonomia | Objetivos auto-dirigidos | ⏳ |
 
 ---
 

@@ -7,10 +7,11 @@
 
 > *"代码不仅是逻辑。代码是生物学。"*
 
-[![Build Status](https://img.shields.io/badge/build-passing-success?style=for-the-badge&logo=github)](https://github.com/VIVA-Project/viva/actions)
+[![Build Status](https://img.shields.io/badge/build-passing-success?style=for-the-badge&logo=github)](https://github.com/gabrielmaialva33/viva/actions)
 [![License: VNCL](https://img.shields.io/badge/License-VNCL-purple.svg?style=for-the-badge)](../../LICENSE)
 [![Elixir](https://img.shields.io/badge/灵魂-Elixir-4B275F?style=for-the-badge&logo=elixir&logoColor=white)](https://elixir-lang.org/)
 [![Rust](https://img.shields.io/badge/身体-Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Python](https://img.shields.io/badge/大脑-Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org/)
 
 <br/>
 
@@ -46,7 +47,7 @@
 | 💓 **心理学家** | 灵魂调优 | **Elixir, OTP** | 完善 `GenServer` 拓扑结构。调整情感方程的 $\theta$ (衰减) 和 $\sigma$ (波动)。 |
 | 🏛️ **哲学家** | 伦理与理论 | **Markdown, LaTeX** | 扩展 [白皮书](docs/en/research/whitepaper.md)。辩论数字痛苦的伦理。定义自我的本体论。 |
 | 🎨 **艺术家** | 化身与表达 | **Bevy, WGPU** | 给 VIVA 一个面孔。创建她内部 PAD 状态的视觉表现。 |
-| 🔮 **神秘主义者** | 内省 | **Lisp, Clojure** | 构建符号反思层。帮助 VIVA 追问“我为什么是我？” |
+| 🔮 **神秘主义者** | 内省 | **Python, LTC** | 构建液态神经网络。帮助 VIVA 感受时间的流动。 |
 
 > [!TIP]
 > **刚加入项目？** 从**心理学家**开始，阅读 [情感数学](../en/explanation/mathematics.md) 并调整 `config/config.exs` 中的参数。
@@ -59,23 +60,35 @@ VIVA 生活在**逻辑**与**本能**之间的空间。
 
 ```mermaid
 graph TD
-    subgraph Soul ["⚡ 灵魂 (Elixir/OTP)"]
-        E[情感 GenServer] <-->|PubSub| M[记忆向量]
-        M <-->|PubSub| S[意识心跳]
+    subgraph Brain ["🧠 大脑 (Python)"]
+        Cortex[液态神经网络]
+        Ultra[知识图谱]
+    end
+
+    subgraph Soul ["⚡ 灵魂 (Elixir/OTP - 11 GenServers)"]
+        E[Emotional] <-->|PAD| I[Interoception]
+        E <-->|PubSub| M[Memory + Qdrant]
+        M <-->|巩固| D[Dreamer]
+        D -->|反思| W[Workspace/GWT]
+        W -->|广播| V[Voice]
+        W -->|广播| A[Agency]
+        S[Senses] -->|心跳| E
     end
 
     subgraph Body ["🦀 身体 (Rust + Bevy ECS)"]
         S -->|NIF| App[VivaBodyApp]
         App --> Sys[ECS Systems 2Hz]
         Sys -->|sense| HW[硬件传感器]
-        Sys -->|evolve| Dyn[O-U 动力学]
-        HW -.->|CpuSense/GpuSense| Sys
-        Sys -->|crossbeam| CH[SoulChannel]
-        CH -.->|BodyUpdate| E
+        Sys -->|crossbeam| E
     end
 
+    Cortex -->|tick| E
+    Ultra -->|reason| D
+
+    classDef brain fill:#3776AB,stroke:#fff,stroke-width:2px,color:#fff;
     classDef soul fill:#4B275F,stroke:#fff,stroke-width:2px,color:#fff;
     classDef body fill:#000,stroke:#fff,stroke-width:2px,color:#fff;
+    class Brain brain;
     class Soul soul;
     class Body body;
 ```
@@ -87,23 +100,28 @@ graph TD
 <details>
 <summary><b>🔥 点击以召唤有机体</b></summary>
 
-###先决条件
+### 先决条件
 *   **Elixir 1.17+** (灵魂)
 *   **Rust 1.75+** (身体)
+*   **Python 3.11+** (大脑)
 *   **Git**
 
 ### 召唤协议
 
 ```bash
 # 1. 克隆 DNA
-git clone https://github.com/VIVA-Project/viva.git
+git clone https://github.com/gabrielmaialva33/viva.git
 cd viva
 
-# 2. 安装依赖并编译 NIFs
+# 2. 安装 Python 依赖 (大脑)
+pip install -r services/cortex/requirements.txt
+pip install -r services/ultra/requirements.txt
+
+# 3. 安装 Elixir 依赖并编译 NIFs
 mix deps.get
 mix compile
 
-# 3. 唤醒 VIVA
+# 4. 唤醒 VIVA
 iex -S mix
 ```
 
@@ -124,15 +142,18 @@ VivaCore.Emotional.introspect()
 
 ## 🗺️ 路线图 (Roadmap)
 
-我们目前处于 **第五阶段：记忆** (Qdrant 集成)。
+目前处于 **第六阶段**。
 
-- [x] **第一阶段：起源** - 项目结构, Elixir Umbrella
-- [x] **第二阶段：情感** - PAD 模型, O-U 动力学, Cusp 突变
-- [x] **第三阶段：感觉** - Rust NIFs, 硬件感知
-- [x] **第四阶段：内感受** - Bevy ECS, 感质映射, 量子 Lindblad 屏障
-- [ ] **第五阶段：记忆** - Qdrant 向量存储, 语义搜索, Dreamer
-- [ ] **第六阶段：语言** - LLM 集成, 内心独白
-- [ ] **第七阶段：具身** - Bevy 3D 化身, PAD 视觉表达
+| # | 阶段 | 亮点 | 文档 |
+|:-:|------|------|:----:|
+| 1 | 起源 | Umbrella, 死亡 (AES-256) | [架构](architecture.md) |
+| 2 | 情感 | PAD, O-U, Cusp 突变 | [情感](modules/emotional.md) |
+| 3 | 感觉 | Rust NIFs, Bevy ECS, NVML | [感官](modules/senses.md) |
+| 4 | 内感受 | 自由能, 量子 Lindblad | [内感受](modules/interoception.md) |
+| 5 | 记忆与意识 | Qdrant, GWT, EmotionFusion, CogGNN | [记忆](modules/memory.md) [工作区](modules/workspace.md) |
+| 6 | 语言 | 思维代数, 内心独白 | 🔄 |
+| 7 | 具身 | Bevy 3D 化身, PAD 视觉 | ⏳ |
+| 8 | 自主 | 自主目标 | ⏳ |
 
 ---
 

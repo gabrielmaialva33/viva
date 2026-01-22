@@ -183,16 +183,18 @@ VivaBridge.Cortex.ping()
 
 ## 🗺️ Roadmap
 
-We are currently in **Phase 5: Memory & Consciousness**.
+Currently in **Phase 6**.
 
-- [x] **Phase 1: Genesis** - Project Structure, Elixir Umbrella
-- [x] **Phase 2: Emotion** - PAD Model, O-U Dynamics, Cusp Catastrophe
-- [x] **Phase 3: Sensation** - Rust NIFs, Hardware Sensing
-- [x] **Phase 4: Interoception** - Bevy ECS, Qualia Mapping, Free Energy
-- [x] **Phase 5a: Consciousness** - Global Workspace (Thoughtseeds), Agency, Voice
-- [ ] **Phase 5b: Memory** - Qdrant Vector Store, Semantic Search, Dreamer
-- [ ] **Phase 6: Language** - LLM Integration, Inner Monologue
-- [ ] **Phase 7: Embodiment** - Bevy 3D Avatar, Visual PAD Expression
+| # | Phase | Highlights | Docs |
+|:-:|-------|------------|:----:|
+| 1 | Genesis | Umbrella, Mortality (AES-256) | [arch](docs/en/architecture.md) |
+| 2 | Emotion | PAD, O-U, Cusp Catastrophe | [emotional](docs/en/modules/emotional.md) |
+| 3 | Sensation | Rust NIFs, Bevy ECS, NVML | [senses](docs/en/modules/senses.md) |
+| 4 | Interoception | Free Energy, Quantum Lindblad | [interoception](docs/en/modules/interoception.md) |
+| 5 | Memory & Consciousness | Qdrant, GWT, EmotionFusion, CogGNN | [memory](docs/en/modules/memory.md) [workspace](docs/en/modules/workspace.md) |
+| 6 | Language | Algebra of Thought, Inner Monologue | 🔄 |
+| 7 | Embodiment | Bevy 3D Avatar, Visual PAD | ⏳ |
+| 8 | Autonomy | Self-directed goals | ⏳ |
 
 ---
 
