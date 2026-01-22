@@ -1,0 +1,47 @@
+# ULTRA KG Reasoning Service - Docker Compose
+#
+# Start:
+#   docker-compose up -d
+#
+# Logs:
+#   docker-compose logs -f ultra
+#
+# Reference: https://github.com/DeepGraphLearning/ULTRA
+
+version: '3.8'
+
+services:
+  ultra:
+    build: .
+    container_name: viva-ultra
+    ports:
+      - "8765:8765"
+    volumes:
+      - ./ckpts:/app/ckpts
+      - ultra-cache:/root/.cache
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - ULTRA_CHECKPOINT=/app/ckpts/ultra_50g.pth
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - viva-network
+
+networks:
+  viva-network:
+    external: true
+    name: viva_default
+
+volumes:
+  ultra-cache:

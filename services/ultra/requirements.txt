@@ -1,0 +1,21 @@
+# ULTRA KG Reasoning Service
+# Reference: https://github.com/DeepGraphLearning/ULTRA
+# Paper: https://arxiv.org/abs/2310.04562 (ICLR 2024)
+
+# Core
+torch==2.1.0
+torch-scatter==2.1.2
+torch-sparse==0.6.18
+torch-geometric==2.4.0
+
+# Server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+
+# Utils
+ninja
+easydict
+pyyaml
+httpx>=0.26.0
+numpy>=1.24.0
