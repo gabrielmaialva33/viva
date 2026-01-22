@@ -3,7 +3,7 @@
 # Paper: https://arxiv.org/abs/2310.04562 (ICLR 2024)
 
 # Core
-torch==2.1.0
+torch==2.8.0
 torch-scatter==2.1.2
 torch-sparse==0.6.18
 torch-geometric==2.4.0
