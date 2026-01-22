@@ -76,6 +76,11 @@ def main():
                 path = engine.find_reasoning_path(start, end, max_hops)
                 response_data = {"path": [p.to_dict() for p in path]}
 
+            elif command == "embed":
+                text = args.get("text")
+                embedding = engine.get_embedding(text)
+                response_data = {"embedding": embedding}
+
             else:
                 response_data = {"error": f"Unknown command: {command}"}
 

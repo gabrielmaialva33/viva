@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 import torch
 import torch.nn as nn
 from torch_geometric.data import Data
+from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,9 @@ class UltraConfig:
     # Inference
     batch_size: int = 32
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # Semantic Model
+    semantic_model: str = "all-MiniLM-L6-v2"
 
     # Checkpoint
     checkpoint_path: Optional[str] = None
@@ -159,8 +163,18 @@ class UltraEngine:
         self.model = None
         self.kg = KnowledgeGraph()
         self._loaded = False
+        self._semantic_model = None
 
         logger.info(f"UltraEngine initialized (device={self.config.device})")
+
+        # Initialize Semantic Model immediately (needed for Cognition)
+        try:
+            logger.info(f"Loading semantic model: {self.config.semantic_model}")
+            self._semantic_model = SentenceTransformer(self.config.semantic_model)
+            self._semantic_model.to('cpu')  # Keep on CPU to save GPU for GNN
+            logger.info("Semantic model loaded.")
+        except Exception as e:
+            logger.error(f"Failed to load semantic model: {e}")
 
     def load_checkpoint(self, path: Optional[str] = None) -> bool:
         """
@@ -470,12 +484,21 @@ class UltraEngine:
     def is_loaded(self) -> bool:
         return self._loaded
 
+    def get_embedding(self, text: str) -> List[float]:
+        """Convert text to semantic vector."""
+        if self._semantic_model is None:
+            return []
+
+        embedding = self._semantic_model.encode(text)
+        return embedding.tolist()
+
     def stats(self) -> Dict[str, Any]:
         return {
             "loaded": self._loaded,
             "device": self.config.device,
             "checkpoint": self.config.checkpoint_name,
-            "graph": self.kg.stats
+            "graph": self.kg.stats,
+            "semantic_model": self.config.semantic_model
         }
 
 
