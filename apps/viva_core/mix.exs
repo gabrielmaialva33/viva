@@ -26,10 +26,12 @@ defmodule VivaCore.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:viva_common, in_umbrella: true},
       {:viva_bridge, in_umbrella: true},
       {:phoenix_pubsub, "~> 2.1"},
+      {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
-      {:jason, "~> 1.4"}
+      {:nx, "~> 0.9"}
     ]
   end
 end

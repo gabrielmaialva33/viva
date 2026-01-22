@@ -23,6 +23,16 @@ config :viva_core,
   memory_backend: :hybrid,
   native_memory_path: Path.expand("~/.viva/memory")
 
+# i18n Configuration
+# Set VIVA_LOCALE environment variable to change language
+# Supported: en (default), pt_BR, zh_CN
+config :viva, :locale, System.get_env("VIVA_LOCALE", "en")
+
+# Gettext configuration
+config :viva_core, Viva.Gettext,
+  default_locale: "en",
+  locales: ~w(en pt_BR zh_CN)
+
 # Configure Logger to use Console and SporeLogger (Mycelial Memory)
 config :logger,
   backends: [:console, VivaCore.Logging.SporeLogger]

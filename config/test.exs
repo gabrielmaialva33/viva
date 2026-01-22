@@ -6,3 +6,6 @@ config :viva_core,
 
 # Reduce log noise during tests
 config :logger, level: :warning
+
+# Disable SporeLogger in tests (only use console)
+config :logger, backends: [:console]
