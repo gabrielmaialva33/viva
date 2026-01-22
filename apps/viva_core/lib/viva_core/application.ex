@@ -59,13 +59,14 @@ defmodule VivaCore.Application do
 
       # Voice - proto-language with Hebbian learning
       # Emergent communication through babbling and association
-      {VivaCore.Voice, name: VivaCore.Voice}
+      {VivaCore.Voice, name: VivaCore.Voice},
+
+      # GLOBAL WORKSPACE (Thoughtseeds)
+      # The theater of consciousness where mental objects compete
+      {VivaCore.Consciousness.Workspace, name: VivaCore.Consciousness.Workspace}
 
       # Future neurons:
       # {VivaCore.Optimizer, name: VivaCore.Optimizer},
-      # {VivaCore.Social, name: VivaCore.Social},
-      # {VivaCore.Metacognition, name: VivaCore.Metacognition},
-      # {VivaCore.GlobalWorkspace, name: VivaCore.GlobalWorkspace}
     ]
 
     # :one_for_one - If a neuron dies, only it is restarted
