@@ -13,7 +13,7 @@ defmodule VivaCore.Consciousness.Workspace do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   # ============================================================================
   # STRUCT & TYPES
@@ -62,7 +62,7 @@ defmodule VivaCore.Consciousness.Workspace do
 
   @impl true
   def init(_opts) do
-    Logger.info("[Consciousness] Global Workspace Online. Theory: Thoughtseeds (2024).")
+    VivaLog.info(:consciousness, :workspace_online)
 
     # Tick every 100ms for consciousness updates (10Hz alpha wave)
     :timer.send_interval(100, :conscious_cycle)
@@ -144,7 +144,10 @@ defmodule VivaCore.Consciousness.Workspace do
   defp broadcast_focus(state) do
     if state.focus && state.focus != state.history |> List.first() do
       # New thought entered consciousness!
-      Logger.info("💡 [CONSCIOUS] #{state.focus.source}: #{inspect(state.focus.content)}")
+      VivaLog.info(:consciousness, :new_focus,
+        source: state.focus.source,
+        content: state.focus.content
+      )
 
       # Broadcast to System (Motor, Speech, etc)
       Phoenix.PubSub.broadcast(Viva.PubSub, "consciousness:stream", {:focus, state.focus})

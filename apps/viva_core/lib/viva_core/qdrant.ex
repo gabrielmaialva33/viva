@@ -8,7 +8,7 @@ defmodule VivaCore.Qdrant do
   - Semantic search with temporal decay
   """
 
-  require Logger
+  require VivaLog
 
   @base_url "http://localhost:6333"
   @collection "viva_memories"
@@ -26,7 +26,7 @@ defmodule VivaCore.Qdrant do
   def ensure_collection do
     case get_collection() do
       {:ok, _} ->
-        Logger.debug("[Qdrant] Collection '#{@collection}' exists")
+        VivaLog.debug(:qdrant, :collection_exists, name: @collection)
         :ok
 
       {:error, :not_found} ->
@@ -60,13 +60,13 @@ defmodule VivaCore.Qdrant do
 
     case Req.put("#{@base_url}/collections/#{@collection}", json: body) do
       {:ok, %{status: 200}} ->
-        Logger.info("[Qdrant] Created collection '#{@collection}'")
+        VivaLog.info(:qdrant, :collection_created, name: @collection)
         # Create payload indexes for efficient filtering
         create_payload_indexes()
         :ok
 
       {:ok, %{status: status, body: body}} ->
-        Logger.error("[Qdrant] Failed to create collection: #{status} - #{inspect(body)}")
+        VivaLog.error(:qdrant, :collection_create_failed, status: status, body: inspect(body))
         {:error, body}
 
       {:error, reason} ->
@@ -134,7 +134,7 @@ defmodule VivaCore.Qdrant do
         {:ok, id}
 
       {:ok, %{status: status, body: resp}} ->
-        Logger.error("[Qdrant] Upsert failed: #{status} - #{inspect(resp)}")
+        VivaLog.error(:qdrant, :upsert_failed, status: status, body: inspect(resp))
         {:error, resp}
 
       {:error, reason} ->
@@ -203,7 +203,7 @@ defmodule VivaCore.Qdrant do
         {:ok, Enum.map(points, &parse_point/1)}
 
       {:ok, %{status: status, body: resp}} ->
-        Logger.warning("[Qdrant] Search failed: #{status} - #{inspect(resp)}")
+        VivaLog.warning(:qdrant, :search_failed, status: status, body: inspect(resp))
         # Fallback to simple search
         search_simple(query_vector, limit)
 
@@ -227,7 +227,7 @@ defmodule VivaCore.Qdrant do
         {:ok, Enum.map(points, &parse_point/1)}
 
       {:ok, %{status: status, body: resp}} ->
-        Logger.error("[Qdrant] Simple search failed: #{status}")
+        VivaLog.error(:qdrant, :simple_search_failed, status: status)
         {:error, resp}
 
       {:error, reason} ->

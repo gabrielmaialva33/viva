@@ -1164,26 +1164,28 @@ defmodule VivaCore.Mathematics do
       converged_at: nil
     }
 
-    result = Enum.reduce(1..timesteps, initial_state, fn step, acc ->
-      # Refine chaos
-      refined = dre_refine(structure, acc.current, threshold)
+    result =
+      Enum.reduce(1..timesteps, initial_state, fn step, acc ->
+        # Refine chaos
+        refined = dre_refine(structure, acc.current, threshold)
 
-      # Calculate alignment
-      alignment = alignment_score(structure, refined)
+        # Calculate alignment
+        alignment = alignment_score(structure, refined)
 
-      # Apply opacity decay
-      new_opacity = acc.opacity * decay
+        # Apply opacity decay
+        new_opacity = acc.opacity * decay
 
-      # Check convergence
-      converged_at = if acc.converged_at == nil and alignment > 0.9, do: step, else: acc.converged_at
+        # Check convergence
+        converged_at =
+          if acc.converged_at == nil and alignment > 0.9, do: step, else: acc.converged_at
 
-      %{
-        current: refined,
-        alignments: acc.alignments ++ [alignment],
-        opacity: new_opacity,
-        converged_at: converged_at
-      }
-    end)
+        %{
+          current: refined,
+          alignments: acc.alignments ++ [alignment],
+          opacity: new_opacity,
+          converged_at: converged_at
+        }
+      end)
 
     %{
       final_state: result.current,
@@ -1221,7 +1223,8 @@ defmodule VivaCore.Mathematics do
   ## Returns
   Consolidation score in [0, 1]. Memories > 0.7 should be consolidated.
   """
-  @spec consolidation_score(map(), map(), float(), non_neg_integer(), non_neg_integer()) :: float()
+  @spec consolidation_score(map(), map(), float(), non_neg_integer(), non_neg_integer()) ::
+          float()
   def consolidation_score(memory_pad, baseline_pad, importance, age_seconds, access_count) do
     # Weights
     w_alignment = 0.25
@@ -1237,17 +1240,20 @@ defmodule VivaCore.Mathematics do
 
     # 3. Resilience: memory that survived decay is important
     # Uses spaced repetition logic: age matters, but access extends life
-    decay_half_life = 604_800  # 1 week in seconds
+    # 1 week in seconds
+    decay_half_life = 604_800
     base_decay = :math.exp(-age_seconds / decay_half_life)
     access_boost = min(0.5, :math.log(1 + access_count) / 10.0)
     resilience = min(1.0, base_decay * (1 + access_boost))
 
     # 4. Emotional resonance (how strongly felt)
-    emotional_magnitude = vector_norm({
-      memory_pad.pleasure,
-      memory_pad.arousal,
-      memory_pad.dominance
-    }) / @pad_diagonal_dre
+    emotional_magnitude =
+      vector_norm({
+        memory_pad.pleasure,
+        memory_pad.arousal,
+        memory_pad.dominance
+      }) / @pad_diagonal_dre
+
     resonance = min(1.0, emotional_magnitude * 2)
 
     # Weighted sum

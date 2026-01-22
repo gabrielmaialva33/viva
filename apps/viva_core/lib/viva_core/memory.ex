@@ -35,7 +35,7 @@ defmodule VivaCore.Memory do
 
   use GenServer
   import Bitwise
-  require Logger
+  require VivaLog
 
   alias VivaCore.Qdrant
   alias VivaCore.Embedder
@@ -207,48 +207,45 @@ defmodule VivaCore.Memory do
 
         cond do
           rust_ok and qdrant_ok ->
-            Logger.info("[Memory] Memory neuron online (HYBRID: Rust HNSW + Qdrant)")
+            VivaLog.info(:memory, :neuron_online)
             {:ok, %{state | rust_ready: true, qdrant_ready: true}}
 
           rust_ok ->
-            Logger.warning("[Memory] Qdrant unavailable, episodic-only mode")
+            VivaLog.warning(:memory, :qdrant_unavailable_episodic)
             {:ok, %{state | rust_ready: true, qdrant_ready: false}}
 
           qdrant_ok ->
-            Logger.warning("[Memory] Rust HNSW unavailable, Qdrant-only mode")
+            VivaLog.warning(:memory, :rust_unavailable)
             {:ok, %{state | rust_ready: false, qdrant_ready: true}}
 
           true ->
-            Logger.error("[Memory] Both backends failed, using in-memory fallback")
+            VivaLog.error(:memory, :both_backends_failed)
             {:ok, Map.merge(state, %{backend: :in_memory, memories: %{}, index: []})}
         end
 
       :qdrant ->
         case Qdrant.ensure_collection() do
           :ok ->
-            Logger.info("[Memory] Memory neuron online (backend: Qdrant)")
+            VivaLog.info(:memory, :neuron_online_qdrant)
             {:ok, %{state | qdrant_ready: true}}
 
           {:error, reason} ->
-            Logger.warning(
-              "[Memory] Qdrant unavailable: #{inspect(reason)}, using in-memory fallback"
-            )
-
+            VivaLog.warning(:memory, :qdrant_unavailable, reason: inspect(reason))
             {:ok, Map.merge(state, %{backend: :in_memory, memories: %{}, index: []})}
         end
 
       :in_memory ->
-        Logger.info("[Memory] Memory neuron online (backend: in-memory)")
+        VivaLog.info(:memory, :neuron_online_inmemory)
         {:ok, Map.merge(state, %{memories: %{}, index: []})}
 
       :rust_native ->
         case NativeMemory.init() do
           :ok ->
-            Logger.info("[Memory] Memory neuron online (backend: Rust Native - God Mode)")
+            VivaLog.info(:memory, :neuron_online_rust_native)
             {:ok, %{state | rust_ready: true}}
 
           {:error, reason} ->
-            Logger.error("[Memory] Failed to init native memory: #{inspect(reason)}")
+            VivaLog.error(:memory, :init_failed, reason: inspect(reason))
             {:stop, reason}
         end
     end
@@ -276,12 +273,12 @@ defmodule VivaCore.Memory do
   def handle_call({:store, content, metadata}, _from, state) do
     case do_store(content, metadata, state) do
       {:ok, id} ->
-        Logger.debug("[Memory] Stored: #{String.slice(content, 0, 50)}...")
+        VivaLog.debug(:memory, :stored, preview: String.slice(content, 0, 50))
         notify_dreamer(id, metadata[:importance] || 0.5)
         {:reply, {:ok, id}, %{state | store_count: state.store_count + 1}}
 
       {:ok, id, new_state_data} ->
-        Logger.debug("[Memory] Stored (in-memory): #{String.slice(content, 0, 50)}...")
+        VivaLog.debug(:memory, :stored_inmemory, preview: String.slice(content, 0, 50))
         notify_dreamer(id, metadata[:importance] || 0.5)
         # Handle in-memory state update
         new_state = Map.merge(state, new_state_data)
@@ -321,7 +318,7 @@ defmodule VivaCore.Memory do
         {:reply, memories, %{state | search_count: state.search_count + 1}}
 
       {:error, reason} ->
-        Logger.warning("[Memory] Search failed: #{inspect(reason)}")
+        VivaLog.warning(:memory, :search_failed, reason: inspect(reason))
         {:reply, [], state}
     end
   end
@@ -429,7 +426,7 @@ defmodule VivaCore.Memory do
           state
       end
 
-    Logger.debug("[Memory] Forgot: #{id}")
+    VivaLog.debug(:memory, :forgot, id: id)
     {:noreply, new_state}
   end
 
@@ -584,10 +581,16 @@ defmodule VivaCore.Memory do
 
         # Semantic/Emotional search (Qdrant - persistent)
         qdrant_types = types -- [:episodic]
+
         results =
           if qdrant_types != [] and state.qdrant_ready do
             filter = build_hybrid_filter(qdrant_types, type_filter, min_importance)
-            case Qdrant.search_with_decay(query_vector, limit: limit, decay_scale: base_decay, filter: filter) do
+
+            case Qdrant.search_with_decay(query_vector,
+                   limit: limit,
+                   decay_scale: base_decay,
+                   filter: filter
+                 ) do
               {:ok, semantic} -> results ++ semantic
               _ -> results
             end
@@ -613,6 +616,7 @@ defmodule VivaCore.Memory do
     case Embedder.embed(query) do
       {:ok, query_vector} ->
         filter = build_filter(type_filter, min_importance)
+
         Qdrant.search_with_decay(query_vector,
           limit: limit,
           decay_scale: base_decay,
@@ -674,9 +678,11 @@ defmodule VivaCore.Memory do
     # Filter by specific types (for Qdrant - semantic/emotional/procedural)
     conditions =
       if types != [] do
-        type_conditions = Enum.map(types, fn t ->
-          %{key: "type", match: %{value: Atom.to_string(t)}}
-        end)
+        type_conditions =
+          Enum.map(types, fn t ->
+            %{key: "type", match: %{value: Atom.to_string(t)}}
+          end)
+
         # OR condition for types
         [%{should: type_conditions} | conditions]
       else
@@ -733,12 +739,12 @@ defmodule VivaCore.Memory do
 
           :episodic when state.qdrant_ready ->
             # Fallback: Rust not ready, use Qdrant
-            Logger.debug("[Memory] Rust unavailable, storing episodic in Qdrant")
+            VivaLog.debug(:memory, :rust_fallback_qdrant)
             store_qdrant(id, content, payload)
 
           _ when state.rust_ready ->
             # Fallback: Qdrant not ready, use Rust
-            Logger.debug("[Memory] Qdrant unavailable, storing in Rust")
+            VivaLog.debug(:memory, :qdrant_fallback_rust)
             store_rust_native(id, content, payload, metadata)
 
           _ ->
@@ -765,7 +771,7 @@ defmodule VivaCore.Memory do
         {:ok, id}
 
       {:error, reason} ->
-        Logger.error("[Memory] Embedding failed: #{inspect(reason)}")
+        VivaLog.error(:memory, :embedding_failed, reason: inspect(reason))
         {:error, :embedding_failed}
     end
   end
@@ -808,9 +814,11 @@ defmodule VivaCore.Memory do
 
   # Format emotion for Rust (nil-safe)
   defp format_emotion_for_rust(nil), do: nil
+
   defp format_emotion_for_rust(%{pleasure: p, arousal: a, dominance: d}) do
     %{pleasure: p, arousal: a, dominance: d}
   end
+
   defp format_emotion_for_rust(_), do: nil
 end
 

@@ -8,7 +8,7 @@ defmodule VivaCore.BodySchema do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   # ============================================================================
   # Struct Definition
@@ -78,7 +78,7 @@ defmodule VivaCore.BodySchema do
 
   @impl true
   def init(_opts) do
-    Logger.info("[BodySchema] Cell membrane forming. Identity unknown.")
+    VivaLog.info(:body_schema, :membrane_forming)
 
     # Start self-discovery immediately
     {:ok, %__MODULE__{}, {:continue, :motor_babbling}}
@@ -86,7 +86,7 @@ defmodule VivaCore.BodySchema do
 
   @impl true
   def handle_continue(:motor_babbling, state) do
-    Logger.info("[BodySchema] Motor Babbling: Testing limbs and senses...")
+    VivaLog.info(:body_schema, :motor_babbling)
 
     # 1. Probe CPU/Memory (Introspection)
     sys_info = probe_system_info()
@@ -113,11 +113,9 @@ defmodule VivaCore.BodySchema do
     # Calculate initial confidence based on what we found
     confidence = calculate_confidence(new_hardware)
 
-    Logger.info("[BodySchema] Self-Discovery complete. Confidence: #{confidence}")
-    if fan_status == :working, do: Logger.info("[BodySchema] Active cooling (Lungs) DETECTED.")
-
-    if fan_status == :absent,
-      do: Logger.info("[BodySchema] Active cooling ABSENT. Adapting metabolism.")
+    VivaLog.info(:body_schema, :discovery_complete, confidence: confidence)
+    if fan_status == :working, do: VivaLog.info(:body_schema, :cooling_detected)
+    if fan_status == :absent, do: VivaLog.info(:body_schema, :cooling_absent)
 
     new_state = %{state | local_hardware: new_hardware, confidence: confidence}
 
@@ -157,8 +155,9 @@ defmodule VivaCore.BodySchema do
 
   @impl true
   def handle_info({:network_result, env}, state) do
-    Logger.info(
-      "[BodySchema] Environment Scanned. Gateway: #{env.gateway || "None"}. Peers: #{length(env.peers)}"
+    VivaLog.info(:body_schema, :environment_scanned,
+      gateway: env.gateway || "None",
+      peers_count: length(env.peers)
     )
 
     {:noreply, %{state | network_env: env}}

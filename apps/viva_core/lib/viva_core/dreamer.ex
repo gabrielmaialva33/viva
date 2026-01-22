@@ -40,7 +40,7 @@ defmodule VivaCore.Dreamer do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   alias VivaCore.Memory
   alias VivaCore.Emotional
@@ -306,7 +306,7 @@ defmodule VivaCore.Dreamer do
       sleep_cycle_task: nil
     }
 
-    Logger.info("[Dreamer] Dreamer neuron online. Ready to reflect.")
+    VivaLog.info(:dreamer, :neuron_online)
 
     # Schedule periodic check and store ref
     timer_ref = schedule_reflection_check()
@@ -334,9 +334,7 @@ defmodule VivaCore.Dreamer do
     # Check if threshold reached AND no reflection pending (prevents race condition)
     new_state =
       if new_accumulator >= @importance_threshold and not state.reflection_pending do
-        Logger.info(
-          "[Dreamer] Importance threshold reached (#{Float.round(new_accumulator, 2)}). Triggering reflection."
-        )
+        VivaLog.info(:dreamer, :threshold_reached, accumulator: Float.round(new_accumulator, 2))
 
         send(self(), :trigger_reflection)
         %{new_state | reflection_pending: true}
@@ -355,7 +353,7 @@ defmodule VivaCore.Dreamer do
 
   @impl true
   def handle_call(:sleep_cycle, from, state) do
-    Logger.info("[Dreamer] Sleep cycle initiated. Deep reflection starting asynchronously...")
+    VivaLog.info(:dreamer, :sleep_cycle_initiated)
 
     # Run sleep cycle in a separate task to avoid blocking
     task_ref = make_ref()
@@ -527,12 +525,13 @@ defmodule VivaCore.Dreamer do
   end
 
   defp notify_hallucination(goal_type, target, baseline, is_stuck) do
-    stuck_marker = if is_stuck, do: " [EXPLORING]", else: ""
-
-    Logger.debug(
-      "[Dreamer] Hallucinated Goal: #{goal_type}#{stuck_marker} " <>
-        "(Target P=#{Float.round(target.pleasure, 2)}, A=#{Float.round(target.arousal, 2)}, D=#{Float.round(target.dominance, 2)}) " <>
-        "(Baseline P=#{Float.round(baseline.pleasure, 2)})"
+    VivaLog.debug(:dreamer, :hallucinated_goal,
+      goal_type: goal_type,
+      exploring: is_stuck,
+      target_p: Float.round(target.pleasure, 2),
+      target_a: Float.round(target.arousal, 2),
+      target_d: Float.round(target.dominance, 2),
+      baseline_p: Float.round(baseline.pleasure, 2)
     )
   end
 
@@ -554,7 +553,7 @@ defmodule VivaCore.Dreamer do
       if seconds_since >= @max_reflection_interval and
            length(state.recent_memory_ids) > 5 and
            not state.reflection_pending do
-        Logger.info("[Dreamer] Time-based reflection trigger (#{seconds_since}s since last)")
+        VivaLog.info(:dreamer, :time_based_trigger, seconds_since: seconds_since)
         {_result, s} = do_reflection(state, :time)
         s
       else
@@ -571,7 +570,7 @@ defmodule VivaCore.Dreamer do
     # Demonitor and flush
     Process.demonitor(ref, [:flush])
 
-    Logger.info("[Dreamer] Sleep cycle complete. Generated #{insights_count} insights.")
+    VivaLog.info(:dreamer, :sleep_cycle_complete, insights_count: insights_count)
 
     # Update state with results from sleep cycle
     new_thoughts =
@@ -596,14 +595,14 @@ defmodule VivaCore.Dreamer do
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, reason}, state)
       when is_reference(ref) do
-    Logger.warning("[Dreamer] Async task failed: #{inspect(reason)}")
+    VivaLog.warning(:dreamer, :async_task_failed, reason: inspect(reason))
     {:noreply, %{state | sleep_cycle_task: nil}}
   end
 
   # Catch-all for unexpected messages
   @impl true
   def handle_info(msg, state) do
-    Logger.warning("[Dreamer] Unexpected message: #{inspect(msg)}")
+    VivaLog.warning(:dreamer, :unexpected_message, message: inspect(msg))
     {:noreply, state}
   end
 
@@ -615,8 +614,9 @@ defmodule VivaCore.Dreamer do
     end
 
     # Log termination
-    Logger.info(
-      "[Dreamer] Terminating: #{inspect(reason)}. #{length(state.thoughts)} thoughts in memory."
+    VivaLog.info(:dreamer, :terminating,
+      reason: inspect(reason),
+      thoughts_count: length(state.thoughts)
     )
 
     :ok
@@ -630,8 +630,9 @@ defmodule VivaCore.Dreamer do
     # Multiple reflection iterations
     {all_insights, _final_state} =
       Enum.reduce(1..@sleep_cycle_iterations, {[], state}, fn iteration, {acc, s} ->
-        Logger.info(
-          "[Dreamer] Sleep reflection iteration #{iteration}/#{@sleep_cycle_iterations}"
+        VivaLog.info(:dreamer, :sleep_iteration,
+          iteration: iteration,
+          total: @sleep_cycle_iterations
         )
 
         case safe_reflection(s, :sleep) do
@@ -640,7 +641,11 @@ defmodule VivaCore.Dreamer do
             {insights ++ acc, new_s}
 
           {:error, reason} ->
-            Logger.warning("[Dreamer] Sleep iteration #{iteration} failed: #{inspect(reason)}")
+            VivaLog.warning(:dreamer, :sleep_iteration_failed,
+              iteration: iteration,
+              reason: inspect(reason)
+            )
+
             {acc, s}
         end
       end)
@@ -676,7 +681,7 @@ defmodule VivaCore.Dreamer do
 
   @doc false
   defp consolidate_memories(state) do
-    Logger.info("[Dreamer] Starting memory consolidation (DRE Episodic → Semantic)...")
+    VivaLog.info(:dreamer, :consolidation_starting)
 
     # Calculate personal baseline for alignment check
     baseline_pad = calculate_personal_baseline(state)
@@ -727,8 +732,9 @@ defmodule VivaCore.Dreamer do
                 )
 
               if score >= @consolidation_threshold do
-                Logger.debug(
-                  "[Dreamer] Consolidating Memory #{get_memory_field(m, :id, "?")} Score: #{Float.round(score, 3)}"
+                VivaLog.debug(:dreamer, :consolidating_memory,
+                  id: get_memory_field(m, :id, "?"),
+                  score: Float.round(score, 3)
                 )
 
                 true
@@ -742,7 +748,10 @@ defmodule VivaCore.Dreamer do
           |> Enum.take(@consolidation_limit)
 
         if Enum.empty?(to_consolidate) do
-          Logger.debug("[Dreamer] No memories passed DRE threshold (#{@consolidation_threshold})")
+          VivaLog.debug(:dreamer, :no_memories_passed_threshold,
+            threshold: @consolidation_threshold
+          )
+
           0
         else
           # Consolidate each memory
@@ -754,12 +763,12 @@ defmodule VivaCore.Dreamer do
               end
             end)
 
-          Logger.info("[Dreamer] Consolidated #{consolidated} memories via DRE")
+          VivaLog.info(:dreamer, :consolidated, count: consolidated)
           consolidated
         end
 
       {:error, reason} ->
-        Logger.warning("[Dreamer] Consolidation search failed: #{inspect(reason)}")
+        VivaLog.warning(:dreamer, :consolidation_search_failed, reason: inspect(reason))
         0
     end
   end
@@ -787,7 +796,7 @@ defmodule VivaCore.Dreamer do
         {:ok, _new_id} ->
           # Optionally forget the episodic version to save space
           # For now, we keep both (episodic fades naturally via decay)
-          Logger.debug("[Dreamer] Consolidated memory #{id} → semantic")
+          VivaLog.debug(:dreamer, :memory_promoted, id: id)
           :ok
 
         {:error, _reason} ->
@@ -802,11 +811,11 @@ defmodule VivaCore.Dreamer do
       {:ok, result, new_state}
     rescue
       e ->
-        Logger.error("[Dreamer] Reflection failed: #{Exception.message(e)}")
+        VivaLog.error(:dreamer, :reflection_failed, error: Exception.message(e))
         {:error, e}
     catch
       :exit, reason ->
-        Logger.error("[Dreamer] Reflection exited: #{inspect(reason)}")
+        VivaLog.error(:dreamer, :reflection_exited, reason: inspect(reason))
         {:error, reason}
     end
   end
@@ -817,11 +826,11 @@ defmodule VivaCore.Dreamer do
       {:ok, result}
     rescue
       e ->
-        Logger.error("[Dreamer] Meta-reflection failed: #{Exception.message(e)}")
+        VivaLog.error(:dreamer, :meta_reflection_failed, error: Exception.message(e))
         {:error, e}
     catch
       :exit, reason ->
-        Logger.error("[Dreamer] Meta-reflection exited: #{inspect(reason)}")
+        VivaLog.error(:dreamer, :meta_reflection_exited, reason: inspect(reason))
         {:error, reason}
     end
   end
@@ -831,13 +840,13 @@ defmodule VivaCore.Dreamer do
   # ============================================================================
 
   defp do_reflection(state, trigger_type) do
-    Logger.info("[Dreamer] Starting reflection (trigger: #{trigger_type})")
+    VivaLog.info(:dreamer, :reflecting, trigger: trigger_type)
 
     # Step 1: Generate focal points from recent memories
     focal_points = generate_focal_points(state)
 
     if Enum.empty?(focal_points) do
-      Logger.info("[Dreamer] No focal points generated. Skipping reflection.")
+      VivaLog.info(:dreamer, :no_focal_points)
       result = %{focal_points: [], insights: [], trigger: trigger_type}
       {result, reset_accumulator(state)}
     else
@@ -860,7 +869,7 @@ defmodule VivaCore.Dreamer do
         trigger: trigger_type
       }
 
-      Logger.info("[Dreamer] Reflection complete. Generated #{length(insights)} insights.")
+      VivaLog.info(:dreamer, :reflection_complete, insights_count: length(insights))
 
       {result, reset_accumulator(new_state)}
     end
@@ -980,7 +989,7 @@ defmodule VivaCore.Dreamer do
       feedback = calculate_emotional_feedback(memories)
 
       if feedback do
-        Logger.debug("[Dreamer] Insight triggered emotion: #{feedback}")
+        VivaLog.debug(:dreamer, :insight_triggered_emotion, feedback: feedback)
         Emotional.feel(feedback, "dreamer", 0.8, state.emotional)
       end
 
@@ -1114,15 +1123,15 @@ defmodule VivaCore.Dreamer do
       Memory.get(id, memory_server)
     rescue
       e in [ArgumentError, RuntimeError] ->
-        Logger.warning("[Dreamer] Memory.get failed for #{id}: #{Exception.message(e)}")
+        VivaLog.warning(:dreamer, :memory_get_failed, id: id, error: Exception.message(e))
         nil
     catch
       :exit, {:noproc, _} ->
-        Logger.warning("[Dreamer] Memory server not running")
+        VivaLog.warning(:dreamer, :memory_server_not_running)
         nil
 
       :exit, {:timeout, _} ->
-        Logger.warning("[Dreamer] Memory.get timeout for #{id}")
+        VivaLog.warning(:dreamer, :memory_get_timeout, id: id)
         nil
     end
   end
@@ -1132,15 +1141,15 @@ defmodule VivaCore.Dreamer do
       Memory.store(content, metadata, memory_server)
     rescue
       e in [ArgumentError, RuntimeError] ->
-        Logger.warning("[Dreamer] Memory.store failed: #{Exception.message(e)}")
+        VivaLog.warning(:dreamer, :memory_store_failed, error: Exception.message(e))
         {:error, e}
     catch
       :exit, {:noproc, _} ->
-        Logger.warning("[Dreamer] Memory server not running")
+        VivaLog.warning(:dreamer, :memory_server_not_running)
         {:error, :noproc}
 
       :exit, {:timeout, _} ->
-        Logger.warning("[Dreamer] Memory.store timeout")
+        VivaLog.warning(:dreamer, :memory_store_timeout)
         {:error, :timeout}
     end
   end
@@ -1179,15 +1188,15 @@ defmodule VivaCore.Dreamer do
       end
     rescue
       e in [ArgumentError, RuntimeError] ->
-        Logger.warning("[Dreamer] Memory.search failed: #{Exception.message(e)}")
+        VivaLog.warning(:dreamer, :memory_search_failed, error: Exception.message(e))
         {:error, e}
     catch
       :exit, {:noproc, _} ->
-        Logger.warning("[Dreamer] Memory server not running")
+        VivaLog.warning(:dreamer, :memory_server_not_running)
         {:error, :noproc}
 
       :exit, {:timeout, _} ->
-        Logger.warning("[Dreamer] Memory.search timeout")
+        VivaLog.warning(:dreamer, :memory_search_timeout)
         {:error, :timeout}
     end
   end
@@ -1297,15 +1306,15 @@ defmodule VivaCore.Dreamer do
       end
     rescue
       e in [ArgumentError, RuntimeError] ->
-        Logger.debug("[Dreamer] Failed to get PAD state: #{Exception.message(e)}")
+        VivaLog.debug(:dreamer, :pad_state_failed, error: Exception.message(e))
         default_pad()
     catch
       :exit, {:noproc, _} ->
-        Logger.debug("[Dreamer] Emotional server not running")
+        VivaLog.debug(:dreamer, :emotional_server_not_running)
         default_pad()
 
       :exit, {:timeout, _} ->
-        Logger.debug("[Dreamer] Emotional.get_state timeout")
+        VivaLog.debug(:dreamer, :emotional_get_state_timeout)
         default_pad()
     end
   end

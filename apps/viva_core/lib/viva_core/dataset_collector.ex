@@ -31,7 +31,7 @@ defmodule VivaCore.DatasetCollector do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   # ============================================================================
   # Configuration
@@ -132,7 +132,7 @@ defmodule VivaCore.DatasetCollector do
 
   @impl true
   def init(_opts) do
-    Logger.info("[DatasetCollector] Preparing to record VIVA's experiences...")
+    VivaLog.info(:dataset_collector, :preparing)
 
     ensure_dataset_dir()
 
@@ -146,9 +146,10 @@ defmodule VivaCore.DatasetCollector do
       records = tick_to_records(tick_data)
       new_buffer = state.buffer ++ records
 
-      new_state = %{state |
-        buffer: new_buffer,
-        records_today: state.records_today + length(records)
+      new_state = %{
+        state
+        | buffer: new_buffer,
+          records_today: state.records_today + length(records)
       }
 
       # Flush if buffer is large enough
@@ -164,7 +165,8 @@ defmodule VivaCore.DatasetCollector do
 
   @impl true
   def handle_cast({:set_enabled, enabled}, state) do
-    Logger.info("[DatasetCollector] Collection #{if enabled, do: "enabled", else: "disabled"}")
+    status = if enabled, do: "enabled", else: "disabled"
+    VivaLog.info(:dataset_collector, :collection_status, status: status)
     {:noreply, %{state | enabled: enabled}}
   end
 
@@ -176,12 +178,14 @@ defmodule VivaCore.DatasetCollector do
 
   @impl true
   def handle_call(:stats, _from, state) do
-    stats = Map.merge(state.stats, %{
-      buffer_size: length(state.buffer),
-      records_today: state.records_today,
-      enabled: state.enabled,
-      current_file: state.current_path
-    })
+    stats =
+      Map.merge(state.stats, %{
+        buffer_size: length(state.buffer),
+        records_today: state.records_today,
+        enabled: state.enabled,
+        current_file: state.current_path
+      })
+
     {:reply, stats, state}
   end
 
@@ -256,18 +260,23 @@ defmodule VivaCore.DatasetCollector do
 
     case File.write(state.current_path, csv_lines, [:append]) do
       :ok ->
-        Logger.debug("[DatasetCollector] Flushed #{length(state.buffer)} records to #{Path.basename(state.current_path)}")
+        VivaLog.debug(:dataset_collector, :flushed,
+          count: length(state.buffer),
+          filename: Path.basename(state.current_path)
+        )
 
-        %{state |
-          buffer: [],
-          stats: %{state.stats |
-            total_records: state.stats.total_records + length(state.buffer),
-            last_flush: DateTime.utc_now()
-          }
+        %{
+          state
+          | buffer: [],
+            stats: %{
+              state.stats
+              | total_records: state.stats.total_records + length(state.buffer),
+                last_flush: DateTime.utc_now()
+            }
         }
 
       {:error, reason} ->
-        Logger.error("[DatasetCollector] Failed to write: #{inspect(reason)}")
+        VivaLog.error(:dataset_collector, :write_error, reason: inspect(reason))
         state
     end
   end
@@ -297,12 +306,14 @@ defmodule VivaCore.DatasetCollector do
       File.write!(path, @csv_header)
     end
 
-    Logger.info("[DatasetCollector] Writing to #{Path.basename(path)}")
+    VivaLog.info(:dataset_collector, :writing, filename: Path.basename(path))
 
-    %{state |
-      current_path: path,
-      file: nil,  # We use File.write with :append, no persistent handle needed
-      stats: %{state.stats | files_written: state.stats.files_written + 1}
+    %{
+      state
+      | current_path: path,
+        # We use File.write with :append, no persistent handle needed
+        file: nil,
+        stats: %{state.stats | files_written: state.stats.files_written + 1}
     }
   end
 
@@ -331,9 +342,10 @@ defmodule VivaCore.DatasetCollector do
 
   defp ensure_dataset_dir do
     dir = dataset_dir()
+
     unless File.exists?(dir) do
       File.mkdir_p!(dir)
-      Logger.info("[DatasetCollector] Created dataset directory: #{dir}")
+      VivaLog.info(:dataset_collector, :dir_created, path: dir)
     end
   end
 

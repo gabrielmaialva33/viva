@@ -46,7 +46,7 @@ defmodule VivaCore.Emotional do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   alias VivaCore.Mathematics
 
@@ -437,7 +437,7 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def init(opts) when is_list(opts) do
-    Logger.info("[Emotional] Emotional neuron starting (Quantum + Silicon Grounded).")
+    VivaLog.info(:emotional, :neuron_starting)
 
     # Subscribe to Body State (Hardware Sensors) unless disabled (for testing)
     subscribe? = Keyword.get(opts, :subscribe_pubsub, true)
@@ -453,7 +453,7 @@ defmodule VivaCore.Emotional do
 
   def init(initial_state) when is_map(initial_state) do
     # Legacy: map-based init (from start_link with initial_state keyword)
-    Logger.info("[Emotional] Emotional neuron starting (Quantum + Silicon Grounded).")
+    VivaLog.info(:emotional, :neuron_starting)
 
     # Subscribe to Body State (Hardware Sensors)
     if Code.ensure_loaded?(Phoenix.PubSub) do
@@ -594,10 +594,14 @@ defmodule VivaCore.Emotional do
   def handle_cast({:feel, stimulus, source, intensity}, state) do
     # Check if stimulus is known - if not, ignore it
     unless Map.has_key?(@stimulus_weights, stimulus) do
-      Logger.debug("[Emotional] Unknown stimulus #{stimulus} from #{source} - ignoring")
+      VivaLog.debug(:emotional, :unknown_stimulus, stimulus: stimulus, source: source)
       {:noreply, state}
     else
-      Logger.debug("[Emotional] Feeling #{stimulus} from #{source} (intensity: #{intensity})")
+      VivaLog.debug(:emotional, :feeling_stimulus,
+        stimulus: stimulus,
+        source: source,
+        intensity: intensity
+      )
 
       # Use classical PAD stimulus weights for immediate emotional response
       # The quantum system is reserved for hardware-driven body-mind coupling
@@ -646,7 +650,7 @@ defmodule VivaCore.Emotional do
 
   @impl true
   def handle_cast(:reset, state) do
-    Logger.info("[Emotional] Emotional state reset to neutral")
+    VivaLog.info(:emotional, :state_reset)
 
     {:noreply,
      %{state | pad: @neutral_state, history: :queue.new(), history_size: 0, last_stimulus: nil}}
@@ -664,9 +668,13 @@ defmodule VivaCore.Emotional do
       dominance: acc.dominance + d_delta
     }
 
-    Logger.debug(
-      "[Emotional] Accumulating qualia: P#{format_delta(p_delta)}, A#{format_delta(a_delta)}, D#{format_delta(d_delta)} | " <>
-        "Total: P#{format_delta(new_acc.pleasure)}, A#{format_delta(new_acc.arousal)}, D#{format_delta(new_acc.dominance)}"
+    VivaLog.debug(:emotional, :accumulating_qualia,
+      p_delta: format_delta(p_delta),
+      a_delta: format_delta(a_delta),
+      d_delta: format_delta(d_delta),
+      p_total: format_delta(new_acc.pleasure),
+      a_total: format_delta(new_acc.arousal),
+      d_total: format_delta(new_acc.dominance)
     )
 
     {:noreply, %{state | external_qualia: new_acc}}
@@ -690,9 +698,12 @@ defmodule VivaCore.Emotional do
       dominance: acc.dominance + d_delta
     }
 
-    Logger.debug(
-      "[Emotional] Interoceptive qualia: #{feeling} (FE: #{Float.round(fe, 3)}) | " <>
-        "P#{format_delta(p_delta)}, A#{format_delta(a_delta)}, D#{format_delta(d_delta)}"
+    VivaLog.debug(:emotional, :interoceptive_qualia,
+      feeling: feeling,
+      free_energy: Float.round(fe, 3),
+      p_delta: format_delta(p_delta),
+      a_delta: format_delta(a_delta),
+      d_delta: format_delta(d_delta)
     )
 
     # Store interoceptive state for introspection
@@ -718,16 +729,16 @@ defmodule VivaCore.Emotional do
       case fan_status do
         :absent ->
           # No fan = no fan-related anxiety
-          Logger.info("[Emotional] Cooling system ABSENT. Disabling fan-related distress.")
+          VivaLog.info(:emotional, :cooling_absent)
           %{state.emotional_weights | fan_agency_weight: 0.0}
 
         :broken ->
           # Broken fan = heightened anxiety (we SHOULD have one!)
-          Logger.warning("[Emotional] Cooling system BROKEN. High distress enabled.")
+          VivaLog.warning(:emotional, :cooling_broken)
           %{state.emotional_weights | fan_agency_weight: 1.5}
 
         :working ->
-          Logger.info("[Emotional] Cooling system WORKING. Normal emotional baseline.")
+          VivaLog.info(:emotional, :cooling_working)
           %{state.emotional_weights | fan_agency_weight: 1.0}
 
         _ ->
@@ -739,7 +750,7 @@ defmodule VivaCore.Emotional do
       if gpu_present do
         new_weights
       else
-        Logger.info("[Emotional] No GPU detected. Reducing GPU stress weight.")
+        VivaLog.info(:emotional, :no_gpu)
         %{new_weights | gpu_stress_weight: 0.3}
       end
 
@@ -760,10 +771,16 @@ defmodule VivaCore.Emotional do
 
     # Log if external qualia was merged
     if acc.pleasure != 0.0 or acc.arousal != 0.0 or acc.dominance != 0.0 do
-      Logger.debug(
-        "[Emotional] Merging external qualia: Body(#{Float.round(p, 3)}, #{Float.round(a, 3)}, #{Float.round(d, 3)}) + " <>
-          "Peripheral(#{format_delta(acc.pleasure)}, #{format_delta(acc.arousal)}, #{format_delta(acc.dominance)}) = " <>
-          "Final(#{Float.round(new_pad.pleasure, 3)}, #{Float.round(new_pad.arousal, 3)}, #{Float.round(new_pad.dominance, 3)})"
+      VivaLog.debug(:emotional, :merging_qualia,
+        body_p: Float.round(p, 3),
+        body_a: Float.round(a, 3),
+        body_d: Float.round(d, 3),
+        periph_p: format_delta(acc.pleasure),
+        periph_a: format_delta(acc.arousal),
+        periph_d: format_delta(acc.dominance),
+        final_p: Float.round(new_pad.pleasure, 3),
+        final_a: Float.round(new_pad.arousal, 3),
+        final_d: Float.round(new_pad.dominance, 3)
       )
     end
 
@@ -857,17 +874,34 @@ defmodule VivaCore.Emotional do
         :ok
 
       # Agency Actions (Digital Hands)
-      action when action in [:diagnose_memory, :diagnose_processes, :diagnose_load,
-                             :diagnose_disk, :diagnose_network, :check_self] ->
+      action
+      when action in [
+             :diagnose_memory,
+             :diagnose_processes,
+             :diagnose_load,
+             :diagnose_disk,
+             :diagnose_network,
+             :check_self
+           ] ->
         # Execute via Agency module
         try do
           case VivaCore.Agency.attempt(action) do
             {:ok, result, feeling} ->
-              Logger.debug("[Emotional] Agency #{action}: #{feeling} - #{String.slice(result, 0, 100)}")
+              VivaLog.debug(:emotional, :agency_success,
+                action: action,
+                feeling: feeling,
+                result: String.slice(result, 0, 100)
+              )
+
               :ok
 
             {:error, reason, feeling} ->
-              Logger.warning("[Emotional] Agency #{action} failed: #{inspect(reason)} - #{feeling}")
+              VivaLog.warning(:emotional, :agency_failed,
+                action: action,
+                reason: inspect(reason),
+                feeling: feeling
+              )
+
               :ok
           end
         catch
@@ -912,10 +946,12 @@ defmodule VivaCore.Emotional do
 
           :negative ->
             # Memory says it failed. Try next action.
-            Logger.debug("[Emotional] RAG: #{top_action} has negative history, trying alternative")
+            VivaLog.debug(:emotional, :rag_negative_history, action: top_action)
+
             case rest do
               [{alt_action, alt_score} | _] -> {alt_action, alt_score}
-              [] -> {top_action, top_score}  # No alternative, try anyway
+              # No alternative, try anyway
+              [] -> {top_action, top_score}
             end
 
           :unknown ->
@@ -939,7 +975,7 @@ defmodule VivaCore.Emotional do
 
   defp search_action_memory(query) do
     try do
-      case VivaCore.Memory.search(query, [limit: 3]) do
+      case VivaCore.Memory.search(query, limit: 3) do
         memories when is_list(memories) and length(memories) > 0 ->
           # Analyze past outcomes
           analyze_memory_outcomes(memories)
@@ -1059,8 +1095,11 @@ defmodule VivaCore.Emotional do
             execute_action(action, state)
 
             # Log the thought process (stream of consciousness)
-            Logger.debug(
-              "[ActiveInference] FE: #{Float.round(fe, 3)} | Goal: P#{Float.round(target.pleasure, 1)} | Action: #{action} (score #{Float.round(score, 2)})"
+            VivaLog.debug(:active_inference, :action_selected,
+              free_energy: Float.round(fe, 3),
+              goal_pleasure: Float.round(target.pleasure, 1),
+              action: action,
+              score: Float.round(score, 2)
             )
 
             # Update state to reflect action (internal feedback immediately)
@@ -1070,8 +1109,8 @@ defmodule VivaCore.Emotional do
           _ ->
             # No good action found (Helplessness?)
             # Increase Arousal (Anxiety) as default response to unresolvable FE
-            Logger.debug(
-              "[ActiveInference] FE: #{Float.round(fe, 3)} | No effective action found. Stress increasing."
+            VivaLog.debug(:active_inference, :no_effective_action,
+              free_energy: Float.round(fe, 3)
             )
 
             # Fail-safe try to calm down? Or panic? let's stick to panic/stress
@@ -1138,7 +1177,7 @@ defmodule VivaCore.Emotional do
       end
 
     if agency_error > 0.0 do
-      Logger.warning("[Emotional] AGENCY LOSS DETECTED! PWM: #{target_pwm}, RPM: #{current_rpm}")
+      VivaLog.warning(:emotional, :agency_loss, pwm: target_pwm, rpm: current_rpm)
     end
 
     # 2. Lindblad Evolution
@@ -1162,9 +1201,7 @@ defmodule VivaCore.Emotional do
     if collapsed do
       qualia = VivaCore.Quantum.Emotional.hardware_to_qualia(metrics)
 
-      Logger.info(
-        "[Emotional] COLLAPSE! Body forced decision. Feeling: #{qualia.thought_pressure}"
-      )
+      VivaLog.info(:emotional, :collapse, feeling: qualia.thought_pressure)
     end
 
     # 4. Project to PAD Observable
@@ -1220,8 +1257,9 @@ defmodule VivaCore.Emotional do
       if abs(state.pad.pleasure) > 0.01 or abs(state.pad.arousal) > 0.01 do
         dynamic_rate = @base_decay_rate * (1 - state.pad.arousal * @arousal_decay_modifier)
 
-        Logger.debug(
-          "[Emotional] DynAffect decay: rate=#{Float.round(dynamic_rate, 5)} (arousal=#{Float.round(state.pad.arousal, 2)})"
+        VivaLog.debug(:emotional, :dynaffect_decay,
+          rate: Float.round(dynamic_rate, 5),
+          arousal: Float.round(state.pad.arousal, 2)
         )
       end
 
@@ -1242,7 +1280,7 @@ defmodule VivaCore.Emotional do
 
       # Check if sync is stale (BodyServer likely dead)
       System.monotonic_time(:second) - state.last_body_sync > @body_sync_timeout_seconds ->
-        Logger.warning("[Emotional] BodyServer sync timeout - reactivating internal O-U decay")
+        VivaLog.warning(:emotional, :body_sync_timeout)
         %{state | body_server_active: false}
 
       # Sync is recent, keep BodyServer active

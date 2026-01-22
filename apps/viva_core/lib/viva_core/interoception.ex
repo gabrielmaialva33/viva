@@ -25,7 +25,7 @@ defmodule VivaCore.Interoception do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   # ============================================================================
   # Generative Model: Gaussian Priors
@@ -142,7 +142,7 @@ defmodule VivaCore.Interoception do
 
   @impl true
   def init(_opts) do
-    Logger.info("[Interoception] Insula coming online. Learning to feel the host...")
+    VivaLog.info(:interoception, :insula_online)
 
     # Get BEAM PID
     beam_pid = System.pid() |> String.to_integer()
@@ -556,8 +556,10 @@ defmodule VivaCore.Interoception do
   end
 
   defp notify_emotional_change(old_feeling, new_feeling, fe) do
-    Logger.debug(
-      "[Interoception] Feeling changed: #{old_feeling} -> #{new_feeling} (FE: #{Float.round(fe, 3)})"
+    VivaLog.debug(:interoception, :feeling_changed,
+      old: old_feeling,
+      new: new_feeling,
+      free_energy: Float.round(fe, 3)
     )
 
     # Notify Emotional module about interoceptive state change

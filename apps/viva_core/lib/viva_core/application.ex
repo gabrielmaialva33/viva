@@ -17,11 +17,11 @@ defmodule VivaCore.Application do
   """
 
   use Application
-  require Logger
+  require VivaLog
 
   @impl true
   def start(_type, _args) do
-    Logger.info("[VivaCore] Starting consciousness... Neurons waking up.")
+    VivaLog.info(:viva_core, :starting_consciousness)
 
     children = [
       # PubSub - message bus for inter-neuron communication
@@ -76,18 +76,18 @@ defmodule VivaCore.Application do
 
     case Supervisor.start_link(children, opts) do
       {:ok, pid} ->
-        Logger.info("[VivaCore] Consciousness online. #{length(children)} neurons active.")
+        VivaLog.info(:viva_core, :consciousness_online, count: length(children))
         {:ok, pid}
 
       {:error, reason} = error ->
-        Logger.error("[VivaCore] Failed to start consciousness: #{inspect(reason)}")
+        VivaLog.error(:viva_core, :startup_failed, reason: inspect(reason))
         error
     end
   end
 
   @impl true
   def stop(_state) do
-    Logger.info("[VivaCore] Consciousness shutting down... Neurons sleeping.")
+    VivaLog.info(:viva_core, :shutting_down)
     :ok
   end
 end

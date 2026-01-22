@@ -24,7 +24,7 @@ defmodule VivaCore.Senses do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   # 1 second
   @default_interval_ms 1000
@@ -110,7 +110,7 @@ defmodule VivaCore.Senses do
       errors: []
     }
 
-    Logger.info("[Senses] Nervous system starting. Heartbeat: #{interval_ms}ms")
+    VivaLog.info(:senses, :starting, interval: interval_ms)
 
     # Use handle_continue to avoid race condition on startup
     # (wait for Emotional to be registered before sending qualia)
@@ -140,20 +140,20 @@ defmodule VivaCore.Senses do
 
   @impl true
   def handle_cast(:pause, state) do
-    Logger.info("[Senses] Sensing paused")
+    VivaLog.info(:senses, :paused)
     {:noreply, %{state | enabled: false}}
   end
 
   @impl true
   def handle_cast(:resume, state) do
-    Logger.info("[Senses] Sensing resumed")
+    VivaLog.info(:senses, :resumed)
     schedule_heartbeat(state.interval_ms)
     {:noreply, %{state | enabled: true}}
   end
 
   @impl true
   def handle_cast({:set_interval, interval_ms}, state) do
-    Logger.info("[Senses] Interval changed: #{state.interval_ms}ms -> #{interval_ms}ms")
+    VivaLog.info(:senses, :interval_changed, old: state.interval_ms, new: interval_ms)
     {:noreply, %{state | interval_ms: interval_ms}}
   end
 
@@ -222,12 +222,14 @@ defmodule VivaCore.Senses do
       {p, a, d, hardware} = get_body_state_or_fallback(state)
 
       # Summary log (debug level to avoid noise)
-      Logger.debug(
-        "[Senses] Heartbeat ##{state.heartbeat_count + 1}: " <>
-          "CPU=#{format_percent(hardware[:cpu_usage])}% " <>
-          "RAM=#{format_percent(hardware[:memory_used_percent])}% " <>
-          "GPU=#{format_gpu(hardware[:gpu_usage])} " <>
-          "PAD=(P#{format_delta(p)}, A#{format_delta(a)}, D#{format_delta(d)})"
+      VivaLog.debug(:senses, :heartbeat,
+        count: state.heartbeat_count + 1,
+        cpu: format_percent(hardware[:cpu_usage]),
+        ram: format_percent(hardware[:memory_used_percent]),
+        gpu: format_gpu(hardware[:gpu_usage]),
+        p: format_delta(p),
+        a: format_delta(a),
+        d: format_delta(d)
       )
 
       new_state = %{
@@ -240,7 +242,7 @@ defmodule VivaCore.Senses do
       {{:ok, {p, a, d}}, new_state}
     rescue
       error ->
-        Logger.error("[Senses] Heartbeat error: #{inspect(error)}")
+        VivaLog.error(:senses, :heartbeat_error, error: inspect(error))
 
         new_state = %{
           state

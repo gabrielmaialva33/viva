@@ -34,7 +34,7 @@ defmodule VivaCore.Agency do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   alias VivaCore.Memory
 
@@ -178,7 +178,7 @@ defmodule VivaCore.Agency do
 
   @impl true
   def init(_opts) do
-    Logger.info("[Agency] Digital hands forming. I can now act on the world.")
+    VivaLog.info(:agency, :hands_forming)
 
     beam_pid = System.pid() |> String.to_integer()
 
@@ -221,7 +221,7 @@ defmodule VivaCore.Agency do
   defp execute_action(action, state) do
     case Map.get(@allowed_commands, action) do
       nil ->
-        Logger.warning("[Agency] Forbidden action attempted: #{action}")
+        VivaLog.warning(:agency, :forbidden_action, action: action)
         {:error, :forbidden, :shame}
 
       config ->
@@ -242,7 +242,7 @@ defmodule VivaCore.Agency do
   defp execute_command(cmd, config) do
     [executable | args] = cmd
 
-    Logger.debug("[Agency] Executing: #{Enum.join(cmd, " ")}")
+    VivaLog.debug(:agency, :executing_command, command: Enum.join(cmd, " "))
 
     case System.cmd(executable, args, stderr_to_stdout: true) do
       {output, 0} ->
@@ -261,12 +261,12 @@ defmodule VivaCore.Agency do
         {:ok, truncated, config.expected_feeling}
 
       {error_output, exit_code} ->
-        Logger.warning("[Agency] Command failed (exit #{exit_code}): #{error_output}")
+        VivaLog.warning(:agency, :command_failed, exit_code: exit_code, error: error_output)
         {:error, {:exit_code, exit_code, error_output}, config.failure_feeling}
     end
   rescue
     e ->
-      Logger.error("[Agency] Command exception: #{inspect(e)}")
+      VivaLog.error(:agency, :command_exception, exception: inspect(e))
       {:error, {:exception, e}, :panic}
   end
 

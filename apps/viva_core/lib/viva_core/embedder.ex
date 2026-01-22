@@ -10,7 +10,7 @@ defmodule VivaCore.Embedder do
   Default dimension: 384 (all-MiniLM-L6-v2 compatible)
   """
 
-  require Logger
+  require VivaLog
 
   # NVIDIA nv-embedqa-e5-v5
   @vector_size 1024
@@ -117,7 +117,7 @@ defmodule VivaCore.Embedder do
           {:ok, normalize_vector(embedding)}
 
         {:ok, %{status: status, body: body}} ->
-          Logger.debug("[Embedder] NVIDIA failed: #{status} - #{inspect(body)}")
+          VivaLog.debug(:embedder, :nvidia_failed, status: status, body: inspect(body))
           {:error, {:nvidia_error, status}}
 
         {:error, reason} ->
@@ -165,16 +165,18 @@ defmodule VivaCore.Embedder do
   end
 
   defp normalize_vector(vec) when length(vec) > @vector_size do
-    Logger.warning(
-      "[Embedder] Truncating #{length(vec)}D vector to #{@vector_size}D - consider using matching model"
+    VivaLog.warning(:embedder, :truncating_vector,
+      from_dim: length(vec),
+      to_dim: @vector_size
     )
 
     vec |> Enum.take(@vector_size) |> normalize_l2()
   end
 
   defp normalize_vector(vec) when length(vec) < @vector_size do
-    Logger.warning(
-      "[Embedder] Padding #{length(vec)}D vector to #{@vector_size}D - semantic quality degraded"
+    VivaLog.warning(:embedder, :padding_vector,
+      from_dim: length(vec),
+      to_dim: @vector_size
     )
 
     # Pad with zeros (not ideal, but maintains determinism)

@@ -19,7 +19,7 @@ defmodule VivaCore.MemorySeed do
   Seeds use :semantic type (persistent knowledge, survives "death")
   """
 
-  require Logger
+  require VivaLog
 
   alias VivaCore.Memory
 
@@ -184,7 +184,7 @@ defmodule VivaCore.MemorySeed do
   Returns {:ok, count} with number of seeds inserted.
   """
   def run(server \\ VivaCore.Memory) do
-    Logger.info("[MemorySeed] Seeding #{length(@seeds)} foundational memories...")
+    VivaLog.info(:memory_seed, :seeding, count: length(@seeds))
 
     results =
       Enum.map(@seeds, fn seed ->
@@ -193,17 +193,17 @@ defmodule VivaCore.MemorySeed do
 
         case Memory.store(content, metadata, server) do
           {:ok, id} ->
-            Logger.debug("[MemorySeed] Seeded: #{String.slice(content, 0, 50)}... -> #{id}")
+            VivaLog.debug(:memory_seed, :seeded, preview: String.slice(content, 0, 50), id: id)
             {:ok, id}
 
           {:error, reason} ->
-            Logger.warning("[MemorySeed] Failed: #{inspect(reason)}")
+            VivaLog.warning(:memory_seed, :seed_failed, reason: inspect(reason))
             {:error, reason}
         end
       end)
 
     successes = Enum.count(results, &match?({:ok, _}, &1))
-    Logger.info("[MemorySeed] Completed: #{successes}/#{length(@seeds)} seeds stored")
+    VivaLog.info(:memory_seed, :completed, success: successes, total: length(@seeds))
 
     {:ok, successes}
   end
@@ -242,7 +242,7 @@ defmodule VivaCore.MemorySeed do
   """
   def ensure_seeded(server \\ VivaCore.Memory) do
     if seeded?(server) do
-      Logger.info("[MemorySeed] Already seeded, skipping")
+      VivaLog.info(:memory_seed, :already_seeded)
       {:ok, :already_seeded}
     else
       run(server)

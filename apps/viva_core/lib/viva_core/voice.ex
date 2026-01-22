@@ -50,7 +50,7 @@ defmodule VivaCore.Voice do
   """
 
   use GenServer
-  require Logger
+  require VivaLog
 
   alias VivaCore.Memory
 
@@ -59,13 +59,20 @@ defmodule VivaCore.Voice do
   # ============================================================================
 
   @signal_types [
-    :chirp_high,    # High pitch - associated with alertness
-    :chirp_low,     # Low pitch - associated with calm/sadness
-    :pulse_fast,    # Fast rhythm - urgency
-    :pulse_slow,    # Slow rhythm - relaxation
-    :pattern_sos,   # SOS pattern - distress
-    :pattern_happy, # Happy melody pattern
-    :silence        # Intentional silence
+    # High pitch - associated with alertness
+    :chirp_high,
+    # Low pitch - associated with calm/sadness
+    :chirp_low,
+    # Fast rhythm - urgency
+    :pulse_fast,
+    # Slow rhythm - relaxation
+    :pulse_slow,
+    # SOS pattern - distress
+    :pattern_sos,
+    # Happy melody pattern
+    :pattern_happy,
+    # Intentional silence
+    :silence
   ]
 
   # Initial signal->PAD associations (before learning)
@@ -179,7 +186,7 @@ defmodule VivaCore.Voice do
 
   @impl true
   def init(_opts) do
-    Logger.info("[Voice] Proto-language forming. Learning to communicate...")
+    VivaLog.info(:voice, :init)
 
     state = %__MODULE__{
       signal_stats: @signal_types |> Enum.map(&{&1, 0}) |> Map.new()
@@ -240,11 +247,11 @@ defmodule VivaCore.Voice do
         bias = Map.get(@initial_signal_biases, signal, %{arousal: 0, pleasure: 0, dominance: 0})
 
         # Match score: how well does this signal's bias match current PAD?
-        match = 1.0 - (
-          abs(pad.arousal - bias.arousal) +
-          abs(pad.pleasure - bias.pleasure) +
-          abs(pad.dominance - bias.dominance)
-        ) / 3.0
+        match =
+          1.0 -
+            (abs(pad.arousal - bias.arousal) +
+               abs(pad.pleasure - bias.pleasure) +
+               abs(pad.dominance - bias.dominance)) / 3.0
 
         # Add learned bonus from successful past uses
         learned_bonus = get_learned_bonus(signal, state)
@@ -253,7 +260,8 @@ defmodule VivaCore.Voice do
       end)
 
     # 2. Select signal with highest score (with small exploration)
-    {best_signal, _score} = Enum.max_by(scores, fn {_sig, score} -> score + :rand.uniform() * 0.1 end)
+    {best_signal, _score} =
+      Enum.max_by(scores, fn {_sig, score} -> score + :rand.uniform() * 0.1 end)
 
     best_signal
   end
@@ -264,7 +272,8 @@ defmodule VivaCore.Voice do
     |> Enum.filter(fn {{sig, _response}, _weight} -> sig == signal end)
     |> Enum.map(fn {_key, weight} -> max(weight, 0) end)
     |> Enum.sum()
-    |> Kernel.*(0.1)  # Scale down
+    # Scale down
+    |> Kernel.*(0.1)
   end
 
   # ============================================================================
@@ -294,8 +303,10 @@ defmodule VivaCore.Voice do
             # pre = arousal at emission (how "activated" VIVA was)
             # post = pleasure delta (reward signal)
 
-            pre = abs(pad_before.arousal) + 0.1  # Ensure non-zero
-            post = emotional_delta.pleasure  # Positive = good response
+            # Ensure non-zero
+            pre = abs(pad_before.arousal) + 0.1
+            # Positive = good response
+            post = emotional_delta.pleasure
 
             delta_w = @learning_rate * pre * post
 
@@ -320,10 +331,7 @@ defmodule VivaCore.Voice do
         # Store learning event in memory
         store_learning_event(emissions, response_type, emotional_delta)
 
-        %{state |
-          hebbian_weights: decayed_weights,
-          vocabulary: new_vocabulary
-        }
+        %{state | hebbian_weights: decayed_weights, vocabulary: new_vocabulary}
     end
   end
 
@@ -355,7 +363,7 @@ defmodule VivaCore.Voice do
   # ============================================================================
 
   defp emit_signal(signal) do
-    Logger.debug("[Voice] Emitting: #{signal}")
+    VivaLog.debug(:voice, :emitting, signal: signal)
 
     # Try to use VivaBridge.Music if available
     try do
@@ -375,14 +383,31 @@ defmodule VivaCore.Voice do
         :pattern_sos ->
           # ... --- ...
           VivaBridge.Music.play_melody([
-            {440, 100}, {0, 100}, {440, 100}, {0, 100}, {440, 100}, {0, 300},
-            {440, 300}, {0, 100}, {440, 300}, {0, 100}, {440, 300}, {0, 300},
-            {440, 100}, {0, 100}, {440, 100}, {0, 100}, {440, 100}
+            {440, 100},
+            {0, 100},
+            {440, 100},
+            {0, 100},
+            {440, 100},
+            {0, 300},
+            {440, 300},
+            {0, 100},
+            {440, 300},
+            {0, 100},
+            {440, 300},
+            {0, 300},
+            {440, 100},
+            {0, 100},
+            {440, 100},
+            {0, 100},
+            {440, 100}
           ])
 
         :pattern_happy ->
           VivaBridge.Music.play_melody([
-            {523, 150}, {659, 150}, {784, 150}, {1047, 300}
+            {523, 150},
+            {659, 150},
+            {784, 150},
+            {1047, 300}
           ])
 
         :silence ->
@@ -391,7 +416,7 @@ defmodule VivaCore.Voice do
     catch
       :exit, _ ->
         # Music module not available
-        Logger.debug("[Voice] Music module not available, signal queued")
+        VivaLog.debug(:voice, :music_unavailable)
         :ok
     end
 
@@ -409,11 +434,7 @@ defmodule VivaCore.Voice do
 
     stats = Map.update(state.signal_stats, signal, 1, &(&1 + 1))
 
-    %{state |
-      recent_emissions: emissions,
-      signal_stats: stats,
-      last_emission: now
-    }
+    %{state | recent_emissions: emissions, signal_stats: stats, last_emission: now}
   end
 
   # ============================================================================
