@@ -40,6 +40,12 @@ sysinfo = "0.33"
 # Async Channel (Bridge)
 crossbeam-channel = "0.5"
 
+# Jolt Physics (AAA deterministic physics)
+rolt = "0.3"
+joltc-sys = "0.3"  # Direct bindings for step() and snapshot
+glam = "0.27"
+bytemuck = { version = "1.14", features = ["derive"] }  # Zero-copy serialization
+
 [target.'cfg(target_os = "linux")'.dependencies]
 perf-event = "0.4"
 nvml-wrapper = "0.10"
