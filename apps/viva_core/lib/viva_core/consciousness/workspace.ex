@@ -96,10 +96,13 @@ defmodule VivaCore.Consciousness.Workspace do
 
   @impl true
   def handle_info(:conscious_cycle, state) do
-    state
-    |> decay_seeds()
-    |> compete()
-    |> broadcast_focus()
+    new_state =
+      state
+      |> decay_seeds()
+      |> compete()
+      |> broadcast_focus()
+
+    {:noreply, new_state}
   end
 
   @impl true
