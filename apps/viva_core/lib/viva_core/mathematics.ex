@@ -1027,4 +1027,243 @@ defmodule VivaCore.Mathematics do
 
     %{mean: mean, variance: variance, precision: precision}
   end
+
+  # =============================================================================
+  # DYNAMIC RELATIONSHIP EXPANSION (DRE)
+  # Adapted from SlappAI/Singularity - made rigorous for VIVA
+  # =============================================================================
+
+  @doc """
+  Dynamic Relationship Expansion: Alignment Score.
+
+  Measures how well a "chaotic" state (Y) aligns with a "structured" baseline (X).
+
+  Inspired by DRE framework (Maystone, 2024) but formalized:
+
+  A(X, Y) = 1 - ||Y - X|| / (||X|| + ||Y|| + ε)
+
+  Unlike the original `sum(Y)/sum(X)` which is unbounded,
+  this formulation:
+  - Returns values in [0, 1]
+  - A = 1 means perfect alignment (Y = X)
+  - A = 0 means maximum divergence
+  - Handles edge cases gracefully
+
+  ## Use Cases
+  - Memory consolidation: align episodic (chaotic) with semantic (structured)
+  - Emotional regulation: align current state with baseline
+  - Goal tracking: align behavior with intentions
+
+  ## Parameters
+  - `structure`: baseline/target PAD state (X)
+  - `chaos`: current/observed PAD state (Y)
+
+  ## Returns
+  Alignment score in [0, 1].
+
+  ## Example
+
+      iex> baseline = %{pleasure: 0.2, arousal: 0.1, dominance: 0.1}
+      iex> current = %{pleasure: 0.3, arousal: 0.2, dominance: 0.15}
+      iex> VivaCore.Mathematics.alignment_score(baseline, current)
+      0.85  # Well aligned
+  """
+  @spec alignment_score(map(), map()) :: float()
+  def alignment_score(structure, chaos) do
+    # Extract PAD values
+    x = {structure.pleasure, structure.arousal, structure.dominance}
+    y = {chaos.pleasure, chaos.arousal, chaos.dominance}
+
+    # Vector norms
+    norm_x = vector_norm(x)
+    norm_y = vector_norm(y)
+    diff_norm = vector_diff_norm(x, y)
+
+    # Normalized alignment: 1 - distance/(total magnitude)
+    epsilon = 0.0001
+    denominator = norm_x + norm_y + epsilon
+
+    max(0.0, 1.0 - diff_norm / denominator)
+  end
+
+  @doc """
+  DRE Refinement Step: Chaos converges toward Structure.
+
+  Implements the DRE feedback loop where chaos is refined based on alignment:
+  - High alignment → reduce chaos magnitude (stabilize)
+  - Low alignment → increase chaos magnitude (explore/destabilize)
+
+  dY/dt = -α(A) · (Y - X)
+
+  Where α(A) = base_rate × (1 + k·A) for alignment-dependent decay.
+
+  ## Parameters
+  - `structure`: baseline/target state (X)
+  - `chaos`: current chaotic state (Y)
+  - `alignment_threshold`: threshold for switching behavior (default 0.5)
+  - `decay_rate`: rate of convergence when aligned (default 0.1)
+  - `amplify_rate`: rate of divergence when misaligned (default 0.05)
+
+  ## Returns
+  Refined chaos state moving toward/away from structure.
+  """
+  @spec dre_refine(map(), map(), float(), float(), float()) :: map()
+  def dre_refine(
+        structure,
+        chaos,
+        alignment_threshold \\ 0.5,
+        decay_rate \\ 0.1,
+        amplify_rate \\ 0.05
+      ) do
+    alignment = alignment_score(structure, chaos)
+
+    # Determine rate based on alignment
+    rate = if alignment > alignment_threshold, do: decay_rate, else: -amplify_rate
+
+    # Move chaos toward structure (positive rate) or away (negative rate)
+    %{
+      pleasure: chaos.pleasure + rate * (structure.pleasure - chaos.pleasure),
+      arousal: chaos.arousal + rate * (structure.arousal - chaos.arousal),
+      dominance: chaos.dominance + rate * (structure.dominance - chaos.dominance)
+    }
+  end
+
+  @doc """
+  Temporal Alignment Propagation: Simulates DRE over multiple timesteps.
+
+  N(t) = Σᵢ(Xᵢ + Yᵢ) × decay(t)
+
+  Models how alignment evolves over time with:
+  - Iterative refinement
+  - Opacity/influence decay
+  - Alignment score history
+
+  ## Parameters
+  - `structure`: baseline state
+  - `initial_chaos`: starting chaotic state
+  - `timesteps`: number of iterations
+  - `opts`: options
+    - `:decay_per_step` - how much influence decays each step (default 0.95)
+    - `:alignment_threshold` - threshold for refinement (default 0.5)
+
+  ## Returns
+  Map with:
+  - `:final_state` - end state after propagation
+  - `:alignment_history` - list of alignment scores
+  - `:convergence_step` - step where alignment > 0.9 (or nil)
+  """
+  @spec dre_propagate(map(), map(), pos_integer(), keyword()) :: map()
+  def dre_propagate(structure, initial_chaos, timesteps, opts \\ []) do
+    decay = Keyword.get(opts, :decay_per_step, 0.95)
+    threshold = Keyword.get(opts, :alignment_threshold, 0.5)
+
+    initial_state = %{
+      current: initial_chaos,
+      alignments: [],
+      opacity: 1.0,
+      converged_at: nil
+    }
+
+    result = Enum.reduce(1..timesteps, initial_state, fn step, acc ->
+      # Refine chaos
+      refined = dre_refine(structure, acc.current, threshold)
+
+      # Calculate alignment
+      alignment = alignment_score(structure, refined)
+
+      # Apply opacity decay
+      new_opacity = acc.opacity * decay
+
+      # Check convergence
+      converged_at = if acc.converged_at == nil and alignment > 0.9, do: step, else: acc.converged_at
+
+      %{
+        current: refined,
+        alignments: acc.alignments ++ [alignment],
+        opacity: new_opacity,
+        converged_at: converged_at
+      }
+    end)
+
+    %{
+      final_state: result.current,
+      alignment_history: result.alignments,
+      convergence_step: result.converged_at,
+      final_alignment: alignment_score(structure, result.current),
+      final_opacity: result.opacity
+    }
+  end
+
+  # PAD space diagonal (√3 for normalized [-1,1]³)
+  @pad_diagonal_dre 1.732
+
+  @doc """
+  Memory Consolidation Score: Determines if memory should be promoted.
+
+  Combines multiple factors to decide if an episodic memory
+  should be consolidated to semantic (permanent) storage.
+
+  C(m) = w_a·A(m) + w_i·I(m) + w_r·R(m) + w_e·E(m)
+
+  Where:
+  - A: Alignment with personal values/baseline (DRE score)
+  - I: Importance of the memory
+  - R: Recency decay (older but still remembered = significant)
+  - E: Emotional resonance with current state
+
+  ## Parameters
+  - `memory_pad`: emotional state when memory was formed
+  - `baseline_pad`: personal baseline/values
+  - `importance`: memory importance [0, 1]
+  - `age_seconds`: how old the memory is
+  - `access_count`: times the memory was accessed
+
+  ## Returns
+  Consolidation score in [0, 1]. Memories > 0.7 should be consolidated.
+  """
+  @spec consolidation_score(map(), map(), float(), non_neg_integer(), non_neg_integer()) :: float()
+  def consolidation_score(memory_pad, baseline_pad, importance, age_seconds, access_count) do
+    # Weights
+    w_alignment = 0.25
+    w_importance = 0.35
+    w_resilience = 0.25
+    w_resonance = 0.15
+
+    # 1. Alignment with personal baseline
+    alignment = alignment_score(baseline_pad, memory_pad)
+
+    # 2. Raw importance (already 0-1)
+    imp = clamp(importance, 0.0, 1.0)
+
+    # 3. Resilience: memory that survived decay is important
+    # Uses spaced repetition logic: age matters, but access extends life
+    decay_half_life = 604_800  # 1 week in seconds
+    base_decay = :math.exp(-age_seconds / decay_half_life)
+    access_boost = min(0.5, :math.log(1 + access_count) / 10.0)
+    resilience = min(1.0, base_decay * (1 + access_boost))
+
+    # 4. Emotional resonance (how strongly felt)
+    emotional_magnitude = vector_norm({
+      memory_pad.pleasure,
+      memory_pad.arousal,
+      memory_pad.dominance
+    }) / @pad_diagonal_dre
+    resonance = min(1.0, emotional_magnitude * 2)
+
+    # Weighted sum
+    w_alignment * alignment +
+      w_importance * imp +
+      w_resilience * resilience +
+      w_resonance * resonance
+  end
+
+  # Vector utilities for DRE
+  defp vector_norm({x, y, z}), do: :math.sqrt(x * x + y * y + z * z)
+
+  defp vector_diff_norm({x1, y1, z1}, {x2, y2, z2}) do
+    dx = x1 - x2
+    dy = y1 - y2
+    dz = z1 - z2
+    :math.sqrt(dx * dx + dy * dy + dz * dz)
+  end
 end
