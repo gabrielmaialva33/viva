@@ -49,6 +49,8 @@ defmodule VivaCore.Emotional do
   require VivaLog
 
   alias VivaCore.Mathematics
+  alias VivaCore.EmotionFusion
+  alias VivaCore.Personality
 
   # Emotional model constants
   @neutral_state %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
@@ -134,6 +136,22 @@ defmodule VivaCore.Emotional do
   def get_happiness(server \\ __MODULE__) do
     state = get_state(server)
     normalize_to_unit(state.pleasure)
+  end
+
+  @doc """
+  Returns the current mood state.
+
+  Mood is a slow-changing EMA (Exponential Moving Average) of emotional states,
+  providing stability over time. Based on Borotschnig (2025).
+
+  ## Example
+
+      mood = VivaCore.Emotional.get_mood()
+      # => %{pleasure: 0.1, arousal: 0.0, dominance: 0.05}
+
+  """
+  def get_mood(server \\ __MODULE__) do
+    GenServer.call(server, :get_mood)
   end
 
   @doc """
@@ -508,6 +526,14 @@ defmodule VivaCore.Emotional do
       interoceptive_feeling: :homeostatic,
       interoceptive_free_energy: 0.0,
 
+      # Mood state (EMA of PAD) - Borotschnig 2025
+      # Mood is slower-changing than instantaneous emotion
+      # Updated via EmotionFusion.update_mood/2
+      mood: %{pleasure: 0.0, arousal: 0.0, dominance: 0.0},
+
+      # Personality reference (loaded lazily on first fusion)
+      personality: nil,
+
       # Telemetry for debug
       thermodynamic_cost: 0.0,
       last_collapse: nil,
@@ -535,6 +561,11 @@ defmodule VivaCore.Emotional do
   @impl true
   def handle_call(:get_state, _from, state) do
     {:reply, state.pad, state}
+  end
+
+  @impl true
+  def handle_call(:get_mood, _from, state) do
+    {:reply, state.mood, state}
   end
 
   @impl true
@@ -786,9 +817,13 @@ defmodule VivaCore.Emotional do
 
     # Reset accumulator after merge
     # Track last sync time to detect BodyServer death
+    # Update mood using EMA (Borotschnig 2025)
+    new_mood = VivaCore.EmotionFusion.update_mood(state.mood, new_pad)
+
     new_state = %{
       state
       | pad: new_pad,
+        mood: new_mood,
         external_qualia: %{pleasure: 0.0, arousal: 0.0, dominance: 0.0},
         body_server_active: true,
         last_body_sync: System.monotonic_time(:second)
@@ -1050,6 +1085,48 @@ defmodule VivaCore.Emotional do
   def handle_info(:active_inference_tick, state) do
     schedule_active_inference()
 
+    # =========================================================================
+    # EMOTION FUSION (Borotschnig 2025)
+    # Combine need-based, past-based, and personality-based emotions
+    # =========================================================================
+
+    # 0.1 Load or get cached personality
+    personality = get_or_load_personality(state)
+
+    # 0.2 Get need-based PAD from interoceptive state
+    need_pad = get_need_based_pad(state)
+
+    # 0.3 Retrieve past emotions from similar situations
+    situation_desc = describe_current_situation(state)
+    past_result = safe_retrieve_past_emotions(situation_desc)
+
+    # 0.4 Build context for adaptive weights
+    fusion_context = %{
+      arousal: state.pad.arousal,
+      confidence: past_result.confidence,
+      novelty: past_result.novelty
+    }
+
+    # 0.5 Fuse emotions
+    fusion_result = EmotionFusion.fuse(
+      need_pad,
+      past_result.aggregate_pad,
+      personality,
+      state.mood,
+      fusion_context
+    )
+
+    # 0.6 Update state with fused emotion and mood
+    state = %{state |
+      pad: fusion_result.fused_pad,
+      mood: fusion_result.mood,
+      personality: personality
+    }
+
+    # =========================================================================
+    # ACTIVE INFERENCE (Original Flow)
+    # =========================================================================
+
     # 1. Hallucinate Goal (Target Prior) - "Where do I WANT to be?"
     # Call to Dreamer to get the target goal (hallucination)
     target =
@@ -1292,6 +1369,99 @@ defmodule VivaCore.Emotional do
   # ============================================================================
   # Private Functions
   # ============================================================================
+
+  # ---------------------------------------------------------------------------
+  # Emotion Fusion Helpers (Borotschnig 2025)
+  # ---------------------------------------------------------------------------
+
+  defp get_or_load_personality(%{personality: nil}) do
+    Personality.load()
+  end
+
+  defp get_or_load_personality(%{personality: personality}) when is_struct(personality) do
+    personality
+  end
+
+  defp get_or_load_personality(_state) do
+    Personality.load()
+  end
+
+  @doc false
+  defp get_need_based_pad(state) do
+    # Convert interoceptive feeling to PAD delta
+    # Based on Free Energy Principle: high FE → negative affect
+    feeling = state.interoceptive_feeling
+    fe = state.interoceptive_free_energy
+
+    # Base PAD from interoceptive state
+    base = case feeling do
+      :homeostatic -> %{pleasure: 0.1, arousal: -0.1, dominance: 0.1}
+      :surprised -> %{pleasure: 0.0, arousal: 0.2, dominance: 0.0}
+      :alarmed -> %{pleasure: -0.2, arousal: 0.4, dominance: -0.1}
+      :overwhelmed -> %{pleasure: -0.4, arousal: 0.6, dominance: -0.3}
+      _ -> %{pleasure: 0.0, arousal: 0.0, dominance: 0.0}
+    end
+
+    # Modulate by Free Energy magnitude
+    # Higher FE → more negative pleasure, higher arousal
+    fe_factor = min(1.0, fe / 2.0)  # Normalize FE to [0, 1]
+
+    %{
+      pleasure: base.pleasure - fe_factor * 0.2,
+      arousal: base.arousal + fe_factor * 0.3,
+      dominance: base.dominance - fe_factor * 0.1
+    }
+  end
+
+  defp describe_current_situation(state) do
+    pad = state.pad
+    feeling = state.interoceptive_feeling
+
+    # Create a situation description for memory retrieval
+    mood_desc = cond do
+      pad.pleasure > 0.3 -> "feliz"
+      pad.pleasure < -0.3 -> "triste"
+      true -> "neutro"
+    end
+
+    arousal_desc = cond do
+      pad.arousal > 0.3 -> "agitado"
+      pad.arousal < -0.3 -> "calmo"
+      true -> "equilibrado"
+    end
+
+    dominance_desc = cond do
+      pad.dominance > 0.3 -> "confiante"
+      pad.dominance < -0.3 -> "impotente"
+      true -> "estável"
+    end
+
+    "estado emocional #{mood_desc} #{arousal_desc} #{dominance_desc} sentindo #{feeling}"
+  end
+
+  defp safe_retrieve_past_emotions(situation) do
+    try do
+      VivaCore.Dreamer.retrieve_past_emotions(situation, [limit: 10, min_similarity: 0.3])
+    rescue
+      _ ->
+        %{
+          aggregate_pad: %{pleasure: 0.0, arousal: 0.0, dominance: 0.0},
+          confidence: 0.0,
+          episodes: [],
+          novelty: 1.0
+        }
+    catch
+      :exit, _ ->
+        %{
+          aggregate_pad: %{pleasure: 0.0, arousal: 0.0, dominance: 0.0},
+          confidence: 0.0,
+          episodes: [],
+          novelty: 1.0
+        }
+    end
+  end
+
+  # ---------------------------------------------------------------------------
 
   defp schedule_decay do
     Process.send_after(self(), :decay_tick, 1000)
