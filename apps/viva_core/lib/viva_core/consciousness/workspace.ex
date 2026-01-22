@@ -44,9 +44,29 @@ defmodule VivaCore.Consciousness.Workspace do
 
   @doc """
   Plant a new thoughtseed in the workspace.
+
+  If emotion context is provided, queries CogGNN for attention-based
+  salience boost. The GNN attention reflects how relevant this thought
+  is given the current emotional state.
+
+  ## Parameters
+  - `content`: The thought content (string or map)
+  - `source`: Origin of the thought (:liquid, :ultra, :memory, :sensory)
+  - `salience`: Base importance (0.0 - 1.0)
+  - `emotion`: Optional PAD state map for GNN attention boost
   """
   def sow(content, source, salience, emotion \\ nil) do
     GenServer.cast(__MODULE__, {:sow, content, source, salience, emotion})
+  end
+
+  @doc """
+  Plant a thoughtseed with GNN-boosted salience.
+
+  Explicitly uses CogGNN to compute attention-based salience.
+  More expensive than `sow/4` but provides neural-grounded importance.
+  """
+  def sow_with_gnn(content, source, base_salience, pad) when is_map(pad) do
+    GenServer.cast(__MODULE__, {:sow_with_gnn, content, source, base_salience, pad})
   end
 
   @doc """
@@ -89,7 +109,34 @@ defmodule VivaCore.Consciousness.Workspace do
       created_at: System.os_time(:millisecond)
     }
 
-    # Logger.debug("[Workspace] New Seed from #{source}: #{inspect(content)} (Sal: #{salience})")
+    {:noreply, %{state | seeds: [seed | state.seeds]}}
+  end
+
+  @impl true
+  def handle_cast({:sow_with_gnn, content, source, base_salience, pad}, state) do
+    # Query CogGNN for attention-based salience boost
+    gnn_boost = compute_gnn_salience_boost(content, pad)
+
+    # Combine base salience with GNN attention (30% boost max)
+    final_salience = min(1.0, base_salience + gnn_boost * 0.3)
+
+    id = "#{System.os_time(:millisecond)}-#{System.unique_integer([:positive])}"
+
+    seed = %Seed{
+      id: id,
+      content: content,
+      source: source,
+      salience: final_salience,
+      emotion: pad,
+      created_at: System.os_time(:millisecond)
+    }
+
+    VivaLog.debug(:consciousness, :gnn_boosted_seed,
+      source: source,
+      base: base_salience,
+      boost: gnn_boost,
+      final: final_salience
+    )
 
     {:noreply, %{state | seeds: [seed | state.seeds]}}
   end
@@ -156,5 +203,38 @@ defmodule VivaCore.Consciousness.Workspace do
     else
       state
     end
+  end
+
+  # ============================================================================
+  # CogGNN Integration
+  # ============================================================================
+
+  @doc false
+  defp compute_gnn_salience_boost(content, pad) do
+    # Convert content to string for embedding
+    content_str =
+      case content do
+        s when is_binary(s) -> s
+        map when is_map(map) -> Map.get(map, :text, inspect(map))
+        other -> inspect(other)
+      end
+
+    # Query CogGNN for attention score
+    case VivaBridge.Ultra.propagate(content_str, pad) do
+      {:ok, %{"attention_scores" => [score | _]}} when is_number(score) ->
+        # Return top attention score as boost
+        score
+
+      {:ok, _} ->
+        # No attention scores, no boost
+        0.0
+
+      {:error, reason} ->
+        VivaLog.warning(:consciousness, :gnn_boost_failed, reason: reason)
+        0.0
+    end
+  rescue
+    # If Ultra service is not running, gracefully fallback
+    _ -> 0.0
   end
 end
