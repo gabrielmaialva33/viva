@@ -1,7 +1,7 @@
-defmodule VivaBridge.Brain do
+defmodule VivaBridge.Cortex do
   @moduledoc """
   High-level API for the VIVA Native Cortex.
-  Manages the "Geneis" learning process using SDR and Hebbian logic.
+  Manages the "Genesis" learning process using SDR and Hebbian logic.
   """
 
   alias VivaBridge.Body
@@ -11,15 +11,15 @@ defmodule VivaBridge.Brain do
   Initializes the Native Cortex.
   """
   def init() do
-    Logger.info("[Brain] Initializing Native Cortex (Tabula Rasa)...")
+    Logger.info("[Cortex] Initializing Native Cortex (Tabula Rasa)...")
 
     case Body.brain_init() do
       msg when is_binary(msg) ->
-        Logger.info("[Brain] #{msg}")
+        Logger.info("[Cortex] #{msg}")
         :ok
 
       :stub ->
-        Logger.debug("[Brain] Using stub (NIF not implemented)")
+        Logger.debug("[Cortex] Using stub (NIF not implemented)")
         :ok
     end
   end

@@ -271,7 +271,7 @@ defmodule VivaBridge.BodyServer do
     # 3. Experience it! (Learn/Feel)
     # Only if arousal is significant to avoid spamming memory with noise
     if abs(emotion.arousal) > 0.1 do
-      {:ok, vector} = VivaBridge.Brain.experience(full_narrative, emotion)
+      {:ok, vector} = VivaBridge.Cortex.experience(full_narrative, emotion)
 
       # 4. Store memory (Conceptualize)
       meta = %{
