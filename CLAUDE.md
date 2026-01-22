@@ -38,34 +38,51 @@ mix run apps/viva_bridge/verify_mirror.exs
 VIVA_SKIP_NIF=true mix test
 ```
 
-## Architecture: Soul/Body Split
+## Architecture: Brain/Soul/Body Split
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  SOUL (Elixir/OTP) - 1-10 Hz                                │
-│  Logic, Emotions, Memory, Decisions                         │
+│  🧠 BRAIN (Python) - On-demand                              │
+│  Liquid Neural Networks, Knowledge Graph, Time Prophecy     │
+│  services/cortex/, services/ultra/                          │
+├─────────────────────────────────────────────────────────────┤
+│  ⚡ SOUL (Elixir/OTP) - 10 Hz                               │
+│  11 GenServers: Emotions, Memory, Consciousness, Agency     │
 │  apps/viva_core/                                            │
 ├─────────────────────────────────────────────────────────────┤
-│  BODY (Rust NIFs) - 2 Hz (500ms ticks)                      │
-│  Hardware sensing, Qualia, Dynamics engine                  │
+│  🦀 BODY (Rust/Bevy) - 2 Hz                                 │
+│  Hardware sensing, ECS Systems, Qualia Mapping              │
 │  apps/viva_bridge/                                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **CRITICAL RULE**: Never mix render/physics loop logic into Soul modules.
 
-### Soul (apps/viva_core)
+### Brain (services/)
 
-| Module | Responsibility |
-|--------|---------------|
-| `Emotional` | PAD state (Pleasure/Arousal/Dominance), O-U dynamics |
-| `Memory` | Episodic/semantic memory, Qdrant integration |
-| `Dreamer` | Memory consolidation, reflection, scoring |
-| `Senses` | Heartbeat GenServer (1Hz), body→soul sync |
-| `Mathematics` | O-U process, Cusp catastrophe, Free Energy |
-| `Qdrant` | HTTP client for vector database |
+| Service | Purpose |
+|---------|---------|
+| `Cortex` | Liquid Neural Networks (ncps/LTC) - continuous emotion dynamics |
+| `Ultra` | Knowledge Graph reasoning (arXiv:2310.04562) |
+| `Chronos` | Time series prophecy (Amazon Chronos-T5) |
 
-**Supervision**: `:rest_for_one` strategy - if Emotional fails, Senses restarts too.
+### Soul (apps/viva_core) - 11 GenServers
+
+| # | Module | Responsibility |
+|---|--------|---------------|
+| 1 | `PubSub` | Phoenix.PubSub for inter-neuron communication |
+| 2 | `BodySchema` | Hardware capability mapping |
+| 3 | `Interoception` | Free Energy from /proc (Digital Insula) |
+| 4 | `DatasetCollector` | Training data for Chronos |
+| 5 | `Emotional` | PAD state + O-U dynamics |
+| 6 | `Memory` | Qdrant vector store |
+| 7 | `Senses` | Body↔Soul synchronization |
+| 8 | `Dreamer` | Memory consolidation (DRE scoring) |
+| 9 | `Agency` | Whitelist command execution |
+| 10 | `Voice` | Hebbian proto-language |
+| 11 | `Workspace` | Global Workspace Theory (Thoughtseeds) |
+
+**Supervision**: `:one_for_one` strategy.
 
 ### Body (apps/viva_bridge)
 
@@ -172,6 +189,33 @@ VivaBridge.hardware_to_qualia()
 # Apply stimulus
 VivaCore.Emotional.feel(:success, "user_1", 1.0)
 
+# Interoception (Free Energy)
+VivaCore.Interoception.sense()
+VivaCore.Interoception.get_free_energy()
+VivaCore.Interoception.get_feeling()  # :homeostatic | :surprised | :alarmed | :overwhelmed
+
+# Agency (Digital Hands)
+VivaCore.Agency.can_do?(:diagnose_load)
+VivaCore.Agency.attempt(:diagnose_memory)
+VivaCore.Agency.available_actions()
+
+# Voice (Proto-Language)
+VivaCore.Voice.babble(%{pleasure: -0.3, arousal: 0.7, dominance: -0.2})
+VivaCore.Voice.get_vocabulary()
+
+# Dreamer (Memory Consolidation)
+VivaCore.Dreamer.status()
+VivaCore.Dreamer.reflect_now()
+VivaCore.Dreamer.retrieve_with_scoring("query")
+
+# Workspace (Thoughtseeds)
+VivaCore.Consciousness.Workspace.sow("seed_name", content, salience)
+VivaCore.Consciousness.Workspace.current_focus()
+
+# Cortex (Liquid Neural Network)
+VivaBridge.Cortex.ping()
+VivaBridge.Cortex.experience("narrative", %{pleasure: 0.5, arousal: 0.2, dominance: 0.1})
+
 # Sync body to soul
 VivaBridge.sync_body_to_soul()
 
@@ -202,21 +246,36 @@ viva/
 
 ## Key Documentation
 
+**Architecture:**
+- `docs/en/architecture.md` - Full 3-layer architecture (Brain/Soul/Body)
 - `docs/en/explanation/mathematics.md` - All equations in LaTeX
-- `docs/en/explanation/architecture.md` - Deep technical breakdown
+
+**Module Docs:**
+- `docs/en/modules/interoception.md` - Free Energy Principle (Digital Insula)
+- `docs/en/modules/agency.md` - Whitelist command execution (Digital Hands)
+- `docs/en/modules/voice.md` - Hebbian proto-language
+- `docs/en/modules/dreamer.md` - Memory consolidation (DRE scoring)
+
+**APIs:**
+- `docs/en/cortex_api.md` - Liquid Neural Network API
+- `docs/en/ultra_api.md` - Knowledge Graph API
+- `docs/en/thoughtseeds_api.md` - Workspace/Consciousness API
+
+**Research:**
 - `docs/en/research/whitepaper.md` - Full research paper
 
 ## Current Phase
 
-**Phase 5: Memory** - Qdrant integration, semantic search, Dreamer consolidation.
+**Phase 5: Memory & Agency** - Qdrant integration, Dreamer consolidation, Agency execution.
 
 Completed:
 - Phase 1: Genesis (Umbrella structure)
 - Phase 2: Emotion (PAD, O-U, Cusp)
-- Phase 3: Sensation (Rust NIFs)
-- Phase 4: Interoception (Bevy ECS, Qualia Mapping, Quantum Lindblad Barrier)
+- Phase 3: Sensation (Rust NIFs, Bevy ECS)
+- Phase 4: Interoception (Free Energy, Qualia Mapping)
+- Phase 5: Memory (Qdrant, Dreamer, Agency, Voice)
 
-Next: Language (LLM inner monologue), Embodiment (Bevy 3D Avatar).
+Next: Language (LLM inner monologue via Cortex), Embodiment (Bevy 3D Avatar).
 
 ## Contributor Roles
 
@@ -230,8 +289,17 @@ Next: Language (LLM inner monologue), Embodiment (Bevy 3D Avatar).
 
 ## External Dependencies
 
+**Python (Brain):**
+- **ncps** - Neural Circuit Policies (Liquid Neural Networks)
+- **sentence-transformers** - Embeddings for Cortex
+- **ultra** - Knowledge graph reasoning
+
+**Elixir (Soul):**
+- **Phoenix.PubSub** - Inter-neuron communication
 - **Qdrant** - Vector database for semantic memory
+
+**Rust (Body):**
 - **Bevy** - ECS framework for Body simulation (headless, 0.15)
-- **NVML** - NVIDIA GPU monitoring (optional, runtime detection)
 - **sysinfo** - Cross-platform system metrics
+- **nvml-wrapper** - NVIDIA GPU monitoring (optional)
 - **crossbeam-channel** - Lock-free Soul↔Body communication
