@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.5.0] - 2025-01-22
+
 ### 🧠 Emotion Fusion (Phase 5.6)
 
 - **Dual-Source Emotion Model**: Based on Borotschnig (2025)
@@ -239,7 +243,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixed** for any bug fixes.
 - **Security** in case of vulnerabilities.
 
-[Unreleased]: https://github.com/gabrielmaialva33/viva/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/gabrielmaialva33/viva/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/gabrielmaialva33/viva/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/gabrielmaialva33/viva/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/gabrielmaialva33/viva/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/gabrielmaialva33/viva/compare/v0.1.0...v0.2.0
