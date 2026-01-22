@@ -219,19 +219,87 @@ fn memory_init(path: Option<String>) -> NifResult<String> {
 
 #[rustler::nif]
 fn memory_store(vector: Vec<f32>, metadata_json: String) -> NifResult<String> {
-    Ok("Stored".to_string())
+    // Get or init memory
+    let mem_lock = MEMORY.get_or_init(|| {
+        Mutex::new(VivaMemory::new().expect("Failed to create VivaMemory"))
+    });
+
+    let mut guard = mem_lock
+        .lock()
+        .map_err(|e| rustler::Error::Term(Box::new(format!("Lock error: {}", e))))?;
+
+    // Parse metadata from JSON
+    let meta: MemoryMeta = serde_json::from_str(&metadata_json)
+        .map_err(|e| rustler::Error::Term(Box::new(format!("JSON parse error: {}", e))))?;
+
+    // Store returns u64 key
+    let key = guard
+        .store(&vector, meta)
+        .map_err(|e| rustler::Error::Term(Box::new(format!("Store error: {}", e))))?;
+
+    Ok(key.to_string())
 }
+
 #[rustler::nif]
-fn memory_search(_q: Vec<f32>, _l: usize) -> NifResult<Vec<(String, String, f32, f32)>> {
-    Ok(vec![])
+fn memory_search(query: Vec<f32>, limit: usize) -> NifResult<Vec<(String, String, f32, f32)>> {
+    // Get memory (must be initialized first)
+    let mem_lock = match MEMORY.get() {
+        Some(m) => m,
+        None => return Ok(vec![]), // Not initialized
+    };
+
+    let guard = mem_lock
+        .lock()
+        .map_err(|e| rustler::Error::Term(Box::new(format!("Lock error: {}", e))))?;
+
+    let options = SearchOptions::new().limit(limit);
+
+    let results = guard
+        .search(&query, &options)
+        .map_err(|e| rustler::Error::Term(Box::new(format!("Search error: {}", e))))?;
+
+    // Convert to tuple format: (id, content, similarity, importance)
+    Ok(results
+        .into_iter()
+        .map(|r| (r.meta.id, r.meta.content, r.similarity, r.meta.importance))
+        .collect())
 }
+
 #[rustler::nif]
 fn memory_save() -> NifResult<String> {
+    let mem_lock = match MEMORY.get() {
+        Some(m) => m,
+        None => return Ok("Not initialized".to_string()),
+    };
+
+    let guard = mem_lock
+        .lock()
+        .map_err(|e| rustler::Error::Term(Box::new(format!("Lock error: {}", e))))?;
+
+    guard
+        .save()
+        .map_err(|e| rustler::Error::Term(Box::new(format!("Save error: {}", e))))?;
+
     Ok("Saved".to_string())
 }
+
 #[rustler::nif]
-fn memory_stats(_b: String) -> NifResult<String> {
-    Ok("Stats".to_string())
+fn memory_stats(_backend: String) -> NifResult<String> {
+    let mem_lock = match MEMORY.get() {
+        Some(m) => m,
+        None => return Ok(r#"{"status": "not_initialized"}"#.to_string()),
+    };
+
+    let guard = mem_lock
+        .lock()
+        .map_err(|e| rustler::Error::Term(Box::new(format!("Lock error: {}", e))))?;
+
+    let stats = guard.stats();
+
+    Ok(format!(
+        r#"{{"episodic_count": {}, "semantic_count": {}, "pending_tags": {}}}"#,
+        stats.episodic_count, stats.semantic_count, stats.pending_tags
+    ))
 }
 
 #[rustler::nif]

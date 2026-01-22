@@ -576,14 +576,100 @@ defmodule VivaCore.Dreamer do
         {:error, _} -> []
       end
 
+    # MEMORY CONSOLIDATION: Episodic → Semantic
+    # Important episodic memories are promoted to long-term semantic storage
+    consolidated_count = consolidate_memories(state)
+
     total_insights = length(all_insights) + length(meta_insights)
 
     results = %{
       all_insights: meta_insights ++ all_insights,
-      iterations: @sleep_cycle_iterations
+      iterations: @sleep_cycle_iterations,
+      consolidated_memories: consolidated_count
     }
 
     {:sleep_cycle_complete, results, total_insights}
+  end
+
+  # ============================================================================
+  # Private - Memory Consolidation (Episodic → Semantic)
+  # ============================================================================
+
+  @consolidation_threshold 0.7
+  @consolidation_limit 20
+
+  @doc false
+  defp consolidate_memories(state) do
+    Logger.info("[Dreamer] Starting memory consolidation (episodic → semantic)...")
+
+    # Search for important episodic memories
+    case safe_memory_search("", @consolidation_limit, state.memory) do
+      {:ok, candidates} when is_list(candidates) ->
+        # Filter high-importance episodic memories
+        to_consolidate =
+          candidates
+          |> Enum.filter(fn m ->
+            type = get_memory_field(m, :type, "generic")
+            importance = get_memory_field(m, :importance, 0.0)
+
+            (type == "episodic" or type == :episodic) and
+              importance >= @consolidation_threshold
+          end)
+          |> Enum.take(@consolidation_limit)
+
+        if Enum.empty?(to_consolidate) do
+          Logger.debug("[Dreamer] No episodic memories above threshold for consolidation")
+          0
+        else
+          # Consolidate each memory
+          consolidated =
+            Enum.reduce(to_consolidate, 0, fn memory, count ->
+              case consolidate_single_memory(memory, state) do
+                :ok -> count + 1
+                :error -> count
+              end
+            end)
+
+          Logger.info("[Dreamer] Consolidated #{consolidated} memories (episodic → semantic)")
+          consolidated
+        end
+
+      {:error, reason} ->
+        Logger.warning("[Dreamer] Consolidation search failed: #{inspect(reason)}")
+        0
+    end
+  end
+
+  defp consolidate_single_memory(memory, state) do
+    id = get_memory_field(memory, :id, nil)
+    content = get_memory_field(memory, :content, "")
+    importance = get_memory_field(memory, :importance, 0.5)
+    emotion = get_memory_field(memory, :emotion, nil)
+
+    if id == nil or content == "" do
+      :error
+    else
+      # Store as semantic (Qdrant - persistent)
+      semantic_metadata = %{
+        type: :semantic,
+        # Slightly reduce importance for consolidated
+        importance: importance * 0.9,
+        emotion: emotion,
+        consolidated_from: id,
+        consolidated_at: DateTime.utc_now() |> DateTime.to_iso8601()
+      }
+
+      case safe_memory_store(content, semantic_metadata, state.memory) do
+        {:ok, _new_id} ->
+          # Optionally forget the episodic version to save space
+          # For now, we keep both (episodic fades naturally via decay)
+          Logger.debug("[Dreamer] Consolidated memory #{id} → semantic")
+          :ok
+
+        {:error, _reason} ->
+          :error
+      end
+    end
   end
 
   defp safe_reflection(state, trigger_type) do

@@ -19,7 +19,8 @@ import Config
 #       metadata: [:user_id]
 #
 config :viva_core,
-  memory_backend: :rust_native,
+  # HYBRID: episodic → Rust HNSW (~1ms), semantic/emotional → Qdrant (persistent)
+  memory_backend: :hybrid,
   native_memory_path: Path.expand("~/.viva/memory")
 
 # Configure Logger to use Console and SporeLogger (Mycelial Memory)

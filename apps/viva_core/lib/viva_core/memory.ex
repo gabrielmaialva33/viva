@@ -186,23 +186,48 @@ defmodule VivaCore.Memory do
 
   @impl true
   def init(opts) do
-    config_backend = Application.get_env(:viva_core, :memory_backend, :qdrant)
+    # HYBRID MODE: Episodic → Rust HNSW, Semantic/Emotional → Qdrant
+    config_backend = Application.get_env(:viva_core, :memory_backend, :hybrid)
     backend = Keyword.get(opts, :backend, config_backend)
 
     state = %{
       backend: backend,
       created_at: DateTime.utc_now(),
       store_count: 0,
-      search_count: 0
+      search_count: 0,
+      rust_ready: false,
+      qdrant_ready: false
     }
 
-    # Initialize Qdrant collection
     case backend do
+      :hybrid ->
+        # Initialize BOTH backends
+        rust_ok = init_rust_backend()
+        qdrant_ok = init_qdrant_backend()
+
+        cond do
+          rust_ok and qdrant_ok ->
+            Logger.info("[Memory] Memory neuron online (HYBRID: Rust HNSW + Qdrant)")
+            {:ok, %{state | rust_ready: true, qdrant_ready: true}}
+
+          rust_ok ->
+            Logger.warning("[Memory] Qdrant unavailable, episodic-only mode")
+            {:ok, %{state | rust_ready: true, qdrant_ready: false}}
+
+          qdrant_ok ->
+            Logger.warning("[Memory] Rust HNSW unavailable, Qdrant-only mode")
+            {:ok, %{state | rust_ready: false, qdrant_ready: true}}
+
+          true ->
+            Logger.error("[Memory] Both backends failed, using in-memory fallback")
+            {:ok, Map.merge(state, %{backend: :in_memory, memories: %{}, index: []})}
+        end
+
       :qdrant ->
         case Qdrant.ensure_collection() do
           :ok ->
             Logger.info("[Memory] Memory neuron online (backend: Qdrant)")
-            {:ok, state}
+            {:ok, %{state | qdrant_ready: true}}
 
           {:error, reason} ->
             Logger.warning(
@@ -220,13 +245,31 @@ defmodule VivaCore.Memory do
         case NativeMemory.init() do
           :ok ->
             Logger.info("[Memory] Memory neuron online (backend: Rust Native - God Mode)")
-            {:ok, state}
+            {:ok, %{state | rust_ready: true}}
 
           {:error, reason} ->
             Logger.error("[Memory] Failed to init native memory: #{inspect(reason)}")
             {:stop, reason}
         end
     end
+  end
+
+  defp init_rust_backend do
+    case NativeMemory.init() do
+      :ok -> true
+      {:error, _} -> false
+    end
+  rescue
+    _ -> false
+  end
+
+  defp init_qdrant_backend do
+    case Qdrant.ensure_collection() do
+      :ok -> true
+      {:error, _} -> false
+    end
+  rescue
+    _ -> false
   end
 
   @impl true
@@ -253,70 +296,24 @@ defmodule VivaCore.Memory do
   def handle_call({:search, query, opts}, _from, state) do
     limit = Keyword.get(opts, :limit, 10)
     type_filter = Keyword.get(opts, :type)
+    types = Keyword.get(opts, :types, [:episodic, :semantic])
     min_importance = Keyword.get(opts, :min_importance, 0.0)
-
-    # Calculate decay scale based on importance
     base_decay = Keyword.get(opts, :decay_scale, @default_decay_scale)
 
     result =
       case state.backend do
+        :hybrid ->
+          # HYBRID SEARCH: query both backends based on requested types
+          search_hybrid(query, types, type_filter, limit, min_importance, base_decay, state)
+
         :qdrant ->
-          case Embedder.embed(query) do
-            {:ok, query_vector} ->
-              # Build filter
-              filter = build_filter(type_filter, min_importance)
-
-              Qdrant.search_with_decay(query_vector,
-                limit: limit,
-                decay_scale: base_decay,
-                filter: filter
-              )
-
-            {:error, _} ->
-              {:ok, []}
-          end
+          search_qdrant(query, type_filter, limit, min_importance, base_decay)
 
         :in_memory ->
           search_in_memory(state, query, limit)
 
         :rust_native ->
-          case Embedder.embed(query) do
-            {:ok, query_vector} ->
-              # NativeMemory.search/2 expects (vector, limit)
-              raw_results = NativeMemory.search(query_vector, limit)
-              # Results are already a list from NIF
-              formatted =
-                Enum.map(raw_results, fn result ->
-                  # Adapt to whatever format the NIF returns
-                  case result do
-                    {id, content, score, _imp} ->
-                      %{
-                        id: id,
-                        content: content,
-                        similarity: score,
-                        timestamp: nil,
-                        importance: 0.0
-                      }
-
-                    %{} = map ->
-                      Map.merge(%{timestamp: nil, importance: 0.0}, map)
-
-                    _ ->
-                      %{
-                        id: nil,
-                        content: inspect(result),
-                        similarity: 0.0,
-                        timestamp: nil,
-                        importance: 0.0
-                      }
-                  end
-                end)
-
-              {:ok, formatted}
-
-            {:error, _} ->
-              {:ok, []}
-          end
+          search_rust_native(query, limit)
       end
 
     case result do
@@ -372,6 +369,25 @@ defmodule VivaCore.Memory do
 
     stats =
       case state.backend do
+        :hybrid ->
+          # Combine stats from both backends
+          hybrid_stats = %{
+            rust_ready: state.rust_ready,
+            qdrant_ready: state.qdrant_ready
+          }
+
+          qdrant_stats =
+            if state.qdrant_ready do
+              case Qdrant.stats() do
+                {:ok, qs} -> %{qdrant_points: qs[:points_count] || 0}
+                _ -> %{qdrant_points: :unknown}
+              end
+            else
+              %{qdrant_points: :unavailable}
+            end
+
+          Map.merge(base_stats, Map.merge(hybrid_stats, qdrant_stats))
+
         :qdrant ->
           case Qdrant.stats() do
             {:ok, qdrant_stats} -> Map.merge(base_stats, qdrant_stats)
@@ -393,6 +409,12 @@ defmodule VivaCore.Memory do
   def handle_cast({:forget, id}, state) do
     new_state =
       case state.backend do
+        :hybrid ->
+          # Try to delete from both backends
+          if state.qdrant_ready, do: Qdrant.delete_point(id)
+          # Note: Rust HNSW doesn't support deletion yet
+          state
+
         :qdrant ->
           Qdrant.delete_point(id)
           state
@@ -401,6 +423,10 @@ defmodule VivaCore.Memory do
           new_memories = Map.delete(state.memories, id)
           new_index = Enum.reject(state.index, &(&1 == id))
           %{state | memories: new_memories, index: new_index}
+
+        :rust_native ->
+          # Rust HNSW doesn't support deletion yet
+          state
       end
 
     Logger.debug("[Memory] Forgot: #{id}")
@@ -539,14 +565,155 @@ defmodule VivaCore.Memory do
     end
   end
 
+  # HYBRID SEARCH: Query both Rust and Qdrant based on memory types
+  defp search_hybrid(query, types, type_filter, limit, min_importance, base_decay, state) do
+    case Embedder.embed(query) do
+      {:ok, query_vector} ->
+        results = []
+
+        # Episodic search (Rust HNSW - fast ~1ms)
+        results =
+          if :episodic in types and state.rust_ready do
+            case search_rust_native_raw(query_vector, limit) do
+              {:ok, episodic} -> results ++ episodic
+              _ -> results
+            end
+          else
+            results
+          end
+
+        # Semantic/Emotional search (Qdrant - persistent)
+        qdrant_types = types -- [:episodic]
+        results =
+          if qdrant_types != [] and state.qdrant_ready do
+            filter = build_hybrid_filter(qdrant_types, type_filter, min_importance)
+            case Qdrant.search_with_decay(query_vector, limit: limit, decay_scale: base_decay, filter: filter) do
+              {:ok, semantic} -> results ++ semantic
+              _ -> results
+            end
+          else
+            results
+          end
+
+        # Merge, dedupe by id, sort by similarity
+        final =
+          results
+          |> Enum.uniq_by(& &1[:id])
+          |> Enum.sort_by(& &1[:similarity], :desc)
+          |> Enum.take(limit)
+
+        {:ok, final}
+
+      {:error, _} ->
+        {:ok, []}
+    end
+  end
+
+  defp search_qdrant(query, type_filter, limit, min_importance, base_decay) do
+    case Embedder.embed(query) do
+      {:ok, query_vector} ->
+        filter = build_filter(type_filter, min_importance)
+        Qdrant.search_with_decay(query_vector,
+          limit: limit,
+          decay_scale: base_decay,
+          filter: filter
+        )
+
+      {:error, _} ->
+        {:ok, []}
+    end
+  end
+
+  defp search_rust_native(query, limit) do
+    case Embedder.embed(query) do
+      {:ok, query_vector} ->
+        search_rust_native_raw(query_vector, limit)
+
+      {:error, _} ->
+        {:ok, []}
+    end
+  end
+
+  defp search_rust_native_raw(query_vector, limit) do
+    raw_results = NativeMemory.search(query_vector, limit)
+
+    formatted =
+      Enum.map(raw_results, fn result ->
+        case result do
+          {id, content, score, imp} ->
+            %{
+              id: id,
+              content: content,
+              similarity: score,
+              importance: imp,
+              type: :episodic,
+              timestamp: nil
+            }
+
+          %{} = map ->
+            Map.merge(%{timestamp: nil, importance: 0.0, type: :episodic}, map)
+
+          _ ->
+            %{
+              id: nil,
+              content: inspect(result),
+              similarity: 0.0,
+              timestamp: nil,
+              importance: 0.0,
+              type: :episodic
+            }
+        end
+      end)
+
+    {:ok, formatted}
+  end
+
+  defp build_hybrid_filter(types, type_filter, min_importance) do
+    conditions = []
+
+    # Filter by specific types (for Qdrant - semantic/emotional/procedural)
+    conditions =
+      if types != [] do
+        type_conditions = Enum.map(types, fn t ->
+          %{key: "type", match: %{value: Atom.to_string(t)}}
+        end)
+        # OR condition for types
+        [%{should: type_conditions} | conditions]
+      else
+        conditions
+      end
+
+    # Override with specific type if provided
+    conditions =
+      if type_filter do
+        [%{key: "type", match: %{value: Atom.to_string(type_filter)}} | conditions]
+      else
+        conditions
+      end
+
+    conditions =
+      if min_importance > 0 do
+        [%{key: "importance", range: %{gte: min_importance}} | conditions]
+      else
+        conditions
+      end
+
+    if conditions == [] do
+      nil
+    else
+      %{must: conditions}
+    end
+  end
+
   defp do_store(content, metadata, state) do
     id = generate_id()
     now = DateTime.utc_now()
+    mem_type = metadata[:type] || :generic
 
     # Build payload
     payload = %{
       content: content,
-      type: Atom.to_string(metadata[:type] || :generic),
+      type: Atom.to_string(mem_type),
       importance: metadata[:importance] || 0.5,
       emotion: metadata[:emotion],
       timestamp: DateTime.to_iso8601(now),
@@ -555,42 +722,96 @@ defmodule VivaCore.Memory do
     }
 
     case state.backend do
-      :qdrant ->
-        # Generate embedding
-        case Embedder.embed(content) do
-          {:ok, embedding} ->
-            Qdrant.upsert_point(id, embedding, payload)
-            {:ok, id}
+      :hybrid ->
+        # HYBRID ROUTING: episodic → Rust, others → Qdrant
+        case mem_type do
+          :episodic when state.rust_ready ->
+            store_rust_native(id, content, payload, metadata)
 
-          {:error, reason} ->
-            Logger.error("[Memory] Embedding failed: #{inspect(reason)}")
-            {:error, :embedding_failed}
+          type when type in [:semantic, :emotional, :procedural] and state.qdrant_ready ->
+            store_qdrant(id, content, payload)
+
+          :episodic when state.qdrant_ready ->
+            # Fallback: Rust not ready, use Qdrant
+            Logger.debug("[Memory] Rust unavailable, storing episodic in Qdrant")
+            store_qdrant(id, content, payload)
+
+          _ when state.rust_ready ->
+            # Fallback: Qdrant not ready, use Rust
+            Logger.debug("[Memory] Qdrant unavailable, storing in Rust")
+            store_rust_native(id, content, payload, metadata)
+
+          _ ->
+            {:error, :no_backend_available}
         end
+
+      :qdrant ->
+        store_qdrant(id, content, payload)
 
       :in_memory ->
         entry = Map.merge(payload, %{id: id, embedding: Embedder.embed_hash(content)})
-        # Return state changes
         {:ok, id, %{memories: Map.put(state.memories, id, entry), index: [id | state.index]}}
 
       :rust_native ->
-        case Embedder.embed(content) do
-          {:ok, embedding} ->
-            metadata_for_native =
-              payload
-              |> Map.put(:id, id)
-              |> Map.put(:content, content)
-
-            case NativeMemory.store(embedding, metadata_for_native) do
-              "Memory stored" -> {:ok, id}
-              {:ok, _} -> {:ok, id}
-              error -> {:error, error}
-            end
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+        store_rust_native(id, content, payload, metadata)
     end
   end
+
+  # Store in Qdrant (semantic, emotional, procedural)
+  defp store_qdrant(id, content, payload) do
+    case Embedder.embed(content) do
+      {:ok, embedding} ->
+        Qdrant.upsert_point(id, embedding, payload)
+        {:ok, id}
+
+      {:error, reason} ->
+        Logger.error("[Memory] Embedding failed: #{inspect(reason)}")
+        {:error, :embedding_failed}
+    end
+  end
+
+  # Store in Rust HNSW (episodic - fast, ~1ms)
+  defp store_rust_native(id, content, payload, metadata) do
+    case Embedder.embed(content) do
+      {:ok, embedding} ->
+        # Rust expects PascalCase for memory_type
+        rust_type = type_to_pascal(metadata[:type] || :episodic)
+
+        native_meta = %{
+          id: id,
+          content: content,
+          memory_type: rust_type,
+          importance: payload.importance,
+          emotion: format_emotion_for_rust(payload.emotion),
+          timestamp: System.system_time(:second),
+          access_count: 0,
+          last_accessed: System.system_time(:second)
+        }
+
+        case NativeMemory.store(embedding, native_meta) do
+          id_str when is_binary(id_str) -> {:ok, id}
+          {:ok, _} -> {:ok, id}
+          error -> {:error, error}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # Convert atom to PascalCase string for Rust enum
+  defp type_to_pascal(:episodic), do: "Episodic"
+  defp type_to_pascal(:semantic), do: "Semantic"
+  defp type_to_pascal(:emotional), do: "Emotional"
+  defp type_to_pascal(:procedural), do: "Procedural"
+  defp type_to_pascal(_), do: "Episodic"
+
+  # Format emotion for Rust (nil-safe)
+  defp format_emotion_for_rust(nil), do: nil
+  defp format_emotion_for_rust(%{pleasure: p, arousal: a, dominance: d}) do
+    %{pleasure: p, arousal: a, dominance: d}
+  end
+  defp format_emotion_for_rust(_), do: nil
 end
 
 # ============================================================================
