@@ -44,6 +44,7 @@ defmodule VivaCore.Dreamer do
 
   alias VivaCore.Memory
   alias VivaCore.Emotional
+  alias VivaBridge.Ultra
 
   # ============================================================================
   # Constants
@@ -252,6 +253,31 @@ defmodule VivaCore.Dreamer do
   end
 
   @doc """
+  Retrieves past emotions from episodic memories similar to current situation.
+
+  Uses the existing composite scoring but focuses on emotional tags.
+  This is used by EmotionFusion to weight past experiences.
+
+  ## Parameters
+  - situation: String or embedding describing current context
+  - opts: [limit: int, min_similarity: float]
+  - server: GenServer reference
+
+  ## Returns
+  %{
+    aggregate_pad: PAD,           # Weighted average of past emotions
+    confidence: float,            # Based on similarity scores
+    episodes: [memory],           # Source memories
+    novelty: float                # 1 - max_similarity (high = new situation)
+  }
+  """
+  @spec retrieve_past_emotions(String.t(), keyword(), GenServer.server()) :: map()
+  def retrieve_past_emotions(situation, opts \\ [], server \\ __MODULE__)
+      when is_binary(situation) do
+    GenServer.call(server, {:retrieve_past_emotions, situation, opts}, 30_000)
+  end
+
+  @doc """
   Active Inference: Hallucinates a goal state (Target Prior).
   This represents where VIVA *wants* to be in the near future.
 
@@ -399,6 +425,12 @@ defmodule VivaCore.Dreamer do
   @impl true
   def handle_call({:retrieve, query, opts}, _from, state) do
     result = do_retrieve(query, opts, state)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:retrieve_past_emotions, situation, opts}, _from, state) do
+    result = do_retrieve_past_emotions(situation, opts, state)
     {:reply, result, state}
   end
 
@@ -778,6 +810,7 @@ defmodule VivaCore.Dreamer do
     content = get_memory_field(memory, :content, "")
     importance = get_memory_field(memory, :importance, 0.5)
     emotion = get_memory_field(memory, :emotion, nil)
+    embedding = get_memory_field(memory, :embedding, nil)
 
     if id == nil or content == "" do
       :error
@@ -793,15 +826,101 @@ defmodule VivaCore.Dreamer do
       }
 
       case safe_memory_store(content, semantic_metadata, state.memory) do
-        {:ok, _new_id} ->
-          # Optionally forget the episodic version to save space
-          # For now, we keep both (episodic fades naturally via decay)
+        {:ok, new_id} ->
+          # EWC Protection: Protect important consolidated memories
+          # This prevents catastrophic forgetting by penalizing changes to
+          # embedding dimensions that are critical for this memory
+          maybe_apply_ewc_protection(new_id, embedding, content, importance, state)
+
           VivaLog.debug(:dreamer, :memory_promoted, id: id)
           :ok
 
         {:error, _reason} ->
           :error
       end
+    end
+  end
+
+  # EWC Protection for important memories
+  defp maybe_apply_ewc_protection(memory_id, embedding, content, importance, state)
+       when importance >= @consolidation_threshold do
+    # Only protect memories that pass the consolidation threshold
+    # This prevents overloading EWC with unimportant memories
+
+    # Get or compute embedding
+    embedding_list =
+      cond do
+        is_list(embedding) and length(embedding) > 0 ->
+          embedding
+
+        is_binary(content) and byte_size(content) > 0 ->
+          # Get embedding from Ultra service
+          case Ultra.embed(content) do
+            {:ok, emb} when is_list(emb) -> emb
+            _ -> nil
+          end
+
+        true ->
+          nil
+      end
+
+    if embedding_list do
+      # Get related memories for Fisher Information calculation
+      related_embeddings = get_related_embeddings(content, state)
+
+      # Calculate consolidation score (DRE-based)
+      consolidation_score = importance
+
+      # Call Ultra to protect the memory with EWC
+      case safe_ewc_protect(memory_id, embedding_list, related_embeddings, consolidation_score) do
+        {:ok, %{"protected" => true}} ->
+          VivaLog.debug(:dreamer, :ewc_protected,
+            id: memory_id,
+            score: Float.round(consolidation_score, 2)
+          )
+
+        {:ok, %{"protected" => false, "reason" => reason}} ->
+          VivaLog.debug(:dreamer, :ewc_skipped, id: memory_id, reason: reason)
+
+        {:error, reason} ->
+          VivaLog.warning(:dreamer, :ewc_failed, id: memory_id, reason: inspect(reason))
+      end
+    end
+
+    :ok
+  end
+
+  defp maybe_apply_ewc_protection(_memory_id, _embedding, _content, _importance, _state) do
+    # Importance below threshold, skip EWC protection
+    :ok
+  end
+
+  defp get_related_embeddings(content, state) do
+    # Search for related memories to compute Fisher Information
+    case safe_memory_search(content, 10, state.memory) do
+      {:ok, memories} when is_list(memories) ->
+        memories
+        |> Enum.map(fn m -> get_memory_field(m, :embedding, nil) end)
+        |> Enum.filter(&is_list/1)
+
+      _ ->
+        []
+    end
+  end
+
+  defp safe_ewc_protect(memory_id, embedding, related_embeddings, consolidation_score) do
+    try do
+      # Call Ultra service to protect the memory via public API
+      Ultra.protect_memory(memory_id, embedding, related_embeddings, consolidation_score)
+    rescue
+      e in [ArgumentError, RuntimeError] ->
+        {:error, Exception.message(e)}
+    catch
+      :exit, {:noproc, _} ->
+        {:error, :ultra_not_running}
+
+      :exit, {:timeout, _} ->
+        {:error, :timeout}
     end
   end
 
@@ -1176,6 +1295,105 @@ defmodule VivaCore.Dreamer do
 
       {:error, _reason} ->
         []
+    end
+  end
+
+  # ============================================================================
+  # Private - Past Emotion Retrieval (for EmotionFusion)
+  # ============================================================================
+
+  # Retrieves past emotions from similar episodic memories.
+  # Used by EmotionFusion to compute the "past-based" emotion component.
+  defp do_retrieve_past_emotions(situation, opts, state) do
+    limit = Keyword.get(opts, :limit, 10)
+    min_sim = Keyword.get(opts, :min_similarity, 0.3)
+
+    # Search for similar episodes
+    case safe_memory_search(situation, limit * 2, state.memory) do
+      {:ok, memories} when is_list(memories) ->
+        # Filter by similarity threshold
+        relevant =
+          memories
+          |> Enum.filter(fn m ->
+            get_memory_field(m, :similarity, 0.0) >= min_sim
+          end)
+          |> Enum.take(limit)
+
+        if Enum.empty?(relevant) do
+          # No similar episodes → new situation
+          %{
+            aggregate_pad: default_pad(),
+            confidence: 0.0,
+            episodes: [],
+            novelty: 1.0
+          }
+        else
+          # Extract and aggregate emotional tags
+          weighted_pads =
+            relevant
+            |> Enum.map(fn m ->
+              emotion = get_memory_field(m, :emotion, nil)
+              sim = get_memory_field(m, :similarity, 0.5)
+              {emotion, sim}
+            end)
+            |> Enum.filter(fn {e, _} -> e != nil and is_map(e) end)
+
+          if Enum.empty?(weighted_pads) do
+            # No emotional tags in memories
+            max_sim =
+              relevant
+              |> Enum.map(fn m -> get_memory_field(m, :similarity, 0.0) end)
+              |> Enum.max(fn -> 0.0 end)
+
+            %{
+              aggregate_pad: default_pad(),
+              confidence: 0.3,
+              episodes: relevant,
+              novelty: 1.0 - max_sim
+            }
+          else
+            # Weighted average by similarity
+            aggregate = aggregate_emotions(weighted_pads)
+
+            # Calculate confidence (average similarity)
+            similarities = Enum.map(weighted_pads, fn {_, s} -> s end)
+            avg_sim = Enum.sum(similarities) / length(similarities)
+            max_sim = Enum.max(similarities)
+
+            %{
+              aggregate_pad: aggregate,
+              confidence: avg_sim,
+              episodes: relevant,
+              novelty: 1.0 - max_sim
+            }
+          end
+        end
+
+      {:error, _} ->
+        %{aggregate_pad: default_pad(), confidence: 0.0, episodes: [], novelty: 1.0}
+    end
+  end
+
+  defp aggregate_emotions(weighted_pads) do
+    total_weight = weighted_pads |> Enum.map(fn {_, w} -> w end) |> Enum.sum()
+
+    if total_weight == 0 do
+      default_pad()
+    else
+      %{
+        pleasure:
+          Enum.reduce(weighted_pads, 0.0, fn {e, w}, acc ->
+            acc + w * get_pad_value(e, :pleasure)
+          end) / total_weight,
+        arousal:
+          Enum.reduce(weighted_pads, 0.0, fn {e, w}, acc ->
+            acc + w * get_pad_value(e, :arousal)
+          end) / total_weight,
+        dominance:
+          Enum.reduce(weighted_pads, 0.0, fn {e, w}, acc ->
+            acc + w * get_pad_value(e, :dominance)
+          end) / total_weight
+      }
     end
   end
 
