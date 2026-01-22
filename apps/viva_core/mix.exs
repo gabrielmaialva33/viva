@@ -31,7 +31,8 @@ defmodule VivaCore.MixProject do
       {:phoenix_pubsub, "~> 2.1"},
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
-      {:nx, "~> 0.9"}
+      {:nx, "~> 0.9"},
+      {:redix, "~> 1.1"}
     ]
   end
 end
