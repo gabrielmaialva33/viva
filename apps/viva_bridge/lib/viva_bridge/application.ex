@@ -36,6 +36,10 @@ defmodule VivaBridge.Application do
           {VivaBridge.Music, []},
           # Chronos - The Time Lord (Transformer-based Interoception)
           {VivaBridge.Chronos, []},
+          # ULTRA - The Graph Weaver (Knowledge Graph Reasoning)
+          {VivaBridge.Ultra, []},
+          # CORTEX - The Liquid Brain (Biological Physics)
+          {VivaBridge.Cortex, []},
           # MetaLearner monitors performance and triggers evolution
           {VivaBridge.Firmware.MetaLearner, [paused: meta_learner_paused]}
         ]
