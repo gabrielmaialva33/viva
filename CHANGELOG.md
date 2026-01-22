@@ -7,6 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🧠 Emotion Fusion (Phase 5.6)
+
+- **Dual-Source Emotion Model**: Based on Borotschnig (2025)
+  - `EmotionFusion` module combining Need-based + Past-based + Personality emotions
+  - Adaptive weight calculation based on arousal, confidence, novelty
+  - `PreActionAffect` output for action selection
+  - PAD octant emotion classification (8 categories)
+
+- **Personality System**: Mehrabian (1996) affective traits
+  - Baseline PAD (attractor point for emotional regression)
+  - Reactivity (amplification factor)
+  - Volatility (speed of change)
+  - Trait labels (`:curious`, `:calm`, etc.)
+  - Redis persistence for long-term evolution
+  - i18n support for `describe/1` (EN, PT-BR, ZH-CN)
+
+- **Mood System**: Emotional Moving Average
+  - EMA with α=0.95 (~20-step half-life)
+  - `get_mood/1` API in Emotional GenServer
+  - Integration with EmotionFusion pipeline
+
+- **Dreamer Enhancement**: `retrieve_past_emotions/2`
+  - Retrieves emotional tags from episodic memories
+  - Aggregates emotions weighted by similarity
+  - Returns confidence and novelty metrics
+
+### 🔬 Neural Enhancements (Phase 5.7)
+
+- **CogGNN** (Cognitive Graph Neural Network)
+  - 3-layer attention-based message passing
+  - PAD-conditioned node embeddings
+  - `conscious_focus/0` for top-K attention nodes
+  - Workspace integration for salience boost
+
+- **EWC** (Elastic Weight Consolidation) - Kirkpatrick 2017
+  - Fisher Information Matrix for memory importance
+  - Protection scores based on consolidation patterns
+  - Temporal decay of Fisher information
+  - Prevents catastrophic forgetting
+
+- **Mamba-2** (Temporal Memory) - Gu & Dao 2024
+  - Selective State Space Model for O(N) sequences
+  - Bidirectional processing for context
+  - Memory sequence prediction
+
+- **DoRA** (Weight-Decomposed Adaptation) - Liu 2024
+  - Magnitude/direction decomposition
+  - Emotional sample training with PAD labels
+  - Checkpoint persistence
+
+- **Neural ODE** (Continuous Dynamics) - Chen 2018
+  - `torchdiffeq` integration in Cortex
+  - Continuous-time emotional trajectories
+
+### 📚 Documentation
+
+- **Module Docs** (11 complete):
+  - emotional.md, memory.md, senses.md, workspace.md
+  - emotion_fusion.md, personality.md
+  - agency.md, dreamer.md, interoception.md, voice.md
+
+- **API Docs**:
+  - ultra_api.md updated with CogGNN, EWC, Mamba-2, DoRA
+
+- **i18n**: PT-BR and ZH-CN translations
+
+### 🔧 Changed
+
+- **Emotional GenServer**: Added mood state and EmotionFusion integration
+- **Workspace**: CogGNN-boosted salience via `sow_with_gnn/4`
+- **Cortex**: Neural ODE mode (optional, requires torchdiffeq)
+- **ULTRA Service**: Full neural enhancement API
+
+### 🐛 Fixed
+
+- SporeLogger backend removed (deprecated in OTP 28+)
+- Gettext bindings for interoception messages
+
 ---
 
 ## [0.4.0] - 2025-01-17
