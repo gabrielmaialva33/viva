@@ -20,6 +20,7 @@ mod os_stats;
 mod app;
 mod app_wrapper;
 mod components;
+pub mod physics; // Jolt Physics integration
 mod plugins;
 mod prelude;
 mod resources;
