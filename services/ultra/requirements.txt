@@ -1,21 +1,19 @@
 # ULTRA KG Reasoning Service
 # Reference: https://github.com/DeepGraphLearning/ULTRA
 # Paper: https://arxiv.org/abs/2310.04562 (ICLR 2024)
+#
+# NOTE: stdio service (Port communication), no HTTP server needed
 
-# Core
-torch==2.1.0
-torch-scatter==2.1.2
-torch-sparse==0.6.18
-torch-geometric==2.4.0
+# Core ML (official ULTRA requirements)
+torch>=2.1.0
+torch-scatter>=2.1.2
+torch-geometric>=2.4.0
 
-# Server
-fastapi>=0.109.0
-uvicorn[standard]>=0.27.0
-pydantic>=2.5.0
-
-# Utils
+# ULTRA dependencies
 ninja
 easydict
 pyyaml
-httpx>=0.26.0
 numpy>=1.24.0
+
+# HuggingFace for model loading
+huggingface_hub>=0.20.0
