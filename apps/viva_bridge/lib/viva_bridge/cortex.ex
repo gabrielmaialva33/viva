@@ -29,8 +29,8 @@ defmodule VivaBridge.Cortex do
   - `{:ok, new_pad}`
   """
   def tick(pad, energy, context \\ []) do
-    # Fast tick
-    GenServer.call(__MODULE__, {:tick, pad, energy, context}, 500)
+    # Increase timeout for slow python inference
+    GenServer.call(__MODULE__, {:tick, pad, energy, context}, 5000)
   end
 
   @doc """
@@ -45,7 +45,8 @@ defmodule VivaBridge.Cortex do
 
     # Trigger Liquid Update
     # Assuming minimal energy cost for thought
-    {:ok, %{"pad" => new_pad}} = tick(pad, 0.5, [])
+    result = tick(pad, 0.5, [])
+    new_pad = result["pad"]
 
     # Return 768-dim vector (padded) for Qdrant compatibility
     vector = new_pad ++ List.duplicate(0.0, 768 - 3)
@@ -71,7 +72,16 @@ defmodule VivaBridge.Cortex do
 
   @impl true
   def init(_opts) do
-    script_path = Path.join([File.cwd!(), "services", "cortex", "cortex_service.py"])
+    # Robust path finding
+    # If standard cwd/services fails, try finding root through relative path from this file
+    candidate_1 = Path.join([File.cwd!(), "services", "cortex", "cortex_service.py"])
+
+    # apps/viva_bridge/lib/viva_bridge/cortex.ex -> ../../../../services
+    candidate_2 = Path.expand("../../../../services/cortex/cortex_service.py", __DIR__)
+
+    script_path = if File.exists?(candidate_1), do: candidate_1, else: candidate_2
+
+    Logger.info("[VivaBridge.Cortex] Resolved script path: #{script_path}")
 
     if File.exists?(script_path) do
       Logger.info("[VivaBridge.Cortex] Starting Liquid Engine: #{script_path}")
