@@ -609,3 +609,7 @@ msgstr "平静"
 
 msgid "personality.describe"
 msgstr "我是%{traits}。我的情绪基线是%{valence}和%{energy}。我的反应性是%{reactivity}。"
+
+#. InnerMonologue Module
+msgid "inner_monologue.starting"
+msgstr "内心独白觉醒中。意识流开始..."

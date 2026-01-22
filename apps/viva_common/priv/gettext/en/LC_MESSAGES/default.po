@@ -609,3 +609,7 @@ msgstr "calm"
 
 msgid "personality.describe"
 msgstr "I am %{traits}. My emotional baseline is %{valence} and %{energy}. My reactivity is %{reactivity}."
+
+#. InnerMonologue Module
+msgid "inner_monologue.starting"
+msgstr "Inner Monologue awakening. Stream of consciousness begins..."
