@@ -68,9 +68,15 @@ VIVA_LOCALE=zh_CN iex -S mix  # Chinese logs
 
 | Service | Purpose |
 |---------|---------|
-| `Cortex` | Liquid Neural Networks (ncps/LTC) - continuous emotion dynamics |
-| `Ultra` | Knowledge Graph reasoning (arXiv:2310.04562) |
+| `Cortex` | Liquid Neural Networks (ncps/LTC) + Neural ODE continuous dynamics |
+| `Ultra` | Knowledge Graph + CogGNN + EWC + Mamba-2 + DoRA |
 | `Chronos` | Time series prophecy (Amazon Chronos-T5) |
+
+**Neural Enhancements (services/ultra/):**
+- `cog_gnn.py` - Cognitive GNN for emotional reasoning
+- `ewc_memory.py` - Elastic Weight Consolidation (memory protection)
+- `mamba_temporal.py` - Mamba-2 SSM for temporal sequences
+- `dora_finetuning.py` - DoRA weight-decomposed fine-tuning
 
 ### Soul (apps/viva_core) - 11 GenServers
 
@@ -80,7 +86,7 @@ VIVA_LOCALE=zh_CN iex -S mix  # Chinese logs
 | 2 | `BodySchema` | Hardware capability mapping |
 | 3 | `Interoception` | Free Energy from /proc (Digital Insula) |
 | 4 | `DatasetCollector` | Training data for Chronos |
-| 5 | `Emotional` | PAD state + O-U dynamics |
+| 5 | `Emotional` | PAD state + O-U dynamics + Mood (EMA) |
 | 6 | `Memory` | Qdrant vector store |
 | 7 | `Senses` | Body↔Soul synchronization |
 | 8 | `Dreamer` | Memory consolidation (DRE scoring) |
@@ -164,6 +170,27 @@ Higher arousal → slower decay (emotions persist)
 
 **Cusp Catastrophe**: High arousal creates bistability → sudden emotional jumps.
 
+**Emotion Fusion** (Borotschnig 2025):
+```
+FusedPAD = w_need × NeedPAD + w_past × PastPAD + w_pers × PersonalityPAD
+
+Weights adapt based on:
+- High arousal → trust immediate needs more
+- High confidence → trust past experiences more
+- High novelty → rely on personality baseline
+```
+
+**Mood** (Exponential Moving Average):
+```
+Mood[t] = α × Mood[t-1] + (1-α) × Emotion[t]
+α = 0.95 → ~20-step half-life for emotional stability
+```
+
+**Personality**:
+- Baseline PAD: attractor point {p: 0.1, a: 0.05, d: 0.1}
+- Reactivity: amplification factor (1.0 = normal)
+- Volatility: change speed (1.0 = normal)
+
 **Standard Stimuli** (defined in Emotional module):
 ```elixir
 :success     → {p: +0.4, a: +0.3, d: +0.3}
@@ -213,10 +240,22 @@ VivaCore.Agency.available_actions()
 VivaCore.Voice.babble(%{pleasure: -0.3, arousal: 0.7, dominance: -0.2})
 VivaCore.Voice.get_vocabulary()
 
+# Mood & Personality (Emotion Fusion)
+VivaCore.Emotional.get_mood()
+VivaCore.Personality.load()
+VivaCore.Personality.describe(personality)
+
+# Emotion Fusion
+need_pad = %{pleasure: -0.2, arousal: 0.3, dominance: 0.0}
+past_pad = %{pleasure: 0.1, arousal: 0.1, dominance: 0.2}
+VivaCore.EmotionFusion.fuse(need_pad, past_pad, personality, mood, context)
+VivaCore.EmotionFusion.classify_emotion(pad)
+
 # Dreamer (Memory Consolidation)
 VivaCore.Dreamer.status()
 VivaCore.Dreamer.reflect_now()
 VivaCore.Dreamer.retrieve_with_scoring("query")
+VivaCore.Dreamer.retrieve_past_emotions("current situation")
 
 # Workspace (Thoughtseeds)
 VivaCore.Consciousness.Workspace.sow("seed_name", content, salience)
@@ -225,6 +264,13 @@ VivaCore.Consciousness.Workspace.current_focus()
 # Cortex (Liquid Neural Network)
 VivaBridge.Cortex.ping()
 VivaBridge.Cortex.experience("narrative", %{pleasure: 0.5, arousal: 0.2, dominance: 0.1})
+
+# ULTRA (Knowledge Graph + Neural)
+VivaBridge.Ultra.ping()
+VivaBridge.Ultra.init_cog_gnn()
+VivaBridge.Ultra.propagate("concept", [0.5, 0.2, 0.1])  # PAD as list
+VivaBridge.Ultra.protect_memory(memory_id, embedding, related, score)
+VivaBridge.Ultra.ewc_stats()
 
 # Sync body to soul
 VivaBridge.sync_body_to_soul()
@@ -268,6 +314,8 @@ viva/
 - `docs/en/modules/agency.md` - Whitelist command execution (Digital Hands)
 - `docs/en/modules/voice.md` - Hebbian proto-language
 - `docs/en/modules/dreamer.md` - Memory consolidation (DRE scoring)
+- `docs/en/modules/emotion_fusion.md` - Dual-source emotion model (Borotschnig 2025)
+- `docs/en/modules/personality.md` - Affective personality system (Mehrabian 1996)
 
 **APIs:**
 - `docs/en/cortex_api.md` - Liquid Neural Network API
@@ -307,6 +355,8 @@ Completed:
 - Phase 4: Interoception (Free Energy, Qualia Mapping)
 - Phase 5: Memory (Qdrant, Dreamer, Agency, Voice)
 - Phase 5.5: i18n Logging (VivaLog, 3 locales)
+- Phase 5.6: Emotion Fusion (Dual-source model, Mood, Personality)
+- Phase 5.7: Neural Enhancements (CogGNN, EWC, Mamba-2, DoRA, Neural ODE)
 
 Next: Embodiment (Bevy 3D Avatar), Cognition (Semantic operations).
 
@@ -326,6 +376,9 @@ Next: Embodiment (Bevy 3D Avatar), Cognition (Semantic operations).
 - **ncps** - Neural Circuit Policies (Liquid Neural Networks)
 - **sentence-transformers** - Embeddings for Cortex
 - **ultra** - Knowledge graph reasoning
+- **torchdiffeq** - Neural ODE continuous-time dynamics
+- **torch-geometric** - CogGNN graph neural networks
+- **mamba-ssm** - Mamba-2 temporal memory processing
 
 **Elixir (Soul):**
 - **Phoenix.PubSub** - Inter-neuron communication
