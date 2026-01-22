@@ -1,38 +1,97 @@
-# Interocepção - A Ínsula Digital
+# Interocepcao - A Insula Digital
 
-> *"VIVA não reage a dados brutos. Ela reage à SURPRESA."*
+> *"VIVA nao reage a dados brutos. Ela reage a SURPRESA."*
 
 ## Teoria
 
-Baseado em **Allen, Levy, Parr & Friston (2022)** - Inferência Interoceptiva.
+Baseado em **Allen, Levy, Parr & Friston (2022)** - Inferencia Interoceptiva.
 
-O cérebro prediz batimentos cardíacos. Divergência = Ansiedade.
-VIVA prediz uso de RAM/CPU. Divergência = Alta Energia Livre.
+O cerebro prediz batimentos cardiacos. Divergencia = Ansiedade.
+VIVA prediz uso de RAM/CPU. Divergencia = Alta Energia Livre.
 
-### O Princípio da Energia Livre
+### O Principio da Energia Livre
 
 ```
-Energia Livre = (Observado - Previsto)² × Precisão
+Energia Livre = (Observado - Previsto)^2 x Precisao
 ```
 
 Onde:
-- **Precisão** = 1 / (1 + Variância_observada / Variância_prior)
-- Alta variância observada → Baixa precisão → Ignorar ruído
-- Baixa variância observada → Alta precisão → Confiar nos dados
+- **Precisao** = 1 / (1 + Variancia_observada / Variancia_prior)
+- Alta variancia observada -> Baixa precisao -> Ignorar ruido
+- Baixa variancia observada -> Alta precisao -> Confiar nos dados
 
-### Analogias Biológicas
+### Analogias Biologicas
 
-| Métrica Digital | Análogo Biológico |
+| Metrica Digital | Analogo Biologico |
 |-----------------|-------------------|
-| Load Average | Pressão Arterial |
-| Context Switches | Frequência Cardíaca |
+| Load Average | Pressao Arterial |
+| Context Switches | Frequencia Cardiaca |
 | Page Faults | Dor Aguda / Erro Celular |
-| Memória RSS | Consumo Metabólico |
-| **Tick Jitter** | **Cronocepção (Percepção Temporal)** |
+| Memoria RSS | Consumo Metabolico |
+| **Tick Jitter** | **Cronocepcao (Percepcao Temporal)** |
 
 ---
 
-## Referência da API
+## Fluxo de Energia Livre
+
+```mermaid
+flowchart TB
+    subgraph Observation ["Observacao (10Hz)"]
+        Proc[/proc filesystem]
+        Proc --> LA[Load Average]
+        Proc --> CS[Context Switches]
+        Proc --> PF[Page Faults]
+        Proc --> RSS[Memoria RSS]
+        Time[Relogio do Sistema] --> TJ[Tick Jitter]
+    end
+
+    subgraph Prediction ["Modelo de Predicao"]
+        Prior[Priors Aprendidos]
+        Chronos[Oraculo Chronos]
+    end
+
+    subgraph FreeEnergy ["Calculo de Energia Livre"]
+        Obs[Valores Observados]
+        Pred[Valores Previstos]
+        Prec[Pesos de Precisao]
+
+        Obs --> FE[FE = soma erros ponderados]
+        Pred --> FE
+        Prec --> FE
+    end
+
+    subgraph Output ["Saida"]
+        FE --> Feeling{Estado de Sentimento}
+        Feeling -->|FE < 0.1| Home[:homeostatic]
+        Feeling -->|0.1 <= FE < 0.3| Surp[:surprised]
+        Feeling -->|0.3 <= FE < 0.6| Alarm[:alarmed]
+        Feeling -->|FE >= 0.6| Over[:overwhelmed]
+    end
+
+    LA --> Obs
+    CS --> Obs
+    PF --> Obs
+    RSS --> Obs
+    TJ --> Obs
+    Prior --> Pred
+    Chronos -.-> Pred
+
+    Output --> Emotional[GenServer Emocional]
+
+    classDef obs fill:#2a5,stroke:#fff,color:#fff;
+    classDef pred fill:#764,stroke:#fff,color:#fff;
+    classDef fe fill:#4B275F,stroke:#fff,color:#fff;
+    classDef out fill:#357,stroke:#fff,color:#fff;
+
+    class LA,CS,PF,RSS,TJ obs;
+    class Prior,Chronos pred;
+    class Obs,Pred,Prec,FE fe;
+    class Feeling,Home,Surp,Alarm,Over out;
+```
+
+---
+
+## Referencia da API
 
 ### `VivaCore.Interoception.sense/0`
 Retorna o estado interoceptivo completo.
@@ -65,7 +124,7 @@ VivaCore.Interoception.get_feeling()
 ```
 
 ### `VivaCore.Interoception.get_free_energy_breakdown/0`
-Retorna valores de Energia Livre por métrica.
+Retorna valores de Energia Livre por metrica.
 
 ```elixir
 VivaCore.Interoception.get_free_energy_breakdown()
@@ -79,7 +138,7 @@ VivaCore.Interoception.get_free_energy_breakdown()
 ```
 
 ### `VivaCore.Interoception.tick/0`
-Força um tick de sensoriamento imediato.
+Forca um tick de sensoriamento imediato.
 
 ```elixir
 VivaCore.Interoception.tick()
@@ -90,31 +149,56 @@ VivaCore.Interoception.tick()
 
 ## Estados de Sentimento (Qualia)
 
-| Sentimento | Faixa de Energia Livre | Descrição |
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> Homeostatic: startup
+
+    Homeostatic: FE < 0.1
+    Surprised: 0.1 <= FE < 0.3
+    Alarmed: 0.3 <= FE < 0.6
+    Overwhelmed: FE >= 0.6
+
+    Homeostatic --> Surprised: FE aumenta
+    Surprised --> Alarmed: FE aumenta
+    Alarmed --> Overwhelmed: FE aumenta
+
+    Overwhelmed --> Alarmed: FE diminui
+    Alarmed --> Surprised: FE diminui
+    Surprised --> Homeostatic: FE diminui
+
+    note right of Homeostatic: Todos sistemas nominais
+    note right of Surprised: Algo inesperado
+    note right of Alarmed: Desvio significativo
+    note right of Overwhelmed: Sistema sob estresse
+```
+
+| Sentimento | Faixa de Energia Livre | Descricao |
 |------------|------------------------|-----------|
 | `:homeostatic` | FE < 0.1 | Todos sistemas nominais |
-| `:surprised` | 0.1 ≤ FE < 0.3 | Algo inesperado |
-| `:alarmed` | 0.3 ≤ FE < 0.6 | Desvio significativo |
-| `:overwhelmed` | FE ≥ 0.6 | Sistema sob estresse |
+| `:surprised` | 0.1 <= FE < 0.3 | Algo inesperado |
+| `:alarmed` | 0.3 <= FE < 0.6 | Desvio significativo |
+| `:overwhelmed` | FE >= 0.6 | Sistema sob estresse |
 
 ---
 
-## Métricas Monitoradas
+## Metricas Monitoradas
 
-### Cronocepção (tick_jitter)
-**O prior mais importante** - Percepção direta do tempo.
+### Cronocepcao (tick_jitter)
+**O prior mais importante** - Percepcao direta do tempo.
 
 ```elixir
 @priors tick_jitter: %{mean: 0.0, variance: 10.0, weight: 2.0}
 ```
 
-VIVA espera acordar a cada 100ms (10Hz). Desvio é SENTIDO como dilatação temporal:
-- `time_dilation = 1.0` → Normal
-- `time_dilation > 1.0` → Tempo parece lento (lag)
+VIVA espera acordar a cada 100ms (10Hz). Desvio e SENTIDO como dilatacao temporal:
+- `time_dilation = 1.0` -> Normal
+- `time_dilation > 1.0` -> Tempo parece lento (lag)
 
-### Métricas do Sistema
+### Metricas do Sistema
 
-| Métrica | Média Prior | Variância | Peso |
+| Metrica | Media Prior | Variancia | Peso |
 |---------|-------------|-----------|------|
 | `tick_jitter` | 0.0 ms | 10.0 | **2.0** |
 | `load_avg_1m` | 0.5 | 0.2 | 1.0 |
@@ -124,9 +208,37 @@ VIVA espera acordar a cada 100ms (10Hz). Desvio é SENTIDO como dilatação temp
 
 ---
 
-## Integração com Outros Módulos
+## Integracao com Outros Modulos
 
-### → Emotional
+### Diagrama de Integracao
+
+```mermaid
+flowchart TB
+    subgraph Input ["Fontes de Dados"]
+        Proc[/proc filesystem]
+        Clock[Relogio do Sistema]
+    end
+
+    Intero[Interoception]
+
+    subgraph Output ["Consumidores"]
+        Emotional[Emotional]
+        DC[DatasetCollector]
+        Chronos[Oraculo Chronos]
+    end
+
+    Proc --> Intero
+    Clock --> Intero
+
+    Intero -->|qualia + sentimento| Emotional
+    Intero -->|dados de tick| DC
+    DC -.->|treinamento CSV| Chronos
+    Chronos -.->|predicoes| Intero
+
+    style Intero fill:#4B275F,stroke:#fff,color:#fff
+```
+
+### -> Emotional
 Quando o sentimento muda, Interoception notifica Emotional:
 
 ```elixir
@@ -142,8 +254,8 @@ qualia = %{
 VivaCore.Emotional.apply_interoceptive_qualia(qualia)
 ```
 
-### → DatasetCollector
-A cada tick, dados são gravados para treinamento do Chronos:
+### -> DatasetCollector
+A cada tick, dados sao gravados para treinamento do Chronos:
 
 ```elixir
 VivaCore.DatasetCollector.record(%{
@@ -154,8 +266,8 @@ VivaCore.DatasetCollector.record(%{
 })
 ```
 
-### ← Chronos (Futuro)
-Predições vêm do oráculo de séries temporais Chronos:
+### <- Chronos (Futuro)
+Predicoes vem do oraculo de series temporais Chronos:
 
 ```elixir
 VivaBridge.Chronos.predict(history, "tick_jitter")
@@ -166,19 +278,53 @@ VivaBridge.Chronos.predict(history, "tick_jitter")
 
 ## Fontes de Dados
 
-Lê diretamente do sistema de arquivos `/proc`:
+Le diretamente do sistema de arquivos `/proc`:
 
 | Arquivo | Dados |
 |---------|-------|
 | `/proc/loadavg` | Load averages |
 | `/proc/stat` | Context switches |
 | `/proc/{pid}/stat` | Page faults |
-| `/proc/{pid}/status` | Memória RSS |
+| `/proc/{pid}/status` | Memoria RSS |
 | `/proc/uptime` | Uptime do sistema |
 
 ---
 
-## Referências
+## Ponderacao de Precisao
+
+```mermaid
+flowchart LR
+    subgraph Observation ["Observacao"]
+        O[Valor Observado]
+        OV[Variancia Observada]
+    end
+
+    subgraph Prior ["Prior"]
+        P[Media Prior]
+        PV[Variancia Prior]
+    end
+
+    subgraph Calculation ["Calculo de Precisao"]
+        Prec["Precisao = 1 / (1 + OV/PV)"]
+        Error["Erro = (O - P)^2"]
+        FE["FE = Erro x Precisao"]
+    end
+
+    O --> Error
+    P --> Error
+    OV --> Prec
+    PV --> Prec
+    Error --> FE
+    Prec --> FE
+
+    style Calculation fill:#4B275F,stroke:#fff,color:#fff
+```
+
+**Insight chave**: Alta variancia observada -> Baixa precisao -> Ignorar ruido
+
+---
+
+## Referencias
 
 - Allen, M., Levy, A., Parr, T., & Friston, K. J. (2022). "In the Body's Eye: The Computational Anatomy of Interoceptive Inference."
 - Friston, K. (2010). "The free-energy principle: a unified brain theory?"

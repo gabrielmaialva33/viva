@@ -60,45 +60,74 @@ Isso significa que mood e um **historico suavizado** de estados emocionais recen
 
 ## Arquitetura
 
+### Pipeline de Fusao
+
+```mermaid
+flowchart TB
+    subgraph Context ["Entrada de Contexto"]
+        CTX[Context<br/>arousal, confidence, novelty]
+    end
+
+    subgraph Sources ["Tres Fontes PAD"]
+        Need[Interoception<br/>NeedPAD]
+        Past[Memory<br/>PastPAD]
+        Pers[Personality<br/>Baseline]
+    end
+
+    subgraph Fusion ["Pipeline EmotionFusion"]
+        CW[calculate_weights]
+        WF[weighted_fusion]
+        AR[apply_reactivity]
+        CP[clamp_pad]
+    end
+
+    subgraph Output ["Saida"]
+        FP[FusedPAD]
+        UM[update_mood<br/>EMA]
+        PAA[PreActionAffect]
+    end
+
+    CTX --> CW
+    Need --> WF
+    Past --> WF
+    Pers --> WF
+    CW --> WF
+    WF --> AR
+    AR --> CP
+    CP --> FP
+    FP --> UM
+    FP --> PAA
+    UM --> PAA
+
+    classDef context fill:#2a5,stroke:#fff,color:#fff;
+    classDef source fill:#764,stroke:#fff,color:#fff;
+    classDef fusion fill:#4B275F,stroke:#fff,color:#fff;
+    classDef output fill:#357,stroke:#fff,color:#fff;
+
+    class CTX context;
+    class Need,Past,Pers source;
+    class CW,WF,AR,CP fusion;
+    class FP,UM,PAA output;
 ```
-                    Contexto
-                       |
-                       v
-            +-----------------------+
-            |  calculate_weights()  |
-            +-----------------------+
-                       |
-     +--------+--------+--------+
-     |        |                 |
-     v        v                 v
-+----------+ +----------+ +------------+
-|Interoception| |  Memory  | |Personality |
-| (NeedPAD)  | |(PastPAD) | | (Baseline) |
-+----------+ +----------+ +------------+
-     |        |                 |
-     +--------+--------+--------+
-                       |
-                       v
-            +-----------------------+
-            |   weighted_fusion()   |
-            |   apply_reactivity()  |
-            |      clamp_pad()      |
-            +-----------------------+
-                       |
-                       v
-                   FusedPAD
-                       |
-                       v
-            +-----------------------+
-            |    update_mood()      |
-            |       (EMA)           |
-            +-----------------------+
-                       |
-                       v
-            +-----------------------+
-            |   PreActionAffect     |
-            | (para selecao de acao)|
-            +-----------------------+
+
+### Visualizacao de Pesos Adaptativos
+
+```mermaid
+flowchart LR
+    subgraph Weights ["Pesos Adaptativos"]
+        direction TB
+        A[Alto Arousal] -->|aumenta| WN[w_need]
+        C[Alta Confianca] -->|aumenta| WP[w_past]
+        N[Alta Novidade] -->|aumenta| WPers[w_personality]
+    end
+
+    subgraph Normalize ["Normalizacao"]
+        WN --> Norm[sum = 1.0]
+        WP --> Norm
+        WPers --> Norm
+    end
+
+    style Weights fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### Fluxo de Dados
@@ -111,6 +140,36 @@ Isso significa que mood e um **historico suavizado** de estados emocionais recen
 6. **Valores limitados** ao range PAD valido [-1, 1]
 7. **Mood atualizado** via EMA
 8. **PreActionAffect construido** para selecao de acao downstream
+
+---
+
+## Classificacao de Octantes PAD
+
+```mermaid
+stateDiagram-v2
+    direction TB
+
+    [*] --> Neutral: startup
+
+    state "Valencia Positiva" as positive {
+        Exuberant: P>0.2 A>0.2 D>0.2
+        DependentJoy: P>0.2 A>0.2 D<=0.2
+        Relaxed: P>0.2 A<=0.2 D>0.2
+        Docile: P>0.2 A<=0.2 D<=0.2
+    }
+
+    state "Valencia Negativa" as negative {
+        Hostile: P<=0.2 A>0.2 D>0.2
+        Anxious: P<=0.2 A>0.2 D<=0.2
+        Disdainful: P<=0.2 A<=0.2 D>0.2
+        Bored: P<=0.2 A<=0.2 D<=0.2
+    }
+
+    Neutral --> positive: pleasure aumenta
+    Neutral --> negative: pleasure diminui
+    positive --> Neutral: decaimento
+    negative --> Neutral: decaimento
+```
 
 ---
 
@@ -347,6 +406,27 @@ IO.inspect(final_mood)
 ---
 
 ## Integracao com Outros Modulos
+
+### Diagrama de Integracao Completa
+
+```mermaid
+flowchart TB
+    subgraph Upstream ["Dependencias Upstream"]
+        Intero[Interoception] -->|need_pad| EF
+        Memory[Memory] -->|past_pad| EF
+        Pers[Personality] -->|baseline| EF
+    end
+
+    EF[EmotionFusion]
+
+    subgraph Downstream ["Consumidores Downstream"]
+        EF -->|PreActionAffect| Agency[Agency]
+        EF -->|PreActionAffect| Voice[Voice]
+        EF -->|PreActionAffect| Workspace[Workspace]
+    end
+
+    style EF fill:#4B275F,stroke:#fff,color:#fff
+```
 
 ### Dependencias Upstream
 

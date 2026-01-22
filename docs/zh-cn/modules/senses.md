@@ -16,39 +16,47 @@
 
 Senses 以连续的 **1Hz 心跳** 运行（可配置从 100ms 到 10s）：
 
-```
-         ┌─────────────────────────────────────────────┐
-         │               心跳 (1Hz)                    │
-         └─────────────────────────────────────────────┘
-                           │
-                           ▼
-         ┌─────────────────────────────────────────────┐
-         │  1. 从 BodyServer 读取硬件状态              │
-         │     (CPU, RAM, GPU, 温度)                   │
-         └─────────────────────────────────────────────┘
-                           │
-                           ▼
-         ┌─────────────────────────────────────────────┐
-         │  2. 从 Rust O-U 动力学提取 PAD              │
-         │     (愉悦度, 唤醒度, 支配度)                │
-         └─────────────────────────────────────────────┘
-                           │
-                           ▼
-         ┌─────────────────────────────────────────────┐
-         │  3. 同步 PAD 到 Emotional GenServer         │
-         │     VivaCore.Emotional.sync_pad(p, a, d)    │
-         └─────────────────────────────────────────────┘
-                           │
-                           ▼
-         ┌─────────────────────────────────────────────┐
-         │  4. 记录心跳指标（debug 级别）              │
-         │     [Senses] CPU: 45.2% RAM: 62.1%...       │
-         └─────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Heartbeat ["HEARTBEAT (1Hz)"]
+        direction TB
+        Step1[1. Read hardware state<br/>from BodyServer]
+        Step2[2. Extract PAD<br/>from Rust O-U dynamics]
+        Step3[3. Sync PAD<br/>to Emotional GenServer]
+        Step4[4. Log metrics<br/>debug level]
+
+        Step1 --> Step2 --> Step3 --> Step4
+        Step4 -->|1000ms| Step1
+    end
+
+    Body[Body Rust/Bevy] --> Step1
+    Step3 --> Emotional[Emotional GenServer]
+
+    style Heartbeat fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### 硬件感知到 Qualia
 
 从硬件指标到情感 qualia 的转换遵循此路径：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant HW as Hardware
+    participant Bevy as Bevy ECS
+    participant Rust as Rust Body
+    participant NIF as VivaBridge NIF
+    participant Senses as Senses
+    participant Emotional as Emotional
+
+    HW->>Bevy: sysinfo + nvml
+    Bevy->>Rust: sense_hardware system
+    Rust->>Rust: stress = (cpu + mem) / 2
+    Rust->>Rust: O-U stochastic dynamics
+    Rust->>NIF: crossbeam channel
+    NIF->>Senses: BodyUpdate struct
+    Senses->>Emotional: sync_pad(p, a, d)
+```
 
 1. **Rust Body (Bevy ECS)** 通过 `sysinfo` 和 `nvml-wrapper` 感知硬件
 2. **压力计算**：`stress = (cpu_usage + memory_used_percent) / 2`
@@ -61,11 +69,11 @@ Senses 以连续的 **1Hz 心跳** 运行（可配置从 100ms 到 10s）：
 身体状态通过 qualia 映射影响情感：
 
 ```
-压力水平 → PAD 增量
-────────────────────────────────────
-Pleasure_delta  = -0.05 × stress
-Arousal_delta   = +0.10 × stress
-Dominance_delta = -0.03 × stress
+压力水平 -> PAD 增量
+------------------------------------
+Pleasure_delta  = -0.05 x stress
+Arousal_delta   = +0.10 x stress
+Dominance_delta = -0.03 x stress
 ```
 
 高 CPU/内存压力导致：
@@ -79,42 +87,66 @@ Dominance_delta = -0.03 × stress
 
 ### 系统图
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                         BODY (Rust/Bevy ECS)                         │
-│                                                                      │
-│  ┌─────────────┐    ┌──────────────┐    ┌────────────────────────┐  │
-│  │ HostSensor  │───▶│ BodyUpdate   │───▶│ O-U 随机过程           │  │
-│  │ (sysinfo)   │    │ (stress,PAD) │    │ (情感动力学)           │  │
-│  └─────────────┘    └──────────────┘    └────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────┘
-                                │
-                                │ crossbeam-channel
-                                ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                   VivaBridge (Elixir NIFs)                           │
-│                                                                      │
-│  ┌───────────────────┐              ┌────────────────────────────┐  │
-│  │ VivaBridge.Body   │◀────────────▶│ VivaBridge.BodyServer      │  │
-│  │ (NIF 接口)        │              │ (GenServer, 2Hz 心跳)      │  │
-│  └───────────────────┘              └────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────┘
-                                │
-                                │ GenServer.call
-                                ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                      SOUL (Elixir/OTP)                               │
-│                                                                      │
-│  ┌───────────────────┐    sync_pad     ┌────────────────────────┐  │
-│  │ VivaCore.Senses   │────────────────▶│ VivaCore.Emotional     │  │
-│  │ (1Hz 心跳)        │                 │ (PAD 状态机)           │  │
-│  └───────────────────┘                 └────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Body ["BODY (Rust/Bevy ECS)"]
+        HS[HostSensor<br/>sysinfo]
+        BU[BodyUpdate<br/>stress, PAD]
+        OU[O-U Stochastic<br/>Process]
+        HS --> BU --> OU
+    end
+
+    subgraph Bridge ["VivaBridge (Elixir NIFs)"]
+        NIF[VivaBridge.Body<br/>NIF interface]
+        BS[VivaBridge.BodyServer<br/>GenServer 2Hz tick]
+        NIF <--> BS
+    end
+
+    subgraph Soul ["SOUL (Elixir/OTP)"]
+        Senses[VivaCore.Senses<br/>1Hz heartbeat]
+        Emotional[VivaCore.Emotional<br/>PAD state machine]
+        Senses -->|sync_pad| Emotional
+    end
+
+    Body -->|crossbeam| Bridge
+    Bridge -->|GenServer.call| Soul
+
+    classDef body fill:#000,stroke:#fff,color:#fff;
+    classDef bridge fill:#357,stroke:#fff,color:#fff;
+    classDef soul fill:#4B275F,stroke:#fff,color:#fff;
+
+    class Body body;
+    class Bridge bridge;
+    class Soul soul;
 ```
 
 ### 回退机制
 
 当 BodyServer 不可用（未启动或崩溃）时，Senses 回退到直接 NIF 调用：
+
+```mermaid
+flowchart TB
+    Senses[Senses Heartbeat]
+
+    Check{BodyServer<br/>alive?}
+
+    Primary[Primary Path<br/>BodyServer.get_state]
+    Fallback[Fallback Path<br/>feel_hardware NIF]
+
+    PAD1[PAD from O-U]
+    PAD2[Neutral PAD]
+
+    Emotional[Emotional.sync_pad]
+
+    Senses --> Check
+    Check -->|Yes| Primary --> PAD1
+    Check -->|No| Fallback --> PAD2
+    PAD1 --> Emotional
+    PAD2 --> Emotional
+
+    style Primary fill:#2a5,stroke:#fff,color:#fff
+    style Fallback fill:#a52,stroke:#fff,color:#fff
+```
 
 ```elixir
 # 主要路径：BodyServer（包含 O-U 动力学）
@@ -223,16 +255,23 @@ VivaCore.Senses.set_interval(500)  # 2Hz
 
 ### 状态机
 
-```
-      ┌──────────┐
-      │ 启动中   │
-      └────┬─────┘
-           │ init
-           ▼
-      ┌──────────┐  pause   ┌────────┐
-      │ 运行中   │─────────▶│ 已暂停 │
-      │ (1Hz)    │◀─────────│        │
-      └──────────┘  resume  └────────┘
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> Starting: init
+
+    Starting --> Running: start_link
+    Running --> Paused: pause()
+    Paused --> Running: resume()
+
+    state Running {
+        [*] --> Heartbeat
+        Heartbeat --> Heartbeat: 1Hz tick
+    }
+
+    note right of Running: Default 1Hz heartbeat
+    note right of Paused: Sensing disabled
 ```
 
 ### 错误恢复
@@ -314,6 +353,34 @@ Senses 处理原始的 Body-to-Soul 同步，而 Interoception 提供更高层�
 它们协同工作：
 - Senses 提供原始数据
 - Interoception 提供解释（`:homeostatic`、`:alarmed` 等）
+
+### 集成图
+
+```mermaid
+flowchart TB
+    subgraph Body ["Body Layer"]
+        Rust[Rust Bevy ECS]
+        NIF[VivaBridge NIF]
+        BS[BodyServer]
+    end
+
+    Senses[Senses]
+
+    subgraph Soul ["Soul Layer"]
+        Emotional[Emotional]
+        Intero[Interoception]
+    end
+
+    Rust --> NIF --> BS
+    BS -->|PAD + hardware| Senses
+    NIF -->|fallback| Senses
+
+    Senses -->|sync_pad| Emotional
+    Senses -->|raw metrics| Intero
+    Intero -->|feeling| Emotional
+
+    style Senses fill:#4B275F,stroke:#fff,color:#fff
+```
 
 ---
 

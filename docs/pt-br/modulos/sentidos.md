@@ -12,43 +12,51 @@ Assim como o sistema nervoso autonomo humano que transmite informacoes de batime
 
 ## Conceito
 
-### O Loop de Batimento
+### O Loop de Heartbeat
 
-Senses opera em um **batimento continuo de 1Hz** (configuravel de 100ms a 10s):
+Senses opera em um **heartbeat continuo de 1Hz** (configuravel de 100ms a 10s):
 
-```
-         +---------------------------------------------+
-         |               BATIMENTO (1Hz)               |
-         +---------------------------------------------+
-                           |
-                           v
-         +---------------------------------------------+
-         |  1. Ler estado de hardware do BodyServer    |
-         |     (CPU, RAM, GPU, Temperatura)            |
-         +---------------------------------------------+
-                           |
-                           v
-         +---------------------------------------------+
-         |  2. Extrair PAD da dinamica O-U em Rust     |
-         |     (Pleasure, Arousal, Dominance)          |
-         +---------------------------------------------+
-                           |
-                           v
-         +---------------------------------------------+
-         |  3. Sincronizar PAD com GenServer Emocional |
-         |     VivaCore.Emotional.sync_pad(p, a, d)    |
-         +---------------------------------------------+
-                           |
-                           v
-         +---------------------------------------------+
-         |  4. Logar metricas de batimento (nivel debug)|
-         |     [Senses] CPU: 45.2% RAM: 62.1%...       |
-         +---------------------------------------------+
+```mermaid
+flowchart TB
+    subgraph Heartbeat ["HEARTBEAT (1Hz)"]
+        direction TB
+        Step1[1. Ler estado de hardware<br/>do BodyServer]
+        Step2[2. Extrair PAD<br/>da dinamica O-U em Rust]
+        Step3[3. Sincronizar PAD<br/>com GenServer Emocional]
+        Step4[4. Logar metricas<br/>nivel debug]
+
+        Step1 --> Step2 --> Step3 --> Step4
+        Step4 -->|1000ms| Step1
+    end
+
+    Body[Body Rust/Bevy] --> Step1
+    Step3 --> Emotional[GenServer Emocional]
+
+    style Heartbeat fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### Sensoriamento de Hardware para Qualia
 
 A transformacao de metricas de hardware para qualia emocional segue este caminho:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant HW as Hardware
+    participant Bevy as Bevy ECS
+    participant Rust as Rust Body
+    participant NIF as VivaBridge NIF
+    participant Senses as Senses
+    participant Emotional as Emotional
+
+    HW->>Bevy: sysinfo + nvml
+    Bevy->>Rust: sense_hardware system
+    Rust->>Rust: stress = (cpu + mem) / 2
+    Rust->>Rust: dinamica estocastica O-U
+    Rust->>NIF: crossbeam channel
+    NIF->>Senses: struct BodyUpdate
+    Senses->>Emotional: sync_pad(p, a, d)
+```
 
 1. **Rust Body (Bevy ECS)** sensoria hardware via `sysinfo` e `nvml-wrapper`
 2. **Calculo de estresse**: `stress = (cpu_usage + memory_used_percent) / 2`
@@ -79,42 +87,66 @@ Alta pressao de CPU/memoria causa:
 
 ### Diagrama do Sistema
 
-```
-+----------------------------------------------------------------------+
-|                         BODY (Rust/Bevy ECS)                         |
-|                                                                      |
-|  +-------------+    +--------------+    +------------------------+   |
-|  | HostSensor  |--->| BodyUpdate   |--->| Processo Estocastico   |   |
-|  | (sysinfo)   |    | (stress,PAD) |    | O-U (dinamica emocional)|  |
-|  +-------------+    +--------------+    +------------------------+   |
-+----------------------------------------------------------------------+
-                                |
-                                | crossbeam-channel
-                                v
-+----------------------------------------------------------------------+
-|                   VivaBridge (Elixir NIFs)                           |
-|                                                                      |
-|  +-------------------+              +----------------------------+   |
-|  | VivaBridge.Body   |<------------>| VivaBridge.BodyServer      |   |
-|  | (interface NIF)   |              | (GenServer, tick 2Hz)      |   |
-|  +-------------------+              +----------------------------+   |
-+----------------------------------------------------------------------+
-                                |
-                                | GenServer.call
-                                v
-+----------------------------------------------------------------------+
-|                      SOUL (Elixir/OTP)                               |
-|                                                                      |
-|  +-------------------+    sync_pad     +------------------------+    |
-|  | VivaCore.Senses   |---------------->| VivaCore.Emotional     |    |
-|  | (batimento 1Hz)   |                 | (maquina estado PAD)   |    |
-|  +-------------------+                 +------------------------+    |
-+----------------------------------------------------------------------+
+```mermaid
+flowchart TB
+    subgraph Body ["BODY (Rust/Bevy ECS)"]
+        HS[HostSensor<br/>sysinfo]
+        BU[BodyUpdate<br/>stress, PAD]
+        OU[Processo Estocastico<br/>O-U]
+        HS --> BU --> OU
+    end
+
+    subgraph Bridge ["VivaBridge (Elixir NIFs)"]
+        NIF[VivaBridge.Body<br/>interface NIF]
+        BS[VivaBridge.BodyServer<br/>GenServer tick 2Hz]
+        NIF <--> BS
+    end
+
+    subgraph Soul ["SOUL (Elixir/OTP)"]
+        Senses[VivaCore.Senses<br/>heartbeat 1Hz]
+        Emotional[VivaCore.Emotional<br/>maquina estado PAD]
+        Senses -->|sync_pad| Emotional
+    end
+
+    Body -->|crossbeam| Bridge
+    Bridge -->|GenServer.call| Soul
+
+    classDef body fill:#000,stroke:#fff,color:#fff;
+    classDef bridge fill:#357,stroke:#fff,color:#fff;
+    classDef soul fill:#4B275F,stroke:#fff,color:#fff;
+
+    class Body body;
+    class Bridge bridge;
+    class Soul soul;
 ```
 
 ### Mecanismo de Fallback
 
 Quando BodyServer esta indisponivel (nao iniciado ou crashou), Senses faz fallback para chamadas NIF diretas:
+
+```mermaid
+flowchart TB
+    Senses[Heartbeat Senses]
+
+    Check{BodyServer<br/>vivo?}
+
+    Primary[Caminho Primario<br/>BodyServer.get_state]
+    Fallback[Caminho Fallback<br/>feel_hardware NIF]
+
+    PAD1[PAD do O-U]
+    PAD2[PAD Neutro]
+
+    Emotional[Emotional.sync_pad]
+
+    Senses --> Check
+    Check -->|Sim| Primary --> PAD1
+    Check -->|Nao| Fallback --> PAD2
+    PAD1 --> Emotional
+    PAD2 --> Emotional
+
+    style Primary fill:#2a5,stroke:#fff,color:#fff
+    style Fallback fill:#a52,stroke:#fff,color:#fff
+```
 
 ```elixir
 # Caminho primario: BodyServer (inclui dinamica O-U)
@@ -139,7 +171,7 @@ Inicia o GenServer Senses.
 ```elixir
 VivaCore.Senses.start_link(
   name: MyCustomSenses,      # Nome do processo (padrao: __MODULE__)
-  interval_ms: 500,          # Intervalo de batimento (padrao: 1000)
+  interval_ms: 500,          # Intervalo de heartbeat (padrao: 1000)
   emotional_server: MyEmotional,  # Emocional alvo (padrao: VivaCore.Emotional)
   enabled: true              # Se sensoriamento esta ativo (padrao: true)
 )
@@ -165,7 +197,7 @@ VivaCore.Senses.get_state()
 
 ### `VivaCore.Senses.pulse/1`
 
-Forca um batimento imediato (sensoriamento + aplicar qualia).
+Forca um heartbeat imediato (sensoriamento + aplicar qualia).
 
 ```elixir
 VivaCore.Senses.pulse()
@@ -196,7 +228,7 @@ VivaCore.Senses.resume()
 
 ### `VivaCore.Senses.set_interval/2`
 
-Muda intervalo de batimento em tempo de execucao.
+Muda intervalo de heartbeat em tempo de execucao.
 
 ```elixir
 VivaCore.Senses.set_interval(500)  # 2Hz
@@ -208,7 +240,7 @@ VivaCore.Senses.set_interval(500)  # 2Hz
 
 ---
 
-## Detalhes do Batimento
+## Detalhes do Heartbeat
 
 ### O Que Acontece em Cada Tick
 
@@ -219,20 +251,27 @@ VivaCore.Senses.set_interval(500)  # 2Hz
 | 3 | Sincronizar PAD com Emocional via `sync_pad/4` | Pular se indisponivel |
 | 4 | Logar metricas (nivel debug) | Sempre sucede |
 | 5 | Atualizar estado interno | Sempre sucede |
-| 6 | Agendar proximo batimento | Sempre sucede |
+| 6 | Agendar proximo heartbeat | Sempre sucede |
 
 ### Maquina de Estados
 
-```
-      +------------+
-      | INICIANDO  |
-      +-----+------+
-            | init
-            v
-      +------------+  pause   +----------+
-      | RODANDO    |--------->| PAUSADO  |
-      | (1Hz)      |<---------| resume   |
-      +------------+          +----------+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> Starting: init
+
+    Starting --> Running: start_link
+    Running --> Paused: pause()
+    Paused --> Running: resume()
+
+    state Running {
+        [*] --> Heartbeat
+        Heartbeat --> Heartbeat: tick 1Hz
+    }
+
+    note right of Running: Heartbeat padrao 1Hz
+    note right of Paused: Sensoriamento desabilitado
 ```
 
 ### Recuperacao de Erros
@@ -248,7 +287,7 @@ state.errors
 #    ]
 ```
 
-O loop de batimento continua mesmo apos erros - resiliencia esta embutida.
+O loop de heartbeat continua mesmo apos erros - resiliencia esta embutida.
 
 ---
 
@@ -295,7 +334,7 @@ BodyServer mantem o ciclo de vida do Rust Bevy ECS e fornece estado unificado:
 Senses sincroniza estado PAD com o GenServer Emocional:
 
 ```elixir
-# Dentro do batimento:
+# Dentro do heartbeat:
 VivaCore.Emotional.sync_pad(p, a, d, state.emotional_server)
 
 # Isso aplica PAD derivado do body ao estado do Emocional
@@ -315,11 +354,39 @@ Eles trabalham juntos:
 - Senses fornece os dados brutos
 - Interoception fornece a interpretacao (`:homeostatic`, `:alarmed`, etc.)
 
+### Diagrama de Integracao
+
+```mermaid
+flowchart TB
+    subgraph Body ["Camada Body"]
+        Rust[Rust Bevy ECS]
+        NIF[VivaBridge NIF]
+        BS[BodyServer]
+    end
+
+    Senses[Senses]
+
+    subgraph Soul ["Camada Soul"]
+        Emotional[Emotional]
+        Intero[Interoception]
+    end
+
+    Rust --> NIF --> BS
+    BS -->|PAD + hardware| Senses
+    NIF -->|fallback| Senses
+
+    Senses -->|sync_pad| Emotional
+    Senses -->|metricas brutas| Intero
+    Intero -->|sentimento| Emotional
+
+    style Senses fill:#4B275F,stroke:#fff,color:#fff
+```
+
 ---
 
 ## Configuracao
 
-### Intervalo de Batimento
+### Intervalo de Heartbeat
 
 | Configuracao | Valor | Significado |
 |--------------|-------|-------------|
@@ -369,7 +436,7 @@ state.last_qualia
 ### Forcar Sensoriamento Imediato
 
 ```elixir
-# Pulse forca batimento imediato
+# Pulse forca heartbeat imediato
 {:ok, {p, a, d}} = VivaCore.Senses.pulse()
 
 # Verificar efeito no Emocional
@@ -387,10 +454,10 @@ VivaCore.Senses.set_interval(100)
 VivaCore.Senses.set_interval(5000)
 ```
 
-### Debugando Problemas de Batimento
+### Debugando Problemas de Heartbeat
 
 ```elixir
-# Verificar contagem de batimentos
+# Verificar contagem de heartbeats
 state = VivaCore.Senses.get_state()
 state.heartbeat_count
 # => 1234
@@ -437,7 +504,7 @@ VivaCore.Senses.resume()
 | Sistema Humano | Equivalente VIVA |
 |----------------|------------------|
 | Sistema Nervoso Autonomo | GenServer Senses |
-| Frequencia Cardiaca | Intervalo de batimento (padrao 1Hz) |
+| Frequencia Cardiaca | Intervalo de heartbeat (padrao 1Hz) |
 | Neuronios Sensoriais | VivaBridge.Body NIF |
 | Talamo (relay) | BodyServer |
 | Sistema Limbico | VivaCore.Emotional |

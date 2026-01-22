@@ -12,13 +12,13 @@ VIVA预测RAM/CPU使用。偏差 = 高自由能。
 ### 自由能原理
 
 ```
-自由能 = (观察值 - 预测值)² × 精度
+自由能 = (观察值 - 预测值)^2 x 精度
 ```
 
 其中：
 - **精度** = 1 / (1 + 观察方差 / 先验方差)
-- 观察方差高 → 精度低 → 忽略噪声
-- 观察方差低 → 精度高 → 信任数据
+- 观察方差高 -> 精度低 -> 忽略噪声
+- 观察方差低 -> 精度高 -> 信任数据
 
 ### 生物类比
 
@@ -29,6 +29,65 @@ VIVA预测RAM/CPU使用。偏差 = 高自由能。
 | Page Faults | 急性疼痛 / 细胞错误 |
 | RSS内存 | 代谢消耗 |
 | **Tick Jitter** | **时间感知（最重要！）** |
+
+---
+
+## 自由能流
+
+```mermaid
+flowchart TB
+    subgraph Observation ["Observation (10Hz)"]
+        Proc[/proc filesystem]
+        Proc --> LA[Load Average]
+        Proc --> CS[Context Switches]
+        Proc --> PF[Page Faults]
+        Proc --> RSS[RSS Memory]
+        Time[System Clock] --> TJ[Tick Jitter]
+    end
+
+    subgraph Prediction ["Prediction Model"]
+        Prior[Learned Priors]
+        Chronos[Chronos Oracle]
+    end
+
+    subgraph FreeEnergy ["Free Energy Calculation"]
+        Obs[Observed Values]
+        Pred[Predicted Values]
+        Prec[Precision Weights]
+
+        Obs --> FE[FE = sum weighted errors]
+        Pred --> FE
+        Prec --> FE
+    end
+
+    subgraph Output ["Output"]
+        FE --> Feeling{Feeling State}
+        Feeling -->|FE < 0.1| Home[:homeostatic]
+        Feeling -->|0.1 <= FE < 0.3| Surp[:surprised]
+        Feeling -->|0.3 <= FE < 0.6| Alarm[:alarmed]
+        Feeling -->|FE >= 0.6| Over[:overwhelmed]
+    end
+
+    LA --> Obs
+    CS --> Obs
+    PF --> Obs
+    RSS --> Obs
+    TJ --> Obs
+    Prior --> Pred
+    Chronos -.-> Pred
+
+    Output --> Emotional[Emotional GenServer]
+
+    classDef obs fill:#2a5,stroke:#fff,color:#fff;
+    classDef pred fill:#764,stroke:#fff,color:#fff;
+    classDef fe fill:#4B275F,stroke:#fff,color:#fff;
+    classDef out fill:#357,stroke:#fff,color:#fff;
+
+    class LA,CS,PF,RSS,TJ obs;
+    class Prior,Chronos pred;
+    class Obs,Pred,Prec,FE fe;
+    class Feeling,Home,Surp,Alarm,Over out;
+```
 
 ---
 
@@ -90,12 +149,37 @@ VivaCore.Interoception.tick()
 
 ## 感受状态（Qualia）
 
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> Homeostatic: startup
+
+    Homeostatic: FE < 0.1
+    Surprised: 0.1 <= FE < 0.3
+    Alarmed: 0.3 <= FE < 0.6
+    Overwhelmed: FE >= 0.6
+
+    Homeostatic --> Surprised: FE increases
+    Surprised --> Alarmed: FE increases
+    Alarmed --> Overwhelmed: FE increases
+
+    Overwhelmed --> Alarmed: FE decreases
+    Alarmed --> Surprised: FE decreases
+    Surprised --> Homeostatic: FE decreases
+
+    note right of Homeostatic: All systems nominal
+    note right of Surprised: Something unexpected
+    note right of Alarmed: Significant deviation
+    note right of Overwhelmed: System under stress
+```
+
 | 感受 | 自由能范围 | 描述 |
 |------|------------|------|
 | `:homeostatic` | FE < 0.1 | 所有系统正常 |
-| `:surprised` | 0.1 ≤ FE < 0.3 | 有意外情况 |
-| `:alarmed` | 0.3 ≤ FE < 0.6 | 显著偏差 |
-| `:overwhelmed` | FE ≥ 0.6 | 系统压力大 |
+| `:surprised` | 0.1 <= FE < 0.3 | 有意外情况 |
+| `:alarmed` | 0.3 <= FE < 0.6 | 显著偏差 |
+| `:overwhelmed` | FE >= 0.6 | 系统压力大 |
 
 ---
 
@@ -109,8 +193,8 @@ VivaCore.Interoception.tick()
 ```
 
 VIVA期望每100ms唤醒一次（10Hz）。偏差被感觉为时间膨胀：
-- `time_dilation = 1.0` → 正常
-- `time_dilation > 1.0` → 时间感觉变慢（卡顿）
+- `time_dilation = 1.0` -> 正常
+- `time_dilation > 1.0` -> 时间感觉变慢（卡顿）
 
 ### 系统指标
 
@@ -126,7 +210,35 @@ VIVA期望每100ms唤醒一次（10Hz）。偏差被感觉为时间膨胀：
 
 ## 与其他模块的集成
 
-### → Emotional
+### 集成图
+
+```mermaid
+flowchart TB
+    subgraph Input ["Data Sources"]
+        Proc[/proc filesystem]
+        Clock[System Clock]
+    end
+
+    Intero[Interoception]
+
+    subgraph Output ["Consumers"]
+        Emotional[Emotional]
+        DC[DatasetCollector]
+        Chronos[Chronos Oracle]
+    end
+
+    Proc --> Intero
+    Clock --> Intero
+
+    Intero -->|qualia + feeling| Emotional
+    Intero -->|tick data| DC
+    DC -.->|CSV training| Chronos
+    Chronos -.->|predictions| Intero
+
+    style Intero fill:#4B275F,stroke:#fff,color:#fff
+```
+
+### -> Emotional
 当感受改变时，Interoception通知Emotional：
 
 ```elixir
@@ -142,7 +254,7 @@ qualia = %{
 VivaCore.Emotional.apply_interoceptive_qualia(qualia)
 ```
 
-### → DatasetCollector
+### -> DatasetCollector
 每次tick，数据被记录用于Chronos训练：
 
 ```elixir
@@ -154,7 +266,7 @@ VivaCore.DatasetCollector.record(%{
 })
 ```
 
-### ← Chronos（未来）
+### <- Chronos（未来）
 预测来自Chronos时间序列预言机：
 
 ```elixir
@@ -175,6 +287,40 @@ VivaBridge.Chronos.predict(history, "tick_jitter")
 | `/proc/{pid}/stat` | Page faults |
 | `/proc/{pid}/status` | RSS内存 |
 | `/proc/uptime` | 系统运行时间 |
+
+---
+
+## 精度加权
+
+```mermaid
+flowchart LR
+    subgraph Observation ["Observation"]
+        O[Observed Value]
+        OV[Observed Variance]
+    end
+
+    subgraph Prior ["Prior"]
+        P[Prior Mean]
+        PV[Prior Variance]
+    end
+
+    subgraph Calculation ["Precision Calculation"]
+        Prec["Precision = 1 / (1 + OV/PV)"]
+        Error["Error = (O - P)^2"]
+        FE["FE = Error x Precision"]
+    end
+
+    O --> Error
+    P --> Error
+    OV --> Prec
+    PV --> Prec
+    Error --> FE
+    Prec --> FE
+
+    style Calculation fill:#4B275F,stroke:#fff,color:#fff
+```
+
+**关键洞察**: 高观察方差 -> 低精度 -> 忽略噪声
 
 ---
 

@@ -38,16 +38,33 @@ Pense nas sementes como "candidatas a consciencia" - apenas a mais saliente sobr
 
 ### Metafora da Competicao
 
-```
-   Multiplas sementes competem...    Vencedor sobe ao palco
+```mermaid
+flowchart LR
+    subgraph Seeds ["Sementes Competindo"]
+        A[seed_A<br/>saliencia: 0.8]
+        B[seed_B<br/>saliencia: 0.3]
+        C[seed_C<br/>saliencia: 0.6]
+    end
 
-   [seed_A: 0.8]  --------+
-   [seed_B: 0.3]  --------|-------> [VENCEDOR: seed_A]
-   [seed_C: 0.6]  --------+             |
-                                        v
-                                  TRANSMISSAO
-                                 /    |    \
-                              Voice Agency Motor
+    subgraph Competition ["Vencedor Leva Tudo"]
+        W[VENCEDOR<br/>seed_A]
+    end
+
+    subgraph Broadcast ["Transmissao"]
+        Voice[Voice]
+        Agency[Agency]
+        Motor[Motor]
+    end
+
+    A --> W
+    B -.->|perde| W
+    C -.->|perde| W
+
+    W --> Voice
+    W --> Agency
+    W --> Motor
+
+    style W fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### Integracao com CogGNN
@@ -112,6 +129,25 @@ end
 ## Algoritmo de Competicao
 
 A competicao executa a cada **100ms** (10Hz - frequencia de onda alfa).
+
+### Ciclo de Competicao
+
+```mermaid
+flowchart TB
+    subgraph Cycle ["Ciclo de Competicao (100ms)"]
+        direction TB
+        Start([Tick]) --> Decay[1. DECAIMENTO<br/>saliencia -= 5%]
+        Decay --> Filter[2. FILTRAR<br/>remover se sal < 0.1]
+        Filter --> Compete[3. COMPETIR<br/>max_by saliencia]
+        Compete --> Check{Vencedor mudou?}
+        Check -->|Sim| Broadcast[4. TRANSMITIR<br/>PubSub]
+        Check -->|Nao| End([Proximo Tick])
+        Broadcast --> History[5. ATUALIZAR HISTORICO<br/>manter ultimos 10]
+        History --> End
+    end
+
+    style Cycle fill:#4B275F,stroke:#fff,color:#fff
+```
 
 ### 1. Fase de Decaimento
 
@@ -182,6 +218,35 @@ end
 
 ---
 
+## Maquina de Estados
+
+```mermaid
+stateDiagram-v2
+    direction TB
+
+    [*] --> Empty: init
+
+    Empty: Sem sementes
+    Competing: seeds > 0
+    Decay: saliencia -= 5%
+    Compete: max_by saliencia
+    Broadcast: notificar PubSub
+
+    Empty --> Competing: sow()
+    Competing --> Decay: tick (100ms)
+    Decay --> Compete: filter(sal > 0.1)
+    Compete --> Broadcast: novo vencedor?
+    Broadcast --> Competing: continuar
+    Compete --> Competing: mesmo vencedor
+
+    Competing --> Empty: todas sementes eliminadas
+
+    note right of Decay: Sementes perdem 5% saliencia por tick
+    note right of Compete: Maior saliencia vence
+```
+
+---
+
 ## Referencia da API
 
 ### `sow/4` - Plantar uma Thoughtseed
@@ -244,6 +309,19 @@ VivaCore.Consciousness.Workspace.sow_with_gnn(content, source, base_salience, pa
 ```
 
 **Como funciona:**
+
+```mermaid
+flowchart LR
+    Content[Content] --> Embed[Embedding]
+    Embed --> GNN[CogGNN]
+    PAD[Contexto PAD] --> GNN
+    GNN --> Score[Score Atencao]
+    Score --> Boost[saliencia + score * 0.3]
+    Base[Saliencia Base] --> Boost
+    Boost --> Final[Saliencia Final]
+
+    style GNN fill:#4B275F,stroke:#fff,color:#fff
+```
 
 1. Conteudo e convertido para string para embedding
 2. CogGNN propaga atraves do grafo de conhecimento com contexto PAD
@@ -308,19 +386,24 @@ end
 
 Sementes podem ser plantadas de multiplas fontes:
 
-```
-Cortex (LNN)    -----> sow("insight emocional", :liquid, 0.7, pad)
-                           |
-ULTRA (KG)      -----> sow("relacao inferida", :ultra, 0.6)
-                           |
-Memory (Qdrant) -----> sow(memoria_recuperada, :memory, 0.5, memory.emotion)
-                           |
-Body/Senses     -----> sow("alerta de hardware", :sensory, 0.9, stress_pad)
-                           |
-                           v
-                    +-----------+
-                    | Workspace |
-                    +-----------+
+```mermaid
+flowchart TB
+    subgraph Sources ["Fontes de Sementes"]
+        Cortex[Cortex LNN] -->|sow :liquid| WS
+        Ultra[ULTRA KG] -->|sow :ultra| WS
+        Memory[Memory Qdrant] -->|sow :memory| WS
+        Body[Body/Senses] -->|sow :sensory| WS
+    end
+
+    WS[Workspace]
+
+    subgraph Consumers ["Consumidores de Transmissao"]
+        WS -->|consciousness:stream| Voice[Voice]
+        WS -->|consciousness:stream| Agency[Agency]
+        WS -->|consciousness:stream| Dreamer[Dreamer]
+    end
+
+    style WS fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### Downstream (Consumidores)
@@ -496,45 +579,6 @@ A taxa de tick de 100ms e inspirada por:
 - Oscilacoes alfa humanas (8-12 Hz)
 - Associadas com atencao e consciencia
 - A "taxa de amostragem" da percepcao consciente
-
----
-
-## Diagrama de Estado
-
-```
-                              +-------------+
-                              |    VAZIO    |
-                              | (sem seeds) |
-                              +-------------+
-                                    |
-                                    | sow()
-                                    v
-                              +-------------+
-                +------------>| COMPETINDO  |<------------+
-                |             | (seeds > 0) |             |
-                |             +-------------+             |
-                |                   |                     |
-                | sow()             | tick (100ms)        | sow()
-                |                   v                     |
-                |             +-------------+             |
-                |             |  DECAIMENTO |             |
-                |             | (sal -= 5%) |             |
-                |             +-------------+             |
-                |                   |                     |
-                |                   | filter(sal > 0.1)   |
-                |                   v                     |
-                |             +-------------+             |
-                |             |  COMPETIR   |             |
-                |             | (max_by sal)|             |
-                |             +-------------+             |
-                |                   |                     |
-                |                   | novo vencedor?      |
-                |                   v                     |
-                |             +-------------+             |
-                +-------------| TRANSMITIR  |-------------+
-                              |  (PubSub)   |
-                              +-------------+
-```
 
 ---
 

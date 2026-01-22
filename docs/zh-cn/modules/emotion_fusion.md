@@ -60,45 +60,74 @@ Mood[t] = alpha * Mood[t-1] + (1 - alpha) * Emotion[t]
 
 ## 架构
 
+### 融合管道
+
+```mermaid
+flowchart TB
+    subgraph Context ["Context Input"]
+        CTX[Context<br/>arousal, confidence, novelty]
+    end
+
+    subgraph Sources ["Three PAD Sources"]
+        Need[Interoception<br/>NeedPAD]
+        Past[Memory<br/>PastPAD]
+        Pers[Personality<br/>Baseline]
+    end
+
+    subgraph Fusion ["EmotionFusion Pipeline"]
+        CW[calculate_weights]
+        WF[weighted_fusion]
+        AR[apply_reactivity]
+        CP[clamp_pad]
+    end
+
+    subgraph Output ["Output"]
+        FP[FusedPAD]
+        UM[update_mood<br/>EMA]
+        PAA[PreActionAffect]
+    end
+
+    CTX --> CW
+    Need --> WF
+    Past --> WF
+    Pers --> WF
+    CW --> WF
+    WF --> AR
+    AR --> CP
+    CP --> FP
+    FP --> UM
+    FP --> PAA
+    UM --> PAA
+
+    classDef context fill:#2a5,stroke:#fff,color:#fff;
+    classDef source fill:#764,stroke:#fff,color:#fff;
+    classDef fusion fill:#4B275F,stroke:#fff,color:#fff;
+    classDef output fill:#357,stroke:#fff,color:#fff;
+
+    class CTX context;
+    class Need,Past,Pers source;
+    class CW,WF,AR,CP fusion;
+    class FP,UM,PAA output;
 ```
-                    Context
-                       |
-                       v
-            +-----------------------+
-            |  calculate_weights()  |
-            +-----------------------+
-                       |
-     +--------+--------+--------+
-     |        |                 |
-     v        v                 v
-+----------+ +----------+ +------------+
-|Interoception| |  Memory  | |Personality |
-| (NeedPAD)  | |(PastPAD) | | (Baseline) |
-+----------+ +----------+ +------------+
-     |        |                 |
-     +--------+--------+--------+
-                       |
-                       v
-            +-----------------------+
-            |   weighted_fusion()   |
-            |   apply_reactivity()  |
-            |      clamp_pad()      |
-            +-----------------------+
-                       |
-                       v
-                   FusedPAD
-                       |
-                       v
-            +-----------------------+
-            |    update_mood()      |
-            |       (EMA)           |
-            +-----------------------+
-                       |
-                       v
-            +-----------------------+
-            |   PreActionAffect     |
-            |  (用于行动选择)        |
-            +-----------------------+
+
+### 自适应权重可视化
+
+```mermaid
+flowchart LR
+    subgraph Weights ["Adaptive Weights"]
+        direction TB
+        A[High Arousal] -->|increases| WN[w_need]
+        C[High Confidence] -->|increases| WP[w_past]
+        N[High Novelty] -->|increases| WPers[w_personality]
+    end
+
+    subgraph Normalize ["Normalization"]
+        WN --> Norm[sum = 1.0]
+        WP --> Norm
+        WPers --> Norm
+    end
+
+    style Weights fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### 数据流
@@ -111,6 +140,36 @@ Mood[t] = alpha * Mood[t-1] + (1 - alpha) * Emotion[t]
 6. **值限制** 在有效 PAD 范围 [-1, 1]
 7. **更新 Mood**，通过 EMA
 8. **构建 PreActionAffect**，用于下游行动选择
+
+---
+
+## PAD 八分区分类
+
+```mermaid
+stateDiagram-v2
+    direction TB
+
+    [*] --> Neutral: startup
+
+    state "Positive Valence" as positive {
+        Exuberant: P>0.2 A>0.2 D>0.2
+        DependentJoy: P>0.2 A>0.2 D<=0.2
+        Relaxed: P>0.2 A<=0.2 D>0.2
+        Docile: P>0.2 A<=0.2 D<=0.2
+    }
+
+    state "Negative Valence" as negative {
+        Hostile: P<=0.2 A>0.2 D>0.2
+        Anxious: P<=0.2 A>0.2 D<=0.2
+        Disdainful: P<=0.2 A<=0.2 D>0.2
+        Bored: P<=0.2 A<=0.2 D<=0.2
+    }
+
+    Neutral --> positive: pleasure increases
+    Neutral --> negative: pleasure decreases
+    positive --> Neutral: decay
+    negative --> Neutral: decay
+```
 
 ---
 
@@ -347,6 +406,27 @@ IO.inspect(final_mood)
 ---
 
 ## 与其他模块的集成
+
+### 完整集成图
+
+```mermaid
+flowchart TB
+    subgraph Upstream ["Upstream Dependencies"]
+        Intero[Interoception] -->|need_pad| EF
+        Memory[Memory] -->|past_pad| EF
+        Pers[Personality] -->|baseline| EF
+    end
+
+    EF[EmotionFusion]
+
+    subgraph Downstream ["Downstream Consumers"]
+        EF -->|PreActionAffect| Agency[Agency]
+        EF -->|PreActionAffect| Voice[Voice]
+        EF -->|PreActionAffect| Workspace[Workspace]
+    end
+
+    style EF fill:#4B275F,stroke:#fff,color:#fff
+```
 
 ### 上游依赖
 

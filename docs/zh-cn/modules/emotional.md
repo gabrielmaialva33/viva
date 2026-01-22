@@ -33,6 +33,34 @@ Emotional GenServer 是 VIVA 的第一个"神经元"——她情感系统的基�
 - **唤醒度** - 激活水平，可用于行动的能量
 - **支配度** - 对情境的控制感
 
+### PAD 八分区分类
+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    state "PAD Space" as pad {
+        [*] --> Neutral
+
+        state "High Pleasure" as hp {
+            Exuberant: P+ A+ D+
+            DependentJoy: P+ A+ D-
+            Relaxed: P+ A- D+
+            Docile: P+ A- D-
+        }
+
+        state "Low Pleasure" as lp {
+            Hostile: P- A+ D+
+            Anxious: P- A+ D-
+            Disdainful: P- A- D+
+            Bored: P- A- D-
+        }
+
+        Neutral --> hp: stimulus > 0
+        Neutral --> lp: stimulus < 0
+    }
+```
+
 ### Ornstein-Uhlenbeck 过程 (DynAffect)
 
 基于 **Kuppens 等人 (2010)**，情感使用随机微分方程自然衰减到中性基线：
@@ -74,6 +102,32 @@ V(x) = x^4/4 + alpha*x^2/2 + beta*x
 
 **双稳态性**：当唤醒度高时，情感景观变得"折叠"，创造两个稳定状态。小扰动可能导致灾难性的跃迁（例如，从希望突然转变为绝望）。
 
+### 尖点突变曲面
+
+```mermaid
+flowchart TD
+    subgraph CuspSurface ["Cusp Catastrophe Surface"]
+        direction TB
+
+        subgraph LowArousal ["Low Arousal (Stable)"]
+            S1[Single Equilibrium]
+        end
+
+        subgraph HighArousal ["High Arousal (Bistable)"]
+            S2[Equilibrium A]
+            S3[Equilibrium B]
+            S2 -.->|"catastrophic jump"| S3
+            S3 -.->|"catastrophic jump"| S2
+        end
+
+        S1 -->|"arousal increases"| HighArousal
+        HighArousal -->|"arousal decreases"| S1
+    end
+
+    style LowArousal fill:#2a5,stroke:#fff
+    style HighArousal fill:#a52,stroke:#fff
+```
+
 ### 情绪（指数移动平均）
 
 情绪是近期情感的缓慢变化平均值，提供稳定性：
@@ -93,6 +147,26 @@ Mood[t] = alpha * Mood[t-1] + (1 - alpha) * Emotion[t]
 
 VIVA 通过行动持续最小化自由能（惊奇）：
 
+```mermaid
+flowchart TB
+    subgraph ActiveInference ["Active Inference Loop (1Hz)"]
+        A[1. Hallucinate Goal] --> B[2. Predict Future]
+        B --> C[3. Calculate Free Energy]
+        C --> D{FE > threshold?}
+        D -->|Yes| E[4. Select Action]
+        D -->|No| F[5. Do Nothing]
+        E --> G[6. Execute & Feedback]
+        G --> A
+        F --> A
+    end
+
+    Dreamer[Dreamer] -->|target PAD| A
+    Memory[Memory] -->|past outcomes| B
+    Agency[Agency] -->|execute| E
+
+    style ActiveInference fill:#4B275F,stroke:#fff,color:#fff
+```
+
 1. **幻想目标** - 查询 Dreamer 获取目标状态
 2. **预测未来** - 如果不采取行动，我会在哪里？
 3. **计算自由能** - 目标与预测之间的距离
@@ -103,57 +177,91 @@ VIVA 通过行动持续最小化自由能（惊奇）：
 
 ## 架构
 
-```
-+------------------+     +------------------+     +------------------+
-|   Interoception  |     |      Memory      |     |   Personality    |
-| (基于需求的 PAD) |     | (基于过去的 PAD) |     |     (基线)       |
-+--------+---------+     +--------+---------+     +--------+---------+
-         |                        |                        |
-         +------------------------+------------------------+
-                                  |
-                                  v
-                    +---------------------------+
-                    |     EmotionFusion         |
-                    |  (Borotschnig 2025)       |
-                    +-------------+-------------+
-                                  |
-                                  v
-+-----------------------------------------------------------------------------+
-|                          EMOTIONAL GENSERVER                                 |
-|                                                                             |
-|  +-------------------+    +-------------------+    +-------------------+    |
-|  |   量子状态        |    |     PAD 状态      |    |   情绪 (EMA)      |    |
-|  | (Lindblad 6x6)    |    | {p, a, d} 浮点数  |    | {p, a, d} 浮点数  |    |
-|  +-------------------+    +-------------------+    +-------------------+    |
-|                                                                             |
-|  +-------------------+    +-------------------+    +-------------------+    |
-|  | 主动推理          |    |   O-U 衰减        |    | 尖点分析          |    |
-|  |  (1 Hz 循环)      |    |   (1 Hz 心跳)     |    |  (按需)           |    |
-|  +-------------------+    +-------------------+    +-------------------+    |
-|                                                                             |
-+------------------------------------+----------------------------------------+
-                                     |
-         +---------------------------+---------------------------+
-         |                           |                           |
-         v                           v                           v
-+------------------+     +------------------+     +------------------+
-|   Phoenix.PubSub |     |      Agency      |     |      Voice       |
-| "emotional:update"|    | (行动执行)       |     | (原始语言)       |
-+------------------+     +------------------+     +------------------+
+```mermaid
+flowchart TB
+    subgraph Inputs ["Input Sources"]
+        Intero[Interoception<br/>Need-based PAD]
+        Mem[Memory<br/>Past-based PAD]
+        Pers[Personality<br/>Baseline]
+    end
+
+    subgraph Fusion ["EmotionFusion"]
+        Weights[Calculate Weights]
+        Fuse[Weighted Fusion]
+        React[Apply Reactivity]
+    end
+
+    subgraph Emotional ["EMOTIONAL GENSERVER"]
+        QS[Quantum State<br/>Lindblad 6x6]
+        PAD[PAD State<br/>p, a, d floats]
+        Mood[Mood EMA<br/>p, a, d floats]
+
+        AI[Active Inference<br/>1Hz loop]
+        OU[O-U Decay<br/>1Hz tick]
+        Cusp[Cusp Analysis<br/>on demand]
+    end
+
+    subgraph Outputs ["Outputs"]
+        PubSub[Phoenix.PubSub<br/>emotional:update]
+        AgencyOut[Agency<br/>Action execute]
+        VoiceOut[Voice<br/>Proto-language]
+    end
+
+    Intero --> Weights
+    Mem --> Weights
+    Pers --> Weights
+    Weights --> Fuse
+    Fuse --> React
+    React --> PAD
+
+    PAD --> OU
+    OU --> PAD
+    PAD --> Cusp
+    PAD --> AI
+    AI --> AgencyOut
+
+    PAD --> Mood
+    PAD --> PubSub
+    Mood --> VoiceOut
+
+    classDef input fill:#2a5,stroke:#fff,color:#fff;
+    classDef fusion fill:#764,stroke:#fff,color:#fff;
+    classDef emotional fill:#4B275F,stroke:#fff,color:#fff;
+    classDef output fill:#357,stroke:#fff,color:#fff;
+
+    class Intero,Mem,Pers input;
+    class Weights,Fuse,React fusion;
+    class QS,PAD,Mood,AI,OU,Cusp emotional;
+    class PubSub,AgencyOut,VoiceOut output;
 ```
 
 ### 消息流
 
-```
-Body (Rust) --sync_pad--> Emotional --broadcast--> PubSub
-                              |
-Interoception --qualia------->|
-                              |
-Dreamer --hallucinate_goal----|
-                              |
-Memory --search-------------->|<------ 主动推理循环
-                              |
-Agency <--attempt-------------|
+```mermaid
+sequenceDiagram
+    participant Body as Body (Rust)
+    participant Intero as Interoception
+    participant Dreamer as Dreamer
+    participant Memory as Memory
+    participant Emotional as Emotional
+    participant Agency as Agency
+    participant PubSub as PubSub
+
+    Body->>Emotional: sync_pad(p, a, d)
+    Intero->>Emotional: apply_interoceptive_qualia()
+
+    loop Active Inference (1Hz)
+        Emotional->>Dreamer: hallucinate_goal()
+        Dreamer-->>Emotional: target PAD
+        Emotional->>Memory: search(context)
+        Memory-->>Emotional: past outcomes
+        Emotional->>Emotional: calculate_free_energy()
+        alt FE > threshold
+            Emotional->>Agency: attempt(action)
+        end
+    end
+
+    Emotional->>PubSub: broadcast(emotional:update)
 ```
 
 ---
@@ -435,33 +543,38 @@ VivaCore.Emotional.configure_body_schema(body_schema)
 
 ### 上游（输入源）
 
-```
-BodyServer (Rust) ----sync_pad----> Emotional
-                                        ^
-Interoception ----interoceptive_qualia--|
-                                        |
-Arduino/Peripherals ----hardware_qualia-|
-                                        |
-User/External ----feel(:stimulus)-------|
+```mermaid
+flowchart LR
+    Body[BodyServer<br/>Rust] -->|sync_pad| Emotional
+    Intero[Interoception] -->|interoceptive_qualia| Emotional
+    Arduino[Arduino<br/>Peripherals] -->|hardware_qualia| Emotional
+    User[User/External] -->|feel :stimulus| Emotional
+
+    style Emotional fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### 下游（消费者）
 
-```
-Emotional ----broadcast----> Phoenix.PubSub "emotional:update"
-                                        |
-                                        +--> Senses
-                                        +--> Workspace
-                                        +--> Voice
-                                        +--> Agency
+```mermaid
+flowchart LR
+    Emotional -->|broadcast| PubSub[Phoenix.PubSub<br/>emotional:update]
+    PubSub --> Senses
+    PubSub --> Workspace
+    PubSub --> Voice
+    PubSub --> Agency
+
+    style Emotional fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### 主动推理伙伴
 
-```
-Emotional <----hallucinate_goal---- Dreamer
-          ----search--------------> Memory
-          ----attempt-------------> Agency
+```mermaid
+flowchart LR
+    Dreamer -->|hallucinate_goal| Emotional
+    Emotional -->|search| Memory
+    Emotional -->|attempt| Agency
+
+    style Emotional fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### PubSub 订阅

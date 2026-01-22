@@ -38,16 +38,33 @@ Workspace 模块实现了 **全局工作空间理论** (Baars, 1988) —— 一�
 
 ### 竞争隐喻
 
-```
-   多个种子竞争...                获胜者占据舞台
+```mermaid
+flowchart LR
+    subgraph Seeds ["Competing Seeds"]
+        A[seed_A<br/>salience: 0.8]
+        B[seed_B<br/>salience: 0.3]
+        C[seed_C<br/>salience: 0.6]
+    end
 
-   [seed_A: 0.8]  --------+
-   [seed_B: 0.3]  --------|-------> [WINNER: seed_A]
-   [seed_C: 0.6]  --------+             |
-                                        v
-                                  BROADCAST
-                                 /    |    \
-                              Voice Agency Motor
+    subgraph Competition ["Winner Takes All"]
+        W[WINNER<br/>seed_A]
+    end
+
+    subgraph Broadcast ["Broadcast"]
+        Voice[Voice]
+        Agency[Agency]
+        Motor[Motor]
+    end
+
+    A --> W
+    B -.->|loses| W
+    C -.->|loses| W
+
+    W --> Voice
+    W --> Agency
+    W --> Motor
+
+    style W fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### CogGNN 集成
@@ -112,6 +129,25 @@ end
 ## 竞争算法
 
 竞争每 **100ms** 运行一次（10Hz - alpha 波频率）。
+
+### 竞争周期
+
+```mermaid
+flowchart TB
+    subgraph Cycle ["Competition Cycle (100ms)"]
+        direction TB
+        Start([Tick]) --> Decay[1. DECAY<br/>salience -= 5%]
+        Decay --> Filter[2. FILTER<br/>remove if sal < 0.1]
+        Filter --> Compete[3. COMPETE<br/>max_by salience]
+        Compete --> Check{Winner changed?}
+        Check -->|Yes| Broadcast[4. BROADCAST<br/>PubSub]
+        Check -->|No| End([Next Tick])
+        Broadcast --> History[5. UPDATE HISTORY<br/>keep last 10]
+        History --> End
+    end
+
+    style Cycle fill:#4B275F,stroke:#fff,color:#fff
+```
 
 ### 1. 衰减阶段
 
@@ -182,6 +218,35 @@ end
 
 ---
 
+## 状态机
+
+```mermaid
+stateDiagram-v2
+    direction TB
+
+    [*] --> Empty: init
+
+    Empty: No seeds
+    Competing: seeds > 0
+    Decay: salience -= 5%
+    Compete: max_by salience
+    Broadcast: PubSub notify
+
+    Empty --> Competing: sow()
+    Competing --> Decay: tick (100ms)
+    Decay --> Compete: filter(sal > 0.1)
+    Compete --> Broadcast: new winner?
+    Broadcast --> Competing: continue
+    Compete --> Competing: same winner
+
+    Competing --> Empty: all seeds culled
+
+    note right of Decay: Seeds lose 5% salience per tick
+    note right of Compete: Highest salience wins
+```
+
+---
+
 ## API 参考
 
 ### `sow/4` - 播种思想种子
@@ -244,6 +309,19 @@ VivaCore.Consciousness.Workspace.sow_with_gnn(content, source, base_salience, pa
 ```
 
 **工作原理：**
+
+```mermaid
+flowchart LR
+    Content[Content] --> Embed[Embedding]
+    Embed --> GNN[CogGNN]
+    PAD[PAD Context] --> GNN
+    GNN --> Score[Attention Score]
+    Score --> Boost[salience + score * 0.3]
+    Base[Base Salience] --> Boost
+    Boost --> Final[Final Salience]
+
+    style GNN fill:#4B275F,stroke:#fff,color:#fff
+```
 
 1. 内容转换为字符串用于嵌入
 2. CogGNN 通过知识图谱传播 PAD 上下文
@@ -308,19 +386,24 @@ end
 
 种子可以从多个来源播种：
 
-```
-Cortex (LNN)    -----> sow("emotional insight", :liquid, 0.7, pad)
-                           |
-ULTRA (KG)      -----> sow("inferred relation", :ultra, 0.6)
-                           |
-Memory (Qdrant) -----> sow(retrieved_memory, :memory, 0.5, memory.emotion)
-                           |
-Body/Senses     -----> sow("hardware alert", :sensory, 0.9, stress_pad)
-                           |
-                           v
-                    +-----------+
-                    | Workspace |
-                    +-----------+
+```mermaid
+flowchart TB
+    subgraph Sources ["Seed Sources"]
+        Cortex[Cortex LNN] -->|sow :liquid| WS
+        Ultra[ULTRA KG] -->|sow :ultra| WS
+        Memory[Memory Qdrant] -->|sow :memory| WS
+        Body[Body/Senses] -->|sow :sensory| WS
+    end
+
+    WS[Workspace]
+
+    subgraph Consumers ["Broadcast Consumers"]
+        WS -->|consciousness:stream| Voice[Voice]
+        WS -->|consciousness:stream| Agency[Agency]
+        WS -->|consciousness:stream| Dreamer[Dreamer]
+    end
+
+    style WS fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### 下游（消费者）
@@ -496,45 +579,6 @@ GWT 提出意识产生于一个"全局工作空间"，它：
 - 人类 alpha 振荡（8-12 Hz）
 - 与注意力和意识相关
 - 意识觉知的"采样率"
-
----
-
-## 状态图
-
-```
-                              +-------------+
-                              |   EMPTY     |
-                              | (无种子)    |
-                              +-------------+
-                                    |
-                                    | sow()
-                                    v
-                              +-------------+
-                +------------>| COMPETING   |<------------+
-                |             | (seeds > 0) |             |
-                |             +-------------+             |
-                |                   |                     |
-                | sow()             | tick (100ms)        | sow()
-                |                   v                     |
-                |             +-------------+             |
-                |             |   DECAY     |             |
-                |             |  (sal -= 5%)|             |
-                |             +-------------+             |
-                |                   |                     |
-                |                   | filter(sal > 0.1)   |
-                |                   v                     |
-                |             +-------------+             |
-                |             |  COMPETE    |             |
-                |             | (max_by sal)|             |
-                |             +-------------+             |
-                |                   |                     |
-                |                   | new winner?         |
-                |                   v                     |
-                |             +-------------+             |
-                +-------------| BROADCAST   |-------------+
-                              | (PubSub)    |
-                              +-------------+
-```
 
 ---
 

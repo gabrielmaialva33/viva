@@ -33,6 +33,34 @@ Cada dimensao captura um aspecto fundamental da experiencia emocional:
 - **Arousal** - Nivel de ativacao, energia disponivel para acao
 - **Dominance** - Senso de controle sobre a situacao
 
+### Classificacao de Octantes PAD
+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    state "PAD Space" as pad {
+        [*] --> Neutral
+
+        state "High Pleasure" as hp {
+            Exuberant: P+ A+ D+
+            DependentJoy: P+ A+ D-
+            Relaxed: P+ A- D+
+            Docile: P+ A- D-
+        }
+
+        state "Low Pleasure" as lp {
+            Hostile: P- A+ D+
+            Anxious: P- A+ D-
+            Disdainful: P- A- D+
+            Bored: P- A- D-
+        }
+
+        Neutral --> hp: stimulus > 0
+        Neutral --> lp: stimulus < 0
+    }
+```
+
 ### Processo Ornstein-Uhlenbeck (DynAffect)
 
 Baseado em **Kuppens et al. (2010)**, emocoes decaem naturalmente em direcao a uma linha de base neutra usando equacoes diferenciais estocasticas:
@@ -74,6 +102,32 @@ Onde:
 
 **Biestabilidade**: Quando o arousal esta alto, a paisagem emocional se torna "dobrada", criando dois estados estaveis. Pequenas perturbacoes podem causar saltos catastroficos entre eles (ex: mudanca subita de esperanca para desespero).
 
+### Superficie da Catastrofe em Cuspide
+
+```mermaid
+flowchart TD
+    subgraph CuspSurface ["Superficie da Catastrofe em Cuspide"]
+        direction TB
+
+        subgraph LowArousal ["Baixo Arousal (Estavel)"]
+            S1[Equilibrio Unico]
+        end
+
+        subgraph HighArousal ["Alto Arousal (Biestavel)"]
+            S2[Equilibrio A]
+            S3[Equilibrio B]
+            S2 -.->|"salto catastrofico"| S3
+            S3 -.->|"salto catastrofico"| S2
+        end
+
+        S1 -->|"arousal aumenta"| HighArousal
+        HighArousal -->|"arousal diminui"| S1
+    end
+
+    style LowArousal fill:#2a5,stroke:#fff
+    style HighArousal fill:#a52,stroke:#fff
+```
+
 ### Humor (Media Movel Exponencial)
 
 Humor e uma media de mudanca lenta das emocoes recentes, fornecendo estabilidade:
@@ -93,6 +147,26 @@ Isso significa:
 
 VIVA constantemente minimiza Energia Livre (surpresa) atraves de acao:
 
+```mermaid
+flowchart TB
+    subgraph ActiveInference ["Loop de Inferencia Ativa (1Hz)"]
+        A[1. Alucinar Objetivo] --> B[2. Prever Futuro]
+        B --> C[3. Calcular Energia Livre]
+        C --> D{FE > threshold?}
+        D -->|Sim| E[4. Selecionar Acao]
+        D -->|Nao| F[5. Nao Fazer Nada]
+        E --> G[6. Executar & Feedback]
+        G --> A
+        F --> A
+    end
+
+    Dreamer[Dreamer] -->|PAD alvo| A
+    Memory[Memory] -->|resultados passados| B
+    Agency[Agency] -->|executar| E
+
+    style ActiveInference fill:#4B275F,stroke:#fff,color:#fff
+```
+
 1. **Alucinar Objetivo** - Consultar Dreamer para estado alvo
 2. **Prever Futuro** - Onde estarei se nao fizer nada?
 3. **Calcular Energia Livre** - Distancia entre objetivo e previsao
@@ -103,58 +177,91 @@ VIVA constantemente minimiza Energia Livre (surpresa) atraves de acao:
 
 ## Arquitetura
 
-```
-+------------------+     +------------------+     +------------------+
-|   Interoception  |     |      Memory      |     |   Personality    |
-| (PAD baseado em  |     | (PAD baseado no  |     |   (Linha base)   |
-|   necessidades)  |     |     passado)     |     |                  |
-+--------+---------+     +--------+---------+     +--------+---------+
-         |                        |                        |
-         +------------------------+------------------------+
-                                  |
-                                  v
-                    +---------------------------+
-                    |     EmotionFusion         |
-                    |  (Borotschnig 2025)       |
-                    +-------------+-------------+
-                                  |
-                                  v
-+-----------------------------------------------------------------------------+
-|                          GENSERVER EMOCIONAL                                 |
-|                                                                             |
-|  +-------------------+    +-------------------+    +-------------------+    |
-|  |   Estado Quantico |    |   Estado PAD      |    |   Humor (EMA)     |    |
-|  | (Lindblad 6x6)    |    | {p, a, d} floats  |    | {p, a, d} floats  |    |
-|  +-------------------+    +-------------------+    +-------------------+    |
-|                                                                             |
-|  +-------------------+    +-------------------+    +-------------------+    |
-|  | Inferencia Ativa  |    |   Decaimento O-U  |    | Analise Cuspide   |    |
-|  |  (loop 1 Hz)      |    |   (tick 1 Hz)     |    |  (sob demanda)    |    |
-|  +-------------------+    +-------------------+    +-------------------+    |
-|                                                                             |
-+------------------------------------+----------------------------------------+
-                                     |
-         +---------------------------+---------------------------+
-         |                           |                           |
-         v                           v                           v
-+------------------+     +------------------+     +------------------+
-|   Phoenix.PubSub |     |      Agency      |     |      Voice       |
-| "emotional:update"|    | (Execucao acao)  |     | (Proto-linguagem)|
-+------------------+     +------------------+     +------------------+
+```mermaid
+flowchart TB
+    subgraph Inputs ["Fontes de Entrada"]
+        Intero[Interoception<br/>PAD baseado em necessidades]
+        Mem[Memory<br/>PAD baseado no passado]
+        Pers[Personality<br/>Linha base]
+    end
+
+    subgraph Fusion ["EmotionFusion"]
+        Weights[Calcular Pesos]
+        Fuse[Fusao Ponderada]
+        React[Aplicar Reatividade]
+    end
+
+    subgraph Emotional ["GENSERVER EMOCIONAL"]
+        QS[Estado Quantico<br/>Lindblad 6x6]
+        PAD[Estado PAD<br/>p, a, d floats]
+        Mood[Mood EMA<br/>p, a, d floats]
+
+        AI[Inferencia Ativa<br/>loop 1Hz]
+        OU[Decaimento O-U<br/>tick 1Hz]
+        Cusp[Analise Cuspide<br/>sob demanda]
+    end
+
+    subgraph Outputs ["Saidas"]
+        PubSub[Phoenix.PubSub<br/>emotional:update]
+        AgencyOut[Agency<br/>Executar acao]
+        VoiceOut[Voice<br/>Proto-linguagem]
+    end
+
+    Intero --> Weights
+    Mem --> Weights
+    Pers --> Weights
+    Weights --> Fuse
+    Fuse --> React
+    React --> PAD
+
+    PAD --> OU
+    OU --> PAD
+    PAD --> Cusp
+    PAD --> AI
+    AI --> AgencyOut
+
+    PAD --> Mood
+    PAD --> PubSub
+    Mood --> VoiceOut
+
+    classDef input fill:#2a5,stroke:#fff,color:#fff;
+    classDef fusion fill:#764,stroke:#fff,color:#fff;
+    classDef emotional fill:#4B275F,stroke:#fff,color:#fff;
+    classDef output fill:#357,stroke:#fff,color:#fff;
+
+    class Intero,Mem,Pers input;
+    class Weights,Fuse,React fusion;
+    class QS,PAD,Mood,AI,OU,Cusp emotional;
+    class PubSub,AgencyOut,VoiceOut output;
 ```
 
 ### Fluxo de Mensagens
 
-```
-Body (Rust) --sync_pad--> Emocional --broadcast--> PubSub
-                              |
-Interoception --qualia------->|
-                              |
-Dreamer --hallucinate_goal----|
-                              |
-Memory --search-------------->|<------ Loop de Inferencia Ativa
-                              |
-Agency <--attempt-------------|
+```mermaid
+sequenceDiagram
+    participant Body as Body (Rust)
+    participant Intero as Interoception
+    participant Dreamer as Dreamer
+    participant Memory as Memory
+    participant Emotional as Emotional
+    participant Agency as Agency
+    participant PubSub as PubSub
+
+    Body->>Emotional: sync_pad(p, a, d)
+    Intero->>Emotional: apply_interoceptive_qualia()
+
+    loop Inferencia Ativa (1Hz)
+        Emotional->>Dreamer: hallucinate_goal()
+        Dreamer-->>Emotional: PAD alvo
+        Emotional->>Memory: search(context)
+        Memory-->>Emotional: resultados passados
+        Emotional->>Emotional: calculate_free_energy()
+        alt FE > threshold
+            Emotional->>Agency: attempt(action)
+        end
+    end
+
+    Emotional->>PubSub: broadcast(emotional:update)
 ```
 
 ---
@@ -436,33 +543,38 @@ Estimulos padrao com seus pesos de impacto PAD:
 
 ### Upstream (Fontes de Entrada)
 
-```
-BodyServer (Rust) ----sync_pad----> Emocional
-                                        ^
-Interoception ----interoceptive_qualia--|
-                                        |
-Arduino/Perifericos ----hardware_qualia-|
-                                        |
-Usuario/Externo ----feel(:stimulus)-----|
+```mermaid
+flowchart LR
+    Body[BodyServer<br/>Rust] -->|sync_pad| Emotional
+    Intero[Interoception] -->|interoceptive_qualia| Emotional
+    Arduino[Arduino<br/>Perifericos] -->|hardware_qualia| Emotional
+    User[Usuario/Externo] -->|feel :stimulus| Emotional
+
+    style Emotional fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### Downstream (Consumidores)
 
-```
-Emocional ----broadcast----> Phoenix.PubSub "emotional:update"
-                                        |
-                                        +--> Senses
-                                        +--> Workspace
-                                        +--> Voice
-                                        +--> Agency
+```mermaid
+flowchart LR
+    Emotional -->|broadcast| PubSub[Phoenix.PubSub<br/>emotional:update]
+    PubSub --> Senses
+    PubSub --> Workspace
+    PubSub --> Voice
+    PubSub --> Agency
+
+    style Emotional fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### Parceiros de Inferencia Ativa
 
-```
-Emocional <----hallucinate_goal---- Dreamer
-          ----search--------------> Memory
-          ----attempt-------------> Agency
+```mermaid
+flowchart LR
+    Dreamer -->|hallucinate_goal| Emotional
+    Emotional -->|search| Memory
+    Emotional -->|attempt| Agency
+
+    style Emotional fill:#4B275F,stroke:#fff,color:#fff
 ```
 
 ### Subscricoes PubSub
@@ -476,7 +588,7 @@ Emocional <----hallucinate_goal---- Dreamer
 
 ## Configuracao
 
-### Constantes de Temporização
+### Constantes de Temporizacao
 
 | Constante | Valor | Descricao |
 |-----------|-------|-----------|
