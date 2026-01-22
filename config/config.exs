@@ -33,9 +33,9 @@ config :viva_core, Viva.Gettext,
   default_locale: "en",
   locales: ~w(en pt_BR zh_CN)
 
-# Configure Logger to use Console and SporeLogger (Mycelial Memory)
-config :logger,
-  backends: [:console, VivaCore.Logging.SporeLogger]
+# Configure Logger (SporeLogger deprecated, using console only)
+# Note: The :backends key is deprecated in OTP 28+
+# config :logger, :default_handler, level: :info
 
 # Import environment-specific config
 import_config "#{config_env()}.exs"
