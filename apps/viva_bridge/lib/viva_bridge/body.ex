@@ -63,6 +63,13 @@ defmodule VivaBridge.Body do
   def memory_stats(_backend), do: :erlang.nif_error(:nif_not_loaded)
 
   # ============================================================================
+  # Cryptographic Mortality (Active)
+  # ============================================================================
+
+  def mortality_encrypt(_plaintext), do: :erlang.nif_error(:nif_not_loaded)
+  def mortality_decrypt(_ciphertext, _nonce), do: :erlang.nif_error(:nif_not_loaded)
+
+  # ============================================================================
   # Convenience Functions (Elixir wrappers)
   # ============================================================================
 

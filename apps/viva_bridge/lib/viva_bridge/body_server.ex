@@ -146,9 +146,25 @@ defmodule VivaBridge.BodyServer do
     GenServer.cast(server, :resume)
   end
 
-  # ============================================================================
-  # Server Callbacks
-  # ============================================================================
+  @doc """
+  Advances the body state by one discrete tick.
+  Called by VivaCore.Chronos.Ticker.
+  """
+  def tick(server \\ __MODULE__, tick_id) do
+    GenServer.cast(server, {:tick, tick_id})
+  end
+
+  # ... existing casts ...
+
+  @impl true
+  def handle_cast({:tick, tick_id}, state) do
+    if state.paused do
+      {:noreply, state}
+    else
+      {new_state, _body_state} = do_tick(state)
+      {:noreply, new_state}
+    end
+  end
 
   @impl true
   def init(opts) do
@@ -168,10 +184,8 @@ defmodule VivaBridge.BodyServer do
       paused: false
     }
 
-    # Schedule subsequent ticks
-    schedule_tick(tick_interval)
-
-    VivaLog.info(:body_server, :started, interval: tick_interval)
+    # Note: We do NOT subscribe to PubSub here because VivaCore starts after us.
+    # Instead, VivaCore.Chronos.Ticker will explicitly call tick()/force_tick() on us.
 
     {:ok, state}
   end
@@ -215,21 +229,7 @@ defmodule VivaBridge.BodyServer do
   @impl true
   def handle_cast(:resume, state) do
     VivaLog.debug(:body_server, :resumed)
-    schedule_tick(state.tick_interval)
     {:noreply, %{state | paused: false}}
-  end
-
-  @impl true
-  def handle_info(:tick, %{paused: true} = state) do
-    # Don't tick while paused, but reschedule to check later
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info(:tick, state) do
-    {new_state, _body_state} = do_tick(state)
-    schedule_tick(state.tick_interval)
-    {:noreply, new_state}
   end
 
   # ============================================================================
@@ -322,10 +322,6 @@ defmodule VivaBridge.BodyServer do
       mem_stress > 90.0 -> "Memory pressure critical. Information overload."
       true -> "System operating normally. Homeostasis maintained."
     end
-  end
-
-  defp schedule_tick(interval) do
-    Process.send_after(self(), :tick, interval)
   end
 
   # Thermodynamic narrative generator (Based on Metabolism state)
