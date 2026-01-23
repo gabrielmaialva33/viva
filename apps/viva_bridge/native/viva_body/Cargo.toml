@@ -45,6 +45,7 @@ rolt = "0.3"
 joltc-sys = "0.3"  # Direct bindings for step() and snapshot
 glam = "0.27"
 bytemuck = { version = "1.14", features = ["derive"] }  # Zero-copy serialization
+aes-gcm = "0.10.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 perf-event = "0.4"

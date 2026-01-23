@@ -41,6 +41,7 @@ mod systems;
 
 use crate::app_wrapper::VivaBodyApp;
 use crate::prelude::*;
+use components::mortality::Mortality;
 use body_state::{BodyState, HardwareState};
 use components::bio_rhythm::BioRhythm as EcsBioRhythm;
 use components::cpu_sense::CpuSense;
@@ -341,13 +342,29 @@ fn apply_stimulus(p: f64, a: f64, d: f64) -> NifResult<String> {
     }
 }
 
+// ... (existing includes)
+
+// ... (existing NIFs)
+
+#[rustler::nif]
+fn mortality_encrypt(plaintext: rustler::Binary) -> NifResult<(Vec<u8>, Vec<u8>)> {
+    Mortality::encrypt(plaintext.as_slice())
+        .map_err(|e| rustler::Error::Term(Box::new(e)))
+}
+
+#[rustler::nif]
+fn mortality_decrypt(ciphertext: rustler::Binary, nonce: rustler::Binary) -> NifResult<Vec<u8>> {
+    Mortality::decrypt(ciphertext.as_slice(), nonce.as_slice())
+        .map_err(|e| rustler::Error::Term(Box::new(e)))
+}
+
 rustler::init!(
     "Elixir.VivaBridge.Body",
     [
         alive,
         body_tick,
         poll_channel,
-        apply_stimulus, // New NIF
+        apply_stimulus,
         metabolism_init,
         metabolism_tick,
         memory_init,
@@ -355,5 +372,7 @@ rustler::init!(
         memory_search,
         memory_save,
         memory_stats,
+        mortality_encrypt,
+        mortality_decrypt
     ]
 );
