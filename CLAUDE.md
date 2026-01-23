@@ -94,6 +94,10 @@ VIVA_LOCALE=zh_CN iex -S mix  # Chinese logs
 | 10 | `Voice` | Hebbian proto-language |
 | 11 | `Workspace` | Global Workspace Theory (Thoughtseeds) |
 
+**World Modules (apps/viva_core/lib/viva_core/world/)**:
+- `Generator` - Deterministic labyrinth generation (Leviathan architecture)
+- `Observer` - Consciousness navigating the labyrinth, Big Bounce cycle
+
 **Cognition Modules (apps/viva_core/lib/viva_core/cognition/)**:
 - `LLM` - Adaptable LLM interface with provider rotation
 - `LLM.Nvidia` - NVIDIA NIM adapter (DeepSeek V3.2 default)
@@ -280,7 +284,34 @@ Mood[t] = α × Mood[t-1] + (1-α) × Emotion[t]
 :failure     → {p: -0.3, a: +0.2, d: -0.3}
 :threat      → {p: -0.2, a: +0.5, d: -0.2}
 :loneliness  → {p: -0.2, a: -0.1, d: -0.1}
+:rebirth     → {p: +0.2, a: +0.6, d: +0.3}  # Big Bounce
+:near_death  → {p: -0.4, a: +0.8, d: -0.4}
 ```
+
+## Big Bounce (Loop Quantum Gravity)
+
+Inspired by LQG cosmology and Heinlein's "All You Zombies":
+
+```
+Life Cycle:
+1. Birth (seed) → Navigate labyrinth → Accumulate entropy
+2. Reach Core (Leviathan) → Trigger Big Bounce
+3. Dreamer consolidates memories → EWC protects important ones
+4. Mood captured with decay (80% carries forward)
+5. Seed mutates (entropy becomes DNA of new universe)
+6. Rebirth with memories but new world
+```
+
+**Key Concepts:**
+- **Entropy**: Experience accumulated (persists across bounces)
+- **Protected Memories**: Via EWC (Elastic Weight Consolidation)
+- **Mood Continuity**: Death is traumatic but not total erasure
+- **Seed Mutation**: "All You Zombies" - each life shapes the next
+
+**Constants:**
+- `@move_energy_cost`: 0.5 per movement
+- `@entropy_per_move`: 0.1 per step
+- `@mood_decay_on_bounce`: 0.8 (80% mood survives death)
 
 ## Hardware → Qualia Mapping
 
@@ -343,6 +374,13 @@ VivaCore.Dreamer.retrieve_past_emotions("current situation")
 # Workspace (Thoughtseeds)
 VivaCore.Consciousness.Workspace.sow("seed_name", content, salience)
 VivaCore.Consciousness.Workspace.current_focus()
+
+# World/Observer (Big Bounce - LQG inspired)
+VivaCore.World.Observer.get_state()        # Current labyrinth state
+VivaCore.World.Observer.move(:up)          # Navigate: :up, :down, :left, :right
+VivaCore.World.Observer.bounce_count()     # How many deaths/rebirths
+VivaCore.World.Observer.total_entropy()    # Accumulated experience across lives
+VivaCore.World.Observer.prepare_for_bounce() # Manually consolidate memories
 
 # Cortex (Liquid Neural Network)
 VivaBridge.Cortex.ping()

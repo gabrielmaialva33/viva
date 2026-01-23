@@ -91,7 +91,10 @@ defmodule VivaCore.Emotional do
     hardware_comfort: %{pleasure: 0.1, arousal: -0.1, dominance: 0.1},
     # Dreamer Feedback (Internal Recurrence)
     lucid_insight: %{pleasure: 0.3, arousal: 0.2, dominance: 0.2},
-    grim_realization: %{pleasure: -0.3, arousal: 0.2, dominance: -0.2}
+    grim_realization: %{pleasure: -0.3, arousal: 0.2, dominance: -0.2},
+    # Big Bounce - Death/Rebirth Cycle (Loop Quantum Gravity inspired)
+    rebirth: %{pleasure: 0.2, arousal: 0.6, dominance: 0.3},  # Intense but triumphant
+    near_death: %{pleasure: -0.4, arousal: 0.8, dominance: -0.4}  # Terror before the void
   }
 
   # ============================================================================

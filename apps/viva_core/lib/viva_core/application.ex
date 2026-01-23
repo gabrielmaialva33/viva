@@ -69,7 +69,10 @@ defmodule VivaCore.Application do
       {VivaCore.Consciousness.Workspace, name: VivaCore.Consciousness.Workspace},
 
       # Inner Monologue - Stream of consciousness
-      {VivaCore.InnerMonologue, []}
+      {VivaCore.InnerMonologue, []},
+
+      # The Sentinel (Observer) - Consciousness in the Labyrinth
+      {VivaCore.World.Observer, []}
 
       # Future neurons:
       # {VivaCore.Optimizer, name: VivaCore.Optimizer},
