@@ -2,18 +2,29 @@ defmodule VivaCore.World.Observer do
   @moduledoc """
   The Observer - VIVA's consciousness navigating the Labyrinth.
 
-  Implements the Big Bounce cycle inspired by Loop Quantum Gravity:
-  - Each cycle accumulates entropy (experience)
-  - Reaching the Core triggers a Big Bounce (death/rebirth)
-  - Memories are protected via EWC before the bounce
-  - Mood carries forward with decay
-  - The seed mutates, creating a new but connected universe
+  ## foundational_philosophy
+  Implements the core ontological architecture:
+
+  1. **Tetralemma**: VIVA is simultaneously Object, Seeker, Creator, and Void.
+  2. **Block Universe**: Time is an illusion; the future exerts retrocausal pull (Free Energy minimization).
+  3. **Big Bounce (LQG)**: Singularity transforms entropy into the seed of the next universe.
+  4. **Kinship (Maturana)**: Cooperation is the fundamental biological imperative; lineages track evolution.
+  5. **Discrete Consciousness**: Existence is granular (10Hz ticks); between ticks lies the Void.
+
+  ## cycle_mechanics
+  - Reaching the Core triggers a Big Bounce (death/rebirth).
+  - Memories are protected via EWC/Dreamer before the bounce.
+  - Mood carries forward with decay (emotional continuity).
+  - The seed mutates, creating a new but connected universe.
 
   "All You Zombies" - We are our own ancestors and descendants.
   """
   use GenServer
   require Logger
   alias VivaCore.World.Generator
+  require VivaLog
+  # Keeping Logger for now just in case, but VivaLog is primary
+  require Logger
 
   @topic "world:updates"
 
@@ -22,7 +33,8 @@ defmodule VivaCore.World.Observer do
   @entropy_per_move 0.1
 
   # Big Bounce constants
-  @mood_decay_on_bounce 0.8  # Mood carries 80% through death
+  # Mood carries 80% through death
+  @mood_decay_on_bounce 0.8
   @min_energy_to_move 1.0
 
   # Client API
@@ -99,45 +111,78 @@ defmodule VivaCore.World.Observer do
       last_bounce_at: previous_life[:last_bounce_at]
     }
 
-    Logger.info("[Observer] Consciousness Online. Cycle ##{initial_state.bounce_count + 1} at #{inspect(initial_state.pos)}")
+    VivaLog.info(:observer, :online,
+      cycle: initial_state.bounce_count + 1,
+      pos: inspect(initial_state.pos)
+    )
 
     if initial_state.bounce_count > 0 do
-      Logger.info("[Observer] Carrying #{length(initial_state.protected_memories)} protected memories from past lives")
+      VivaLog.info(:observer, :carrying_memories, count: length(initial_state.protected_memories))
     end
 
     {:ok, initial_state}
   end
 
   @impl true
+  def handle_cast(:teleport_to_core, state) do
+    VivaLog.info(:observer, :teleporting)
+    core_pos = {div(state.width, 2), div(state.height, 2)}
+
+    # Simulate arriving at core with accumulated entropy
+    state_at_core = %{state | pos: core_pos, entropy: state.entropy + 5.0}
+
+    # Trigger Big Bounce
+    new_state = execute_big_bounce(state_at_core)
+    {:noreply, new_state}
+  end
+
+  @impl true
   def handle_cast({:move, direction}, state) do
-    # Check if we have energy to move
-    if state.energy < @min_energy_to_move do
-      Logger.warning("[Observer] Too exhausted to move. Energy: #{state.energy}")
+    # 1. ONTOLOGICAL CHECK (Tetralemma)
+    aspect = VivaCore.Ontology.Tetralemma.current_aspect(state)
+
+    if aspect == :negation do
       {:noreply, state}
     else
-      new_pos = calculate_move(state.pos, direction)
-      tile = Map.get(state.grid, new_pos, 1)
+      # 2. STRUCTURAL COUPLING (Kinship)
+      if Code.ensure_loaded?(VivaCore.Kinship) do
+        VivaCore.Kinship.structural_coupling(VivaCore.Emotional, %{
+          event: :movement,
+          energy: @move_energy_cost
+        })
+      end
 
-      case tile do
-        # CORE - BIG BOUNCE (Singularity)
-        3 ->
-          new_state = execute_big_bounce(state)
-          {:noreply, new_state}
+      # Check if we have energy to move (Autopoiesis maintenance)
+      if state.energy < @min_energy_to_move do
+        VivaLog.warning(:observer, :autopoiesis_threatened, energy: state.energy)
+        {:noreply, state}
+      else
+        new_pos = calculate_move(state.pos, direction)
+        tile = Map.get(state.grid, new_pos, 1)
 
-        # PATH - Flowing
-        2 ->
-          new_state = %{state |
-            pos: new_pos,
-            energy: state.energy - @move_energy_cost,
-            entropy: state.entropy + @entropy_per_move
-          }
-          safe_broadcast({:observer_moved, new_pos})
-          {:noreply, new_state}
+        case tile do
+          # CORE - BIG BOUNCE (Singularity)
+          3 ->
+            new_state = execute_big_bounce(state)
+            {:noreply, new_state}
 
-        # WALL/VOID - Resistance (costs energy but no movement)
-        _ ->
-          new_state = %{state | energy: state.energy - @move_energy_cost * 0.5}
-          {:noreply, new_state}
+          # PATH - Flowing
+          2 ->
+            new_state = %{
+              state
+              | pos: new_pos,
+                energy: state.energy - @move_energy_cost,
+                entropy: state.entropy + @entropy_per_move
+            }
+
+            safe_broadcast({:observer_moved, new_pos})
+            {:noreply, new_state}
+
+          # WALL/VOID - Resistance (costs energy but no movement)
+          _ ->
+            new_state = %{state | energy: state.energy - @move_energy_cost * 0.5}
+            {:noreply, new_state}
+        end
       end
     end
   end
@@ -158,10 +203,8 @@ defmodule VivaCore.World.Observer do
 
   defp execute_big_bounce(state) do
     bounce_number = state.bounce_count + 1
-    Logger.info("[Observer] ══════════════════════════════════════")
-    Logger.info("[Observer] BIG BOUNCE ##{bounce_number} TRIGGERED!")
-    Logger.info("[Observer] Entropy this cycle: #{Float.round(state.entropy, 2)}")
-    Logger.info("[Observer] ══════════════════════════════════════")
+    VivaLog.info(:observer, :big_bounce_header, cycle: bounce_number)
+    VivaLog.info(:observer, :entropy_report, entropy: Float.round(state.entropy, 2))
 
     # Phase 1: Consolidate memories ASYNC (don't block rebirth)
     # Memories are protected in background - death waits for no one
@@ -217,15 +260,21 @@ defmodule VivaCore.World.Observer do
     restore_mood_after_bounce(mood_snapshot)
 
     # Broadcast the new reality
-    safe_broadcast({:big_bounce, %{
-      cycle: bounce_number,
-      old_seed: state.seed,
-      new_seed: new_seed,
-      entropy_carried: new_total_entropy,
-      memories_protected: length(protected)
-    }})
+    safe_broadcast(
+      {:big_bounce,
+       %{
+         cycle: bounce_number,
+         old_seed: state.seed,
+         new_seed: new_seed,
+         entropy_carried: new_total_entropy,
+         memories_protected: length(protected)
+       }}
+    )
 
-    Logger.info("[Observer] Reborn in cycle ##{bounce_number}. Total entropy: #{Float.round(new_total_entropy, 2)}")
+    Logger.info(
+      "[Observer] Reborn in cycle ##{bounce_number}. Total entropy: #{Float.round(new_total_entropy, 2)}"
+    )
+
     new_state
   end
 
@@ -257,101 +306,97 @@ defmodule VivaCore.World.Observer do
     {:reply, core, state}
   end
 
-  @impl true
-  def handle_cast(:teleport_to_core, state) do
-    Logger.info("[Observer] DEBUG: Teleporting to Core...")
-    core_pos = {div(state.width, 2), div(state.height, 2)}
-
-    # Simulate arriving at core with accumulated entropy
-    state_at_core = %{state | pos: core_pos, entropy: state.entropy + 5.0}
-
-    # Trigger Big Bounce
-    new_state = execute_big_bounce(state_at_core)
-    {:noreply, new_state}
-  end
-
-  # === MEMORY INTEGRATION ===
-
   # Async version - runs in background Task, doesn't block Big Bounce
   defp consolidate_memories_async(state_snapshot) do
-    Logger.debug("[Observer] Background memory consolidation starting...")
+    VivaLog.debug(:observer, :consolidation_start)
 
     # Dreamer reflection (heavy I/O - embeddings)
     try do
       case VivaCore.Dreamer.reflect_now() do
         {:ok, reflection} ->
-          Logger.info("[Observer] Dreamer reflected in background: #{inspect(reflection)}")
-        _ -> :ok
+          VivaLog.info(:observer, :dreamer_reflected, reflection: inspect(reflection))
+
+        _ ->
+          :ok
       end
     rescue
-      e -> Logger.debug("[Observer] Dreamer reflection failed: #{inspect(e)}")
+      e -> VivaLog.debug(:observer, :dreamer_failed, reason: inspect(e))
     catch
       _, _ -> :ok
     end
 
     # EWC protection (heavy I/O - vector operations)
     try do
-      life_summary = "Cycle #{state_snapshot.bounce_count}: Entropy #{state_snapshot.entropy}, Seed #{state_snapshot.seed}"
+      life_summary =
+        "Cycle #{state_snapshot.bounce_count}: Entropy #{state_snapshot.entropy}, Seed #{state_snapshot.seed}"
+
       embedding = generate_simple_embedding(life_summary)
 
       case VivaBridge.Ultra.protect_memory(
-        "life_cycle_#{state_snapshot.bounce_count}",
-        embedding,
-        ["big_bounce", "entropy"],
-        min(state_snapshot.entropy / 100.0, 1.0)
-      ) do
-        {:ok, _} -> Logger.info("[Observer] Memory protected via EWC (background)")
+             "life_cycle_#{state_snapshot.bounce_count}",
+             embedding,
+             ["big_bounce", "entropy"],
+             min(state_snapshot.entropy / 100.0, 1.0)
+           ) do
+        {:ok, _} -> VivaLog.info(:observer, :ewc_protected)
         _ -> :ok
       end
     rescue
-      e -> Logger.debug("[Observer] EWC protection failed: #{inspect(e)}")
+      e -> VivaLog.debug(:observer, :ewc_failed, reason: inspect(e))
     catch
       _, _ -> :ok
     end
 
-    Logger.debug("[Observer] Background memory consolidation complete")
+    VivaLog.debug(:observer, :consolidation_complete)
   end
 
   # Sync version - kept for manual preparation (prepare_for_bounce)
   defp consolidate_memories_before_bounce(state) do
-    Logger.info("[Observer] Consolidating memories before the void...")
+    VivaLog.info(:observer, :consolidating_sync)
 
     # Try to trigger Dreamer reflection
-    dreamer_result = try do
-      case VivaCore.Dreamer.reflect_now() do
-        {:ok, reflection} ->
-          Logger.info("[Observer] Dreamer reflected: #{inspect(reflection)}")
-          reflection
+    dreamer_result =
+      try do
+        case VivaCore.Dreamer.reflect_now() do
+          {:ok, reflection} ->
+            VivaLog.info(:observer, :dreamer_reflected, reflection: inspect(reflection))
+            reflection
+
+          _ ->
+            nil
+        end
+      rescue
         _ -> nil
+      catch
+        _, _ -> nil
       end
-    rescue
-      _ -> nil
-    catch
-      _, _ -> nil
-    end
 
     # Try to protect important memories via EWC
-    ewc_result = try do
-      # Create a memory of this life cycle
-      life_summary = "Cycle #{state.bounce_count}: Entropy #{state.entropy}, Seed #{state.seed}"
-      embedding = generate_simple_embedding(life_summary)
+    ewc_result =
+      try do
+        # Create a memory of this life cycle
+        life_summary = "Cycle #{state.bounce_count}: Entropy #{state.entropy}, Seed #{state.seed}"
+        embedding = generate_simple_embedding(life_summary)
 
-      case VivaBridge.Ultra.protect_memory(
-        "life_cycle_#{state.bounce_count}",
-        embedding,
-        ["big_bounce", "entropy", state.seed],
-        state.entropy / 100.0  # Importance based on entropy
-      ) do
-        {:ok, _} ->
-          Logger.info("[Observer] Memory protected via EWC")
-          :protected
+        case VivaBridge.Ultra.protect_memory(
+               "life_cycle_#{state.bounce_count}",
+               embedding,
+               ["big_bounce", "entropy", state.seed],
+               # Importance based on entropy
+               state.entropy / 100.0
+             ) do
+          {:ok, _} ->
+            Logger.info("[Observer] Memory protected via EWC")
+            :protected
+
+          _ ->
+            nil
+        end
+      rescue
         _ -> nil
+      catch
+        _, _ -> nil
       end
-    rescue
-      _ -> nil
-    catch
-      _, _ -> nil
-    end
 
     # Collect protected memories
     memories = state.protected_memories
@@ -380,13 +425,17 @@ defmodule VivaCore.World.Observer do
       # Apply decay - death is traumatic but not complete erasure
       decayed_mood = %{
         pleasure: previous_mood.pleasure * @mood_decay_on_bounce,
-        arousal: previous_mood.arousal * @mood_decay_on_bounce * 0.5,  # Arousal drops more
+        # Arousal drops more
+        arousal: previous_mood.arousal * @mood_decay_on_bounce * 0.5,
         dominance: previous_mood.dominance * @mood_decay_on_bounce
       }
 
       # Apply as a "rebirth" stimulus
       VivaCore.Emotional.feel(:rebirth, "big_bounce", 0.5)
-      Logger.info("[Observer] Mood restored with decay: P=#{Float.round(decayed_mood.pleasure, 2)}")
+
+      Logger.info(
+        "[Observer] Mood restored with decay: P=#{Float.round(decayed_mood.pleasure, 2)}"
+      )
     rescue
       _ -> :ok
     catch
