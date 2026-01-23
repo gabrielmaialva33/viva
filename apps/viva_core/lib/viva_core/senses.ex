@@ -112,20 +112,29 @@ defmodule VivaCore.Senses do
 
     VivaLog.info(:senses, :starting, interval: interval_ms)
 
-    # Use handle_continue to avoid race condition on startup
-    # (wait for Emotional to be registered before sending qualia)
-    {:ok, state, {:continue, {:start_heartbeat, enabled}}}
+    # Subscribe to Discrete Time
+    if Code.ensure_loaded?(Phoenix.PubSub) do
+      Phoenix.PubSub.subscribe(Viva.PubSub, "chronos:tick")
+    end
+
+    {:ok, state}
   end
 
+  # Remove old heartbeat scheduling
+  # Handle Tick (10Hz)
+  # Senses run at 1Hz, so we check mod 10
   @impl true
-  def handle_continue({:start_heartbeat, true}, state) do
-    send(self(), :heartbeat)
-    {:noreply, state}
+  def handle_info({:tick, tick_id}, state) do
+    if state.enabled and rem(tick_id, 10) == 0 do
+      {_result, new_state} = do_heartbeat(state)
+      {:noreply, new_state}
+    else
+      {:noreply, state}
+    end
   end
 
-  def handle_continue({:start_heartbeat, false}, state) do
-    {:noreply, state}
-  end
+  # Fallback for old heartbeat message to avoid crashes during hot upgrade
+  def handle_info(:heartbeat, state), do: {:noreply, state}
 
   @impl true
   def handle_call(:get_state, _from, state) do
@@ -147,7 +156,6 @@ defmodule VivaCore.Senses do
   @impl true
   def handle_cast(:resume, state) do
     VivaLog.info(:senses, :resumed)
-    schedule_heartbeat(state.interval_ms)
     {:noreply, %{state | enabled: true}}
   end
 
@@ -157,24 +165,9 @@ defmodule VivaCore.Senses do
     {:noreply, %{state | interval_ms: interval_ms}}
   end
 
-  @impl true
-  def handle_info(:heartbeat, state) do
-    if state.enabled do
-      {_result, new_state} = do_heartbeat(state)
-      schedule_heartbeat(new_state.interval_ms)
-      {:noreply, new_state}
-    else
-      {:noreply, state}
-    end
-  end
-
   # ============================================================================
   # Private Functions
   # ============================================================================
-
-  defp schedule_heartbeat(interval_ms) do
-    Process.send_after(self(), :heartbeat, interval_ms)
-  end
 
   # Try to get state from BodyServer, fallback to direct NIF if not available
   defp get_body_state_or_fallback(state) do

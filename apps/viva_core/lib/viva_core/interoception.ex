@@ -100,7 +100,8 @@ defmodule VivaCore.Interoception do
     # Metadata
     beam_pid: nil,
     uptime_seconds: 0,
-    last_tick: nil
+    last_tick: nil,
+    tick_count: 0
   ]
 
   # ============================================================================
@@ -352,6 +353,13 @@ defmodule VivaCore.Interoception do
       time_dilation: time_dilation
     })
 
+    # 11. INCREMENT tick counter
+    new_tick_count = state.tick_count + 1
+
+    # 12. PUBLISH: Notify Discrete Consciousness of new tick
+    # This is the "heartbeat" that creates moments of existence
+    Phoenix.PubSub.broadcast(Viva.PubSub, "interoception:tick", {:interoception_tick, new_tick_count})
+
     %{
       state
       | load_avg: raw.load_avg,
@@ -369,7 +377,8 @@ defmodule VivaCore.Interoception do
         tick_jitter_ms: tick_jitter_ms,
         time_dilation: time_dilation,
         uptime_seconds: raw.uptime_seconds,
-        last_tick: now
+        last_tick: now,
+        tick_count: new_tick_count
     }
   end
 

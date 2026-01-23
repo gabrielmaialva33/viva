@@ -84,8 +84,10 @@ defmodule VivaCore.Consciousness.Workspace do
   def init(_opts) do
     VivaLog.info(:consciousness, :workspace_online)
 
-    # Tick every 100ms for consciousness updates (10Hz alpha wave)
-    :timer.send_interval(100, :conscious_cycle)
+    # Subscribe to Discrete Time
+    if Code.ensure_loaded?(Phoenix.PubSub) do
+      Phoenix.PubSub.subscribe(Viva.PubSub, "chronos:tick")
+    end
 
     {:ok,
      %{
@@ -141,8 +143,12 @@ defmodule VivaCore.Consciousness.Workspace do
     {:noreply, %{state | seeds: [seed | state.seeds]}}
   end
 
+  # Handle Tick (10Hz)
+  # Workspace runs consciousness cycle on every tick to ensure high reactivity
   @impl true
-  def handle_info(:conscious_cycle, state) do
+  def handle_info({:tick, _tick_id}, state) do
+    # Run cycle on every tick (10Hz) or every N ticks as needed
+    # For now, 10Hz consciousness stream
     new_state =
       state
       |> decay_seeds()
@@ -151,6 +157,9 @@ defmodule VivaCore.Consciousness.Workspace do
 
     {:noreply, new_state}
   end
+
+  # Fallback
+  def handle_info(:conscious_cycle, state), do: {:noreply, state}
 
   @impl true
   def handle_call(:get_focus, _from, state) do

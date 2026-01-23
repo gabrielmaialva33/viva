@@ -58,6 +58,19 @@ defmodule VivaCore.Kinship do
   end
 
   @impl true
+  def handle_cast({:perturbation, partner_module, signal}, state) do
+    # Structural Coupling: we encounter an "other" and change our structure
+    VivaLog.info(:kinship, :perturbation_received,
+      partner: inspect(partner_module),
+      signal: inspect(signal)
+    )
+
+    # In a real system, this would modify state.lineages or trigger internal adaptation
+    # For now, we just acknowledge it as a "Love" interaction (biologically speaking)
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_call({:trace_lineage, current_seed}, _from, state) do
     ancestors = extract_ancestors(current_seed)
     {:reply, ancestors, state}

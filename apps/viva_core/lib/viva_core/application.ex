@@ -28,6 +28,10 @@ defmodule VivaCore.Application do
       # Must be first so others can subscribe during init
       {Phoenix.PubSub, name: Viva.PubSub},
 
+      # The Metronome (Discrete Time 10Hz)
+      # Generates {:tick, id} for synchronized existence
+      {VivaCore.Chronos.Ticker, name: VivaCore.Chronos.Ticker},
+
       # Redis Connection for Personality persistence
       {Redix, name: :redix},
 
@@ -53,6 +57,9 @@ defmodule VivaCore.Application do
       # Nervous System - body→soul heartbeat (continuous sensing)
       {VivaCore.Senses, name: VivaCore.Senses},
 
+      # Kinship - Structural Coupling with other entities
+      {VivaCore.Kinship, name: VivaCore.Kinship},
+
       # Dreamer - reflection and memory consolidation
       {VivaCore.Dreamer, name: VivaCore.Dreamer},
 
@@ -68,11 +75,19 @@ defmodule VivaCore.Application do
       # The theater of consciousness where mental objects compete
       {VivaCore.Consciousness.Workspace, name: VivaCore.Consciousness.Workspace},
 
+      # DISCRETE CONSCIOUSNESS (Biophoton Flashes)
+      # 10Hz flashes - 80% void, 20% conscious - synced with Interoception ticks
+      {VivaCore.Consciousness.Discrete, name: VivaCore.Consciousness.Discrete},
+
       # Inner Monologue - Stream of consciousness
       {VivaCore.InnerMonologue, []},
 
       # The Sentinel (Observer) - Consciousness in the Labyrinth
-      {VivaCore.World.Observer, []}
+      {VivaCore.World.Observer, []},
+
+      # MYCELIUM NETWORK (Small-World Topology)
+      # Fungal-inspired network between GenServers - clustering + shortcuts
+      {VivaCore.Mycelium, name: VivaCore.Mycelium}
 
       # Future neurons:
       # {VivaCore.Optimizer, name: VivaCore.Optimizer},

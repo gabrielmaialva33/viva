@@ -36,22 +36,27 @@ defmodule VivaCore.Physics.BlockUniverse do
     |> Enum.min_by(fn {_dir, cost} -> cost end, fn -> {:stay, 999.9} end)
   end
 
-  defp traverse_futures(_pos, 0, visited), do: MapSet.to_list(visited)
+  defp traverse_futures(pos, radius, visited) do
+    # Start recursion
+    initial_visited = MapSet.put(visited, pos)
 
-  defp traverse_futures(pos, _radius, visited) do
+    traverse_bfs_recursive(pos, radius, initial_visited)
+    |> MapSet.to_list()
+  end
+
+  defp traverse_bfs_recursive(_pos, 0, visited), do: visited
+
+  defp traverse_bfs_recursive(pos, radius, visited) do
     neighbors = get_neighbors(pos)
-    new_visited = MapSet.put(visited, pos)
 
-    Enum.reduce(neighbors, new_visited, fn neighbor, acc ->
+    Enum.reduce(neighbors, visited, fn neighbor, acc ->
       if MapSet.member?(acc, neighbor) do
         acc
       else
-        # In full version, we'd recurse with radius-1.
-        # For simple expansion now, just add neighbors.
-        MapSet.put(acc, neighbor)
+        new_acc = MapSet.put(acc, neighbor)
+        traverse_bfs_recursive(neighbor, radius - 1, new_acc)
       end
     end)
-    |> MapSet.to_list()
   end
 
   defp get_neighbors({x, y}) do
