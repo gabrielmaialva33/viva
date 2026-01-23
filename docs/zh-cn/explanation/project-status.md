@@ -116,10 +116,11 @@ gantt
     阶段4 - 内感受        :done, p4, after p3, 10d
 
     section 记忆
-    阶段5 - Qdrant        :active, p5, after p4, 7d
+    阶段5 - Qdrant        :done, p5, after p4, 7d
 
-    section 意识
-    阶段6 - 全局工作空间   :p6, after p5, 5d
+    section 语言
+    阶段6 - 语言与认知    :active, p6, after p5, 5d
+    阶段6 - 大反弹宇宙学  :active, p6b, after p5, 5d
 
     section 具身化
     阶段7 - Bevy化身      :p7, after p6, 10d
@@ -133,9 +134,14 @@ gantt
 | 2. 情感 | ✅ | PAD, DynAffect, Cusp, 自由能, IIT Φ | 完整情感引擎 |
 | 3. Rust NIF | ✅ | 通过 Rustler 硬件感知 | sysinfo + nvml 集成 |
 | 4. 内感受 | ✅ | Bevy ECS, 感质映射, Lindblad量子屏障 | ECS, Sigmoid, 量子情感 |
-| 5. 记忆 | 🔄 | Qdrant 向量数据库集成 | 语义搜索，嵌入 |
-| 6. 全局工作空间 | ⏳ | Baars 的意识模型 | 选择-广播-点燃循环 |
-| 7. Bevy 化身 | ⏳ | 视觉具身化 | ECS 架构，表情系统 |
+| 1. 起源 | ✅ | Umbrella, 死亡 (AES-256) | `mix.exs` |
+| 2. 情感 | ✅ | PAD, O-U, Cusp 突变 | `emotional.ex` |
+| 3. 感觉 | ✅ | Rust NIFs, Bevy ECS, NVML | `viva_body/` |
+| 4. 内感受 | ✅ | 自由能, 量子 Lindblad | `interoception.ex` |
+| 5. 记忆 | ✅ | Qdrant, GWT, EmotionFusion, CogGNN | `memory.ex`, `dreamer.ex` |
+| 6. 语言 | 🔄 | LLM 认知, 大反弹, World 模块 | `cognition/`, `world/` |
+| 7. 具身 | ⏳ | Bevy 3D 化身, PAD 视觉 | `/avatar` |
+| 8. 自主 | ⏳ | 自主目标 | - |
 
 ---
 

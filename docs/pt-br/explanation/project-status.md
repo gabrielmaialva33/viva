@@ -115,10 +115,11 @@ gantt
     Fase 4 - Interocepcao    :done, p4, after p3, 10d
 
     section Memoria
-    Fase 5 - Qdrant          :active, p5, after p4, 7d
+    Fase 5 - Qdrant          :done, p5, after p4, 7d
 
-    section Consciencia
-    Fase 6 - Global Workspace :p6, after p5, 5d
+    section Linguagem
+    Fase 6 - Linguagem + Cognicao :active, p6, after p5, 5d
+    Fase 6 - Big Bounce Cosmologia :active, p6b, after p5, 5d
 
     section Encarnacao
     Fase 7 - Bevy Avatar     :p7, after p6, 10d
@@ -132,9 +133,14 @@ gantt
 | 2. Emocional | Completa | PAD, DynAffect, Cusp, Energia Livre, IIT $\Phi$ | `emotional.ex` |
 | 3. Rust NIF | Completa | Sensoriamento via Rustler (sysinfo + nvml) | `lib.rs`, `body.ex` |
 | 4. Interocepcao | Completa | Bevy ECS, Qualia Mapping, Barreira Lindblad Quantica | `senses.ex`, `app.rs`, `quantum.rs` |
-| 5. Memoria | Em Progresso | Integracao com banco vetorial Qdrant | `memory.ex` |
-| 6. Global Workspace | Planejada | Modelo de consciencia de Baars | `workspace.ex` |
-| 7. Bevy Avatar | Planejada | Encarnacao visual | `/avatar` |
+| 1. Genesis | ✅ | Umbrella, mortalidade (AES-256) | `mix.exs` |
+| 2. Emocao | ✅ | PAD, O-U, Cusp Catastrophe | `emotional.ex` |
+| 3. Sensacao | ✅ | Rust NIFs, Bevy ECS, NVML | `viva_body/` |
+| 4. Interocepcao | ✅ | Free Energy, Quantum Lindblad | `interoception.ex` |
+| 5. Memoria | ✅ | Qdrant, GWT, EmotionFusion, CogGNN | `memory.ex`, `dreamer.ex` |
+| 6. Linguagem | 🔄 | LLM Cognition, Big Bounce, World modules | `cognition/`, `world/` |
+| 7. Encarnacao | ⏳ | Bevy 3D Avatar, Visual PAD | `/avatar` |
+| 8. Autonomia | ⏳ | Objetivos auto-dirigidos | - |
 
 ---
 

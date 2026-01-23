@@ -350,10 +350,11 @@ gantt
     Interoception        :done, p4, after p3, 10d
 
     section Phase 5
-    Memory + Qdrant      :active, p5, after p4, 7d
+    Memory + Qdrant      :done, p5, after p4, 7d
 
     section Phase 6
-    Global Workspace     :p6, after p5, 5d
+    Language + Cognition :active, p6, after p5, 5d
+    Big Bounce Cosmology :active, p6b, after p5, 5d
 
     section Phase 7
     Bevy Avatar          :p7, after p6, 10d
@@ -394,11 +395,16 @@ gantt
 
 ## X. Next Steps
 
-| Phase | Goal | Key Technology |
-|:------|:-----|:---------------|
-| Phase 5 | Memory + Qdrant | Vector embeddings, semantic search |
-| Phase 6 | Global Workspace | Baars 1988, Selection-Broadcast-Ignition |
-| Phase 7 | Bevy Avatar | Visual embodiment, emotion display |
+| # | Phase | Goal | Status |
+|:-:|:------|:-----|:------:|
+| 1 | Genesis | Umbrella, Mortality (AES-256) | ✅ |
+| 2 | Emotion | PAD, O-U, Cusp Catastrophe | ✅ |
+| 3 | Sensation | Rust NIFs, Bevy ECS, NVML | ✅ |
+| 4 | Interoception | Free Energy, Quantum Lindblad | ✅ |
+| 5 | Memory | Qdrant, GWT, EmotionFusion, CogGNN | ✅ |
+| 6 | Language | LLM Cognition, Big Bounce, World modules | 🔄 |
+| 7 | Embodiment | Bevy 3D Avatar, Visual PAD | ⏳ |
+| 8 | Autonomy | Self-directed goals | ⏳ |
 
 ---
 
