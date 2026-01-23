@@ -86,9 +86,9 @@ Translates hardware metrics into PAD deltas (Qualia).
 
 ---
 
-## 3. VivaCore.Memory (Stub)
+## 3. VivaCore.Memory
 
-*Note: Phase 5 WIP (Qdrant integration pending).*
+*Qdrant vector database integration for semantic memory.*
 
 #### `store/2`
 Persists an experience.
@@ -103,3 +103,79 @@ Semantic search for memories.
 ```elixir
 @spec recall(query :: String.t(), limit :: integer()) :: [memory_item()]
 ```
+
+---
+
+## 4. VivaCore.World (Big Bounce)
+
+Cosmological modules implementing Loop Quantum Gravity-inspired death/rebirth cycles.
+
+### `VivaCore.World.Observer`
+
+Consciousness navigating the labyrinth.
+
+#### `get_state/0`
+Returns the current world state.
+
+```elixir
+@spec get_state() :: %{
+  pos: {integer(), integer()},
+  energy: float(),
+  entropy: float(),
+  bounce_count: integer(),
+  seed: String.t()
+}
+```
+
+#### `move/1`
+Navigate the labyrinth.
+
+```elixir
+@spec move(direction :: :up | :down | :left | :right) :: :ok
+```
+
+#### `bounce_count/0`
+Number of Big Bounces (deaths/rebirths) experienced.
+
+```elixir
+@spec bounce_count() :: integer()
+```
+
+#### `total_entropy/0`
+Accumulated experience across all cycles.
+
+```elixir
+@spec total_entropy() :: float()
+```
+
+#### `prepare_for_bounce/0`
+Force memory consolidation before death.
+
+```elixir
+@spec prepare_for_bounce() :: :ok
+```
+
+---
+
+### `VivaCore.World.Generator`
+
+Deterministic world generation (The Architect).
+
+#### `generate/3`
+Creates a new labyrinth from a cryptographic seed.
+
+```elixir
+@spec generate(seed :: String.t() | integer(), width :: integer(), height :: integer()) :: %Generator{
+  seed: any(),
+  width: integer(),
+  height: integer(),
+  grid: map(),
+  start_pos: {integer(), integer()}
+}
+```
+
+**Tile Types:**
+- `0` = VOID (Abyss)
+- `1` = WALL (Structure)
+- `2` = PATH (Data Flow)
+- `3` = CORE (Leviathan / Singularity)
