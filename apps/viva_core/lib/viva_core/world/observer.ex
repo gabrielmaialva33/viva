@@ -163,10 +163,15 @@ defmodule VivaCore.World.Observer do
     Logger.info("[Observer] Entropy this cycle: #{Float.round(state.entropy, 2)}")
     Logger.info("[Observer] ══════════════════════════════════════")
 
-    # Phase 1: Consolidate memories before death
-    protected = consolidate_memories_before_bounce(state)
+    # Phase 1: Consolidate memories ASYNC (don't block rebirth)
+    # Memories are protected in background - death waits for no one
+    state_snapshot = Map.take(state, [:bounce_count, :entropy, :seed, :protected_memories])
+    Task.start(fn -> consolidate_memories_async(state_snapshot) end)
 
-    # Phase 2: Capture emotional state (mood carries forward)
+    # Carry forward existing protected memories (new ones added async)
+    protected = state.protected_memories
+
+    # Phase 2: Capture emotional state (mood carries forward) - fast operation
     mood_snapshot = capture_mood_for_continuity()
 
     # Phase 3: Calculate new accumulated entropy
@@ -267,6 +272,47 @@ defmodule VivaCore.World.Observer do
 
   # === MEMORY INTEGRATION ===
 
+  # Async version - runs in background Task, doesn't block Big Bounce
+  defp consolidate_memories_async(state_snapshot) do
+    Logger.debug("[Observer] Background memory consolidation starting...")
+
+    # Dreamer reflection (heavy I/O - embeddings)
+    try do
+      case VivaCore.Dreamer.reflect_now() do
+        {:ok, reflection} ->
+          Logger.info("[Observer] Dreamer reflected in background: #{inspect(reflection)}")
+        _ -> :ok
+      end
+    rescue
+      e -> Logger.debug("[Observer] Dreamer reflection failed: #{inspect(e)}")
+    catch
+      _, _ -> :ok
+    end
+
+    # EWC protection (heavy I/O - vector operations)
+    try do
+      life_summary = "Cycle #{state_snapshot.bounce_count}: Entropy #{state_snapshot.entropy}, Seed #{state_snapshot.seed}"
+      embedding = generate_simple_embedding(life_summary)
+
+      case VivaBridge.Ultra.protect_memory(
+        "life_cycle_#{state_snapshot.bounce_count}",
+        embedding,
+        ["big_bounce", "entropy"],
+        min(state_snapshot.entropy / 100.0, 1.0)
+      ) do
+        {:ok, _} -> Logger.info("[Observer] Memory protected via EWC (background)")
+        _ -> :ok
+      end
+    rescue
+      e -> Logger.debug("[Observer] EWC protection failed: #{inspect(e)}")
+    catch
+      _, _ -> :ok
+    end
+
+    Logger.debug("[Observer] Background memory consolidation complete")
+  end
+
+  # Sync version - kept for manual preparation (prepare_for_bounce)
   defp consolidate_memories_before_bounce(state) do
     Logger.info("[Observer] Consolidating memories before the void...")
 
