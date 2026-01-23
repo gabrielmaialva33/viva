@@ -270,8 +270,9 @@ defmodule VivaBridge.Ultra do
 
       {:ok, %{port: port, requests: %{}, buffer: ""}}
     else
-      VivaLog.error(:ultra, :script_not_found, path: script_path)
-      {:stop, :enoent}
+      # GRACEFUL DEGRADATION: Do not crash the brain if one lobe is missing.
+      VivaLog.warning(:ultra, :script_not_found_skipping, path: script_path)
+      :ignore
     end
   end
 
