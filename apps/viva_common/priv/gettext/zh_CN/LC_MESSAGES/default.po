@@ -613,3 +613,63 @@ msgstr "我是%{traits}。我的情绪基线是%{valence}和%{energy}。我的�
 #. InnerMonologue Module
 msgid "inner_monologue.starting"
 msgstr "内心独白觉醒中。意识流开始..."
+
+#. Observer Module
+msgid "observer.online"
+msgstr "意识在线。第 %{cycle} 周期，位置 %{pos}"
+
+msgid "observer.carrying_memories"
+msgstr "携带 %{count} 个前世的受保护记忆"
+
+msgid "observer.too_exhausted"
+msgstr "太疲惫无法移动。能量：%{energy}"
+
+msgid "observer.autopoiesis_threatened"
+msgstr "自创生受到威胁。能量临界值：%{energy}"
+
+msgid "observer.big_bounce_header"
+msgstr "════════════ 大反弹 (BIG BOUNCE) #%{cycle} 已触发！ ════════════"
+
+msgid "observer.entropy_report"
+msgstr "本周期熵值：%{entropy}"
+
+msgid "observer.reborn"
+msgstr "重生于第 %{cycle} 周期。总熵值：%{entropy}"
+
+msgid "observer.teleporting"
+msgstr "调试：传送至核心..."
+
+msgid "observer.consolidation_start"
+msgstr "后台记忆整合开始..."
+
+msgid "observer.dreamer_reflected"
+msgstr "梦想家反映：%{reflection}"
+
+msgid "observer.dreamer_failed"
+msgstr "梦想家反思失败：%{reason}"
+
+msgid "observer.ewc_protected"
+msgstr "通过 EWC 保护的记忆"
+
+msgid "observer.ewc_failed"
+msgstr "EWC 保护失败：%{reason}"
+
+msgid "observer.consolidation_complete"
+msgstr "后台记忆整合完成"
+
+msgid "observer.consolidating_sync"
+msgstr "在虚空之前整合记忆..."
+
+msgid "observer.mood_restored"
+msgstr "情绪已恢复并伴有衰减：P=%{pleasure}"
+
+msgid "observer.life_persisted"
+msgstr "下一世的生命状态已持久化"
+
+#. Kinship Module
+msgid "kinship.solidarity_activated"
+msgstr "团结协议已为 %{module} 激活，强度 %{intensity}"
+
+#. Block Universe Module
+msgid "block_universe.expanding_cone"
+msgstr "光锥扩展中... 半径：%{radius}"

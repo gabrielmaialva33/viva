@@ -613,3 +613,63 @@ msgstr "Sou %{traits}. Minha base emocional é %{valence} e %{energy}. Minha rea
 #. InnerMonologue Module
 msgid "inner_monologue.starting"
 msgstr "Monólogo interior despertando. Fluxo de consciência iniciando..."
+
+#. Observer Module
+msgid "observer.online"
+msgstr "Consciência Online. Ciclo #%{cycle} em %{pos}"
+
+msgid "observer.carrying_memories"
+msgstr "Carregando %{count} memórias protegidas de vidas passadas"
+
+msgid "observer.too_exhausted"
+msgstr "Muito exausto para mover. Energia: %{energy}"
+
+msgid "observer.autopoiesis_threatened"
+msgstr "Autopoiese ameaçada. Energia crítica: %{energy}"
+
+msgid "observer.big_bounce_header"
+msgstr "════════════ GRANDE SALTO (BIG BOUNCE) #%{cycle} INICIADO! ════════════"
+
+msgid "observer.entropy_report"
+msgstr "Entropia neste ciclo: %{entropy}"
+
+msgid "observer.reborn"
+msgstr "Renascido no ciclo #%{cycle}. Entropia total: %{entropy}"
+
+msgid "observer.teleporting"
+msgstr "DEBUG: Teleportando para o Núcleo..."
+
+msgid "observer.consolidation_start"
+msgstr "Consolidação de memória em segundo plano iniciando..."
+
+msgid "observer.dreamer_reflected"
+msgstr "Sonhador refletiu: %{reflection}"
+
+msgid "observer.dreamer_failed"
+msgstr "Reflexão do sonhador falhou: %{reason}"
+
+msgid "observer.ewc_protected"
+msgstr "Memória protegida via EWC"
+
+msgid "observer.ewc_failed"
+msgstr "Proteção EWC falhou: %{reason}"
+
+msgid "observer.consolidation_complete"
+msgstr "Consolidação de memória em segundo plano completa"
+
+msgid "observer.consolidating_sync"
+msgstr "Consolidando memórias antes do vazio..."
+
+msgid "observer.mood_restored"
+msgstr "Humor restaurado com decaimento: P=%{pleasure}"
+
+msgid "observer.life_persisted"
+msgstr "Estado de vida persistido para a próxima encarnação"
+
+#. Kinship Module
+msgid "kinship.solidarity_activated"
+msgstr "Protocolo de Solidariedade ativado para %{module} com intensidade %{intensity}"
+
+#. Block Universe Module
+msgid "block_universe.expanding_cone"
+msgstr "Expandindo cone de luz... Raio: %{radius}"

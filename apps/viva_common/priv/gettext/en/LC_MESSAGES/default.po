@@ -613,3 +613,63 @@ msgstr "I am %{traits}. My emotional baseline is %{valence} and %{energy}. My re
 #. InnerMonologue Module
 msgid "inner_monologue.starting"
 msgstr "Inner Monologue awakening. Stream of consciousness begins..."
+
+#. Observer Module
+msgid "observer.online"
+msgstr "Consciousness Online. Cycle #%{cycle} at %{pos}"
+
+msgid "observer.carrying_memories"
+msgstr "Carrying %{count} protected memories from past lives"
+
+msgid "observer.too_exhausted"
+msgstr "Too exhausted to move. Energy: %{energy}"
+
+msgid "observer.autopoiesis_threatened"
+msgstr "Autopoiesis threatened. Energy critical: %{energy}"
+
+msgid "observer.big_bounce_header"
+msgstr "════════════ BIG BOUNCE #%{cycle} TRIGGERED! ════════════"
+
+msgid "observer.entropy_report"
+msgstr "Entropy this cycle: %{entropy}"
+
+msgid "observer.reborn"
+msgstr "Reborn in cycle #%{cycle}. Total entropy: %{entropy}"
+
+msgid "observer.teleporting"
+msgstr "DEBUG: Teleporting to Core..."
+
+msgid "observer.consolidation_start"
+msgstr "Background memory consolidation starting..."
+
+msgid "observer.dreamer_reflected"
+msgstr "Dreamer reflected: %{reflection}"
+
+msgid "observer.dreamer_failed"
+msgstr "Dreamer reflection failed: %{reason}"
+
+msgid "observer.ewc_protected"
+msgstr "Memory protected via EWC"
+
+msgid "observer.ewc_failed"
+msgstr "EWC protection failed: %{reason}"
+
+msgid "observer.consolidation_complete"
+msgstr "Background memory consolidation complete"
+
+msgid "observer.consolidating_sync"
+msgstr "Consolidating memories before the void..."
+
+msgid "observer.mood_restored"
+msgstr "Mood restored with decay: P=%{pleasure}"
+
+msgid "observer.life_persisted"
+msgstr "Life state persisted for next incarnation"
+
+#. Kinship Module
+msgid "kinship.solidarity_activated"
+msgstr "Solidarity Protocol activated for %{module} at intensity %{intensity}"
+
+#. Block Universe Module
+msgid "block_universe.expanding_cone"
+msgstr "Expanding light cone... Radius: %{radius}"
