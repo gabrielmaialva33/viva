@@ -448,3 +448,12 @@ cache/
 
 # Model files (tokenizers, vocab) - download, don't commit
 **/priv/models/
+
+# Concept art (large PNGs)
+assets/concept/
+
+# Training datasets (generated locally)
+**/priv/datasets/*.csv
+
+# Verification scripts (one-off tests)
+verify_*.exs
