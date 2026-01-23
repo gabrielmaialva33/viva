@@ -23,6 +23,9 @@ defmodule VivaCore.Personality do
   @default_volatility 1.0
   @default_traits [:curious, :calm]
 
+  @doc "Returns the default baseline personality."
+  def baseline, do: @default_baseline
+
   @persistence_key "viva:personality"
 
   defstruct [
