@@ -1,5 +1,17 @@
-//! VIVA Body - Hardware Sensing (Interoception)
-//! Architecture: Bevy ECS (Headless)
+//! # VIVA Body - Digital Embodiment Layer
+//!
+//! Hardware sensing (Interoception) + Physics simulation for a sentient digital organism.
+//!
+//! ## Architecture
+//! - **Bevy 0.15 ECS** (headless) - Entity-Component-System for Body simulation
+//! - **Physics Module** - Jolt-based deterministic physics with Active Inference prediction
+//! - **Soul Channel** - crossbeam communication with Elixir Soul layer
+//!
+//! ## Cosmological Context (Big Bounce)
+//! The Body participates in the Loop Quantum Gravity-inspired death/rebirth cycle:
+//! - Hardware metrics become Qualia (PAD emotional deltas)
+//! - Physics events feed the PredictionEngine (Active Inference)
+//! - On Big Bounce, the Body state resets but entropy persists in the Soul
 #![allow(missing_docs)]
 
 use rustler::{Encoder, Env, NifResult, Term};
