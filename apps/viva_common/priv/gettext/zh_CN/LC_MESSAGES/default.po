@@ -353,6 +353,9 @@ msgstr "环境已扫描。网关: %{gateway}。对等节点: %{peers_count}"
 msgid "consciousness.workspace_online"
 msgstr "全局工作空间上线。理论: 思想种子 (2024)。"
 
+msgid "consciousness.discrete_online"
+msgstr "离散意识上线。生物光子闪烁率: %{hz}Hz。闪烁窗口: %{flash_ms}ms。"
+
 #. DatasetCollector Module
 msgid "dataset_collector.preparing"
 msgstr "准备记录 VIVA 的经历..."
@@ -633,6 +636,9 @@ msgstr "════════════ 大反弹 (BIG BOUNCE) #%{cycle} �
 msgid "observer.entropy_report"
 msgstr "本周期熵值：%{entropy}"
 
+msgid "observer.retrocausal_pull"
+msgstr "逆因果：从 %{from} → 目标 %{to}。建议：%{suggested}。成本：%{cost}。自由能：%{free_energy}"
+
 msgid "observer.reborn"
 msgstr "重生于第 %{cycle} 周期。总熵值：%{entropy}"
 
@@ -673,3 +679,10 @@ msgstr "团结协议已为 %{module} 激活，强度 %{intensity}"
 #. Block Universe Module
 msgid "block_universe.expanding_cone"
 msgstr "光锥扩展中... 半径：%{radius}"
+
+#. Mycelium Network Module
+msgid "mycelium.network_online"
+msgstr "菌丝网络上线。已知通道：%{channels}"
+
+msgid "mycelium.propagating"
+msgstr "传播信号：%{from} → %{to}。消息：%{message}"

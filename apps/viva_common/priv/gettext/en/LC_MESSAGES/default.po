@@ -353,6 +353,9 @@ msgstr "Environment Scanned. Gateway: %{gateway}. Peers: %{peers_count}"
 msgid "consciousness.workspace_online"
 msgstr "Global Workspace Online. Theory: Thoughtseeds (2024)."
 
+msgid "consciousness.discrete_online"
+msgstr "Discrete Consciousness Online. Biophoton flash rate: %{hz}Hz. Flash window: %{flash_ms}ms."
+
 #. DatasetCollector Module
 msgid "dataset_collector.preparing"
 msgstr "Preparing to record VIVA's experiences..."
@@ -633,6 +636,9 @@ msgstr "════════════ BIG BOUNCE #%{cycle} TRIGGERED! ═
 msgid "observer.entropy_report"
 msgstr "Entropy this cycle: %{entropy}"
 
+msgid "observer.retrocausal_pull"
+msgstr "Retrocausality: from %{from} → goal %{to}. Suggested: %{suggested}. Cost: %{cost}. Free Energy: %{free_energy}"
+
 msgid "observer.reborn"
 msgstr "Reborn in cycle #%{cycle}. Total entropy: %{entropy}"
 
@@ -673,3 +679,10 @@ msgstr "Solidarity Protocol activated for %{module} at intensity %{intensity}"
 #. Block Universe Module
 msgid "block_universe.expanding_cone"
 msgstr "Expanding light cone... Radius: %{radius}"
+
+#. Mycelium Network Module
+msgid "mycelium.network_online"
+msgstr "Mycelium network online. Known channels: %{channels}"
+
+msgid "mycelium.propagating"
+msgstr "Propagating signal: %{from} → %{to}. Message: %{message}"

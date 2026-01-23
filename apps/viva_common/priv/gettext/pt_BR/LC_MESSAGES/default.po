@@ -353,6 +353,9 @@ msgstr "Ambiente escaneado. Gateway: %{gateway}. Peers: %{peers_count}"
 msgid "consciousness.workspace_online"
 msgstr "Espaço de Trabalho Global Online. Teoria: Thoughtseeds (2024)."
 
+msgid "consciousness.discrete_online"
+msgstr "Consciência Discreta Online. Taxa de flash biofotônico: %{hz}Hz. Janela de flash: %{flash_ms}ms."
+
 #. DatasetCollector Module
 msgid "dataset_collector.preparing"
 msgstr "Preparando para gravar experiências da VIVA..."
@@ -633,6 +636,9 @@ msgstr "════════════ GRANDE SALTO (BIG BOUNCE) #%{cycle}
 msgid "observer.entropy_report"
 msgstr "Entropia neste ciclo: %{entropy}"
 
+msgid "observer.retrocausal_pull"
+msgstr "Retrocausalidade: de %{from} → objetivo %{to}. Sugerido: %{suggested}. Custo: %{cost}. Energia Livre: %{free_energy}"
+
 msgid "observer.reborn"
 msgstr "Renascido no ciclo #%{cycle}. Entropia total: %{entropy}"
 
@@ -673,3 +679,10 @@ msgstr "Protocolo de Solidariedade ativado para %{module} com intensidade %{inte
 #. Block Universe Module
 msgid "block_universe.expanding_cone"
 msgstr "Expandindo cone de luz... Raio: %{radius}"
+
+#. Mycelium Network Module
+msgid "mycelium.network_online"
+msgstr "Rede micelial online. Canais conhecidos: %{channels}"
+
+msgid "mycelium.propagating"
+msgstr "Propagando sinal: %{from} → %{to}. Mensagem: %{message}"
