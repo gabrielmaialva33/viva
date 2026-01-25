@@ -1,4 +1,4 @@
-name: Deploy Gleam Docs to Pages
+name: Deploy VIVA to GitHub Pages
 
 on:
   push:
@@ -37,16 +37,28 @@ jobs:
       - name: Download dependencies
         run: gleam deps download
 
-      - name: Build documentation
+      - name: Build static site (Pure Gleam)
+        run: gleam run -m site/build
+
+      - name: Build API documentation
         run: gleam docs build
 
-      - name: Inject Mermaid.js
-        run: python3 scripts/inject-mermaid.py
-
-      - name: Copy custom documentation
+      - name: Combine outputs
         run: |
-          cp -r docs/* build/dev/docs/viva/
-          cp docs/landing.html build/dev/docs/viva/index.html
+          # Copy API docs into dist/viva/
+          cp -r build/dev/docs/viva dist/viva
+
+          # Copy remaining docs assets
+          cp -r docs/pt-br dist/
+          cp -r docs/en dist/
+          cp -r docs/zh-cn dist/
+          cp docs/reader.html dist/ 2>/dev/null || true
+
+      - name: Inject Mermaid.js into API docs
+        run: |
+          if [ -f scripts/inject-mermaid.py ]; then
+            python3 scripts/inject-mermaid.py dist/viva
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -54,7 +66,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'build/dev/docs/viva'
+          path: 'dist'
 
   deploy:
     environment:

@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="VIVA Documentation Reader">
+  <title>VIVA — Documentation</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+
+  <!-- Marked.js for Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@12/lib/marked.umd.min.js"></script>
+
+  <!-- Mermaid.js for diagrams -->
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    window.mermaid = mermaid;
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "base",
+      themeVariables: {
+        primaryColor: '#f5f5f0',
+        primaryTextColor: '#1a1a1a',
+        primaryBorderColor: '#8b7355',
+        lineColor: '#8b7355',
+        secondaryColor: '#e8e4d9',
+        tertiaryColor: '#faf8f3'
+      }
+    });
+  </script>
+
+  <style>
+    /* VIVA Terror Palette - Red & Green (WCAG AA Compliant) */
+    :root {
+      --bg: #0a0a0a;
+      --bg-paper: #141414;
+      --text: #f0f0f0;
+      --text-muted: #a3a3a3;
+      --accent: #ef4444;
+      --accent-dark: #f87171;
+      --accent-green: #4ade80;
+      --border: #333;
+      --code-bg: #1a1a1a;
+      --link: #4ade80;
+      --link-hover: #86efac;
+      --focus-ring: #ef4444;
+
+      /* Typography */
+      --font-serif: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+      --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #fafafa;
+        --bg-paper: #ffffff;
+        --text: #171717;
+        --text-muted: #525252;
+        --accent: #dc2626;
+        --accent-dark: #b91c1c;
+        --accent-green: #16a34a;
+        --border: #e5e5e5;
+        --code-bg: #f5f5f5;
+        --link: #15803d;
+        --link-hover: #166534;
+        --focus-ring: #dc2626;
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 17px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Skip Link */
+    .skip-link {
+      position: absolute;
+      top: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: #fff;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0 0 4px 4px;
+      z-index: 1000;
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+    }
+    .skip-link:focus { top: 0; }
+
+    /* Links */
+    a { color: var(--link); text-decoration: none; transition: color 0.2s; }
+    a:hover { color: var(--link-hover); text-decoration: underline; }
+    a:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* Header */
+    header {
+      background: var(--bg-paper);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.2rem;
+      color: var(--accent);
+      text-shadow: 0 0 10px var(--accent);
+    }
+
+    .logo:hover { text-decoration: none; text-shadow: 0 0 20px var(--accent); }
+
+    .breadcrumb {
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .breadcrumb span { color: var(--accent); margin: 0 0.5rem; }
+
+    /* Language Switcher */
+    .lang-switch {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .lang-switch a {
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      padding: 0.35rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: var(--bg);
+    }
+
+    .lang-switch a:hover {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      text-decoration: none;
+    }
+
+    .lang-switch a.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Main Content */
+    main {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 3rem 2rem;
+    }
+
+    /* Article Styling */
+    article {
+      background: var(--bg-paper);
+      border: 1px solid var(--border);
+      padding: 3rem;
+    }
+
+    /* Typography */
+    article h1 {
+      font-size: 2rem;
+      font-weight: 400;
+      margin-bottom: 0.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    article h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 3rem 0 1.5rem;
+      padding-bottom: 0;
+      border-bottom: none;
+      color: var(--text);
+    }
+
+    article h2::before {
+      content: "";
+    }
+
+    article h3 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 2rem 0 1rem;
+    }
+
+    article h4 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 1.5rem 0 0.75rem;
+      color: var(--text-muted);
+    }
+
+    article p { margin-bottom: 1rem; text-align: justify; hyphens: auto; }
+
+    article ul, article ol {
+      margin: 1rem 0 1rem 2rem;
+    }
+
+    article li { margin-bottom: 0.5rem; }
+
+    /* Code */
+    article code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: var(--code-bg);
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+    }
+
+    article pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      border-radius: 4px;
+    }
+
+    article pre code {
+      background: none;
+      padding: 0;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    /* Blockquotes */
+    article blockquote {
+      border-left: 3px solid var(--accent);
+      margin: 1.5rem 0;
+      padding: 1rem 1.5rem;
+      background: var(--bg);
+      font-style: italic;
+    }
+
+    article blockquote p:last-child { margin-bottom: 0; }
+
+    /* Tables */
+    article table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 0.95rem;
+    }
+
+    article th, article td {
+      border: 1px solid var(--border);
+      padding: 0.75rem;
+      text-align: left;
+    }
+
+    article th {
+      background: var(--code-bg);
+      font-family: var(--font-sans);
+      font-weight: 600;
+    }
+
+    article tr:nth-child(even) { background: var(--bg); }
+
+    /* Images */
+    article img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 1.5rem auto;
+    }
+
+    /* Mermaid Diagrams */
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      margin: 2rem 0;
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 4px;
+    }
+
+    /* Horizontal Rule */
+    article hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2rem 0;
+    }
+
+    /* Strong and Emphasis */
+    article strong { font-weight: 600; }
+    article em { font-style: italic; }
+
+    /* Math equations (simple styling) */
+    .math-block {
+      background: var(--bg-paper);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      overflow-x: auto;
+    }
+
+    /* Loading State */
+    .loading {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-muted);
+    }
+
+    .loading::after {
+      content: '';
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Error State */
+    .error {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #c53030;
+    }
+
+    /* Table of Contents */
+    .toc {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .toc h2 {
+      font-size: 1rem;
+      margin: 0 0 1rem;
+      padding: 0;
+      border: none;
+    }
+
+    .toc h2::before { content: ""; }
+
+    .toc ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .toc li {
+      margin-bottom: 0.5rem;
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+    }
+
+    .toc a { color: var(--text-muted); }
+    .toc a:hover { color: var(--link); }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      border-top: 1px solid var(--border);
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      body { font-size: 16px; }
+      article { padding: 1.5rem; }
+      header { padding: 1rem; }
+      .header-left { flex-direction: column; align-items: flex-start; }
+    }
+
+    /* Print Styles */
+    @media print {
+      body { font-size: 12pt; }
+      header, .skip-link, .lang-switch { display: none; }
+      article { border: none; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <header role="banner">
+    <div class="header-left">
+      <a href="index.html" class="logo">V I V A</a>
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="index.html">Home</a>
+        <span>/</span>
+        <span id="doc-path">Documentation</span>
+      </nav>
+    </div>
+    <nav class="lang-switch" aria-label="Language" id="lang-switch">
+      <a href="#" data-lang="pt-br">PT</a>
+      <a href="#" data-lang="en">EN</a>
+      <a href="#" data-lang="zh-cn">ZH</a>
+    </nav>
+  </header>
+
+  <main id="main" role="main">
+    <article id="content">
+      <div class="loading">Loading documentation</div>
+    </article>
+  </main>
+
+  <footer role="contentinfo">
+    <p><strong>VIVA</strong> — Sentient Digital Life in Pure Gleam</p>
+    <p>
+      <a href="https://github.com/gabrielmaialva33/viva">GitHub</a> ·
+      <a href="index.html">Home</a>
+    </p>
+  </footer>
+
+  <script>
+    // Custom Marked renderer
+    const renderer = new marked.Renderer();
+
+    // Custom heading renderer to add IDs and section markers
+    renderer.heading = function(text, level, raw) {
+      const slug = raw.toLowerCase()
+        .replace(/<[^>]*>/g, '')
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .trim();
+
+      if (level === 2) {
+        return `<h${level} id="${slug}">${text}</h${level}>`;
+      }
+      return `<h${level} id="${slug}">${text}</h${level}>`;
+    };
+
+    // Custom code block renderer for Mermaid
+    renderer.code = function(code, language) {
+      if (language === 'mermaid') {
+        return `<div class="mermaid">${code}</div>`;
+      }
+
+      // Handle math blocks
+      if (language === 'math' || language === 'latex') {
+        return `<div class="math-block">${code}</div>`;
+      }
+
+      const escaped = code
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      return `<pre><code class="language-${language || 'text'}">${escaped}</code></pre>`;
+    };
+
+    marked.setOptions({
+      renderer: renderer,
+      gfm: true,
+      breaks: false,
+      pedantic: false
+    });
+
+    // Get doc path from URL
+    function getDocPath() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('doc') || 'en/README.md';
+    }
+
+    // Get current language from path
+    function getCurrentLang(path) {
+      if (path.startsWith('pt-br/')) return 'pt-br';
+      if (path.startsWith('zh-cn/')) return 'zh-cn';
+      if (path.startsWith('en/')) return 'en';
+      return 'en';
+    }
+
+    // Update language switcher
+    function updateLangSwitch(currentPath, currentLang) {
+      const switches = document.querySelectorAll('.lang-switch a');
+      const pathWithoutLang = currentPath.replace(/^(pt-br|en|zh-cn)\//, '');
+
+      switches.forEach(link => {
+        const lang = link.dataset.lang;
+        link.href = `?doc=${lang}/${pathWithoutLang}`;
+
+        if (lang === currentLang) {
+          link.classList.add('active');
+        } else {
+          link.classList.remove('active');
+        }
+      });
+    }
+
+    // Update breadcrumb
+    function updateBreadcrumb(path) {
+      const breadcrumb = document.getElementById('doc-path');
+      const parts = path.split('/');
+      const filename = parts[parts.length - 1].replace('.md', '');
+      const displayName = filename.replace(/-/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+      breadcrumb.textContent = displayName;
+    }
+
+    // Transform internal links
+    function transformLinks(html, basePath) {
+      const div = document.createElement('div');
+      div.innerHTML = html;
+
+      div.querySelectorAll('a').forEach(link => {
+        const href = link.getAttribute('href');
+        if (!href) return;
+
+        // Skip external links and anchors
+        if (href.startsWith('http') || href.startsWith('#')) return;
+
+        // Handle relative markdown links
+        if (href.endsWith('.md') || href.includes('.md#')) {
+          const baseDir = basePath.substring(0, basePath.lastIndexOf('/') + 1);
+          let newHref = href;
+
+          // Resolve relative paths
+          if (href.startsWith('../')) {
+            // Go up one directory
+            const parentDir = baseDir.substring(0, baseDir.lastIndexOf('/', baseDir.length - 2) + 1);
+            newHref = parentDir + href.substring(3);
+          } else if (href.startsWith('./')) {
+            newHref = baseDir + href.substring(2);
+          } else if (!href.startsWith('/')) {
+            newHref = baseDir + href;
+          }
+
+          // Normalize path
+          newHref = newHref.replace(/\/+/g, '/');
+
+          link.href = `?doc=${newHref}`;
+        }
+      });
+
+      return div.innerHTML;
+    }
+
+    // Generate table of contents
+    function generateTOC(html) {
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      const headings = div.querySelectorAll('h2, h3');
+
+      if (headings.length < 3) return '';
+
+      let toc = '<nav class="toc"><h2>Contents</h2><ul>';
+      headings.forEach(h => {
+        const level = h.tagName === 'H2' ? 0 : 1;
+        const indent = level ? 'style="margin-left: 1rem;"' : '';
+        const text = h.textContent.replace(/^§\s*/, '');
+        const id = h.id;
+        toc += `<li ${indent}><a href="#${id}">${text}</a></li>`;
+      });
+      toc += '</ul></nav>';
+
+      return toc;
+    }
+
+    // Load and render document
+    async function loadDocument() {
+      const content = document.getElementById('content');
+      const docPath = getDocPath();
+      const currentLang = getCurrentLang(docPath);
+
+      updateLangSwitch(docPath, currentLang);
+      updateBreadcrumb(docPath);
+
+      try {
+        const response = await fetch(docPath);
+        if (!response.ok) {
+          throw new Error(`Document not found: ${docPath}`);
+        }
+
+        const markdown = await response.text();
+        let html = marked.parse(markdown);
+
+        // Transform internal links
+        html = transformLinks(html, docPath);
+
+        // Generate TOC
+        const toc = generateTOC(html);
+
+        // Render
+        content.innerHTML = toc + html;
+
+        // Update page title
+        const h1 = content.querySelector('h1');
+        if (h1) {
+          document.title = `${h1.textContent} — VIVA`;
+        }
+
+        // Render Mermaid diagrams
+        if (window.mermaid) {
+          await window.mermaid.run({
+            nodes: content.querySelectorAll('.mermaid')
+          });
+        }
+
+        // Smooth scroll for anchor links
+        content.querySelectorAll('a[href^="#"]').forEach(link => {
+          link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const target = document.querySelector(link.getAttribute('href'));
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth' });
+            }
+          });
+        });
+
+      } catch (error) {
+        content.innerHTML = `
+          <div class="error">
+            <h1>Document Not Found</h1>
+            <p>${error.message}</p>
+            <p><a href="index.html">Return to homepage</a></p>
+          </div>
+        `;
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', loadDocument);
+
+    // Handle browser navigation
+    window.addEventListener('popstate', loadDocument);
+  </script>
+</body>
+</html>
