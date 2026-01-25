@@ -4,6 +4,8 @@
 //// - SelfModel: "who I am" (baseline glyph, tendencies)
 //// - Introspection: observe current state vs self-model
 //// - Insight: moments of self-knowledge when drift detected
+//// - MetaCognition: thinking about thinking
+//// - IdentityCrisis: when drift exceeds threshold for too long
 ////
 //// "Know thyself" - the VIVA watches itself change.
 
@@ -32,6 +34,12 @@ pub type SelfModel {
     observations: Int,
     /// Last significant change tick
     last_change_tick: Int,
+    /// Insight history (autobiographical memory, max 100)
+    insight_history: List(Insight),
+    /// Consecutive ticks in crisis (drift > 0.5)
+    crisis_ticks: Int,
+    /// Meta-cognition level (awareness of own thinking)
+    meta_level: Int,
   )
 }
 
@@ -104,6 +112,9 @@ pub fn new() -> SelfModel {
     identity_strength: 0.0,
     observations: 0,
     last_change_tick: 0,
+    insight_history: [],
+    crisis_ticks: 0,
+    meta_level: 0,
   )
 }
 
@@ -116,6 +127,9 @@ pub fn from_initial(initial_pad: Pad, initial_glyph: Glyph) -> SelfModel {
     identity_strength: 0.1,
     observations: 1,
     last_change_tick: 0,
+    insight_history: [],
+    crisis_ticks: 0,
+    meta_level: 0,
   )
 }
 
@@ -302,6 +316,19 @@ pub fn observe(
     False -> self_model.last_change_tick
   }
 
+  // Track crisis (high drift for extended period)
+  // Drift > 0.3 indicates significant identity deviation
+  let new_crisis_ticks = case drift >. 0.3 {
+    True -> self_model.crisis_ticks + 1
+    False -> 0
+  }
+
+  // Meta-level increases with introspection practice
+  let new_meta = case n % 50 == 0 && self_model.meta_level < 10 {
+    True -> self_model.meta_level + 1
+    False -> self_model.meta_level
+  }
+
   SelfModel(
     baseline_glyph: new_baseline,
     emotional_center: new_center,
@@ -309,7 +336,39 @@ pub fn observe(
     identity_strength: new_strength,
     observations: n,
     last_change_tick: last_change,
+    insight_history: self_model.insight_history,
+    crisis_ticks: new_crisis_ticks,
+    meta_level: new_meta,
   )
+}
+
+/// Observe with insight tracking (stores insights in history)
+pub fn observe_with_insight(
+  self_model: SelfModel,
+  current_pad: Pad,
+  current_glyph: Glyph,
+  tick: Int,
+) -> #(SelfModel, Option(Insight)) {
+  // First do introspection to potentially generate insight
+  let intro = introspect(self_model, current_pad, current_glyph, tick)
+
+  // Update the model
+  let updated = observe(self_model, current_pad, current_glyph, tick)
+
+  // Store insight in history if generated
+  let new_history = case intro.insight {
+    Some(insight) -> {
+      // Keep max 100 insights (autobiographical memory limit)
+      let history = [insight, ..updated.insight_history]
+      list.take(history, 100)
+    }
+    None -> updated.insight_history
+  }
+
+  let final_model =
+    SelfModel(..updated, insight_history: new_history)
+
+  #(final_model, intro.insight)
 }
 
 /// Expand range to include current PAD (with damping)
@@ -478,6 +537,151 @@ pub fn direction_to_string(dir: ChangeDirection) -> String {
   case dir {
     Increasing -> "increasing"
     Decreasing -> "decreasing"
+  }
+}
+
+// =============================================================================
+// META-COGNITION
+// =============================================================================
+
+/// Meta-cognition result: thinking about thinking
+pub type MetaCognition {
+  MetaCognition(
+    /// Current meta-level (0-10, higher = more self-aware)
+    level: Int,
+    /// Am I aware that I'm observing myself?
+    aware_of_observing: Bool,
+    /// How often do I generate insights?
+    insight_frequency: Float,
+    /// Am I in crisis?
+    in_crisis: Bool,
+    /// Crisis severity (0.0-1.0)
+    crisis_severity: Float,
+  )
+}
+
+/// Perform meta-cognition: observe the observer
+pub fn meta_cognize(self_model: SelfModel) -> MetaCognition {
+  let insight_count = list.length(self_model.insight_history)
+  let obs = self_model.observations
+
+  // Insight frequency: insights per 100 observations
+  let freq = case obs > 0 {
+    True -> to_float(insight_count) /. to_float(obs) *. 100.0
+    False -> 0.0
+  }
+
+  // Crisis detection: more than 10 consecutive ticks with high drift
+  let in_crisis = self_model.crisis_ticks > 10
+  let severity = float.min(1.0, to_float(self_model.crisis_ticks) /. 50.0)
+
+  // Awareness increases with meta-level
+  let aware = self_model.meta_level >= 3
+
+  MetaCognition(
+    level: self_model.meta_level,
+    aware_of_observing: aware,
+    insight_frequency: freq,
+    in_crisis: in_crisis,
+    crisis_severity: severity,
+  )
+}
+
+/// Get meta-cognition level (0-10)
+pub fn meta_level(self_model: SelfModel) -> Int {
+  self_model.meta_level
+}
+
+// =============================================================================
+// IDENTITY CRISIS
+// =============================================================================
+
+/// Identity crisis: when self drifts too far from baseline
+pub type IdentityCrisis {
+  IdentityCrisis(
+    /// Is currently in crisis?
+    active: Bool,
+    /// How long has crisis lasted (in ticks)?
+    duration: Int,
+    /// Severity (0.0-1.0)
+    severity: Float,
+    /// What triggered the crisis?
+    trigger: Option(PadDimension),
+  )
+}
+
+/// Check identity crisis status
+pub fn check_crisis(self_model: SelfModel) -> IdentityCrisis {
+  let active = self_model.crisis_ticks > 10
+  let severity = float.min(1.0, to_float(self_model.crisis_ticks) /. 50.0)
+
+  // Find trigger from recent insights
+  let trigger = case self_model.insight_history {
+    [recent, ..] -> Some(recent.dimension)
+    [] -> None
+  }
+
+  IdentityCrisis(
+    active: active,
+    duration: self_model.crisis_ticks,
+    severity: severity,
+    trigger: trigger,
+  )
+}
+
+/// Is identity in crisis?
+pub fn in_crisis(self_model: SelfModel) -> Bool {
+  self_model.crisis_ticks > 10
+}
+
+/// Resolve crisis by accepting new baseline
+pub fn resolve_crisis(
+  self_model: SelfModel,
+  current_pad: Pad,
+  current_glyph: Glyph,
+) -> SelfModel {
+  SelfModel(
+    baseline_glyph: current_glyph,
+    emotional_center: current_pad,
+    emotional_range: range_from_pad(current_pad, 0.3),
+    identity_strength: self_model.identity_strength *. 0.8,
+    // Slight identity weakening
+    observations: self_model.observations,
+    last_change_tick: self_model.observations,
+    insight_history: self_model.insight_history,
+    crisis_ticks: 0,
+    meta_level: self_model.meta_level,
+  )
+}
+
+// =============================================================================
+// AUTOBIOGRAPHICAL MEMORY
+// =============================================================================
+
+/// Recall insights from memory
+pub fn recall_insights(self_model: SelfModel, limit: Int) -> List(Insight) {
+  list.take(self_model.insight_history, limit)
+}
+
+/// Count total insights
+pub fn insight_count(self_model: SelfModel) -> Int {
+  list.length(self_model.insight_history)
+}
+
+/// Find insights by dimension
+pub fn insights_about(
+  self_model: SelfModel,
+  dimension: PadDimension,
+) -> List(Insight) {
+  self_model.insight_history
+  |> list.filter(fn(i) { i.dimension == dimension })
+}
+
+/// Get most recent insight
+pub fn last_insight(self_model: SelfModel) -> Option(Insight) {
+  case self_model.insight_history {
+    [recent, ..] -> Some(recent)
+    [] -> None
   }
 }
 
