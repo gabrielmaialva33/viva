@@ -662,23 +662,22 @@ defmodule Viva.Embodied.NvidiaNim do
     parse_detection_response(content)
   end
 
-  # Grounding DINO cloud format (boundingBoxes)
-  defp parse_detection_response(%{"boundingBoxes" => boxes} = response) when is_list(boxes) do
-    frame_width = response["frameWidth"] || 1
-    frame_height = response["frameHeight"] || 1
+  # Grounding DINO cloud format: boundingBoxes with phrase/bboxes/confidence arrays
+  defp parse_detection_response(%{"boundingBoxes" => boxes}) when is_list(boxes) do
+    parsed = Enum.flat_map(boxes, fn box_group ->
+      phrase = box_group["phrase"] || "object"
+      bboxes = box_group["bboxes"] || []
+      confidences = box_group["confidence"] || []
 
-    parsed = Enum.map(boxes, fn box ->
-      # Normalize coordinates if they're in pixel space
-      %{
-        label: box["label"] || box["class"] || "object",
-        confidence: box["confidence"] || box["score"] || 1.0,
-        bbox: [
-          box["x"] || box["left"] || 0,
-          box["y"] || box["top"] || 0,
-          box["width"] || box["w"] || 0,
-          box["height"] || box["h"] || 0
-        ]
-      }
+      # Each phrase can have multiple detections
+      Enum.zip(bboxes, confidences)
+      |> Enum.map(fn {[x, y, w, h], conf} ->
+        %{
+          label: phrase,
+          confidence: conf,
+          bbox: [x, y, w, h]
+        }
+      end)
     end)
 
     {:ok, parsed}
