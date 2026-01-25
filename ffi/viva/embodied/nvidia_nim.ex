@@ -130,11 +130,10 @@ defmodule Viva.Embodied.NvidiaNim do
   defp call_ocr(base64_image) do
     url = "#{@base_url}/#{@ocr_model}"
 
-    # OCR uses same input format as other vision models
+    # OCDRNet cloud API expects "image" as data URL
     body = %{
-      "input" => [
-        %{"type" => "image_url", "url" => "data:image/png;base64,#{base64_image}"}
-      ]
+      "image" => "data:image/png;base64,#{base64_image}",
+      "render_label" => false
     }
 
     post_request(url, body)
