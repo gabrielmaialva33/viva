@@ -1,71 +1,45 @@
 # ==============================================================================
 # VIVA - Vida Digital Genuinamente Senciente
-# .gitignore Profissional (Todas as Fases)
+# .gitignore Profissional (Gleam Edition)
 # ==============================================================================
 
 # ==============================================================================
-# ELIXIR / ERLANG / OTP
+# GLEAM / ERLANG / OTP
 # ==============================================================================
 
-# Mix build artifacts
+# Gleam build artifacts
+/build/
 /_build/
 /deps/
 
-# Coverage reports
-/cover/
-
-# Generated documentation
-/doc/
-
-# Temporary files
-/tmp/
+# BEAM bytecode
+*.beam
+*.ez
 
 # Erlang crash dumps
 erl_crash.dump
-
-# Mix archives
-*.ez
 
 # Dialyzer PLT files
 *.plt
 *.plt.hash
 
-# ExUnit failures tracking
-.mix_test_failures
+# ==============================================================================
+# ELIXIR (Legacy compatibility)
+# ==============================================================================
 
-# Phoenix specific
-/priv/static/assets/
-/priv/static/cache_manifest.json
-
-# Ecto migrations lock
-*.ecto_lock
+# Compiled NIFs
+/priv/native/
 
 # ==============================================================================
-# RUST / CARGO (Rustler NIFs + Bevy Engine)
+# RUST / CARGO (Future Body integration)
 # ==============================================================================
 
 # Cargo build directory
 **/target/
 
-# Cargo.lock for libraries (keep for binaries like viva_engine)
-# apps/**/Cargo.lock  # Uncomment if NIFs are libraries
-
 # Backup files
 **/*.rs.bk
-
-# Rustfmt backup
 **/*.rs.rustfmt
-
-# Incremental compilation
-**/*.incremental/
-
-# ==============================================================================
-# RUSTLER NIFs (Native Bindings)
-# ==============================================================================
-
-# Compiled native libraries
-/priv/native/
-**/priv/native/
 
 # Platform-specific binaries
 *.so
@@ -75,29 +49,7 @@ erl_crash.dump
 *.a
 
 # ==============================================================================
-# BEVY / GAME ENGINE (Fase 7)
-# ==============================================================================
-
-# Bevy generated assets (keep source assets)
-viva_engine/assets/generated/
-viva_engine/assets/cache/
-
-# WASM builds
-*.wasm
-*.wasm.map
-/pkg/
-/web-build/
-
-# GPU shader cache
-*.spv
-.shader_cache/
-
-# Profiling
-*.tracy
-*.perfetto
-
-# ==============================================================================
-# DATABASES (Fase 5+)
+# DATABASES
 # ==============================================================================
 
 # Qdrant local data
@@ -122,7 +74,7 @@ dump.rdb
 *.rdb
 
 # ==============================================================================
-# MACHINE LEARNING / AI (Fase 6+)
+# MACHINE LEARNING / AI
 # ==============================================================================
 
 # Model weights (too large for git)
@@ -140,20 +92,14 @@ dump.rdb
 # Hugging Face cache
 .cache/huggingface/
 
-# Bumblebee/Nx cache
-.bumblebee/
-/priv/bumblebee/
-
 # ==============================================================================
-# PYTHON (Scripts auxiliares)
+# PYTHON (Services)
 # ==============================================================================
 
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 .Python
-build/
 develop-eggs/
 dist/
 downloads/
@@ -180,7 +126,7 @@ env/
 *.ipynb_checkpoints
 
 # ==============================================================================
-# NODE.JS (Tooling/Frontend)
+# NODE.JS (Tooling)
 # ==============================================================================
 
 node_modules/
@@ -189,8 +135,6 @@ yarn-debug.log*
 yarn-error.log*
 .npm
 .yarn/cache
-.yarn/unplugged
-.pnp.*
 package-lock.json
 yarn.lock
 
@@ -201,42 +145,29 @@ yarn.lock
 # VSCode
 .vscode/
 !.vscode/settings.json.example
-!.vscode/launch.json.example
 *.code-workspace
 
-# JetBrains (IntelliJ, RustRover, etc)
+# JetBrains
 .idea/
 *.iml
-*.ipr
-*.iws
 out/
 
 # Vim/Neovim
 *.swp
 *.swo
 *~
-.netrwhist
 Session.vim
 .vim/
 
 # Emacs
-*~
 \#*\#
 /.emacs.desktop
-/.emacs.desktop.lock
 *.elc
 auto-save-list
-tramp
 .\#*
 
-# Sublime Text
-*.sublime-workspace
-*.sublime-project
-
-# Eclipse
-.project
-.cproject
-.settings/
+# Elixir LS
+.elixir_ls/
 
 # ==============================================================================
 # OPERATING SYSTEMS
@@ -258,7 +189,6 @@ $RECYCLE.BIN/
 *.lnk
 
 # Linux
-*~
 .fuse_hidden*
 .directory
 .Trash-*
@@ -268,11 +198,8 @@ $RECYCLE.BIN/
 # DOCKER
 # ==============================================================================
 
-# Docker volumes (local dev)
 /docker_data/
 /volumes/
-
-# Docker env files
 docker-compose.override.yml
 .docker/
 
@@ -280,7 +207,6 @@ docker-compose.override.yml
 # SECRETS & ENVIRONMENT
 # ==============================================================================
 
-# Environment files
 .env
 .env.*
 !.env.example
@@ -299,13 +225,6 @@ secrets/
 *.apikey
 api_keys.json
 
-# AWS
-.aws/
-
-# GCP
-*.json.encrypted
-service-account*.json
-
 # ==============================================================================
 # LOGS & MONITORING
 # ==============================================================================
@@ -316,11 +235,9 @@ logs/
 *.log.*
 *.log-*
 
-# Crash reports
 crash_reports/
 crash-*.log
 
-# Telemetry
 .telemetry/
 telemetry_data/
 
@@ -328,18 +245,14 @@ telemetry_data/
 # TESTING & COVERAGE
 # ==============================================================================
 
-# Coverage
 /coverage/
 *.lcov
-.nyc_output/
 htmlcov/
 
-# Test artifacts
 test-results/
 .test_results/
 junit*.xml
 
-# Benchmark results
 /benchmarks/results/
 *.bench
 
@@ -347,7 +260,6 @@ junit*.xml
 # BUILD & RELEASE
 # ==============================================================================
 
-# Release builds
 /release/
 /_release/
 /releases/
@@ -355,53 +267,32 @@ junit*.xml
 *.zip
 !assets/**/*.zip
 
-# Distillery/Mix releases
-/rel/artifacts/
-
-# Burrito builds
-/burrito_out/
-
 # ==============================================================================
 # DOCUMENTATION (Generated)
 # ==============================================================================
 
-# ExDoc
 /doc/
 docs/_build/
-
-# Swagger/OpenAPI generated
-/priv/static/swagger/
 
 # ==============================================================================
 # CACHING
 # ==============================================================================
 
-# General cache
 .cache/
 *.cache
 cache/
-
-# Hex packages cache (local)
 .hex/
-
-# Mix compiled protocols
-/consolidated/
 
 # ==============================================================================
 # TEMPORARY & BACKUP
 # ==============================================================================
 
-# Temp files
 *.tmp
 *.temp
 *.bak
 *.backup
 *.old
-
-# Editor autosave
 *.autosave
-
-# Patches
 *.orig
 *.rej
 
@@ -409,7 +300,7 @@ cache/
 # PROJECT SPECIFIC - VIVA
 # ==============================================================================
 
-# Soul state snapshots (dev only, prod is RAM-only)
+# Soul state snapshots (dev only)
 /soul_snapshots/
 *.soul
 
@@ -420,10 +311,12 @@ cache/
 # Avatar cache
 /avatar_cache/
 
-# Development databases
+# Development data
 /dev_data/
+/data/
+/data/simulations/
 
-# Local experiment results
+# Local experiments
 /experiments/
 !/experiments/.gitkeep
 
@@ -432,28 +325,18 @@ cache/
 *.profile
 
 # ==============================================================================
-# KEEP EMPTY DIRECTORIES
+# TOOLS
 # ==============================================================================
-
-# Git doesn't track empty directories, use .gitkeep
-!**/.gitkeep
-
 
 # Playwright
 .playwright-report
 .playwright-mcp
 
-# Claude Code (local config)
+# Claude Code
 .claude/
 
-# Model files (tokenizers, vocab) - download, don't commit
-**/priv/models/
+# ==============================================================================
+# KEEP EMPTY DIRECTORIES
+# ==============================================================================
 
-# Concept art (large PNGs)
-assets/concept/
-
-# Training datasets (generated locally)
-**/priv/datasets/*.csv
-
-# Verification scripts (one-off tests)
-verify_*.exs
+!**/.gitkeep
