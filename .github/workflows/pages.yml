@@ -43,6 +43,11 @@ jobs:
       - name: Inject Mermaid.js
         run: python3 scripts/inject-mermaid.py
 
+      - name: Copy custom documentation
+        run: |
+          cp -r docs/* build/dev/docs/viva/
+          cp docs/landing.html build/dev/docs/viva/index.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
