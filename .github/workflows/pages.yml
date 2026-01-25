@@ -41,9 +41,7 @@ jobs:
         run: gleam docs build
 
       - name: Inject Mermaid.js
-        run: |
-          chmod +x scripts/inject-mermaid.sh
-          ./scripts/inject-mermaid.sh
+        run: python3 scripts/inject-mermaid.py
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
