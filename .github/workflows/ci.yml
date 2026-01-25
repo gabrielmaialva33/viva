@@ -7,10 +7,8 @@ on:
     branches: [master, main]
 
 env:
-  MIX_ENV: test
-  ELIXIR_VERSION: "1.17"
+  GLEAM_VERSION: "1.11.0"
   OTP_VERSION: "27"
-  RUST_VERSION: "1.80"
 
 jobs:
   test:
@@ -21,42 +19,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Elixir
+      - name: Setup Gleam
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: ${{ env.ELIXIR_VERSION }}
+          gleam-version: ${{ env.GLEAM_VERSION }}
           otp-version: ${{ env.OTP_VERSION }}
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Cache deps
         uses: actions/cache@v4
         with:
           path: |
-            deps
-            _build
-            ~/.cargo/registry
-            ~/.cargo/git
-            apps/viva_bridge/native/viva_body/target
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}-${{ hashFiles('**/Cargo.lock') }}
+            build
+            ~/.cache/gleam
+          key: ${{ runner.os }}-gleam-${{ hashFiles('**/manifest.toml') }}
           restore-keys: |
-            ${{ runner.os }}-mix-
+            ${{ runner.os }}-gleam-
 
-      - name: Install dependencies
-        run: mix deps.get
+      - name: Download dependencies
+        run: gleam deps download
 
-      - name: Compile
-        run: mix compile
-        env:
-          VIVA_SKIP_NIF: true
+      - name: Build
+        run: gleam build
 
       - name: Run tests
-        run: mix test --exclude nif --exclude external
-        env:
-          VIVA_SKIP_NIF: true
+        run: gleam test
 
   format:
     name: Format
@@ -66,80 +52,51 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Elixir
+      - name: Setup Gleam
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: ${{ env.ELIXIR_VERSION }}
+          gleam-version: ${{ env.GLEAM_VERSION }}
           otp-version: ${{ env.OTP_VERSION }}
 
-      - name: Check Elixir format
-        run: mix format --check-formatted
+      - name: Check format
+        run: gleam format --check src test
 
-  rust-format:
-    name: Rust Format
+  typecheck:
+    name: Type Check
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-          components: rustfmt
-
-      - name: Check Rust format
-        run: |
-          cd apps/viva_bridge/native/viva_body
-          cargo fmt --check
-
-  rust-clippy:
-    name: Rust Clippy
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-          components: clippy
-
-      - name: Run Clippy
-        run: |
-          cd apps/viva_bridge/native/viva_body
-          cargo clippy -- -W clippy::all -A clippy::missing_docs_in_private_items || true
-
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Elixir
+      - name: Setup Gleam
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: ${{ env.ELIXIR_VERSION }}
+          gleam-version: ${{ env.GLEAM_VERSION }}
           otp-version: ${{ env.OTP_VERSION }}
 
-      - name: Install dependencies
-        run: mix deps.get
+      - name: Download dependencies
+        run: gleam deps download
 
-      - name: Run mix audit
-        run: mix deps.audit || true
+      - name: Type check
+        run: gleam check
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
 
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Run cargo audit
-        run: |
-          cd apps/viva_bridge/native/viva_body
-          cargo audit || true
+      - name: Setup Gleam
+        uses: erlef/setup-beam@v1
+        with:
+          gleam-version: ${{ env.GLEAM_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      - name: Download dependencies
+        run: gleam deps download
+
+      - name: Generate docs
+        run: gleam docs build

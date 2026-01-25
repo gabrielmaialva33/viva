@@ -1,41 +1,21 @@
-# This file is responsible for configuring your umbrella
-# and **all applications** and their dependencies with the
-# help of the Config module.
-#
-# Note that all applications in your umbrella share the
-# same configuration and dependencies, which is why they
-# all use the same configuration file. If you want different
-# configurations or dependencies per app, it is best to
-# move said applications out of the umbrella.
 import Config
 
-# Sample configuration:
-#
-#     config :logger, :default_handler,
-#       level: :info
-#
-#     config :logger, :default_formatter,
-#       format: "$date $time [$level] $metadata$message\n",
-#       metadata: [:user_id]
-#
-config :viva_core,
-  # HYBRID: episodic → Rust HNSW (~1ms), semantic/emotional → Qdrant (persistent)
-  memory_backend: :hybrid,
-  native_memory_path: Path.expand("~/.viva/memory")
+# Configure Nx to use EXLA backend by default
+config :nx, default_backend: EXLA.Backend
 
-# i18n Configuration
-# Set VIVA_LOCALE environment variable to change language
-# Supported: en (default), pt_BR, zh_CN
-config :viva, :locale, System.get_env("VIVA_LOCALE", "en")
+# Configure EXLA for CUDA (RTX 4090)
+config :exla,
+  default_client: :cuda,
+  clients: [
+    cuda: [
+      platform: :cuda,
+      memory_fraction: 0.8,  # Use 80% of VRAM (19.2GB of 24GB)
+      preallocate: false     # Don't preallocate, let it grow
+    ],
+    host: [
+      platform: :host
+    ]
+  ]
 
-# Gettext configuration
-config :viva_core, Viva.Gettext,
-  default_locale: "en",
-  locales: ~w(en pt_BR zh_CN)
-
-# Configure Logger (SporeLogger deprecated, using console only)
-# Note: The :backends key is deprecated in OTP 28+
-# config :logger, :default_handler, level: :info
-
-# Import environment-specific config
-import_config "#{config_env()}.exs"
+# Set XLA flags for better performance
+System.put_env("XLA_FLAGS", "--xla_gpu_cuda_data_dir=/usr/local/cuda")
