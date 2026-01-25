@@ -43,10 +43,7 @@ pub type NetworkGradients {
 
 /// Builder for fluent network construction
 pub type NetworkBuilder {
-  NetworkBuilder(
-    layers: List(DenseLayer),
-    last_size: Int,
-  )
+  NetworkBuilder(layers: List(DenseLayer), last_size: Int)
 }
 
 // =============================================================================
@@ -63,12 +60,17 @@ pub fn new(
   case layer_sizes {
     [] | [_] -> Error(tensor.InvalidShape("Need at least 2 layer sizes"))
     [input_size, ..rest] -> {
-      let layers = build_layers(input_size, rest, hidden_activation, output_activation)
+      let layers =
+        build_layers(input_size, rest, hidden_activation, output_activation)
       let output_size = case list.last(layer_sizes) {
         Ok(size) -> size
         Error(_) -> 0
       }
-      Ok(Network(layers: layers, input_size: input_size, output_size: output_size))
+      Ok(Network(
+        layers: layers,
+        input_size: input_size,
+        output_size: output_size,
+      ))
     }
   }
 }
@@ -107,7 +109,12 @@ pub fn from_layers(layers: List(DenseLayer)) -> Result(Network, TensorError) {
 
       // Validate that layers are compatible
       case validate_layers(layers) {
-        True -> Ok(Network(layers: layers, input_size: input_size, output_size: output_size))
+        True ->
+          Ok(Network(
+            layers: layers,
+            input_size: input_size,
+            output_size: output_size,
+          ))
         False -> Error(tensor.InvalidShape("Layer dimensions don't match"))
       }
     }
@@ -169,7 +176,10 @@ pub fn build(b: NetworkBuilder) -> Result(Network, TensorError) {
 // =============================================================================
 
 /// Complete forward pass, returns output and cache
-pub fn forward(net: Network, input: Tensor) -> Result(#(Tensor, NetworkCache), TensorError) {
+pub fn forward(
+  net: Network,
+  input: Tensor,
+) -> Result(#(Tensor, NetworkCache), TensorError) {
   forward_layers(net.layers, input, [])
 }
 
@@ -183,8 +193,7 @@ fn forward_layers(
     [] -> Ok(#(current_input, NetworkCache(layer_caches: list.reverse(caches))))
     [l, ..rest] -> {
       case layer.forward(l, current_input) {
-        Ok(#(output, cache)) ->
-          forward_layers(rest, output, [cache, ..caches])
+        Ok(#(output, cache)) -> forward_layers(rest, output, [cache, ..caches])
         Error(e) -> Error(e)
       }
     }
@@ -392,7 +401,10 @@ pub fn mlp_regressor(
 }
 
 /// Small network for VIVA (PAD -> decision)
-pub fn viva_brain(input_size: Int, output_size: Int) -> Result(Network, TensorError) {
+pub fn viva_brain(
+  input_size: Int,
+  output_size: Int,
+) -> Result(Network, TensorError) {
   builder(input_size)
   |> add_dense(16, activation.Tanh)
   |> add_dense(8, activation.Tanh)

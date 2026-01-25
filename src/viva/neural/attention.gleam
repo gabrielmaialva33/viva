@@ -72,11 +72,7 @@ pub type PositionalEncoding {
 
 /// Gradients for attention
 pub type AttentionGradients {
-  AttentionGradients(
-    d_query: Tensor,
-    d_key: Tensor,
-    d_value: Tensor,
-  )
+  AttentionGradients(d_query: Tensor, d_key: Tensor, d_value: Tensor)
 }
 
 /// Gradients for multi-head attention
@@ -137,13 +133,14 @@ pub fn scaled_dot_product_attention(
       use output <- result.try(tensor.matmul(weights, value))
 
       let result = AttentionResult(output: output, weights: weights)
-      let cache = AttentionCache(
-        query: query,
-        key: key,
-        value: value,
-        scores: scaled_scores,
-        weights: weights,
-      )
+      let cache =
+        AttentionCache(
+          query: query,
+          key: key,
+          value: value,
+          scores: scaled_scores,
+          weights: weights,
+        )
 
       Ok(#(result, cache))
     }
@@ -157,9 +154,12 @@ pub fn attention(
   key: Tensor,
   value: Tensor,
 ) -> Result(Tensor, TensorError) {
-  use #(result, _) <- result.try(
-    scaled_dot_product_attention(query, key, value, None),
-  )
+  use #(result, _) <- result.try(scaled_dot_product_attention(
+    query,
+    key,
+    value,
+    None,
+  ))
   Ok(result.output)
 }
 
@@ -184,9 +184,10 @@ pub fn attention_backward(
 
       // d_scores = softmax_backward(d_weights, weights)
       // For softmax: d_scores = weights * (d_weights - sum(d_weights * weights, axis=-1))
-      use d_weights_times_weights <- result.try(
-        tensor.mul(d_weights, cache.weights),
-      )
+      use d_weights_times_weights <- result.try(tensor.mul(
+        d_weights,
+        cache.weights,
+      ))
       let row_sums =
         list.range(0, seq_q - 1)
         |> list.map(fn(row) {
@@ -311,15 +312,16 @@ pub fn mha_forward(
       // 4. Output projection
       use output <- result.try(tensor.matmul(concat, layer.w_out))
 
-      let cache = MHACache(
-        query: query,
-        key: key,
-        value: value,
-        q_proj: q_proj,
-        k_proj: k_proj,
-        v_proj: v_proj,
-        concat: concat,
-      )
+      let cache =
+        MHACache(
+          query: query,
+          key: key,
+          value: value,
+          q_proj: q_proj,
+          k_proj: k_proj,
+          v_proj: v_proj,
+          concat: concat,
+        )
 
       Ok(#(output, cache))
     }
@@ -363,7 +365,8 @@ pub fn causal_mask(seq_len: Int) -> Tensor {
       list.range(0, seq_len - 1)
       |> list.map(fn(j) {
         case j > i {
-          True -> -1000000000.0  // Large negative (will become 0 after softmax)
+          True -> -1_000_000_000.0
+          // Large negative (will become 0 after softmax)
           False -> 0.0
         }
       })
@@ -378,7 +381,7 @@ pub fn padding_mask(seq_len: Int, mask_positions: List(Int)) -> Tensor {
     list.range(0, seq_len - 1)
     |> list.map(fn(i) {
       case list.contains(mask_positions, i) {
-        True -> -1000000000.0
+        True -> -1_000_000_000.0
         False -> 0.0
       }
     })
@@ -429,10 +432,11 @@ pub fn positional_encoding_new(max_len: Int, d_model: Int) -> PositionalEncoding
     |> list.flat_map(fn(pos) {
       list.range(0, d_model - 1)
       |> list.map(fn(i) {
-        let div_term = float_pow(
-          10000.0,
-          int.to_float(2 * { i / 2 }) /. int.to_float(d_model),
-        )
+        let div_term =
+          float_pow(
+            10_000.0,
+            int.to_float(2 * { i / 2 }) /. int.to_float(d_model),
+          )
         let angle = int.to_float(pos) /. div_term
         case i % 2 == 0 {
           True -> float_sin(angle)
@@ -500,7 +504,8 @@ pub type RelativePositionBias {
 
 /// Create relative position bias (as in T5, BERT)
 pub fn relative_position_bias_new(max_distance: Int) -> RelativePositionBias {
-  let limit = 0.02  // Small initialization
+  let limit = 0.02
+  // Small initialization
   let table_size = 2 * max_distance - 1
   RelativePositionBias(
     bias_table: random_uniform_init([table_size], limit),
@@ -509,10 +514,7 @@ pub fn relative_position_bias_new(max_distance: Int) -> RelativePositionBias {
 }
 
 /// Compute relative position bias matrix
-pub fn compute_relative_bias(
-  rpb: RelativePositionBias,
-  seq_len: Int,
-) -> Tensor {
+pub fn compute_relative_bias(rpb: RelativePositionBias, seq_len: Int) -> Tensor {
   let data =
     list.range(0, seq_len - 1)
     |> list.flat_map(fn(i) {

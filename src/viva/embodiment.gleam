@@ -90,13 +90,7 @@ pub fn new() -> Body {
 
 /// Create body with custom config
 pub fn new_with_config(config: BodyConfig) -> Body {
-  Body(
-    energy: 0.8,
-    satiety: 0.8,
-    rest: 0.8,
-    config: config,
-    stress: 0.0,
-  )
+  Body(energy: 0.8, satiety: 0.8, rest: 0.8, config: config, stress: 0.0)
 }
 
 /// Default body configuration
@@ -148,9 +142,19 @@ pub fn tick(body: Body) -> Body {
   let satiety_unmet = new_satiety <. 0.3
   let rest_unmet = new_rest <. 0.3
 
-  let unmet_count = case energy_unmet { True -> 1.0 False -> 0.0 }
-    +. case satiety_unmet { True -> 1.0 False -> 0.0 }
-    +. case rest_unmet { True -> 1.0 False -> 0.0 }
+  let unmet_count =
+    case energy_unmet {
+      True -> 1.0
+      False -> 0.0
+    }
+    +. case satiety_unmet {
+      True -> 1.0
+      False -> 0.0
+    }
+    +. case rest_unmet {
+      True -> 1.0
+      False -> 0.0
+    }
 
   // Stress accumulates when needs unmet, recovers otherwise
   let stress_delta = case unmet_count >. 0.0 {
@@ -177,8 +181,7 @@ pub fn apply_stimulus(body: Body, stimulus: BodyStimulus) -> Body {
     Feed(amount) ->
       Body(..body, satiety: clamp(body.satiety +. amount, 0.0, 1.0))
 
-    Rest(amount) ->
-      Body(..body, rest: clamp(body.rest +. amount, 0.0, 1.0))
+    Rest(amount) -> Body(..body, rest: clamp(body.rest +. amount, 0.0, 1.0))
 
     Stress(amount) ->
       Body(..body, stress: clamp(body.stress +. amount, 0.0, 1.0))
@@ -244,9 +247,18 @@ pub fn to_pad_delta(body: Body) -> Vec3 {
 
   // Dominance: unmet needs reduce sense of control
   let critical_count =
-    case needs.energy_critical { True -> 1.0 False -> 0.0 }
-    +. case needs.hunger_critical { True -> 1.0 False -> 0.0 }
-    +. case needs.fatigue_critical { True -> 1.0 False -> 0.0 }
+    case needs.energy_critical {
+      True -> 1.0
+      False -> 0.0
+    }
+    +. case needs.hunger_critical {
+      True -> 1.0
+      False -> 0.0
+    }
+    +. case needs.fatigue_critical {
+      True -> 1.0
+      False -> 0.0
+    }
   let dominance = 0.0 -. critical_count *. 0.1
 
   vector.Vec3(x: pleasure, y: arousal, z: dominance)

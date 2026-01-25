@@ -125,9 +125,7 @@ pub fn dense_with_weights(
         output_size: output_size,
       ))
     _, _ ->
-      Error(tensor.InvalidShape(
-        "Weights and biases dimensions don't match",
-      ))
+      Error(tensor.InvalidShape("Weights and biases dimensions don't match"))
   }
 }
 
@@ -141,14 +139,14 @@ pub fn dense_linear(input_size: Int, output_size: Int) -> DenseLayer {
 // =============================================================================
 
 /// Dense layer forward pass, returns output and cache
-pub fn forward(layer: DenseLayer, input: Tensor) -> Result(#(Tensor, DenseCache), TensorError) {
+pub fn forward(
+  layer: DenseLayer,
+  input: Tensor,
+) -> Result(#(Tensor, DenseCache), TensorError) {
   // Check input dimension
   case tensor.size(input) == layer.input_size {
     False ->
-      Error(tensor.ShapeMismatch(
-        expected: [layer.input_size],
-        got: input.shape,
-      ))
+      Error(tensor.ShapeMismatch(expected: [layer.input_size], got: input.shape))
     True -> {
       // z = W^T @ x + b (transpose because weights is [in, out])
       use weights_t <- result.try(tensor.transpose(layer.weights))
@@ -216,11 +214,7 @@ pub fn backward(
   // 4. Gradient for previous layer = W @ delta
   use d_input <- result.try(tensor.matmul_vec(layer.weights, delta))
 
-  Ok(DenseGradients(
-    d_weights: d_weights,
-    d_biases: d_biases,
-    d_input: d_input,
-  ))
+  Ok(DenseGradients(d_weights: d_weights, d_biases: d_biases, d_input: d_input))
 }
 
 // =============================================================================

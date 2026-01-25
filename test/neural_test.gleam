@@ -48,7 +48,8 @@ pub fn tensor_from_list2d_test() {
 }
 
 pub fn tensor_from_list2d_invalid_test() {
-  let rows = [[1.0, 2.0], [3.0]]  // Different lengths
+  let rows = [[1.0, 2.0], [3.0]]
+  // Different lengths
   let result = tensor.from_list2d(rows)
   result |> should.be_error
 }
@@ -61,7 +62,8 @@ pub fn tensor_matrix_test() {
 }
 
 pub fn tensor_matrix_size_mismatch_test() {
-  let result = tensor.matrix(2, 3, [1.0, 2.0, 3.0])  // Only 3 elements
+  let result = tensor.matrix(2, 3, [1.0, 2.0, 3.0])
+  // Only 3 elements
   result |> should.be_error
 }
 
@@ -232,12 +234,14 @@ pub fn tensor_min_test() {
 
 pub fn tensor_argmax_test() {
   let t = tensor.from_list([3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0])
-  tensor.argmax(t) |> should.equal(5)  // Index of 9.0
+  tensor.argmax(t) |> should.equal(5)
+  // Index of 9.0
 }
 
 pub fn tensor_argmin_test() {
   let t = tensor.from_list([3.0, 1.0, 4.0, 0.5, 5.0, 9.0])
-  tensor.argmin(t) |> should.equal(3)  // Index of 0.5
+  tensor.argmin(t) |> should.equal(3)
+  // Index of 0.5
 }
 
 // =============================================================================
@@ -247,7 +251,8 @@ pub fn tensor_argmin_test() {
 pub fn tensor_dot_test() {
   let a = tensor.from_list([1.0, 2.0, 3.0])
   let b = tensor.from_list([4.0, 5.0, 6.0])
-  tensor.dot(a, b) |> should.equal(Ok(32.0))  // 1*4 + 2*5 + 3*6
+  tensor.dot(a, b) |> should.equal(Ok(32.0))
+  // 1*4 + 2*5 + 3*6
 }
 
 pub fn tensor_matmul_vec_test() {
@@ -260,7 +265,8 @@ pub fn tensor_matmul_vec_test() {
   let result = tensor.matmul_vec(mat, vec)
   result |> should.be_ok
   let t = result |> result.unwrap(tensor.zeros([0]))
-  tensor.to_list(t) |> should.equal([6.0, 15.0])  // [1+2+3, 4+5+6]
+  tensor.to_list(t) |> should.equal([6.0, 15.0])
+  // [1+2+3, 4+5+6]
 }
 
 pub fn tensor_matmul_test() {
@@ -321,7 +327,8 @@ pub fn tensor_reshape_test() {
 
 pub fn tensor_reshape_invalid_test() {
   let t = tensor.from_list([1.0, 2.0, 3.0])
-  tensor.reshape(t, [2, 2]) |> should.be_error  // 3 != 4
+  tensor.reshape(t, [2, 2]) |> should.be_error
+  // 3 != 4
 }
 
 pub fn tensor_flatten_test() {
@@ -341,7 +348,8 @@ pub fn tensor_concat_test() {
 
 pub fn tensor_norm_test() {
   let t = tensor.from_list([3.0, 4.0])
-  tensor.norm(t) |> should.equal(5.0)  // sqrt(9 + 16)
+  tensor.norm(t) |> should.equal(5.0)
+  // sqrt(9 + 16)
 }
 
 pub fn tensor_normalize_test() {
@@ -396,7 +404,8 @@ pub fn tensor_add_broadcast_test() {
   let a =
     tensor.matrix(2, 3, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
     |> result.unwrap(tensor.zeros([0]))
-  let b = tensor.from_list([10.0, 20.0, 30.0])  // [3]
+  let b = tensor.from_list([10.0, 20.0, 30.0])
+  // [3]
 
   let result = tensor.add_broadcast(a, b)
   result |> should.be_ok
@@ -473,7 +482,8 @@ pub fn tensor_xavier_init_test() {
   t.shape |> should.equal([100, 50])
 
   // Xavier limit = sqrt(6 / 150) ≈ 0.2
-  let limit = 0.3  // Slightly larger for safety
+  let limit = 0.3
+  // Slightly larger for safety
   let all_in_range =
     tensor.to_list(t)
     |> list.all(fn(x) { x >=. -1.0 *. limit && x <=. limit })

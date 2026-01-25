@@ -8,7 +8,9 @@ import gleam/int
 import gleam/list
 import gleam/result
 import viva/neural/layer.{DenseGradients}
-import viva/neural/network.{type MomentumState, type Network, type NetworkGradients}
+import viva/neural/network.{
+  type MomentumState, type Network, type NetworkGradients,
+}
 import viva/neural/tensor.{type Tensor, type TensorError}
 
 // =============================================================================
@@ -119,7 +121,10 @@ pub fn compute_loss(
 }
 
 /// Mean Squared Error: (1/n) * sum((pred - target)^2)
-fn mse_loss(predicted: Tensor, target: Tensor) -> Result(LossResult, TensorError) {
+fn mse_loss(
+  predicted: Tensor,
+  target: Tensor,
+) -> Result(LossResult, TensorError) {
   use diff <- result.try(tensor.sub(predicted, target))
 
   // Loss
@@ -134,7 +139,10 @@ fn mse_loss(predicted: Tensor, target: Tensor) -> Result(LossResult, TensorError
 }
 
 /// Mean Absolute Error: (1/n) * sum(|pred - target|)
-fn mae_loss(predicted: Tensor, target: Tensor) -> Result(LossResult, TensorError) {
+fn mae_loss(
+  predicted: Tensor,
+  target: Tensor,
+) -> Result(LossResult, TensorError) {
   use diff <- result.try(tensor.sub(predicted, target))
 
   // Loss
@@ -159,7 +167,10 @@ fn mae_loss(predicted: Tensor, target: Tensor) -> Result(LossResult, TensorError
 }
 
 /// Cross Entropy: -sum(target * log(pred))
-fn cross_entropy_loss(predicted: Tensor, target: Tensor) -> Result(LossResult, TensorError) {
+fn cross_entropy_loss(
+  predicted: Tensor,
+  target: Tensor,
+) -> Result(LossResult, TensorError) {
   // Clip for numerical stability
   let eps = 0.0000001
   let clipped = tensor.clamp(predicted, eps, 1.0 -. eps)
@@ -194,7 +205,9 @@ fn binary_cross_entropy_loss(
     list.map2(clipped.data, target.data, fn(p, t) {
       0.0 -. { t *. float_log(p) +. { 1.0 -. t } *. float_log(1.0 -. p) }
     })
-  let loss = list.fold(losses, 0.0, fn(a, b) { a +. b }) /. int.to_float(list.length(losses))
+  let loss =
+    list.fold(losses, 0.0, fn(a, b) { a +. b })
+    /. int.to_float(list.length(losses))
 
   // Gradient
   let gradient_data =
@@ -375,13 +388,10 @@ fn fit_loop(
               epoch: epoch + 1,
             )
 
-          fit_loop(
-            updated_net,
-            samples,
-            config,
-            epoch + 1,
-            [epoch_metrics, ..metrics],
-          )
+          fit_loop(updated_net, samples, config, epoch + 1, [
+            epoch_metrics,
+            ..metrics
+          ])
         }
         Error(e) -> Error(e)
       }
@@ -424,7 +434,10 @@ pub fn evaluate(
 }
 
 /// Compute accuracy for classification
-pub fn accuracy(net: Network, samples: List(Sample)) -> Result(Float, TensorError) {
+pub fn accuracy(
+  net: Network,
+  samples: List(Sample),
+) -> Result(Float, TensorError) {
   case samples {
     [] -> Ok(0.0)
     _ -> {

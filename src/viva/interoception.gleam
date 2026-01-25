@@ -167,9 +167,7 @@ fn read_temperature() -> Result(Float, Nil) {
       content
       |> string.trim()
       |> int.parse()
-      |> result.map(fn(millidegrees) {
-        int.to_float(millidegrees) /. 1000.0
-      })
+      |> result.map(fn(millidegrees) { int.to_float(millidegrees) /. 1000.0 })
     }
     Error(_) -> Error(Nil)
   }

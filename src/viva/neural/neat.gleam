@@ -186,11 +186,7 @@ pub fn create_population(config: NeatConfig, seed: Int) -> Population {
     |> list.map(fn(i) { NodeGene(id: i, node_type: Input, activation: Linear) })
 
   let bias_node =
-    NodeGene(
-      id: config.num_inputs,
-      node_type: Bias,
-      activation: Linear,
-    )
+    NodeGene(id: config.num_inputs, node_type: Bias, activation: Linear)
 
   let output_nodes =
     list.range(0, config.num_outputs - 1)
@@ -205,8 +201,7 @@ pub fn create_population(config: NeatConfig, seed: Int) -> Population {
   let base_nodes = list.flatten([input_nodes, [bias_node], output_nodes])
 
   // Cria conexões iniciais (all inputs + bias → all outputs)
-  let input_ids =
-    list.range(0, config.num_inputs)
+  let input_ids = list.range(0, config.num_inputs)
   // inclui bias
   let output_ids =
     list.range(config.num_inputs + 1, config.num_inputs + config.num_outputs)
@@ -228,8 +223,7 @@ pub fn create_population(config: NeatConfig, seed: Int) -> Population {
       }),
     )
 
-  let max_innovation =
-    { config.num_inputs + 1 } * config.num_outputs
+  let max_innovation = { config.num_inputs + 1 } * config.num_outputs
 
   // Cria genomas com pesos randomizados
   let genomes =
@@ -237,10 +231,7 @@ pub fn create_population(config: NeatConfig, seed: Int) -> Population {
     |> list.map(fn(i) {
       let connections =
         list.index_map(initial_connections, fn(conn, idx) {
-          ConnectionGene(
-            ..conn,
-            weight: random_weight(seed + i * 1000 + idx),
-          )
+          ConnectionGene(..conn, weight: random_weight(seed + i * 1000 + idx))
         })
       Genome(
         id: i,
@@ -375,7 +366,8 @@ pub fn forward(genome: Genome, inputs: List(Float)) -> List(Float) {
 
   let final_values =
     list.fold(nodes_by_depth, initial_values, fn(values, node) {
-      let incoming = dict.get(connections_by_target, node.id) |> result_unwrap([])
+      let incoming =
+        dict.get(connections_by_target, node.id) |> result_unwrap([])
       let weighted_sum =
         list.fold(incoming, 0.0, fn(acc, conn: ConnectionGene) {
           let in_value = dict.get(values, conn.in_node) |> result_unwrap(0.0)
@@ -390,9 +382,7 @@ pub fn forward(genome: Genome, inputs: List(Float)) -> List(Float) {
   genome.nodes
   |> list.filter(fn(n) { n.node_type == Output })
   |> list.sort(fn(a, b) { int.compare(a.id, b.id) })
-  |> list.map(fn(node) {
-    dict.get(final_values, node.id) |> result_unwrap(0.0)
-  })
+  |> list.map(fn(node) { dict.get(final_values, node.id) |> result_unwrap(0.0) })
 }
 
 /// Ordena conexões para propagação correta
@@ -470,8 +460,7 @@ pub fn mutate_weights(genome: Genome, config: NeatConfig, seed: Int) -> Genome {
           let new_weight = case perturb_rand <. config.weight_perturb_rate {
             True -> {
               // Perturbação pequena
-              let delta =
-                { pseudo_random(seed + idx * 100 + 2) -. 0.5 } *. 0.4
+              let delta = { pseudo_random(seed + idx * 100 + 2) -. 0.5 } *. 0.4
               conn.weight +. delta
             }
             False -> {
@@ -493,8 +482,7 @@ pub fn mutate_add_node(
   seed: Int,
 ) -> #(Genome, Population) {
   // Seleciona conexão aleatória para dividir
-  let enabled_connections =
-    list.filter(genome.connections, fn(c) { c.enabled })
+  let enabled_connections = list.filter(genome.connections, fn(c) { c.enabled })
   case list.length(enabled_connections) {
     0 -> #(genome, population)
     len -> {
@@ -548,8 +536,7 @@ pub fn mutate_add_node(
               connections: list.flatten([updated_connections, [conn1, conn2]]),
             )
 
-          let new_population =
-            Population(..pop2, node_counter: new_node_id + 1)
+          let new_population = Population(..pop2, node_counter: new_node_id + 1)
 
           #(new_genome, new_population)
         }
@@ -670,12 +657,10 @@ pub fn crossover(parent1: Genome, parent2: Genome, seed: Int) -> Genome {
 
   // Todos os innovation numbers
   let all_innovations =
-    list.unique(
-      list.append(
-        list.map(parent1.connections, fn(c) { c.innovation }),
-        list.map(parent2.connections, fn(c) { c.innovation }),
-      ),
-    )
+    list.unique(list.append(
+      list.map(parent1.connections, fn(c) { c.innovation }),
+      list.map(parent2.connections, fn(c) { c.innovation }),
+    ))
     |> list.sort(int.compare)
 
   // Combina genes
@@ -798,9 +783,7 @@ fn count_gene_differences(
   max2: Int,
 ) -> #(Int, Int, Int, Float) {
   let all_innovations =
-    list.unique(
-      list.append(dict.keys(genes1), dict.keys(genes2)),
-    )
+    list.unique(list.append(dict.keys(genes1), dict.keys(genes2)))
 
   list.fold(all_innovations, #(0, 0, 0, 0.0), fn(acc, innov) {
     let #(excess, disjoint, matching, weight_diff) = acc
@@ -844,23 +827,23 @@ pub fn speciate(population: Population, config: NeatConfig) -> Population {
 
   // Atribui cada genoma a uma espécie
   let #(final_species, assigned_genomes) =
-    list.fold(
-      population.genomes,
-      #(cleared_species, []),
-      fn(acc, genome) {
-        let #(species_list, genomes) = acc
-        let #(new_species_list, species_id) =
-          assign_to_species(genome, species_list, config)
-        let updated_genome = Genome(..genome, species_id: species_id)
-        #(new_species_list, list.append(genomes, [updated_genome]))
-      },
-    )
+    list.fold(population.genomes, #(cleared_species, []), fn(acc, genome) {
+      let #(species_list, genomes) = acc
+      let #(new_species_list, species_id) =
+        assign_to_species(genome, species_list, config)
+      let updated_genome = Genome(..genome, species_id: species_id)
+      #(new_species_list, list.append(genomes, [updated_genome]))
+    })
 
   // Remove espécies vazias
   let non_empty_species =
     list.filter(final_species, fn(s) { list.length(s.members) > 0 })
 
-  Population(..population, genomes: assigned_genomes, species: non_empty_species)
+  Population(
+    ..population,
+    genomes: assigned_genomes,
+    species: non_empty_species,
+  )
 }
 
 fn assign_to_species(
@@ -956,15 +939,13 @@ fn calculate_adjusted_fitness(population: Population) -> Population {
         list.map(species.members, fn(g) {
           Genome(..g, adjusted_fitness: g.fitness /. species_size)
         })
-      let best = list.fold(updated_members, 0.0, fn(acc, g) {
-        float.max(acc, g.fitness)
-      })
+      let best =
+        list.fold(updated_members, 0.0, fn(acc, g) { float.max(acc, g.fitness) })
       Species(..species, members: updated_members, best_fitness: best)
     })
 
   // Atualiza genomas na população
-  let all_genomes =
-    list.flatten(list.map(updated_species, fn(s) { s.members }))
+  let all_genomes = list.flatten(list.map(updated_species, fn(s) { s.members }))
 
   Population(..population, genomes: all_genomes, species: updated_species)
 }
@@ -993,35 +974,31 @@ fn reproduce(
 
   // Reproduz cada espécie
   let #(new_genomes, updated_pop) =
-    list.fold(
-      offspring_counts,
-      #([], population),
-      fn(acc, species_count) {
-        let #(genomes, pop) = acc
-        let #(species_id, count) = species_count
-        let species =
-          list.find(pop.species, fn(s) { s.id == species_id })
-          |> result_unwrap(Species(
+    list.fold(offspring_counts, #([], population), fn(acc, species_count) {
+      let #(genomes, pop) = acc
+      let #(species_id, count) = species_count
+      let species =
+        list.find(pop.species, fn(s) { s.id == species_id })
+        |> result_unwrap(Species(
+          id: 0,
+          members: [],
+          representative: Genome(
             id: 0,
-            members: [],
-            representative: Genome(
-              id: 0,
-              nodes: [],
-              connections: [],
-              fitness: 0.0,
-              adjusted_fitness: 0.0,
-              species_id: 0,
-            ),
-            best_fitness: 0.0,
-            stagnation: 0,
-          ))
+            nodes: [],
+            connections: [],
+            fitness: 0.0,
+            adjusted_fitness: 0.0,
+            species_id: 0,
+          ),
+          best_fitness: 0.0,
+          stagnation: 0,
+        ))
 
-        let #(offspring, new_pop) =
-          reproduce_species(species, count, pop, config, seed + species_id * 1000)
+      let #(offspring, new_pop) =
+        reproduce_species(species, count, pop, config, seed + species_id * 1000)
 
-        #(list.append(genomes, offspring), new_pop)
-      },
-    )
+      #(list.append(genomes, offspring), new_pop)
+    })
 
   // Atribui IDs aos novos genomas
   let numbered_genomes =
@@ -1036,11 +1013,7 @@ fn reproduce(
       Species(..species, representative: new_rep, members: [])
     })
 
-  Population(
-    ..updated_pop,
-    genomes: numbered_genomes,
-    species: updated_species,
-  )
+  Population(..updated_pop, genomes: numbered_genomes, species: updated_species)
 }
 
 fn reproduce_species(
@@ -1060,9 +1033,7 @@ fn reproduce_species(
 
   // Seleciona pais (top survival_threshold %)
   let num_parents =
-    float.round(
-      int.to_float(list.length(sorted)) *. config.survival_threshold,
-    )
+    float.round(int.to_float(list.length(sorted)) *. config.survival_threshold)
   let parents = list.take(sorted, int.max(2, num_parents))
 
   // Gera offspring

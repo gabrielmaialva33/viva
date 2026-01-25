@@ -63,7 +63,8 @@ pub fn bardo_with_heavy_karma_continues_samsara_test() {
 // =============================================================================
 
 pub fn is_liberation_detects_full_liberation_test() {
-  let outcome = bardo.FullLiberation(final_contribution: [], wisdom_summary: 1.0)
+  let outcome =
+    bardo.FullLiberation(final_contribution: [], wisdom_summary: 1.0)
 
   bardo.is_liberation(outcome) |> should.be_true()
 }
@@ -82,10 +83,7 @@ pub fn is_liberation_detects_bodhisattva_test() {
 
 pub fn is_liberation_rejects_samsara_test() {
   let outcome =
-    bardo.ContinuedSamsara(
-      seed_glyphs: [],
-      rebirth_tendency: pad.neutral(),
-    )
+    bardo.ContinuedSamsara(seed_glyphs: [], rebirth_tendency: pad.neutral())
 
   bardo.is_liberation(outcome) |> should.be_false()
 }
@@ -95,7 +93,8 @@ pub fn is_liberation_rejects_samsara_test() {
 // =============================================================================
 
 pub fn seed_glyphs_empty_for_full_liberation_test() {
-  let outcome = bardo.FullLiberation(final_contribution: [], wisdom_summary: 1.0)
+  let outcome =
+    bardo.FullLiberation(final_contribution: [], wisdom_summary: 1.0)
 
   let seeds = bardo.get_seed_glyphs(outcome)
 

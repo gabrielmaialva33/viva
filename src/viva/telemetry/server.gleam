@@ -62,33 +62,39 @@ fn telemetry_loop(
 ) -> actor.Next(TelemetryState, TelemetryMessage) {
   case message {
     Subscribe(client) -> {
-      actor.continue(TelemetryState(
-        ..state,
-        subscribers: set.insert(state.subscribers, client),
-      ))
+      actor.continue(
+        TelemetryState(
+          ..state,
+          subscribers: set.insert(state.subscribers, client),
+        ),
+      )
     }
 
     Unsubscribe(client) -> {
-      actor.continue(TelemetryState(
-        ..state,
-        subscribers: set.delete(state.subscribers, client),
-      ))
+      actor.continue(
+        TelemetryState(
+          ..state,
+          subscribers: set.delete(state.subscribers, client),
+        ),
+      )
     }
 
     Broadcast(data) -> {
-      let _ = set.fold(state.subscribers, Nil, fn(_, client) {
-        process.send(client, data)
-        Nil
-      })
+      let _ =
+        set.fold(state.subscribers, Nil, fn(_, client) {
+          process.send(client, data)
+          Nil
+        })
       actor.continue(state)
     }
 
     UpdateWorld(world) -> {
       let data = world_json.world_to_string(world)
-      let _ = set.fold(state.subscribers, Nil, fn(_, client) {
-        process.send(client, data)
-        Nil
-      })
+      let _ =
+        set.fold(state.subscribers, Nil, fn(_, client) {
+          process.send(client, data)
+          Nil
+        })
       actor.continue(TelemetryState(..state, current_world: Some(world)))
     }
 
@@ -100,10 +106,8 @@ fn telemetry_loop(
 }
 
 pub fn start_broadcaster() -> Result(Broadcaster, actor.StartError) {
-  let initial_state = TelemetryState(
-    subscribers: set.new(),
-    current_world: None,
-  )
+  let initial_state =
+    TelemetryState(subscribers: set.new(), current_world: None)
 
   let builder =
     actor.new(initial_state)
@@ -155,28 +159,47 @@ fn csv_response(body: String) -> Response(ResponseData) {
   response.new(200)
   |> response.set_header("content-type", "text/csv; charset=utf-8")
   |> response.set_header("access-control-allow-origin", "*")
-  |> response.set_header("content-disposition", "attachment; filename=\"viva_export.csv\"")
+  |> response.set_header(
+    "content-disposition",
+    "attachment; filename=\"viva_export.csv\"",
+  )
   |> response.set_body(mist.Bytes(bytes_tree.from_string(body)))
 }
 
 /// Convert World state to CSV format for R/Python analysis
 fn world_to_csv(w: World) -> String {
   let header = "id,label,x,y,z,w,energy,sleeping,island_id\n"
-  let rows = dict.fold(w.bodies, "", fn(acc, id, body) {
-    let pos = body.position.data
-    let x = float.to_string(list_get_float(pos, 0))
-    let y = float.to_string(list_get_float(pos, 1))
-    let z = float.to_string(list_get_float(pos, 2))
-    let w_coord = float.to_string(list_get_float(pos, 3))
-    let energy = float.to_string(body.energy)
-    let sleeping = bool.to_string(body.sleeping)
-    let island = int.to_string(body.island_id)
+  let rows =
+    dict.fold(w.bodies, "", fn(acc, id, body) {
+      let pos = body.position.data
+      let x = float.to_string(list_get_float(pos, 0))
+      let y = float.to_string(list_get_float(pos, 1))
+      let z = float.to_string(list_get_float(pos, 2))
+      let w_coord = float.to_string(list_get_float(pos, 3))
+      let energy = float.to_string(body.energy)
+      let sleeping = bool.to_string(body.sleeping)
+      let island = int.to_string(body.island_id)
 
-    acc <> int.to_string(id) <> ","
-        <> body.label <> ","
-        <> x <> "," <> y <> "," <> z <> "," <> w_coord <> ","
-        <> energy <> "," <> sleeping <> "," <> island <> "\n"
-  })
+      acc
+      <> int.to_string(id)
+      <> ","
+      <> body.label
+      <> ","
+      <> x
+      <> ","
+      <> y
+      <> ","
+      <> z
+      <> ","
+      <> w_coord
+      <> ","
+      <> energy
+      <> ","
+      <> sleeping
+      <> ","
+      <> island
+      <> "\n"
+    })
   header <> rows
 }
 
@@ -213,7 +236,10 @@ pub fn start(port: Int, broadcaster: Broadcaster) {
       ["api", "world"] -> {
         case get_world_sync(broadcaster) {
           Some(world) -> json_response(world_json.world_to_string(world))
-          None -> json_response("{\"error\":\"no_world_state\",\"bodies\":[],\"islands\":[],\"tick\":0}")
+          None ->
+            json_response(
+              "{\"error\":\"no_world_state\",\"bodies\":[],\"islands\":[],\"tick\":0}",
+            )
         }
       }
 

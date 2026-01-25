@@ -12,9 +12,8 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import viva/embodied/sense.{
-  type Emotion, type Hearing, type Reading, type SceneType,
-  type SuggestedAction, type Thought, type Vision,
-  Emotion, Thought,
+  type Emotion, type Hearing, type Reading, type SceneType, type SuggestedAction,
+  type Thought, type Vision, Emotion, Thought,
 }
 
 // =============================================================================
@@ -96,7 +95,8 @@ pub fn visual_percept(
     thought: thought,
     timestamp: now_timestamp(),
     attention: determine_visual_attention(vision, reading),
-    novelty: 1.0,  // Will be calculated when added to memory
+    novelty: 1.0,
+    // Will be calculated when added to memory
     salience: calculate_salience(thought),
     source: ImageFile(source),
   )
@@ -159,7 +159,10 @@ pub fn empty_percept() -> Percept {
 // ATTENTION DETERMINATION
 // =============================================================================
 
-fn determine_visual_attention(vision: Vision, reading: Reading) -> AttentionFocus {
+fn determine_visual_attention(
+  vision: Vision,
+  reading: Reading,
+) -> AttentionFocus {
   // Priority: error detection > code > scene type
   case has_error_text(reading.text) {
     True -> ErrorDetection
@@ -194,9 +197,7 @@ fn determine_auditory_attention(hearing: Hearing) -> AttentionFocus {
 
 fn has_error_text(text: String) -> Bool {
   string_contains_any(text, [
-    "error", "Error", "ERROR",
-    "fail", "Fail", "FAIL",
-    "exception", "Exception",
+    "error", "Error", "ERROR", "fail", "Fail", "FAIL", "exception", "Exception",
     "crash", "panic",
   ])
 }
@@ -238,12 +239,12 @@ pub fn calculate_novelty(
   recent_history: List(Percept),
 ) -> Float {
   case recent_history {
-    [] -> 1.0  // First percept is fully novel
+    [] -> 1.0
+    // First percept is fully novel
     history -> {
       // Compare with recent percepts
-      let similarities = list.map(history, fn(past) {
-        percept_similarity(percept, past)
-      })
+      let similarities =
+        list.map(history, fn(past) { percept_similarity(percept, past) })
 
       let avg_similarity = case list.length(similarities) {
         0 -> 0.0
@@ -394,9 +395,12 @@ fn emotion_to_vector(emotion: Emotion, dim: Int) -> List(Float) {
   list.range(0, dim - 1)
   |> list.map(fn(i) {
     let phase = 2.0 *. pi() *. int.to_float(i) /. int.to_float(dim)
-    emotion.valence *. float_sin(phase)
-    +. emotion.arousal *. float_cos(phase *. 2.0)
-    +. emotion.dominance *. float_sin(phase *. 3.0)
+    emotion.valence
+    *. float_sin(phase)
+    +. emotion.arousal
+    *. float_cos(phase *. 2.0)
+    +. emotion.dominance
+    *. float_sin(phase *. 3.0)
   })
   |> normalize_vector()
 }
@@ -429,8 +433,8 @@ fn pseudo_random_vector(seed: Int, dim: Int) -> List(Float) {
   // Simple LCG-based pseudo-random
   list.range(0, dim - 1)
   |> list.map(fn(i) {
-    let x = { seed * 1103515245 + i * 12345 } % 2147483648
-    int.to_float(x) /. 2147483648.0 *. 2.0 -. 1.0
+    let x = { seed * 1_103_515_245 + i * 12_345 } % 2_147_483_648
+    int.to_float(x) /. 2_147_483_648.0 *. 2.0 -. 1.0
   })
   |> normalize_vector()
 }
@@ -448,7 +452,12 @@ fn list_at(lst: List(Float), index: Int, default: Float) -> Float {
   list_at_impl(lst, index, default, 0)
 }
 
-fn list_at_impl(lst: List(Float), target: Int, default: Float, current: Int) -> Float {
+fn list_at_impl(
+  lst: List(Float),
+  target: Int,
+  default: Float,
+  current: Int,
+) -> Float {
   case lst {
     [] -> default
     [head, ..tail] -> {

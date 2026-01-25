@@ -89,13 +89,7 @@ pub type GRUState {
 
 /// GRU cache for backward pass
 pub type GRUCache {
-  GRUCache(
-    input: Tensor,
-    prev_h: Tensor,
-    r: Tensor,
-    z: Tensor,
-    n: Tensor,
-  )
+  GRUCache(input: Tensor, prev_h: Tensor, r: Tensor, z: Tensor, n: Tensor)
 }
 
 /// Gradients for LSTM
@@ -150,7 +144,8 @@ pub fn lstm_new(input_size: Int, hidden_size: Int) -> LSTMCell {
 fn lstm_bias_init(hidden_size: Int) -> Tensor {
   // [i, f, g, o] - forget gate initialized to 1.0
   let i_bias = list.repeat(0.0, hidden_size)
-  let f_bias = list.repeat(1.0, hidden_size)  // Key: forget bias = 1
+  let f_bias = list.repeat(1.0, hidden_size)
+  // Key: forget bias = 1
   let g_bias = list.repeat(0.0, hidden_size)
   let o_bias = list.repeat(0.0, hidden_size)
   let data = list.flatten([i_bias, f_bias, g_bias, o_bias])
@@ -159,10 +154,7 @@ fn lstm_bias_init(hidden_size: Int) -> Tensor {
 
 /// Create initial LSTM state (zeros)
 pub fn lstm_init_state(hidden_size: Int) -> LSTMState {
-  LSTMState(
-    c: tensor.zeros([hidden_size]),
-    h: tensor.zeros([hidden_size]),
-  )
+  LSTMState(c: tensor.zeros([hidden_size]), h: tensor.zeros([hidden_size]))
 }
 
 // =============================================================================
@@ -192,10 +184,14 @@ pub fn lstm_forward(
   let o_pre = slice_tensor(gates_pre, 3 * h, h)
 
   // Apply activations
-  let i = tensor.map(i_pre, sigmoid)  // Input gate
-  let f = tensor.map(f_pre, sigmoid)  // Forget gate
-  let g = tensor.map(g_pre, tanh)     // Cell gate (candidate)
-  let o = tensor.map(o_pre, sigmoid)  // Output gate
+  let i = tensor.map(i_pre, sigmoid)
+  // Input gate
+  let f = tensor.map(f_pre, sigmoid)
+  // Forget gate
+  let g = tensor.map(g_pre, tanh)
+  // Cell gate (candidate)
+  let o = tensor.map(o_pre, sigmoid)
+  // Output gate
 
   // Update cell state: c_new = f * c_prev + i * g
   use f_c <- result.try(tensor.mul(f, state.c))
@@ -208,16 +204,17 @@ pub fn lstm_forward(
 
   let new_state = LSTMState(c: c_new, h: h_new)
 
-  let cache = LSTMCache(
-    input: input,
-    prev_state: state,
-    gates_pre: gates_pre,
-    i: i,
-    f: f,
-    g: g,
-    o: o,
-    c_new: c_new,
-  )
+  let cache =
+    LSTMCache(
+      input: input,
+      prev_state: state,
+      gates_pre: gates_pre,
+      i: i,
+      f: f,
+      g: g,
+      o: o,
+      c_new: c_new,
+    )
 
   Ok(#(h_new, new_state, cache))
 }
@@ -258,34 +255,32 @@ pub fn lstm_backward(
   // d_o = d_h_next * tanh(c_new) * sigmoid'(o_pre)
   let c_tanh = tensor.map(cache.c_new, tanh)
   use d_o_contrib <- result.try(tensor.mul(d_h_next, c_tanh))
-  let d_o = map2_with(d_o_contrib, cache.o, fn(d, o) {
-    d *. o *. { 1.0 -. o }  // sigmoid derivative
-  })
+  let d_o =
+    map2_with(d_o_contrib, cache.o, fn(d, o) {
+      d *. o *. { 1.0 -. o }
+      // sigmoid derivative
+    })
 
   // d_c = d_c_next + d_h_next * o * (1 - tanh(c_new)^2)
   use d_c_from_h <- result.try(tensor.mul(d_h_next, cache.o))
-  let d_c_tanh = map2_with(d_c_from_h, c_tanh, fn(d, t) {
-    d *. { 1.0 -. t *. t }  // tanh derivative
-  })
+  let d_c_tanh =
+    map2_with(d_c_from_h, c_tanh, fn(d, t) {
+      d *. { 1.0 -. t *. t }
+      // tanh derivative
+    })
   use d_c <- result.try(tensor.add(d_c_next, d_c_tanh))
 
   // d_f = d_c * c_prev * sigmoid'(f_pre)
   use d_f_contrib <- result.try(tensor.mul(d_c, cache.prev_state.c))
-  let d_f = map2_with(d_f_contrib, cache.f, fn(d, f) {
-    d *. f *. { 1.0 -. f }
-  })
+  let d_f = map2_with(d_f_contrib, cache.f, fn(d, f) { d *. f *. { 1.0 -. f } })
 
   // d_i = d_c * g * sigmoid'(i_pre)
   use d_i_contrib <- result.try(tensor.mul(d_c, cache.g))
-  let d_i = map2_with(d_i_contrib, cache.i, fn(d, i) {
-    d *. i *. { 1.0 -. i }
-  })
+  let d_i = map2_with(d_i_contrib, cache.i, fn(d, i) { d *. i *. { 1.0 -. i } })
 
   // d_g = d_c * i * tanh'(g_pre)
   use d_g_contrib <- result.try(tensor.mul(d_c, cache.i))
-  let d_g = map2_with(d_g_contrib, cache.g, fn(d, g) {
-    d *. { 1.0 -. g *. g }
-  })
+  let d_g = map2_with(d_g_contrib, cache.g, fn(d, g) { d *. { 1.0 -. g *. g } })
 
   // Concatenate gate gradients
   let d_gates = tensor.concat([d_i, d_f, d_g, d_o])
@@ -380,7 +375,8 @@ pub fn gru_forward(
   // New hidden: n = tanh(W_n_i @ x + r * (W_n_h @ h) + b_n)
   use n_i <- result.try(tensor.matmul_vec(cell.w_n_input, input))
   use n_h_pre <- result.try(tensor.matmul_vec(cell.w_n_hidden, state.h))
-  use n_h <- result.try(tensor.mul(r, n_h_pre))  // r gates the hidden contribution
+  use n_h <- result.try(tensor.mul(r, n_h_pre))
+  // r gates the hidden contribution
   use n_sum <- result.try(tensor.add(n_i, n_h))
   use n_biased <- result.try(tensor.add(n_sum, cell.b_n))
   let n = tensor.map(n_biased, tanh)
@@ -393,13 +389,7 @@ pub fn gru_forward(
 
   let new_state = GRUState(h: h_new)
 
-  let cache = GRUCache(
-    input: input,
-    prev_h: state.h,
-    r: r,
-    z: z,
-    n: n,
-  )
+  let cache = GRUCache(input: input, prev_h: state.h, r: r, z: z, n: n)
 
   Ok(#(h_new, new_state, cache))
 }
@@ -450,21 +440,25 @@ pub fn lstm_bidirectional(
 
   // Forward pass
   let init_fwd = lstm_init_state(h)
-  use #(fwd_outputs, _, _) <- result.try(lstm_sequence(forward_cell, inputs, init_fwd))
+  use #(fwd_outputs, _, _) <- result.try(lstm_sequence(
+    forward_cell,
+    inputs,
+    init_fwd,
+  ))
 
   // Backward pass (reverse input sequence)
   let init_bwd = lstm_init_state(h)
   let reversed_inputs = list.reverse(inputs)
-  use #(bwd_outputs_rev, _, _) <- result.try(
-    lstm_sequence(backward_cell, reversed_inputs, init_bwd),
-  )
+  use #(bwd_outputs_rev, _, _) <- result.try(lstm_sequence(
+    backward_cell,
+    reversed_inputs,
+    init_bwd,
+  ))
   let bwd_outputs = list.reverse(bwd_outputs_rev)
 
   // Combine outputs
   let combined =
-    list.map2(fwd_outputs, bwd_outputs, fn(f, b) {
-      tensor.concat([f, b])
-    })
+    list.map2(fwd_outputs, bwd_outputs, fn(f, b) { tensor.concat([f, b]) })
 
   Ok(BidirectionalOutput(
     forward: fwd_outputs,

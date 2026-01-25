@@ -63,28 +63,23 @@ pub type TextBlock {
 
 /// What VIVA can hear
 pub type Hearing {
-  Hearing(
-    text: String,
-    language: String,
-    confidence: Float,
-  )
+  Hearing(text: String, language: String, confidence: Float)
 }
 
 /// VIVA's thought about a perception
 pub type Thought {
-  Thought(
-    content: String,
-    emotion: Emotion,
-    action: SuggestedAction,
-  )
+  Thought(content: String, emotion: Emotion, action: SuggestedAction)
 }
 
 /// PAD emotional state
 pub type Emotion {
   Emotion(
-    valence: Float,     // -1 (negative) to 1 (positive)
-    arousal: Float,     // 0 (calm) to 1 (excited)
-    dominance: Float,   // 0 (submissive) to 1 (dominant)
+    valence: Float,
+    // -1 (negative) to 1 (positive)
+    arousal: Float,
+    // 0 (calm) to 1 (excited)
+    dominance: Float,
+    // 0 (submissive) to 1 (dominant)
   )
 }
 
@@ -178,7 +173,10 @@ pub fn classify_scene(labels: List(String)) -> SceneType {
                 True, _ -> Entertainment
                 _, True -> Entertainment
                 _, _ ->
-                  case has_label(labels, "document"), has_label(labels, "text") {
+                  case
+                    has_label(labels, "document"),
+                    has_label(labels, "text")
+                  {
                     True, _ -> ReadingScene
                     _, True -> ReadingScene
                     _, _ -> Unknown
@@ -302,7 +300,8 @@ fn parse_vision_result(raw: SenseResult) -> Vision {
 fn parse_reading_result(raw: SenseResult) -> Reading {
   Reading(
     text: raw.text,
-    blocks: [],  // TODO: parse blocks
+    blocks: [],
+    // TODO: parse blocks
     language: raw.language,
     has_code: detect_code(raw.text),
     word_count: count_words(raw.text),
@@ -347,9 +346,8 @@ fn parse_action(action: String) -> SuggestedAction {
 
 fn detect_code(text: String) -> Bool {
   let patterns = [
-    "def ", "fn ", "pub fn", "function ", "class ",
-    "import ", "module ", "defmodule", "=>", "|>",
-    "let ", "const ", "var ", "if ", "case ",
+    "def ", "fn ", "pub fn", "function ", "class ", "import ", "module ",
+    "defmodule", "=>", "|>", "let ", "const ", "var ", "if ", "case ",
   ]
   list.any(patterns, fn(p) { string_contains(text, p) })
 }

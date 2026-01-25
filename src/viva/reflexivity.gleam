@@ -180,17 +180,23 @@ pub fn introspect(
 fn find_outliers(p: Pad, range: PadRange) -> List(PadDimension) {
   let outliers = []
 
-  let outliers = case p.pleasure <. range.pleasure_min || p.pleasure >. range.pleasure_max {
+  let outliers = case
+    p.pleasure <. range.pleasure_min || p.pleasure >. range.pleasure_max
+  {
     True -> [Pleasure, ..outliers]
     False -> outliers
   }
 
-  let outliers = case p.arousal <. range.arousal_min || p.arousal >. range.arousal_max {
+  let outliers = case
+    p.arousal <. range.arousal_min || p.arousal >. range.arousal_max
+  {
     True -> [Arousal, ..outliers]
     False -> outliers
   }
 
-  case p.dominance <. range.dominance_min || p.dominance >. range.dominance_max {
+  case
+    p.dominance <. range.dominance_min || p.dominance >. range.dominance_max
+  {
     True -> [Dominance, ..outliers]
     False -> outliers
   }
@@ -205,7 +211,8 @@ fn generate_insight(
 ) -> Option(Insight) {
   case list.first(outliers) {
     Ok(dim) -> {
-      let #(direction, magnitude) = analyze_change(self_model.emotional_center, current_pad, dim)
+      let #(direction, magnitude) =
+        analyze_change(self_model.emotional_center, current_pad, dim)
 
       Some(Insight(
         dimension: dim,
@@ -255,12 +262,23 @@ pub fn observe(
   let n = self_model.observations + 1
 
   // Exponential moving average for emotional center
-  let alpha = 0.1  // Learning rate
-  let new_center = pad.new(
-    self_model.emotional_center.pleasure *. { 1.0 -. alpha } +. current_pad.pleasure *. alpha,
-    self_model.emotional_center.arousal *. { 1.0 -. alpha } +. current_pad.arousal *. alpha,
-    self_model.emotional_center.dominance *. { 1.0 -. alpha } +. current_pad.dominance *. alpha,
-  )
+  let alpha = 0.1
+  // Learning rate
+  let new_center =
+    pad.new(
+      self_model.emotional_center.pleasure
+        *. { 1.0 -. alpha }
+        +. current_pad.pleasure
+        *. alpha,
+      self_model.emotional_center.arousal
+        *. { 1.0 -. alpha }
+        +. current_pad.arousal
+        *. alpha,
+      self_model.emotional_center.dominance
+        *. { 1.0 -. alpha }
+        +. current_pad.dominance
+        *. alpha,
+    )
 
   // Expand range if current state is outside
   let new_range = expand_range(self_model.emotional_range, current_pad)
@@ -296,31 +314,46 @@ pub fn observe(
 
 /// Expand range to include current PAD (with damping)
 fn expand_range(range: PadRange, p: Pad) -> PadRange {
-  let expand_rate = 0.1  // How fast range expands
+  let expand_rate = 0.1
+  // How fast range expands
 
   PadRange(
     pleasure_min: case p.pleasure <. range.pleasure_min {
-      True -> range.pleasure_min +. { p.pleasure -. range.pleasure_min } *. expand_rate
+      True ->
+        range.pleasure_min
+        +. { p.pleasure -. range.pleasure_min }
+        *. expand_rate
       False -> range.pleasure_min
     },
     pleasure_max: case p.pleasure >. range.pleasure_max {
-      True -> range.pleasure_max +. { p.pleasure -. range.pleasure_max } *. expand_rate
+      True ->
+        range.pleasure_max
+        +. { p.pleasure -. range.pleasure_max }
+        *. expand_rate
       False -> range.pleasure_max
     },
     arousal_min: case p.arousal <. range.arousal_min {
-      True -> range.arousal_min +. { p.arousal -. range.arousal_min } *. expand_rate
+      True ->
+        range.arousal_min +. { p.arousal -. range.arousal_min } *. expand_rate
       False -> range.arousal_min
     },
     arousal_max: case p.arousal >. range.arousal_max {
-      True -> range.arousal_max +. { p.arousal -. range.arousal_max } *. expand_rate
+      True ->
+        range.arousal_max +. { p.arousal -. range.arousal_max } *. expand_rate
       False -> range.arousal_max
     },
     dominance_min: case p.dominance <. range.dominance_min {
-      True -> range.dominance_min +. { p.dominance -. range.dominance_min } *. expand_rate
+      True ->
+        range.dominance_min
+        +. { p.dominance -. range.dominance_min }
+        *. expand_rate
       False -> range.dominance_min
     },
     dominance_max: case p.dominance >. range.dominance_max {
-      True -> range.dominance_max +. { p.dominance -. range.dominance_max } *. expand_rate
+      True ->
+        range.dominance_max
+        +. { p.dominance -. range.dominance_max }
+        *. expand_rate
       False -> range.dominance_max
     },
   )
@@ -340,20 +373,24 @@ pub fn who_am_i(self_model: SelfModel) -> SelfDescription {
   let abs_d = float.absolute_value(center.dominance)
 
   let dominant = case abs_p >. abs_a && abs_p >. abs_d {
-    True -> case center.pleasure >. 0.0 {
-      True -> Optimistic
-      False -> Pessimistic
-    }
-    False -> case abs_a >. abs_d {
-      True -> case center.arousal >. 0.0 {
-        True -> Energetic
-        False -> Calm
+    True ->
+      case center.pleasure >. 0.0 {
+        True -> Optimistic
+        False -> Pessimistic
       }
-      False -> case center.dominance >. 0.0 {
-        True -> Assertive
-        False -> Submissive
+    False ->
+      case abs_a >. abs_d {
+        True ->
+          case center.arousal >. 0.0 {
+            True -> Energetic
+            False -> Calm
+          }
+        False ->
+          case center.dominance >. 0.0 {
+            True -> Assertive
+            False -> Submissive
+          }
       }
-    }
   }
 
   SelfDescription(
@@ -367,7 +404,8 @@ pub fn who_am_i(self_model: SelfModel) -> SelfDescription {
 /// Am I changing? Check if recent observations show drift
 pub fn am_i_changing(self_model: SelfModel, current_tick: Int) -> Bool {
   let ticks_since_change = current_tick - self_model.last_change_tick
-  ticks_since_change < 100  // Changed within last 100 ticks
+  ticks_since_change < 100
+  // Changed within last 100 ticks
 }
 
 /// How stable am I? (0.0 = volatile, 1.0 = very stable)

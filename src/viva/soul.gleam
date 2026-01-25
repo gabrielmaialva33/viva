@@ -54,8 +54,8 @@ pub type SoulState {
 
 /// Messages the Soul can receive
 pub type Message {
-  // === Commands (fire-and-forget) ===
 
+  // === Commands (fire-and-forget) ===
   /// Feel a stimulus with intensity
   Feel(stimulus: Stimulus, intensity: Float)
 
@@ -78,7 +78,6 @@ pub type Message {
   ApplyBodyStimulus(stimulus: BodyStimulus)
 
   // === Queries (request-reply) ===
-
   /// Get current PAD
   GetPad(reply: Subject(Pad))
 
@@ -327,7 +326,6 @@ fn handle_message(
 ) -> actor.Next(SoulState, Message) {
   case message {
     // === Commands ===
-
     Feel(stimulus, intensity) -> {
       // Apply stimulus
       let emotional = viva_emotion.feel(state.emotional, stimulus, intensity)
@@ -351,21 +349,30 @@ fn handle_message(
       }
 
       // Narrative: record causal link if glyph changed significantly
-      let new_narrative = case intensity >. 0.3 && !glyph.equals(state.current_glyph, new_glyph) {
+      let new_narrative = case
+        intensity >. 0.3 && !glyph.equals(state.current_glyph, new_glyph)
+      {
         True -> {
           // Record: previous state CAUSED new state (via stimulus)
-          narrative.record_caused(state.narrative, state.current_glyph, new_glyph, state.tick_count)
+          narrative.record_caused(
+            state.narrative,
+            state.current_glyph,
+            new_glyph,
+            state.tick_count,
+          )
         }
         False -> state.narrative
       }
 
-      actor.continue(SoulState(
-        ..state,
-        emotional: emotional,
-        current_glyph: new_glyph,
-        karma_bank: karma_bank,
-        narrative: new_narrative,
-      ))
+      actor.continue(
+        SoulState(
+          ..state,
+          emotional: emotional,
+          current_glyph: new_glyph,
+          karma_bank: karma_bank,
+          narrative: new_narrative,
+        ),
+      )
     }
 
     Tick(dt) -> {
@@ -383,7 +390,8 @@ fn handle_message(
           current_pad.arousal +. body_delta.y,
           current_pad.dominance +. body_delta.z,
         )
-      let emotional = viva_emotion.EmotionalState(..emotional, pad: body_influenced_pad)
+      let emotional =
+        viva_emotion.EmotionalState(..emotional, pad: body_influenced_pad)
 
       // Update glyph
       let new_glyph = pad_to_glyph(viva_emotion.get_pad(emotional))
@@ -396,20 +404,26 @@ fn handle_message(
 
       // Self-observation (reflexivity)
       let current_pad = viva_emotion.get_pad(emotional)
-      let new_self_model = reflexivity.observe(
-        state.self_model,
-        current_pad,
-        new_glyph,
-        state.tick_count + 1,
-      )
+      let new_self_model =
+        reflexivity.observe(
+          state.self_model,
+          current_pad,
+          new_glyph,
+          state.tick_count + 1,
+        )
 
       // Narrative: record temporal link if glyph changed
       let new_narrative = case glyph.equals(state.current_glyph, new_glyph) {
-        True -> narrative.tick(state.narrative)  // Same state, just decay
+        True -> narrative.tick(state.narrative)
+        // Same state, just decay
         False -> {
           // Record: previous glyph preceded current glyph
           state.narrative
-          |> narrative.record_preceded(state.current_glyph, new_glyph, state.tick_count + 1)
+          |> narrative.record_preceded(
+            state.current_glyph,
+            new_glyph,
+            state.tick_count + 1,
+          )
           |> narrative.tick()
         }
       }
@@ -439,14 +453,13 @@ fn handle_message(
         )
 
       // Recreate emotional state with new PAD (spread update)
-      let emotional = viva_emotion.EmotionalState(..state.emotional, pad: new_pad)
+      let emotional =
+        viva_emotion.EmotionalState(..state.emotional, pad: new_pad)
       let new_glyph = pad_to_glyph(new_pad)
 
-      actor.continue(SoulState(
-        ..state,
-        emotional: emotional,
-        current_glyph: new_glyph,
-      ))
+      actor.continue(
+        SoulState(..state, emotional: emotional, current_glyph: new_glyph),
+      )
     }
 
     SetContext(context) -> {
@@ -460,12 +473,14 @@ fn handle_message(
       let final_glyph = pad_to_glyph(viva_emotion.get_pad(emotional))
 
       // Mark as dead - supervisor will process bardo
-      actor.continue(SoulState(
-        ..state,
-        emotional: emotional,
-        current_glyph: final_glyph,
-        alive: False,
-      ))
+      actor.continue(
+        SoulState(
+          ..state,
+          emotional: emotional,
+          current_glyph: final_glyph,
+          alive: False,
+        ),
+      )
     }
 
     Rebirth(config) -> {
@@ -481,7 +496,6 @@ fn handle_message(
     }
 
     // === Queries ===
-
     GetPad(reply) -> {
       process.send(reply, viva_emotion.get_pad(state.emotional))
       actor.continue(state)
@@ -540,12 +554,13 @@ fn handle_message(
 
     Introspect(reply) -> {
       let current_pad = viva_emotion.get_pad(state.emotional)
-      let result = reflexivity.introspect(
-        state.self_model,
-        current_pad,
-        state.current_glyph,
-        state.tick_count,
-      )
+      let result =
+        reflexivity.introspect(
+          state.self_model,
+          current_pad,
+          state.current_glyph,
+          state.tick_count,
+        )
       process.send(reply, result)
       actor.continue(state)
     }

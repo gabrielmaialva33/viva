@@ -54,9 +54,7 @@ pub fn main() {
   io.println("📦 Loading digit samples...")
   let #(train_samples, test_samples) = load_data()
   io.println(
-    "   Train: "
-    <> int.to_string(list.length(train_samples))
-    <> " samples",
+    "   Train: " <> int.to_string(list.length(train_samples)) <> " samples",
   )
   io.println(
     "   Test:  " <> int.to_string(list.length(test_samples)) <> " samples",
@@ -66,7 +64,11 @@ pub fn main() {
   // Create network
   io.println("🧠 Creating network: 64 → 32 → 10")
   let assert Ok(net) =
-    network.new([image_size, 32, num_classes], activation.ReLU, activation.Softmax)
+    network.new(
+      [image_size, 32, num_classes],
+      activation.ReLU,
+      activation.Softmax,
+    )
   io.println("   Layers: " <> int.to_string(list.length(net.layers)))
   io.println("")
 
@@ -75,10 +77,13 @@ pub fn main() {
     train.TrainConfig(
       learning_rate: 0.02,
       momentum: 0.9,
-      epochs: 40,               // More epochs for smaller dataset
-      batch_size: 8,            // Smaller batch for 150 samples
+      epochs: 40,
+      // More epochs for smaller dataset
+      batch_size: 8,
+      // Smaller batch for 150 samples
       loss: train.CrossEntropy,
-      l2_lambda: 0.002,         // Rule 1/n for regularization
+      l2_lambda: 0.002,
+      // Rule 1/n for regularization
       gradient_clip: 5.0,
       log_interval: 10,
     )
@@ -109,11 +114,7 @@ pub fn main() {
       // Evaluate on augmented test set
       io.println("📊 Evaluating on test set (augmented)...")
       let accuracy = evaluate(trained_net, test_samples)
-      io.println(
-        "   Accuracy: "
-        <> format_float(accuracy *. 100.0, 1)
-        <> "%",
-      )
+      io.println("   Accuracy: " <> format_float(accuracy *. 100.0, 1) <> "%")
       io.println("")
 
       // ROBUSTNESS TEST: Evaluate on raw (non-augmented) samples
@@ -140,11 +141,25 @@ pub fn main() {
       show_predictions(trained_net, raw_samples)
       io.println("")
 
-      io.println("╔══════════════════════════════════════════════════════════════╗")
-      io.println("║                    DEMO v3 COMPLETE                          ║")
-      io.println("╠══════════════════════════════════════════════════════════════╣")
-      io.println("║  Augmented: " <> string.pad_end(format_float(accuracy *. 100.0, 1) <> "%", 6, " ") <> " │ Raw: " <> string.pad_end(format_float(raw_accuracy *. 100.0, 1) <> "%", 6, " ") <> "               ║")
-      io.println("╚══════════════════════════════════════════════════════════════╝")
+      io.println(
+        "╔══════════════════════════════════════════════════════════════╗",
+      )
+      io.println(
+        "║                    DEMO v3 COMPLETE                          ║",
+      )
+      io.println(
+        "╠══════════════════════════════════════════════════════════════╣",
+      )
+      io.println(
+        "║  Augmented: "
+        <> string.pad_end(format_float(accuracy *. 100.0, 1) <> "%", 6, " ")
+        <> " │ Raw: "
+        <> string.pad_end(format_float(raw_accuracy *. 100.0, 1) <> "%", 6, " ")
+        <> "               ║",
+      )
+      io.println(
+        "╚══════════════════════════════════════════════════════════════╝",
+      )
     }
     Error(_e) -> {
       io.println("❌ Training failed")
@@ -179,8 +194,7 @@ fn evaluate(net: Network, samples: List(Sample)) -> Float {
 
 /// Get index of maximum value
 fn argmax(t: Tensor) -> Int {
-  let indexed =
-    list.index_map(t.data, fn(val, idx) { #(idx, val) })
+  let indexed = list.index_map(t.data, fn(val, idx) { #(idx, val) })
 
   let assert Ok(#(max_idx, _)) =
     list.reduce(indexed, fn(acc, current) {
@@ -260,8 +274,8 @@ fn shuffle_samples(samples: List(Sample), seed: Int) -> List(Sample) {
 }
 
 fn pseudo_random_int(seed: Int) -> Int {
-  let x = seed * 1103515245 + 12345
-  { x / 65536 } % 32768
+  let x = seed * 1_103_515_245 + 12_345
+  { x / 65_536 } % 32_768
 }
 
 /// Generate digit samples (8x8 simplified patterns)
@@ -283,69 +297,126 @@ fn generate_samples() -> List(Sample) {
 
 /// Generate variations of a digit pattern (15 variations per digit = 150 total)
 /// Reduced from 50 to avoid augmentation leakage
-fn generate_digit_variations(label: Int, base_pattern: List(Float)) -> List(Sample) {
+fn generate_digit_variations(
+  label: Int,
+  base_pattern: List(Float),
+) -> List(Sample) {
   let target = one_hot_smoothed(label, num_classes)
 
   // 15 variations per digit (reduced to prevent memorizing augmentation patterns)
   list.flatten([
     // Original (1 sample)
-    [Sample(input: Tensor(data: base_pattern, shape: [image_size]), target: target)],
+    [
+      Sample(
+        input: Tensor(data: base_pattern, shape: [image_size]),
+        target: target,
+      ),
+    ],
 
     // Noise variations (5 samples) - moderate noise only
     list.range(1, 5)
-    |> list.map(fn(i) {
-      let noise_level = int.to_float(i) *. 0.03  // 0.03 to 0.15
-      Sample(input: Tensor(data: add_noise_seeded(base_pattern, noise_level, label * 100 + i), shape: [image_size]), target: target)
-    }),
+      |> list.map(fn(i) {
+        let noise_level = int.to_float(i) *. 0.03
+        // 0.03 to 0.15
+        Sample(
+          input: Tensor(
+            data: add_noise_seeded(base_pattern, noise_level, label * 100 + i),
+            shape: [image_size],
+          ),
+          target: target,
+        )
+      }),
 
     // Intensity variations (5 samples)
     list.range(1, 5)
-    |> list.map(fn(i) {
-      let factor = 0.7 +. int.to_float(i) *. 0.06  // 0.76 to 1.0
-      Sample(input: Tensor(data: scale_intensity(base_pattern, factor), shape: [image_size]), target: target)
-    }),
+      |> list.map(fn(i) {
+        let factor = 0.7 +. int.to_float(i) *. 0.06
+        // 0.76 to 1.0
+        Sample(
+          input: Tensor(data: scale_intensity(base_pattern, factor), shape: [
+            image_size,
+          ]),
+          target: target,
+        )
+      }),
 
     // Brightness shift (4 samples)
     list.range(1, 4)
-    |> list.map(fn(i) {
-      let shift = { int.to_float(i) -. 2.0 } *. 0.1  // -0.1 to 0.2
-      Sample(input: Tensor(data: shift_brightness(base_pattern, shift), shape: [image_size]), target: target)
-    }),
+      |> list.map(fn(i) {
+        let shift = { int.to_float(i) -. 2.0 } *. 0.1
+        // -0.1 to 0.2
+        Sample(
+          input: Tensor(data: shift_brightness(base_pattern, shift), shape: [
+            image_size,
+          ]),
+          target: target,
+        )
+      }),
   ])
 }
 
 /// Generate raw (non-augmented) samples for robustness testing
 fn generate_raw_samples() -> List(Sample) {
   [
-    Sample(input: Tensor(data: digit_0_pattern(), shape: [image_size]), target: one_hot_smoothed(0, num_classes)),
-    Sample(input: Tensor(data: digit_1_pattern(), shape: [image_size]), target: one_hot_smoothed(1, num_classes)),
-    Sample(input: Tensor(data: digit_2_pattern(), shape: [image_size]), target: one_hot_smoothed(2, num_classes)),
-    Sample(input: Tensor(data: digit_3_pattern(), shape: [image_size]), target: one_hot_smoothed(3, num_classes)),
-    Sample(input: Tensor(data: digit_4_pattern(), shape: [image_size]), target: one_hot_smoothed(4, num_classes)),
-    Sample(input: Tensor(data: digit_5_pattern(), shape: [image_size]), target: one_hot_smoothed(5, num_classes)),
-    Sample(input: Tensor(data: digit_6_pattern(), shape: [image_size]), target: one_hot_smoothed(6, num_classes)),
-    Sample(input: Tensor(data: digit_7_pattern(), shape: [image_size]), target: one_hot_smoothed(7, num_classes)),
-    Sample(input: Tensor(data: digit_8_pattern(), shape: [image_size]), target: one_hot_smoothed(8, num_classes)),
-    Sample(input: Tensor(data: digit_9_pattern(), shape: [image_size]), target: one_hot_smoothed(9, num_classes)),
+    Sample(
+      input: Tensor(data: digit_0_pattern(), shape: [image_size]),
+      target: one_hot_smoothed(0, num_classes),
+    ),
+    Sample(
+      input: Tensor(data: digit_1_pattern(), shape: [image_size]),
+      target: one_hot_smoothed(1, num_classes),
+    ),
+    Sample(
+      input: Tensor(data: digit_2_pattern(), shape: [image_size]),
+      target: one_hot_smoothed(2, num_classes),
+    ),
+    Sample(
+      input: Tensor(data: digit_3_pattern(), shape: [image_size]),
+      target: one_hot_smoothed(3, num_classes),
+    ),
+    Sample(
+      input: Tensor(data: digit_4_pattern(), shape: [image_size]),
+      target: one_hot_smoothed(4, num_classes),
+    ),
+    Sample(
+      input: Tensor(data: digit_5_pattern(), shape: [image_size]),
+      target: one_hot_smoothed(5, num_classes),
+    ),
+    Sample(
+      input: Tensor(data: digit_6_pattern(), shape: [image_size]),
+      target: one_hot_smoothed(6, num_classes),
+    ),
+    Sample(
+      input: Tensor(data: digit_7_pattern(), shape: [image_size]),
+      target: one_hot_smoothed(7, num_classes),
+    ),
+    Sample(
+      input: Tensor(data: digit_8_pattern(), shape: [image_size]),
+      target: one_hot_smoothed(8, num_classes),
+    ),
+    Sample(
+      input: Tensor(data: digit_9_pattern(), shape: [image_size]),
+      target: one_hot_smoothed(9, num_classes),
+    ),
   ]
 }
 
 /// Scale intensity
 fn scale_intensity(pattern: List(Float), factor: Float) -> List(Float) {
-  list.map(pattern, fn(val) {
-    float.clamp(val *. factor, 0.0, 1.0)
-  })
+  list.map(pattern, fn(val) { float.clamp(val *. factor, 0.0, 1.0) })
 }
 
 /// Shift brightness
 fn shift_brightness(pattern: List(Float), shift: Float) -> List(Float) {
-  list.map(pattern, fn(val) {
-    float.clamp(val +. shift, 0.0, 1.0)
-  })
+  list.map(pattern, fn(val) { float.clamp(val +. shift, 0.0, 1.0) })
 }
 
 /// Add noise with seed for reproducibility
-fn add_noise_seeded(pattern: List(Float), amount: Float, seed: Int) -> List(Float) {
+fn add_noise_seeded(
+  pattern: List(Float),
+  amount: Float,
+  seed: Int,
+) -> List(Float) {
   list.index_map(pattern, fn(val, idx) {
     let noise = { pseudo_random(seed * 64 + idx) -. 0.5 } *. 2.0 *. amount
     float.clamp(val +. noise, 0.0, 1.0)
@@ -354,9 +425,9 @@ fn add_noise_seeded(pattern: List(Float), amount: Float, seed: Int) -> List(Floa
 
 /// Pseudo-random for deterministic noise
 fn pseudo_random(seed: Int) -> Float {
-  let x = seed * 1103515245 + 12345
-  let x = { x / 65536 } % 32768
-  int.to_float(int.absolute_value(x)) /. 32768.0
+  let x = seed * 1_103_515_245 + 12_345
+  let x = { x / 65_536 } % 32_768
+  int.to_float(int.absolute_value(x)) /. 32_768.0
 }
 
 /// One-hot encode a label (hard labels, no smoothing)
@@ -375,15 +446,19 @@ fn one_hot(label: Int, classes: Int) -> Tensor {
 /// One-hot encode with label smoothing (reduces overconfidence)
 /// Formula: target = (1 - ε) * one_hot + ε / num_classes
 fn one_hot_smoothed(label: Int, classes: Int) -> Tensor {
-  let smooth_value = label_smoothing /. int.to_float(classes)  // ε/K
-  let confident_value = 1.0 -. label_smoothing +. smooth_value  // (1-ε) + ε/K
+  let smooth_value = label_smoothing /. int.to_float(classes)
+  // ε/K
+  let confident_value = 1.0 -. label_smoothing +. smooth_value
+  // (1-ε) + ε/K
 
   let data =
     list.range(0, classes - 1)
     |> list.map(fn(i) {
       case i == label {
-        True -> confident_value   // ~0.91 for correct class
-        False -> smooth_value     // ~0.01 for other classes
+        True -> confident_value
+        // ~0.91 for correct class
+        False -> smooth_value
+        // ~0.01 for other classes
       }
     })
   Tensor(data: data, shape: [classes])
@@ -418,126 +493,99 @@ fn digit_0_pattern() -> List(Float) {
 /// 8x8 pattern for digit 1
 fn digit_1_pattern() -> List(Float) {
   [
-    0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.5, 1.0, 0.5, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0,
+    0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.5, 1.0, 0.5, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0,
+    1.0, 1.0, 0.5, 0.0,
   ]
 }
 
 /// 8x8 pattern for digit 2
 fn digit_2_pattern() -> List(Float) {
   [
-    0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 0.5,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5,
-    0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 0.5, 0.0,
-    0.0, 0.5, 1.0, 1.0, 0.5, 0.0, 0.0, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.5, 1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
-    0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5,
+    0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0,
+    0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0,
+    0.5, 0.0, 0.0, 0.5, 1.0, 1.0, 0.5, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 0.5,
   ]
 }
 
 /// 8x8 pattern for digit 3
 fn digit_3_pattern() -> List(Float) {
   [
-    0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 0.5,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5,
-    0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 0.5, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5,
-    0.5, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 0.5,
-    0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0,
+    0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0,
+    0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 1.0, 1.0,
+    0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.5, 1.0, 0.5, 0.5, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 1.0,
+    1.0, 1.0, 0.5, 0.0,
   ]
 }
 
 /// 8x8 pattern for digit 4
 fn digit_4_pattern() -> List(Float) {
   [
-    0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0,
-    0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0, 0.5, 1.0, 0.5, 0.0,
-    0.0, 0.5, 1.0, 0.5, 0.0, 1.0, 0.5, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.0, 1.0, 0.5, 0.0,
-    0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.5, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.5, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 0.5,
+    0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 1.0,
+    0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 1.0, 0.5, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.5, 0.0,
   ]
 }
 
 /// 8x8 pattern for digit 5
 fn digit_5_pattern() -> List(Float) {
   [
-    0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5,
-    0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.5, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.5, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0,
-    0.0, 0.5, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0,
+    0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.5,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 1.0,
+    1.0, 0.5, 0.0, 0.0,
   ]
 }
 
 /// 8x8 pattern for digit 6
 fn digit_6_pattern() -> List(Float) {
   [
-    0.0, 0.0, 0.5, 1.0, 1.0, 0.5, 0.0, 0.0,
-    0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.5, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0,
-    0.5, 1.0, 0.0, 0.0, 0.0, 1.0, 0.5, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0,
-    0.0, 0.5, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0,
+    0.0, 0.0, 0.5, 1.0, 1.0, 0.5, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0,
+    0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.5,
+    0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0,
+    1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 1.0,
+    1.0, 0.5, 0.0, 0.0,
   ]
 }
 
 /// 8x8 pattern for digit 7
 fn digit_7_pattern() -> List(Float) {
   [
-    0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5,
-    0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 0.5,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.5, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0,
-    0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0, 0.0,
+    0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0,
+    0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0,
+    0.0, 0.0, 0.0, 0.0,
   ]
 }
 
 /// 8x8 pattern for digit 8
 fn digit_8_pattern() -> List(Float) {
   [
-    0.0, 0.5, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0,
-    0.0, 0.5, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0,
-    0.5, 1.0, 0.0, 0.0, 0.0, 1.0, 0.5, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0,
-    0.0, 0.5, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0,
+    0.0, 0.5, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5,
+    0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 0.5,
+    0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.0, 0.0, 0.0,
+    1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 1.0,
+    1.0, 0.5, 0.0, 0.0,
   ]
 }
 
 /// 8x8 pattern for digit 9
 fn digit_9_pattern() -> List(Float) {
   [
-    0.0, 0.5, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0,
-    0.5, 1.0, 0.0, 0.0, 0.0, 1.0, 0.5, 0.0,
-    0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0,
-    0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0,
-    0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0,
-    0.0, 0.5, 1.0, 1.0, 0.5, 0.0, 0.0, 0.0,
+    0.0, 0.5, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5,
+    0.0, 0.5, 1.0, 0.0, 0.0, 0.0, 1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0,
+    0.5, 0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5,
+    1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 0.5, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0,
+    0.5, 0.0, 0.0, 0.0,
   ]
 }
 
@@ -564,8 +612,8 @@ fn power_of_10(n: Int) -> Float {
     1 -> 10.0
     2 -> 100.0
     3 -> 1000.0
-    4 -> 10000.0
-    _ -> 10000.0
+    4 -> 10_000.0
+    _ -> 10_000.0
   }
 }
 

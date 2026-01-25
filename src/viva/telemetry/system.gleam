@@ -232,7 +232,8 @@ fn erlang_system_info_schedulers() -> Int
 fn os_cmd_raw(cmd: List(Int)) -> List(Int)
 
 fn os_cmd(cmd: String) -> String {
-  let charlist = string.to_utf_codepoints(cmd) |> list.map(string.utf_codepoint_to_int)
+  let charlist =
+    string.to_utf_codepoints(cmd) |> list.map(string.utf_codepoint_to_int)
   let result = os_cmd_raw(charlist)
   result
   |> list.filter_map(fn(c) {

@@ -44,21 +44,16 @@ pub type HRRError {
 /// Create random HRR vector (unit hypersphere)
 /// Each element drawn from N(0, 1/sqrt(dim)) for unit norm expectation
 pub fn random(dim: Int) -> HRR {
-  let data = list.range(1, dim)
+  let data =
+    list.range(1, dim)
     |> list.map(fn(_) { random_gaussian() /. float_sqrt(int_to_float(dim)) })
 
-  HRR(
-    vector: tensor.Tensor(data: data, shape: [dim]),
-    dim: dim,
-  )
+  HRR(vector: tensor.Tensor(data: data, shape: [dim]), dim: dim)
 }
 
 /// Create zero HRR vector
 pub fn zeros(dim: Int) -> HRR {
-  HRR(
-    vector: tensor.zeros([dim]),
-    dim: dim,
-  )
+  HRR(vector: tensor.zeros([dim]), dim: dim)
 }
 
 /// Create HRR from existing tensor
@@ -72,10 +67,7 @@ pub fn from_tensor(t: Tensor) -> Result(HRR, HRRError) {
 /// Create HRR from list of floats
 pub fn from_list(data: List(Float)) -> HRR {
   let dim = list.length(data)
-  HRR(
-    vector: tensor.Tensor(data: data, shape: [dim]),
-    dim: dim,
-  )
+  HRR(vector: tensor.Tensor(data: data, shape: [dim]), dim: dim)
 }
 
 // =============================================================================
@@ -90,10 +82,7 @@ pub fn bind(a: HRR, b: HRR) -> Result(HRR, HRRError) {
     False -> Error(DimensionMismatch(expected: a.dim, got: b.dim))
     True -> {
       let result = circular_convolution(a.vector.data, b.vector.data)
-      Ok(HRR(
-        vector: tensor.Tensor(data: result, shape: [a.dim]),
-        dim: a.dim,
-      ))
+      Ok(HRR(vector: tensor.Tensor(data: result, shape: [a.dim]), dim: a.dim))
     }
   }
 }
@@ -126,13 +115,11 @@ pub fn superpose(vectors: List(HRR)) -> Result(HRR, HRRError) {
       case valid {
         False -> Error(DimensionMismatch(expected: dim, got: 0))
         True -> {
-          let sum_data = list.fold(rest, first.vector.data, fn(acc, h) {
-            list.map2(acc, h.vector.data, fn(a, b) { a +. b })
-          })
-          Ok(HRR(
-            vector: tensor.Tensor(data: sum_data, shape: [dim]),
-            dim: dim,
-          ))
+          let sum_data =
+            list.fold(rest, first.vector.data, fn(acc, h) {
+              list.map2(acc, h.vector.data, fn(a, b) { a +. b })
+            })
+          Ok(HRR(vector: tensor.Tensor(data: sum_data, shape: [dim]), dim: dim))
         }
       }
     }
@@ -145,10 +132,7 @@ pub fn normalize(h: HRR) -> HRR {
   case norm >. 0.0001 {
     True -> {
       let normalized = list.map(h.vector.data, fn(x) { x /. norm })
-      HRR(
-        vector: tensor.Tensor(data: normalized, shape: [h.dim]),
-        dim: h.dim,
-      )
+      HRR(vector: tensor.Tensor(data: normalized, shape: [h.dim]), dim: h.dim)
     }
     False -> h
   }
@@ -164,7 +148,8 @@ pub fn similarity(a: HRR, b: HRR) -> Float {
   case a.dim == b.dim {
     False -> 0.0
     True -> {
-      let dot_product = list.map2(a.vector.data, b.vector.data, fn(x, y) { x *. y })
+      let dot_product =
+        list.map2(a.vector.data, b.vector.data, fn(x, y) { x *. y })
         |> list.fold(0.0, fn(acc, x) { acc +. x })
       let norm_a = vector_norm(a.vector.data)
       let norm_b = vector_norm(b.vector.data)
@@ -199,24 +184,28 @@ pub fn bind_role_filler(role: HRR, filler: HRR) -> Result(HRR, HRRError) {
 
 /// Create a sequence memory (ordered items)
 /// Uses positional encoding via repeated binding
-pub fn encode_sequence(items: List(HRR), position_base: HRR) -> Result(HRR, HRRError) {
+pub fn encode_sequence(
+  items: List(HRR),
+  position_base: HRR,
+) -> Result(HRR, HRRError) {
   case items {
     [] -> Error(InvalidDimension("Cannot encode empty sequence"))
     [first, ..rest] -> {
       let initial = #(first, position_base, [first])
 
-      let #(_, _, encoded) = list.fold(rest, initial, fn(state, item) {
-        let #(_, current_pos, acc) = state
-        case bind(item, current_pos) {
-          Ok(positioned_item) -> {
-            case bind(current_pos, position_base) {
-              Ok(next_pos) -> #(item, next_pos, [positioned_item, ..acc])
-              Error(_) -> state
+      let #(_, _, encoded) =
+        list.fold(rest, initial, fn(state, item) {
+          let #(_, current_pos, acc) = state
+          case bind(item, current_pos) {
+            Ok(positioned_item) -> {
+              case bind(current_pos, position_base) {
+                Ok(next_pos) -> #(item, next_pos, [positioned_item, ..acc])
+                Error(_) -> state
+              }
             }
+            Error(_) -> state
           }
-          Error(_) -> state
-        }
-      })
+        })
 
       superpose(list.reverse(encoded))
     }
@@ -225,7 +214,11 @@ pub fn encode_sequence(items: List(HRR), position_base: HRR) -> Result(HRR, HRRE
 
 /// Query a composite memory with a cue
 /// Returns similarity scores for potential matches (sorted descending)
-pub fn query(memory: HRR, cue: HRR, candidates: List(HRR)) -> List(#(Int, Float)) {
+pub fn query(
+  memory: HRR,
+  cue: HRR,
+  candidates: List(HRR),
+) -> List(#(Int, Float)) {
   case unbind(memory, cue) {
     Ok(retrieved) -> {
       list.index_map(candidates, fn(candidate, idx) {
@@ -278,10 +271,7 @@ pub fn bind_fft(a: HRR, b: HRR) -> Result(HRR, HRRError) {
     False -> Error(DimensionMismatch(expected: a.dim, got: b.dim))
     True -> {
       let result = nx_circular_conv(a.vector.data, b.vector.data)
-      Ok(HRR(
-        vector: tensor.Tensor(data: result, shape: [a.dim]),
-        dim: a.dim,
-      ))
+      Ok(HRR(vector: tensor.Tensor(data: result, shape: [a.dim]), dim: a.dim))
     }
   }
 }

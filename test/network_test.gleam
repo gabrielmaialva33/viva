@@ -108,7 +108,8 @@ pub fn network_viva_brain_test() {
 // =============================================================================
 
 pub fn network_forward_simple_test() {
-  let assert Ok(net) = network.new([2, 3, 1], activation.Linear, activation.Linear)
+  let assert Ok(net) =
+    network.new([2, 3, 1], activation.Linear, activation.Linear)
   let input = tensor.from_list([1.0, 2.0])
 
   let result = network.forward(net, input)
@@ -122,7 +123,8 @@ pub fn network_forward_simple_test() {
 }
 
 pub fn network_forward_multi_layer_test() {
-  let assert Ok(net) = network.new([4, 8, 4, 2], activation.ReLU, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([4, 8, 4, 2], activation.ReLU, activation.Sigmoid)
   let input = tensor.from_list([0.1, 0.2, 0.3, 0.4])
 
   let result = network.forward(net, input)
@@ -134,7 +136,8 @@ pub fn network_forward_multi_layer_test() {
 }
 
 pub fn network_predict_test() {
-  let assert Ok(net) = network.new([3, 5, 2], activation.Tanh, activation.Softmax)
+  let assert Ok(net) =
+    network.new([3, 5, 2], activation.Tanh, activation.Softmax)
   let input = tensor.from_list([0.5, -0.5, 0.0])
 
   let result = network.predict(net, input)
@@ -149,7 +152,8 @@ pub fn network_predict_test() {
 }
 
 pub fn network_predict_batch_test() {
-  let assert Ok(net) = network.new([2, 4, 2], activation.ReLU, activation.Softmax)
+  let assert Ok(net) =
+    network.new([2, 4, 2], activation.ReLU, activation.Softmax)
 
   let inputs = [
     tensor.from_list([1.0, 0.0]),
@@ -169,7 +173,8 @@ pub fn network_predict_batch_test() {
 // =============================================================================
 
 pub fn network_backward_shapes_test() {
-  let assert Ok(net) = network.new([3, 4, 2], activation.ReLU, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([3, 4, 2], activation.ReLU, activation.Sigmoid)
   let input = tensor.from_list([0.1, 0.2, 0.3])
 
   let assert Ok(#(_output, cache)) = network.forward(net, input)
@@ -185,7 +190,8 @@ pub fn network_backward_shapes_test() {
 }
 
 pub fn network_backward_gradients_nonzero_test() {
-  let assert Ok(net) = network.new([2, 3, 1], activation.Linear, activation.Linear)
+  let assert Ok(net) =
+    network.new([2, 3, 1], activation.Linear, activation.Linear)
   let input = tensor.from_list([1.0, 2.0])
 
   let assert Ok(#(_output, cache)) = network.forward(net, input)
@@ -210,7 +216,8 @@ pub fn network_backward_gradients_nonzero_test() {
 // =============================================================================
 
 pub fn network_update_sgd_test() {
-  let assert Ok(net) = network.new([2, 3, 1], activation.Linear, activation.Linear)
+  let assert Ok(net) =
+    network.new([2, 3, 1], activation.Linear, activation.Linear)
   let input = tensor.from_list([1.0, 2.0])
 
   let assert Ok(#(_output, cache)) = network.forward(net, input)
@@ -223,7 +230,8 @@ pub fn network_update_sgd_test() {
 }
 
 pub fn network_momentum_init_test() {
-  let assert Ok(net) = network.new([4, 8, 2], activation.ReLU, activation.Softmax)
+  let assert Ok(net) =
+    network.new([4, 8, 2], activation.ReLU, activation.Softmax)
   let momentum_state = network.init_momentum(net)
 
   should.equal(list.length(momentum_state.velocity_weights), 2)
@@ -231,7 +239,8 @@ pub fn network_momentum_init_test() {
 }
 
 pub fn network_update_momentum_test() {
-  let assert Ok(net) = network.new([2, 4, 2], activation.ReLU, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([2, 4, 2], activation.ReLU, activation.Sigmoid)
   let input = tensor.from_list([0.5, 0.5])
 
   let momentum_state = network.init_momentum(net)
@@ -240,7 +249,8 @@ pub fn network_update_momentum_test() {
   let loss_grad = tensor.from_list([0.1, -0.1])
 
   let assert Ok(gradients) = network.backward(net, cache, loss_grad)
-  let result = network.update_momentum(net, gradients, momentum_state, 0.01, 0.9)
+  let result =
+    network.update_momentum(net, gradients, momentum_state, 0.01, 0.9)
 
   should.be_ok(result)
 }
@@ -253,17 +263,20 @@ pub fn network_param_count_test() {
   // 2->3: weights=6, biases=3 = 9
   // 3->1: weights=3, biases=1 = 4
   // Total: 13
-  let assert Ok(net) = network.new([2, 3, 1], activation.Linear, activation.Linear)
+  let assert Ok(net) =
+    network.new([2, 3, 1], activation.Linear, activation.Linear)
   should.equal(network.param_count(net), 13)
 }
 
 pub fn network_depth_test() {
-  let assert Ok(net) = network.new([10, 20, 30, 40, 5], activation.ReLU, activation.Softmax)
+  let assert Ok(net) =
+    network.new([10, 20, 30, 40, 5], activation.ReLU, activation.Softmax)
   should.equal(network.depth(net), 4)
 }
 
 pub fn network_clone_test() {
-  let assert Ok(net) = network.new([2, 4, 2], activation.Tanh, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([2, 4, 2], activation.Tanh, activation.Sigmoid)
   let cloned = network.clone(net)
 
   should.equal(network.param_count(cloned), network.param_count(net))
@@ -271,7 +284,8 @@ pub fn network_clone_test() {
 }
 
 pub fn network_describe_test() {
-  let assert Ok(net) = network.new([4, 8, 2], activation.ReLU, activation.Softmax)
+  let assert Ok(net) =
+    network.new([4, 8, 2], activation.ReLU, activation.Softmax)
   let desc = network.describe(net)
 
   // Should contain layer info
@@ -279,7 +293,8 @@ pub fn network_describe_test() {
 }
 
 pub fn network_layer_sizes_test() {
-  let assert Ok(net) = network.new([4, 8, 4, 2], activation.ReLU, activation.Softmax)
+  let assert Ok(net) =
+    network.new([4, 8, 4, 2], activation.ReLU, activation.Softmax)
   let sizes = network.layer_sizes(net)
 
   should.equal(sizes, [4, 8, 4, 2])

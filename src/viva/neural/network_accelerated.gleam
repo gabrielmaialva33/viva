@@ -11,7 +11,9 @@ import gleam/list
 import gleam/result
 import viva/neural/activation
 import viva/neural/layer.{type DenseCache, type DenseGradients, type DenseLayer}
-import viva/neural/network.{type Network, type NetworkCache, type NetworkGradients}
+import viva/neural/network.{
+  type Network, type NetworkCache, type NetworkGradients,
+}
 import viva/neural/nx_backend.{type Backend, CUDA, Nx, Pure}
 import viva/neural/tensor.{type Tensor, type TensorError}
 
@@ -41,8 +43,10 @@ pub fn best_backend() -> Backend {
   case nx_available() {
     True ->
       case nx_backend.cuda_available() {
-        True -> Nx  // GPU available
-        False -> Nx  // CPU EXLA still faster than pure Gleam
+        True -> Nx
+        // GPU available
+        False -> Nx
+        // CPU EXLA still faster than pure Gleam
       }
     False -> Pure
   }
@@ -87,7 +91,10 @@ fn forward_layers_nx(
 ) -> Result(#(Tensor, NetworkCache), TensorError) {
   case layers {
     [] ->
-      Ok(#(current_input, network.NetworkCache(layer_caches: list.reverse(caches))))
+      Ok(#(
+        current_input,
+        network.NetworkCache(layer_caches: list.reverse(caches)),
+      ))
     [l, ..rest] -> {
       case forward_layer_nx(l, current_input) {
         Ok(#(output, cache)) ->
@@ -236,7 +243,8 @@ fn backward_layers_nx(
     [] -> Ok(network.NetworkGradients(layer_gradients: gradients))
     [#(l, cache), ..rest] -> {
       case backward_layer_nx(l, cache, upstream_grad) {
-        Ok(grads) -> backward_layers_nx(rest, grads.d_input, [grads, ..gradients])
+        Ok(grads) ->
+          backward_layers_nx(rest, grads.d_input, [grads, ..gradients])
         Error(e) -> Error(e)
       }
     }
@@ -334,11 +342,7 @@ fn update_sgd_nx(
 // =============================================================================
 
 /// Compare backends performance
-pub fn benchmark(
-  net: Network,
-  input: Tensor,
-  iterations: Int,
-) -> #(Int, Int) {
+pub fn benchmark(net: Network, input: Tensor, iterations: Int) -> #(Int, Int) {
   let pure_time = benchmark_backend(net, input, iterations, Pure)
   let nx_time = case nx_available() {
     True -> benchmark_backend(net, input, iterations, Nx)

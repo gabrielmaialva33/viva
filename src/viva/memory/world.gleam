@@ -38,11 +38,7 @@ pub type World {
 
 /// Island: group of connected, active memories
 pub type Island {
-  Island(
-    id: Int,
-    body_ids: List(Int),
-    sleeping: Bool,
-  )
+  Island(id: Int, body_ids: List(Int), sleeping: Bool)
 }
 
 /// World configuration
@@ -69,12 +65,7 @@ pub type WorldConfig {
 
 /// Query result
 pub type QueryResult {
-  QueryResult(
-    body: Body,
-    distance: Float,
-    similarity: Float,
-    score: Float,
-  )
+  QueryResult(body: Body, distance: Float, similarity: Float, score: Float)
 }
 
 // =============================================================================
@@ -115,11 +106,14 @@ pub fn default_config() -> WorldConfig {
 /// VIVA-optimized config (emotional space)
 pub fn viva_config() -> WorldConfig {
   WorldConfig(
-    spatial_dims: 4,        // Pleasure, Arousal, Dominance, Intensity
-    hrr_dims: 512,          // Rich semantic content
+    spatial_dims: 4,
+    // Pleasure, Arousal, Dominance, Intensity
+    hrr_dims: 512,
+    // Rich semantic content
     attraction_strength: 0.3,
     repulsion_strength: 0.05,
-    energy_decay: 0.99,     // Slower decay for longer retention
+    energy_decay: 0.99,
+    // Slower decay for longer retention
     island_threshold: 3.0,
     damping: 0.9,
     max_velocity: 5.0,
@@ -131,35 +125,51 @@ pub fn viva_config() -> WorldConfig {
 // =============================================================================
 
 /// Add a memory to the world
-pub fn add_memory(world: World, shape: HRR, position: Tensor, label: String) -> #(World, Int) {
+pub fn add_memory(
+  world: World,
+  shape: HRR,
+  position: Tensor,
+  label: String,
+) -> #(World, Int) {
   let id = world.next_id
   let new_body = body.dynamic(id, position, shape, label)
 
-  let new_world = World(
-    ..world,
-    bodies: dict.insert(world.bodies, id, new_body),
-    next_id: id + 1,
-  )
+  let new_world =
+    World(
+      ..world,
+      bodies: dict.insert(world.bodies, id, new_body),
+      next_id: id + 1,
+    )
 
   #(new_world, id)
 }
 
 /// Add memory at random position
-pub fn add_memory_random(world: World, shape: HRR, label: String) -> #(World, Int) {
+pub fn add_memory_random(
+  world: World,
+  shape: HRR,
+  label: String,
+) -> #(World, Int) {
   let position = random_position(world.config.spatial_dims)
   add_memory(world, shape, position, label)
 }
 
 /// Add a static archetype
-pub fn add_archetype(world: World, shape: HRR, position: Tensor, label: String) -> #(World, Int) {
+pub fn add_archetype(
+  world: World,
+  shape: HRR,
+  position: Tensor,
+  label: String,
+) -> #(World, Int) {
   let id = world.next_id
   let new_body = body.static_body(id, position, shape, label)
 
-  let new_world = World(
-    ..world,
-    bodies: dict.insert(world.bodies, id, new_body),
-    next_id: id + 1,
-  )
+  let new_world =
+    World(
+      ..world,
+      bodies: dict.insert(world.bodies, id, new_body),
+      next_id: id + 1,
+    )
 
   #(new_world, id)
 }
@@ -178,7 +188,8 @@ pub fn get_body(world: World, id: Int) -> Option(Body) {
 /// Touch a body (access it, boost energy)
 pub fn touch_body(world: World, id: Int) -> World {
   case dict.get(world.bodies, id) {
-    Ok(b) -> World(..world, bodies: dict.insert(world.bodies, id, body.touch(b)))
+    Ok(b) ->
+      World(..world, bodies: dict.insert(world.bodies, id, body.touch(b)))
     Error(_) -> world
   }
 }
@@ -211,7 +222,8 @@ pub fn set_context_hrr(world: World, context_hrr: HRR) -> World {
 
 /// Advance simulation by one tick
 pub fn step(world: World) -> World {
-  let dt = 0.016  // ~60fps timestep
+  let dt = 0.016
+  // ~60fps timestep
 
   world
   |> step_forces(dt)
@@ -234,68 +246,81 @@ pub fn step_dt(world: World, dt: Float) -> World {
 /// Apply forces to all dynamic bodies
 fn step_forces(world: World, dt: Float) -> World {
   let bodies_list = dict.to_list(world.bodies)
-  let active_bodies = list.filter(bodies_list, fn(pair) {
-    let #(_, b) = pair
-    body.is_dynamic(b) && !body.is_sleeping(b)
-  })
-
-  let updated_bodies = list.fold(active_bodies, world.bodies, fn(acc, pair) {
-    let #(id, b) = pair
-
-    // Attraction to context
-    let b_with_attraction = case world.attractor {
-      Some(attractor) -> {
-        let force = body.attraction_to(b, attractor, world.config.attraction_strength)
-        body.apply_force(b, force, dt)
-      }
-      None -> b
-    }
-
-    // Repulsion from other bodies
-    let b_with_repulsion = list.fold(active_bodies, b_with_attraction, fn(current, other_pair) {
-      let #(other_id, other) = other_pair
-      case id == other_id {
-        True -> current
-        False -> {
-          let force = body.repulsion_from(current, other, world.config.repulsion_strength)
-          body.apply_force(current, force, dt)
-        }
-      }
+  let active_bodies =
+    list.filter(bodies_list, fn(pair) {
+      let #(_, b) = pair
+      body.is_dynamic(b) && !body.is_sleeping(b)
     })
 
-    dict.insert(acc, id, b_with_repulsion)
-  })
+  let updated_bodies =
+    list.fold(active_bodies, world.bodies, fn(acc, pair) {
+      let #(id, b) = pair
+
+      // Attraction to context
+      let b_with_attraction = case world.attractor {
+        Some(attractor) -> {
+          let force =
+            body.attraction_to(b, attractor, world.config.attraction_strength)
+          body.apply_force(b, force, dt)
+        }
+        None -> b
+      }
+
+      // Repulsion from other bodies
+      let b_with_repulsion =
+        list.fold(active_bodies, b_with_attraction, fn(current, other_pair) {
+          let #(other_id, other) = other_pair
+          case id == other_id {
+            True -> current
+            False -> {
+              let force =
+                body.repulsion_from(
+                  current,
+                  other,
+                  world.config.repulsion_strength,
+                )
+              body.apply_force(current, force, dt)
+            }
+          }
+        })
+
+      dict.insert(acc, id, b_with_repulsion)
+    })
 
   World(..world, bodies: updated_bodies)
 }
 
 /// Integrate velocities and apply damping
 fn step_integration(world: World, dt: Float) -> World {
-  let updated = dict.map_values(world.bodies, fn(_, b) {
-    case body.is_dynamic(b) && !body.is_sleeping(b) {
-      True -> {
-        let integrated = body.integrate(b, dt)
-        // Apply damping
-        let damped_vel = tensor.scale(integrated.velocity, world.config.damping)
-        // Clamp velocity
-        let clamped_vel = clamp_velocity(damped_vel, world.config.max_velocity)
-        body.set_velocity(integrated, clamped_vel)
+  let updated =
+    dict.map_values(world.bodies, fn(_, b) {
+      case body.is_dynamic(b) && !body.is_sleeping(b) {
+        True -> {
+          let integrated = body.integrate(b, dt)
+          // Apply damping
+          let damped_vel =
+            tensor.scale(integrated.velocity, world.config.damping)
+          // Clamp velocity
+          let clamped_vel =
+            clamp_velocity(damped_vel, world.config.max_velocity)
+          body.set_velocity(integrated, clamped_vel)
+        }
+        False -> b
       }
-      False -> b
-    }
-  })
+    })
 
   World(..world, bodies: updated)
 }
 
 /// Decay energy for all bodies
 fn step_energy_decay(world: World) -> World {
-  let updated = dict.map_values(world.bodies, fn(_, b) {
-    case body.is_dynamic(b) {
-      True -> body.decay_energy(b, world.config.energy_decay)
-      False -> b
-    }
-  })
+  let updated =
+    dict.map_values(world.bodies, fn(_, b) {
+      case body.is_dynamic(b) {
+        True -> body.decay_energy(b, world.config.energy_decay)
+        False -> b
+      }
+    })
 
   World(..world, bodies: updated)
 }
@@ -303,7 +328,8 @@ fn step_energy_decay(world: World) -> World {
 /// Update islands based on proximity
 fn step_update_islands(world: World) -> World {
   // Simple island detection: group bodies within threshold distance
-  let active = dict.to_list(world.bodies)
+  let active =
+    dict.to_list(world.bodies)
     |> list.filter(fn(pair) {
       let #(_, b) = pair
       !body.is_sleeping(b)
@@ -312,14 +338,16 @@ fn step_update_islands(world: World) -> World {
   let islands = build_islands(active, world.config.island_threshold)
 
   // Assign island IDs to bodies
-  let updated_bodies = list.fold(islands, world.bodies, fn(acc, island) {
-    list.fold(island.body_ids, acc, fn(inner_acc, body_id) {
-      case dict.get(inner_acc, body_id) {
-        Ok(b) -> dict.insert(inner_acc, body_id, body.assign_island(b, island.id))
-        Error(_) -> inner_acc
-      }
+  let updated_bodies =
+    list.fold(islands, world.bodies, fn(acc, island) {
+      list.fold(island.body_ids, acc, fn(inner_acc, body_id) {
+        case dict.get(inner_acc, body_id) {
+          Ok(b) ->
+            dict.insert(inner_acc, body_id, body.assign_island(b, island.id))
+          Error(_) -> inner_acc
+        }
+      })
     })
-  })
 
   World(..world, bodies: updated_bodies, islands: islands)
 }
@@ -381,12 +409,13 @@ pub fn query_awake(world: World, cue: HRR, limit: Int) -> List(QueryResult) {
 
 /// Wake all memories similar to cue
 pub fn wake_similar(world: World, cue: HRR, threshold: Float) -> World {
-  let updated = dict.map_values(world.bodies, fn(_, b) {
-    case hrr.similarity(cue, b.shape) >. threshold {
-      True -> body.wake(b)
-      False -> b
-    }
-  })
+  let updated =
+    dict.map_values(world.bodies, fn(_, b) {
+      case hrr.similarity(cue, b.shape) >. threshold {
+        True -> body.wake(b)
+        False -> b
+      }
+    })
 
   World(..world, bodies: updated)
 }
@@ -430,7 +459,8 @@ pub fn current_tick(world: World) -> Int {
 // =============================================================================
 
 fn random_position(dims: Int) -> Tensor {
-  let data = list.range(1, dims)
+  let data =
+    list.range(1, dims)
     |> list.map(fn(_) { { random_float() -. 0.5 } *. 10.0 })
   tensor.Tensor(data: data, shape: [dims])
 }
@@ -468,38 +498,42 @@ fn build_islands(bodies: List(#(Int, Body)), threshold: Float) -> List(Island) {
   case bodies {
     [] -> []
     _ -> {
-      let #(islands, _) = list.fold(bodies, #([], 0), fn(state, pair) {
-        let #(islands, next_island_id) = state
-        let #(id, _b) = pair
+      let #(islands, _) =
+        list.fold(bodies, #([], 0), fn(state, pair) {
+          let #(islands, next_island_id) = state
+          let #(id, _b) = pair
 
-        // Check if already in an island
-        let already_assigned = list.any(islands, fn(island: Island) {
-          list.contains(island.body_ids, id)
-        })
-
-        case already_assigned {
-          True -> state
-          False -> {
-            // Find all bodies within threshold
-            let nearby_ids = list.filter_map(bodies, fn(other_pair) {
-              let #(other_id, other_body) = other_pair
-              let #(_, this_body) = pair
-              case body.distance(this_body, other_body) <. threshold {
-                True -> Ok(other_id)
-                False -> Error(Nil)
-              }
+          // Check if already in an island
+          let already_assigned =
+            list.any(islands, fn(island: Island) {
+              list.contains(island.body_ids, id)
             })
 
-            let new_island = Island(
-              id: next_island_id,
-              body_ids: nearby_ids,
-              sleeping: False,
-            )
+          case already_assigned {
+            True -> state
+            False -> {
+              // Find all bodies within threshold
+              let nearby_ids =
+                list.filter_map(bodies, fn(other_pair) {
+                  let #(other_id, other_body) = other_pair
+                  let #(_, this_body) = pair
+                  case body.distance(this_body, other_body) <. threshold {
+                    True -> Ok(other_id)
+                    False -> Error(Nil)
+                  }
+                })
 
-            #([new_island, ..islands], next_island_id + 1)
+              let new_island =
+                Island(
+                  id: next_island_id,
+                  body_ids: nearby_ids,
+                  sleeping: False,
+                )
+
+              #([new_island, ..islands], next_island_id + 1)
+            }
           }
-        }
-      })
+        })
 
       islands
     }

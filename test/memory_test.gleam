@@ -37,12 +37,9 @@ pub fn multiple_stores_accumulate_test() {
   let ctx = glyph.neutral()
 
   // Armazena 3 memórias
-  let bank =
-    memory.store(bank, glyph.new([100, 100, 100, 100]), ctx, None, 0.5)
-  let bank =
-    memory.store(bank, glyph.new([150, 150, 150, 150]), ctx, None, 0.7)
-  let bank =
-    memory.store(bank, glyph.new([200, 200, 200, 200]), ctx, None, 0.9)
+  let bank = memory.store(bank, glyph.new([100, 100, 100, 100]), ctx, None, 0.5)
+  let bank = memory.store(bank, glyph.new([150, 150, 150, 150]), ctx, None, 0.7)
+  let bank = memory.store(bank, glyph.new([200, 200, 200, 200]), ctx, None, 0.9)
 
   list.length(bank.memories) |> should.equal(3)
   { bank.total_karma >. 1.0 } |> should.be_true()

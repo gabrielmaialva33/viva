@@ -71,7 +71,12 @@ pub fn new_dynamic(
 }
 
 /// Create static body (archetype)
-pub fn new_static(id: Int, position: Vec4, glyph: Glyph, tick: Int) -> MemoryBody {
+pub fn new_static(
+  id: Int,
+  position: Vec4,
+  glyph: Glyph,
+  tick: Int,
+) -> MemoryBody {
   MemoryBody(
     id: id,
     position: position,
@@ -99,12 +104,7 @@ pub fn is_dynamic(body: MemoryBody) -> Bool {
 
 /// Wake up body
 pub fn wake_up(body: MemoryBody, tick: Int) -> MemoryBody {
-  MemoryBody(
-    ..body,
-    sleep_state: Awake,
-    inactive_ticks: 0,
-    last_accessed: tick,
-  )
+  MemoryBody(..body, sleep_state: Awake, inactive_ticks: 0, last_accessed: tick)
 }
 
 /// Put to sleep

@@ -21,7 +21,12 @@ import viva/neural/neat.{
 // =============================================================================
 
 /// Casos de teste XOR
-const xor_inputs: List(List(Float)) = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]]
+const xor_inputs: List(List(Float)) = [
+  [0.0, 0.0],
+  [0.0, 1.0],
+  [1.0, 0.0],
+  [1.0, 1.0],
+]
 
 const xor_outputs: List(Float) = [0.0, 1.0, 1.0, 0.0]
 
@@ -106,9 +111,7 @@ fn evolve_loop(
 
       // Verifica se resolveu
       let best_fitness =
-        list.fold(fitness_results, 0.0, fn(acc, r) {
-          float.max(acc, r.fitness)
-        })
+        list.fold(fitness_results, 0.0, fn(acc, r) { float.max(acc, r.fitness) })
 
       // Print progresso a cada 10 gerações
       case population.generation % 10 == 0 || best_fitness >=. target_fitness {
@@ -272,8 +275,8 @@ fn power_of_10(n: Int) -> Float {
     1 -> 10.0
     2 -> 100.0
     3 -> 1000.0
-    4 -> 10000.0
-    _ -> 10000.0
+    4 -> 10_000.0
+    _ -> 10_000.0
   }
 }
 

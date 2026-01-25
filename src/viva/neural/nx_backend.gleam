@@ -162,7 +162,11 @@ pub fn matmul_vec(
 }
 
 /// Element-wise addition
-pub fn add(a: Tensor, b: Tensor, backend: Backend) -> Result(Tensor, TensorError) {
+pub fn add(
+  a: Tensor,
+  b: Tensor,
+  backend: Backend,
+) -> Result(Tensor, TensorError) {
   case backend {
     Pure -> tensor.add(a, b)
     Nx | CUDA(_) -> {
@@ -173,7 +177,11 @@ pub fn add(a: Tensor, b: Tensor, backend: Backend) -> Result(Tensor, TensorError
 }
 
 /// Element-wise subtraction
-pub fn sub(a: Tensor, b: Tensor, backend: Backend) -> Result(Tensor, TensorError) {
+pub fn sub(
+  a: Tensor,
+  b: Tensor,
+  backend: Backend,
+) -> Result(Tensor, TensorError) {
   case backend {
     Pure -> tensor.sub(a, b)
     Nx | CUDA(_) -> {
@@ -184,7 +192,11 @@ pub fn sub(a: Tensor, b: Tensor, backend: Backend) -> Result(Tensor, TensorError
 }
 
 /// Element-wise multiplication
-pub fn mul(a: Tensor, b: Tensor, backend: Backend) -> Result(Tensor, TensorError) {
+pub fn mul(
+  a: Tensor,
+  b: Tensor,
+  backend: Backend,
+) -> Result(Tensor, TensorError) {
   case backend {
     Pure -> tensor.mul(a, b)
     Nx | CUDA(_) -> {
@@ -266,7 +278,8 @@ pub fn gelu(t: Tensor, backend: Backend) -> Tensor {
     Pure -> {
       // Approximation
       tensor.map(t, fn(x) {
-        let coeff = 0.7978845608  // sqrt(2/pi)
+        let coeff = 0.7978845608
+        // sqrt(2/pi)
         let inner = x +. 0.044715 *. x *. x *. x
         0.5 *. x *. { 1.0 +. float_tanh(coeff *. inner) }
       })
@@ -386,9 +399,12 @@ pub fn batch_forward(
       // Dynamic chunk size based on batch count (Qwen3-235B optimization)
       let count = list.length(inputs)
       let chunk_size = case count {
-        c if c < 500 -> 256    // 8 warps
-        c if c < 5000 -> 512   // 16 warps
-        _ -> 1024              // 32 warps (max efficiency)
+        c if c < 500 -> 256
+        // 8 warps
+        c if c < 5000 -> 512
+        // 16 warps
+        _ -> 1024
+        // 32 warps (max efficiency)
       }
 
       // Process in dynamic chunks with dirty schedulers + explicit transfer
@@ -503,10 +519,11 @@ pub fn hrr_similarity_batch(
       })
     }
     Nx | CUDA(_) -> {
-      let nx_pairs = list.map(pairs, fn(pair) {
-        let #(a, b) = pair
-        #(to_nx(a), to_nx(b))
-      })
+      let nx_pairs =
+        list.map(pairs, fn(pair) {
+          let #(a, b) = pair
+          #(to_nx(a), to_nx(b))
+        })
       nx_hrr_similarity_batch(nx_pairs)
     }
   }
@@ -527,7 +544,8 @@ pub fn conv2d(
   case backend {
     Pure -> Error(tensor.DimensionError("Conv2D requires Nx backend"))
     Nx | CUDA(_) -> {
-      let result = nx_conv2d(to_nx(input), to_nx(kernel), stride.0, stride.1, padding)
+      let result =
+        nx_conv2d(to_nx(input), to_nx(kernel), stride.0, stride.1, padding)
       Ok(from_nx(result))
     }
   }
@@ -547,10 +565,12 @@ pub fn attention(
   case backend {
     Pure -> {
       // Simplified pure implementation
-      let scores = case tensor.matmul(query, case tensor.transpose(key) {
-        Ok(t) -> t
-        Error(_) -> key
-      }) {
+      let scores = case
+        tensor.matmul(query, case tensor.transpose(key) {
+          Ok(t) -> t
+          Error(_) -> key
+        })
+      {
         Ok(s) -> s
         Error(_) -> tensor.zeros([0])
       }

@@ -87,32 +87,33 @@ pub fn new(id: Int, config: BodyConfig) -> Body {
 
 /// Create a dynamic body (default)
 pub fn dynamic(id: Int, position: Tensor, shape: HRR, label: String) -> Body {
-  new(id, BodyConfig(
-    position: position,
-    shape: shape,
-    motion_type: Dynamic,
-    label: label,
-  ))
+  new(
+    id,
+    BodyConfig(
+      position: position,
+      shape: shape,
+      motion_type: Dynamic,
+      label: label,
+    ),
+  )
 }
 
 /// Create a static body (archetype/landmark)
 pub fn static_body(id: Int, position: Tensor, shape: HRR, label: String) -> Body {
-  new(id, BodyConfig(
-    position: position,
-    shape: shape,
-    motion_type: Static,
-    label: label,
-  ))
+  new(
+    id,
+    BodyConfig(
+      position: position,
+      shape: shape,
+      motion_type: Static,
+      label: label,
+    ),
+  )
 }
 
 /// Create body at origin with random HRR
 pub fn at_origin(id: Int, dim: Int, hrr_dim: Int, label: String) -> Body {
-  dynamic(
-    id,
-    tensor.zeros([dim]),
-    hrr.random(hrr_dim),
-    label,
-  )
+  dynamic(id, tensor.zeros([dim]), hrr.random(hrr_dim), label)
 }
 
 // =============================================================================
@@ -204,7 +205,12 @@ pub fn sleep(body: Body) -> Body {
 
 /// Wake body up
 pub fn wake(body: Body) -> Body {
-  Body(..body, sleeping: False, energy: 1.0, last_accessed: erlang_system_time())
+  Body(
+    ..body,
+    sleeping: False,
+    energy: 1.0,
+    last_accessed: erlang_system_time(),
+  )
 }
 
 /// Decay energy over time
@@ -218,7 +224,8 @@ pub fn decay_energy(body: Body, decay_rate: Float) -> Body {
 
 /// Touch body (reset last_accessed, boost energy)
 pub fn touch(body: Body) -> Body {
-  Body(..body,
+  Body(
+    ..body,
     last_accessed: erlang_system_time(),
     energy: float_min(body.energy +. 0.5, 1.0),
     sleeping: False,

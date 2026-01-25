@@ -105,14 +105,18 @@ pub fn dropout_training_drops_test() {
   let assert Ok(#(output, _cache)) = result
   // Not all values should be the same (some dropped, some scaled)
   let unique_values =
-    list.unique(list.map(output.data, fn(x) {
-      float.round(x *. 100.0)  // Round to avoid float comparison issues
-    }))
+    list.unique(
+      list.map(output.data, fn(x) {
+        float.round(x *. 100.0)
+        // Round to avoid float comparison issues
+      }),
+    )
   should.be_true(list.length(unique_values) > 1)
 }
 
 pub fn dropout_zero_rate_passthrough_test() {
-  let layer = regularization.new(0.0)  // No dropout
+  let layer = regularization.new(0.0)
+  // No dropout
   let input = tensor.from_list([1.0, 2.0, 3.0])
   let result = regularization.forward(layer, input)
   should.be_ok(result)
@@ -148,10 +152,7 @@ pub fn batchnorm_new_test() {
 pub fn batchnorm_normalizes_test() {
   let layer = normalization.batch_norm_new(3)
   // Create input with known mean and variance
-  let assert Ok(input) = tensor.matrix(2, 3, [
-    1.0, 2.0, 3.0,
-    5.0, 6.0, 7.0,
-  ])
+  let assert Ok(input) = tensor.matrix(2, 3, [1.0, 2.0, 3.0, 5.0, 6.0, 7.0])
   let result = normalization.batch_norm_forward(layer, input)
   should.be_ok(result)
   let assert Ok(#(output, _cache, _new_layer)) = result
@@ -177,10 +178,8 @@ pub fn layernorm_new_test() {
 
 pub fn layernorm_forward_test() {
   let layer = normalization.layer_norm_new([4])
-  let assert Ok(input) = tensor.matrix(2, 4, [
-    1.0, 2.0, 3.0, 4.0,
-    5.0, 6.0, 7.0, 8.0,
-  ])
+  let assert Ok(input) =
+    tensor.matrix(2, 4, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
   let result = normalization.layer_norm_forward(layer, input)
   should.be_ok(result)
   let assert Ok(#(output, _cache)) = result
@@ -192,11 +191,10 @@ pub fn layernorm_forward_test() {
 // =============================================================================
 
 pub fn groupnorm_forward_test() {
-  let layer = normalization.group_norm_new(2, 4)  // 2 groups, 4 channels
-  let assert Ok(input) = tensor.matrix(2, 4, [
-    1.0, 2.0, 3.0, 4.0,
-    5.0, 6.0, 7.0, 8.0,
-  ])
+  let layer = normalization.group_norm_new(2, 4)
+  // 2 groups, 4 channels
+  let assert Ok(input) =
+    tensor.matrix(2, 4, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
   let result = normalization.group_norm_forward(layer, input)
   should.be_ok(result)
   let assert Ok(output) = result
@@ -243,9 +241,19 @@ pub fn conv2d_identity_kernel_test() {
   // A 1x1 convolution with identity-like weights
   let filters = tensor.Tensor(data: [1.0], shape: [1, 1, 1, 1])
   let biases = tensor.zeros([1])
-  let layer = conv.from_weights(
-    filters, biases, 1, 1, 1, 1, 1, 1, conv.Valid, activation.Linear
-  )
+  let layer =
+    conv.from_weights(
+      filters,
+      biases,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      conv.Valid,
+      activation.Linear,
+    )
   let input = tensor.Tensor(data: [1.0, 2.0, 3.0, 4.0], shape: [1, 1, 2, 2])
   let result = conv.forward(layer, input)
   should.be_ok(result)
@@ -262,7 +270,8 @@ pub fn lstm_new_test() {
   let cell = recurrent.lstm_new(10, 20)
   should.equal(cell.input_size, 10)
   should.equal(cell.hidden_size, 20)
-  should.equal(cell.w_input.shape, [80, 10])  // 4 * 20 = 80
+  should.equal(cell.w_input.shape, [80, 10])
+  // 4 * 20 = 80
   should.equal(cell.w_hidden.shape, [80, 20])
 }
 
@@ -348,21 +357,18 @@ pub fn gru_sequence_test() {
 
 pub fn attention_basic_test() {
   // Simple 3x4 attention: 3 queries, 3 keys, 4-dim values
-  let assert Ok(query) = tensor.matrix(3, 4, [
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 0.0,
-  ])
-  let assert Ok(key) = tensor.matrix(3, 4, [
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 0.0,
-  ])
-  let assert Ok(value) = tensor.matrix(3, 4, [
-    1.0, 2.0, 3.0, 4.0,
-    5.0, 6.0, 7.0, 8.0,
-    9.0, 10.0, 11.0, 12.0,
-  ])
+  let assert Ok(query) =
+    tensor.matrix(3, 4, [
+      1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+    ])
+  let assert Ok(key) =
+    tensor.matrix(3, 4, [
+      1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+    ])
+  let assert Ok(value) =
+    tensor.matrix(3, 4, [
+      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+    ])
 
   let result = attention.attention(query, key, value)
   should.be_ok(result)
@@ -371,22 +377,19 @@ pub fn attention_basic_test() {
 }
 
 pub fn attention_weights_sum_one_test() {
-  let assert Ok(query) = tensor.matrix(2, 4, [
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-  ])
-  let assert Ok(key) = tensor.matrix(3, 4, [
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 0.0,
-  ])
-  let assert Ok(value) = tensor.matrix(3, 4, [
-    1.0, 2.0, 3.0, 4.0,
-    5.0, 6.0, 7.0, 8.0,
-    9.0, 10.0, 11.0, 12.0,
-  ])
+  let assert Ok(query) =
+    tensor.matrix(2, 4, [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0])
+  let assert Ok(key) =
+    tensor.matrix(3, 4, [
+      1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+    ])
+  let assert Ok(value) =
+    tensor.matrix(3, 4, [
+      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+    ])
 
-  let result = attention.scaled_dot_product_attention(query, key, value, option.None)
+  let result =
+    attention.scaled_dot_product_attention(query, key, value, option.None)
   should.be_ok(result)
   let assert Ok(#(attn_result, _cache)) = result
 
@@ -402,23 +405,29 @@ pub fn causal_mask_test() {
   should.equal(mask.shape, [4, 4])
   // Upper triangle should be large negative (masked)
   // Lower triangle + diagonal should be 0 (not masked)
-  let assert Ok(val_01) = tensor.get2d(mask, 0, 1)  // Should be masked (large neg)
-  let assert Ok(val_00) = tensor.get2d(mask, 0, 0)  // Should be 0 (diagonal)
-  let assert Ok(val_10) = tensor.get2d(mask, 1, 0)  // Should be 0 (below diag)
+  let assert Ok(val_01) = tensor.get2d(mask, 0, 1)
+  // Should be masked (large neg)
+  let assert Ok(val_00) = tensor.get2d(mask, 0, 0)
+  // Should be 0 (diagonal)
+  let assert Ok(val_10) = tensor.get2d(mask, 1, 0)
+  // Should be 0 (below diag)
   should.be_true(val_01 <. -1000.0)
   should.be_true(float.loosely_equals(val_00, 0.0, 0.001))
   should.be_true(float.loosely_equals(val_10, 0.0, 0.001))
 }
 
 pub fn mha_new_test() {
-  let mha = attention.mha_new(64, 8)  // d_model=64, 8 heads
+  let mha = attention.mha_new(64, 8)
+  // d_model=64, 8 heads
   should.equal(mha.d_model, 64)
   should.equal(mha.num_heads, 8)
-  should.equal(mha.d_k, 8)  // 64 / 8
+  should.equal(mha.d_k, 8)
+  // 64 / 8
 }
 
 pub fn mha_forward_test() {
-  let mha = attention.mha_new(16, 4)  // d_model=16, 4 heads
+  let mha = attention.mha_new(16, 4)
+  // d_model=16, 4 heads
   let assert Ok(input) = tensor.matrix(5, 16, list.repeat(0.1, 5 * 16))
 
   let result = attention.mha_forward(mha, input, input, input, option.None)

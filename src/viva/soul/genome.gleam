@@ -147,11 +147,11 @@ fn calm_genome() -> Genome {
     ),
     chromosome_b: ChromosomeB(
       pleasure_inertia: 0.85,
-      arousal_inertia: 0.90,
-      dominance_inertia: 0.80,
+      arousal_inertia: 0.9,
+      dominance_inertia: 0.8,
       state_inertia: [
         #("Calm/Happy", 0.95),
-        #("Excited/Happy", 0.80),
+        #("Excited/Happy", 0.8),
       ],
     ),
     modulators: ModulatorGenes(
@@ -170,7 +170,8 @@ fn neurotic_genome() -> Genome {
   Genome(
     chromosome_a: ChromosomeA(
       primary_attractor: PadVector(-0.6, 0.8, -0.7),
-      secondary_attractors: [],  // No escape routes
+      secondary_attractors: [],
+      // No escape routes
       pleasure_allele: Recessive,
       arousal_allele: Dominant,
       dominance_allele: Recessive,
@@ -180,18 +181,23 @@ fn neurotic_genome() -> Genome {
       arousal_inertia: 0.95,
       dominance_inertia: 0.88,
       state_inertia: [
-        #("Stressed", 0.99),  // Almost impossible to leave
+        #("Stressed", 0.99),
+        // Almost impossible to leave
       ],
     ),
     modulators: ModulatorGenes(
-      crisis_sensitivity: 0.95,  // Hypersensitive
+      crisis_sensitivity: 0.95,
+      // Hypersensitive
       social_contagion: 0.7,
-      recovery_gene: 0.05,  // Almost no recovery
-      rupture_threshold: 0.4,  // Low threshold
+      recovery_gene: 0.05,
+      // Almost no recovery
+      rupture_threshold: 0.4,
+      // Low threshold
     ),
     epigenetics: EpigeneticState(
       methylation: 0.3,
-      trauma_methylation: 0.5,  // Born with some trauma
+      trauma_methylation: 0.5,
+      // Born with some trauma
       healing_factor: 0.1,
       methylation_history: [],
     ),
@@ -205,26 +211,31 @@ fn optimist_genome() -> Genome {
     chromosome_a: ChromosomeA(
       primary_attractor: PadVector(0.8, 0.5, 0.6),
       secondary_attractors: [
-        #(PadVector(0.95, 0.9, 0.8), 0.3),  // Easy to reach excited
+        #(PadVector(0.95, 0.9, 0.8), 0.3),
+        // Easy to reach excited
       ],
       pleasure_allele: Dominant,
       arousal_allele: Dominant,
       dominance_allele: Dominant,
     ),
     chromosome_b: ChromosomeB(
-      pleasure_inertia: 0.4,  // Flexible in pleasure
+      pleasure_inertia: 0.4,
+      // Flexible in pleasure
       arousal_inertia: 0.5,
       dominance_inertia: 0.5,
       state_inertia: [
-        #("Excited/Happy", 0.70),
+        #("Excited/Happy", 0.7),
         #("Calm/Happy", 0.65),
       ],
     ),
     modulators: ModulatorGenes(
-      crisis_sensitivity: 0.05,  // Nearly immune!
+      crisis_sensitivity: 0.05,
+      // Nearly immune!
       social_contagion: 0.6,
-      recovery_gene: 0.85,  // Fast recovery
-      rupture_threshold: 0.95,  // Very hard to break
+      recovery_gene: 0.85,
+      // Fast recovery
+      rupture_threshold: 0.95,
+      // Very hard to break
     ),
     epigenetics: new_epigenetics(),
   )
@@ -246,13 +257,16 @@ fn energetic_genome() -> Genome {
     ),
     chromosome_b: ChromosomeB(
       pleasure_inertia: 0.3,
-      arousal_inertia: 0.25,  // Very low - changes fast
+      arousal_inertia: 0.25,
+      // Very low - changes fast
       dominance_inertia: 0.35,
-      state_inertia: [],  // No state-specific inertia
+      state_inertia: [],
+      // No state-specific inertia
     ),
     modulators: ModulatorGenes(
       crisis_sensitivity: 0.7,
-      social_contagion: 0.8,  // Highly influenced by others
+      social_contagion: 0.8,
+      // Highly influenced by others
       recovery_gene: 0.7,
       rupture_threshold: 0.6,
     ),
@@ -336,10 +350,11 @@ pub fn get_effective_attractor(
   let primary = genome.chromosome_a.primary_attractor
 
   // Check if any secondary attractor should be activated
-  let activated = list.filter(genome.chromosome_a.secondary_attractors, fn(pair) {
-    let #(_attractor, threshold) = pair
-    event_intensity >. threshold
-  })
+  let activated =
+    list.filter(genome.chromosome_a.secondary_attractors, fn(pair) {
+      let #(_attractor, threshold) = pair
+      event_intensity >. threshold
+    })
 
   case activated {
     [] -> primary
@@ -347,9 +362,18 @@ pub fn get_effective_attractor(
       // Blend primary with activated secondary
       let blend = event_intensity
       PadVector(
-        pleasure: primary.pleasure *. { 1.0 -. blend } +. attractor.pleasure *. blend,
-        arousal: primary.arousal *. { 1.0 -. blend } +. attractor.arousal *. blend,
-        dominance: primary.dominance *. { 1.0 -. blend } +. attractor.dominance *. blend,
+        pleasure: primary.pleasure
+          *. { 1.0 -. blend }
+          +. attractor.pleasure
+          *. blend,
+        arousal: primary.arousal
+          *. { 1.0 -. blend }
+          +. attractor.arousal
+          *. blend,
+        dominance: primary.dominance
+          *. { 1.0 -. blend }
+          +. attractor.dominance
+          *. blend,
       )
     }
   }
@@ -365,10 +389,12 @@ pub fn get_effective_inertia(
   let base_d = genome.chromosome_b.dominance_inertia
 
   // Check for state-specific inertia modifier
-  let modifier = case list.find(genome.chromosome_b.state_inertia, fn(pair) {
-    let #(state, _) = pair
-    state == current_quadrant
-  }) {
+  let modifier = case
+    list.find(genome.chromosome_b.state_inertia, fn(pair) {
+      let #(state, _) = pair
+      state == current_quadrant
+    })
+  {
     Ok(#(_, mod)) -> mod
     Error(_) -> 1.0
   }
@@ -398,27 +424,33 @@ pub fn compute_emotional_delta(
   let attractor = get_effective_attractor(genome, current, event_intensity)
 
   // Get effective inertia for current state
-  let #(inertia_p, inertia_a, inertia_d) = get_effective_inertia(genome, current_quadrant)
+  let #(inertia_p, inertia_a, inertia_d) =
+    get_effective_inertia(genome, current_quadrant)
 
   // Express crisis_sensitivity with epigenetics
-  let effective_sensitivity = express_gene(
-    genome.modulators.crisis_sensitivity,
-    Epigenetic(genome.epigenetics.trauma_methylation),
-    genome.epigenetics,
-    event_intensity,
-  )
+  let effective_sensitivity =
+    express_gene(
+      genome.modulators.crisis_sensitivity,
+      Epigenetic(genome.epigenetics.trauma_methylation),
+      genome.epigenetics,
+      event_intensity,
+    )
 
   // Time decay factor (normalized tick)
   let t = int.to_float(tick) /. 1000.0
 
   // Attractor force (exponential decay based on inertia)
-  let attractor_force_p = { attractor.pleasure -. current.pleasure } *. exp(0.0 -. inertia_p *. t)
-  let attractor_force_a = { attractor.arousal -. current.arousal } *. exp(0.0 -. inertia_a *. t)
-  let attractor_force_d = { attractor.dominance -. current.dominance } *. exp(0.0 -. inertia_d *. t)
+  let attractor_force_p =
+    { attractor.pleasure -. current.pleasure } *. exp(0.0 -. inertia_p *. t)
+  let attractor_force_a =
+    { attractor.arousal -. current.arousal } *. exp(0.0 -. inertia_a *. t)
+  let attractor_force_d =
+    { attractor.dominance -. current.dominance } *. exp(0.0 -. inertia_d *. t)
 
   // Event response (sigmoid for non-linearity)
   let threshold = genome.modulators.rupture_threshold
-  let sigmoid_factor = sigmoid(effective_sensitivity *. { event_intensity -. threshold })
+  let sigmoid_factor =
+    sigmoid(effective_sensitivity *. { event_intensity -. threshold })
 
   let event_force_p = event_delta.pleasure *. sigmoid_factor
   let event_force_a = event_delta.arousal *. sigmoid_factor
@@ -443,7 +475,8 @@ pub fn apply_crisis_methylation(
   crisis_intensity: Float,
   tick: Int,
 ) -> Genome {
-  let new_trauma = genome.epigenetics.trauma_methylation +. { crisis_intensity *. 0.2 }
+  let new_trauma =
+    genome.epigenetics.trauma_methylation +. { crisis_intensity *. 0.2 }
   let new_methyl = genome.epigenetics.methylation +. { crisis_intensity *. 0.1 }
 
   let new_history = [
@@ -484,19 +517,22 @@ pub fn apply_celebration_healing(
       ..genome.epigenetics,
       trauma_methylation: clamp(new_trauma, 0.0, 1.0),
       methylation: clamp(new_methyl, 0.0, 1.0),
-      healing_factor: clamp(genome.epigenetics.healing_factor +. { celebration_intensity *. 0.1 }, 0.0, 1.0),
+      healing_factor: clamp(
+        genome.epigenetics.healing_factor +. { celebration_intensity *. 0.1 },
+        0.0,
+        1.0,
+      ),
       methylation_history: list.take(new_history, 100),
     ),
   )
 }
 
 /// Neurotic therapy protocol - reset methylation
-pub fn reset_methylation(
-  genome: Genome,
-  therapy_intensity: Float,
-) -> Genome {
-  let new_methyl = genome.epigenetics.methylation *. { 1.0 -. therapy_intensity *. 0.4 }
-  let new_trauma = genome.epigenetics.trauma_methylation *. { 1.0 -. therapy_intensity *. 0.5 }
+pub fn reset_methylation(genome: Genome, therapy_intensity: Float) -> Genome {
+  let new_methyl =
+    genome.epigenetics.methylation *. { 1.0 -. therapy_intensity *. 0.4 }
+  let new_trauma =
+    genome.epigenetics.trauma_methylation *. { 1.0 -. therapy_intensity *. 0.5 }
 
   Genome(
     ..genome,
@@ -515,34 +551,70 @@ pub fn reset_methylation(
 /// Crossover two genomes to create offspring
 pub fn crossover(parent_a: Genome, parent_b: Genome) -> Genome {
   // Chromosome A: blend attractors
-  let offspring_attractor = PadVector(
-    pleasure: { parent_a.chromosome_a.primary_attractor.pleasure +.
-                parent_b.chromosome_a.primary_attractor.pleasure } /. 2.0,
-    arousal: { parent_a.chromosome_a.primary_attractor.arousal +.
-               parent_b.chromosome_a.primary_attractor.arousal } /. 2.0,
-    dominance: { parent_a.chromosome_a.primary_attractor.dominance +.
-                 parent_b.chromosome_a.primary_attractor.dominance } /. 2.0,
-  )
+  let offspring_attractor =
+    PadVector(
+      pleasure: {
+        parent_a.chromosome_a.primary_attractor.pleasure
+        +. parent_b.chromosome_a.primary_attractor.pleasure
+      }
+        /. 2.0,
+      arousal: {
+        parent_a.chromosome_a.primary_attractor.arousal
+        +. parent_b.chromosome_a.primary_attractor.arousal
+      }
+        /. 2.0,
+      dominance: {
+        parent_a.chromosome_a.primary_attractor.dominance
+        +. parent_b.chromosome_a.primary_attractor.dominance
+      }
+        /. 2.0,
+    )
 
   // Chromosome B: average inertias
-  let offspring_inertia_p = { parent_a.chromosome_b.pleasure_inertia +.
-                              parent_b.chromosome_b.pleasure_inertia } /. 2.0
-  let offspring_inertia_a = { parent_a.chromosome_b.arousal_inertia +.
-                              parent_b.chromosome_b.arousal_inertia } /. 2.0
-  let offspring_inertia_d = { parent_a.chromosome_b.dominance_inertia +.
-                              parent_b.chromosome_b.dominance_inertia } /. 2.0
+  let offspring_inertia_p =
+    {
+      parent_a.chromosome_b.pleasure_inertia
+      +. parent_b.chromosome_b.pleasure_inertia
+    }
+    /. 2.0
+  let offspring_inertia_a =
+    {
+      parent_a.chromosome_b.arousal_inertia
+      +. parent_b.chromosome_b.arousal_inertia
+    }
+    /. 2.0
+  let offspring_inertia_d =
+    {
+      parent_a.chromosome_b.dominance_inertia
+      +. parent_b.chromosome_b.dominance_inertia
+    }
+    /. 2.0
 
   // Modulators: average with slight variation
-  let offspring_sensitivity = { parent_a.modulators.crisis_sensitivity +.
-                                parent_b.modulators.crisis_sensitivity } /. 2.0
-  let offspring_contagion = { parent_a.modulators.social_contagion +.
-                              parent_b.modulators.social_contagion } /. 2.0
-  let offspring_recovery = { parent_a.modulators.recovery_gene +.
-                             parent_b.modulators.recovery_gene } /. 2.0
+  let offspring_sensitivity =
+    {
+      parent_a.modulators.crisis_sensitivity
+      +. parent_b.modulators.crisis_sensitivity
+    }
+    /. 2.0
+  let offspring_contagion =
+    {
+      parent_a.modulators.social_contagion
+      +. parent_b.modulators.social_contagion
+    }
+    /. 2.0
+  let offspring_recovery =
+    { parent_a.modulators.recovery_gene +. parent_b.modulators.recovery_gene }
+    /. 2.0
 
   // Epigenetics: inherit some trauma (70% from parents + 30% random)
-  let inherited_trauma = { parent_a.epigenetics.trauma_methylation +.
-                           parent_b.epigenetics.trauma_methylation } /. 2.0 *. 0.7
+  let inherited_trauma =
+    {
+      parent_a.epigenetics.trauma_methylation
+      +. parent_b.epigenetics.trauma_methylation
+    }
+    /. 2.0
+    *. 0.7
 
   Genome(
     chromosome_a: ChromosomeA(
@@ -565,8 +637,11 @@ pub fn crossover(parent_a: Genome, parent_b: Genome) -> Genome {
       crisis_sensitivity: offspring_sensitivity,
       social_contagion: offspring_contagion,
       recovery_gene: offspring_recovery,
-      rupture_threshold: { parent_a.modulators.rupture_threshold +.
-                           parent_b.modulators.rupture_threshold } /. 2.0,
+      rupture_threshold: {
+        parent_a.modulators.rupture_threshold
+        +. parent_b.modulators.rupture_threshold
+      }
+        /. 2.0,
     ),
     epigenetics: EpigeneticState(
       methylation: 0.0,
@@ -594,11 +669,17 @@ pub type MutationType {
 /// Detect if genome has mutated from baseline
 pub fn detect_mutation(genome: Genome, baseline: Genome) -> MutationType {
   // Trauma mutation: crisis_sensitivity increased by 50%+
-  case genome.modulators.crisis_sensitivity >. baseline.modulators.crisis_sensitivity *. 1.5 {
+  case
+    genome.modulators.crisis_sensitivity
+    >. baseline.modulators.crisis_sensitivity *. 1.5
+  {
     True -> TraumaMutation
     False -> {
       // Resilience mutation: recovery_gene doubled
-      case genome.modulators.recovery_gene >. baseline.modulators.recovery_gene *. 2.0 {
+      case
+        genome.modulators.recovery_gene
+        >. baseline.modulators.recovery_gene *. 2.0
+      {
         True -> ResilienceMutation
         False -> NoMutation
       }
@@ -613,9 +694,13 @@ pub fn detect_mutation(genome: Genome, baseline: Genome) -> MutationType {
 /// Calculate emotional fluency from genome
 /// Fluency = (1 - avg_inertia) * recovery_gene * (1 - trauma_methylation)
 pub fn emotional_fluency(genome: Genome) -> Float {
-  let avg_inertia = { genome.chromosome_b.pleasure_inertia +.
-                      genome.chromosome_b.arousal_inertia +.
-                      genome.chromosome_b.dominance_inertia } /. 3.0
+  let avg_inertia =
+    {
+      genome.chromosome_b.pleasure_inertia
+      +. genome.chromosome_b.arousal_inertia
+      +. genome.chromosome_b.dominance_inertia
+    }
+    /. 3.0
 
   let base_fluency = { 1.0 -. avg_inertia } *. genome.modulators.recovery_gene
 
@@ -713,16 +798,21 @@ pub fn detect_epigenetic_drift(
 
   // High trauma accumulation (avg significantly higher than baseline)
   case avg_methylation >. baseline_methyl +. 0.15 {
-    True -> TraumaDrift  // Population accumulating trauma → collapse after ~7,500 ticks
+    True -> TraumaDrift
+    // Population accumulating trauma → collapse after ~7,500 ticks
     False -> {
       // Toxic resilience (avg significantly lower than baseline, but only if baseline is high enough)
-      case baseline_methyl >. 0.2 && avg_methylation <. baseline_methyl -. 0.15 {
-        True -> ResilienceDrift  // "Toxic resilience" - can't process real crises
+      case
+        baseline_methyl >. 0.2 && avg_methylation <. baseline_methyl -. 0.15
+      {
+        True -> ResilienceDrift
+        // "Toxic resilience" - can't process real crises
         False -> {
           // Within normal range
           case deviation <. 0.1 {
             True -> NoDrift
-            False -> NoDrift  // Minor drift, still considered healthy
+            False -> NoDrift
+            // Minor drift, still considered healthy
           }
         }
       }
@@ -738,7 +828,10 @@ fn float_abs(x: Float) -> Float {
 }
 
 /// Calculate population statistics
-pub fn population_stats(genomes: List(Genome), baseline: Genome) -> PopulationStats {
+pub fn population_stats(
+  genomes: List(Genome),
+  baseline: Genome,
+) -> PopulationStats {
   let count = list.length(genomes) |> int.to_float
   let count_safe = case count <. 1.0 {
     True -> 1.0
@@ -749,13 +842,19 @@ pub fn population_stats(genomes: List(Genome), baseline: Genome) -> PopulationSt
   let avg_trauma = average_trauma(genomes)
   let avg_flu = average_fluency(genomes)
 
-  let trauma_mutations = list.filter(genomes, fn(g) {
-    detect_mutation(g, baseline) == TraumaMutation
-  }) |> list.length |> int.to_float
+  let trauma_mutations =
+    list.filter(genomes, fn(g) {
+      detect_mutation(g, baseline) == TraumaMutation
+    })
+    |> list.length
+    |> int.to_float
 
-  let resilience_mutations = list.filter(genomes, fn(g) {
-    detect_mutation(g, baseline) == ResilienceMutation
-  }) |> list.length |> int.to_float
+  let resilience_mutations =
+    list.filter(genomes, fn(g) {
+      detect_mutation(g, baseline) == ResilienceMutation
+    })
+    |> list.length
+    |> int.to_float
 
   PopulationStats(
     avg_methylation: avg_methyl,
@@ -769,17 +868,10 @@ pub fn population_stats(genomes: List(Genome), baseline: Genome) -> PopulationSt
 
 /// Boost recovery gene (adaptive mutation under extreme stress)
 pub fn boost_recovery(genome: Genome, amount: Float) -> Genome {
-  let new_recovery = clamp(
-    genome.modulators.recovery_gene +. amount,
-    0.0,
-    1.0,
-  )
+  let new_recovery = clamp(genome.modulators.recovery_gene +. amount, 0.0, 1.0)
   Genome(
     ..genome,
-    modulators: ModulatorGenes(
-      ..genome.modulators,
-      recovery_gene: new_recovery,
-    ),
+    modulators: ModulatorGenes(..genome.modulators, recovery_gene: new_recovery),
   )
 }
 
@@ -795,7 +887,8 @@ pub fn trigger_adaptive_mutation(
       // Activate "resilience mutation" as last resort
       genome
       |> boost_recovery(0.3)
-      |> apply_celebration_healing(0.5, 0)  // Partial trauma reset
+      |> apply_celebration_healing(0.5, 0)
+      // Partial trauma reset
     }
     False -> genome
   }
@@ -808,7 +901,8 @@ pub fn apply_social_contagion(
 ) -> Genome {
   let contagion_rate = genome.modulators.social_contagion
   let current_methyl = genome.epigenetics.methylation
-  let delta = { neighbor_avg_methylation -. current_methyl } *. contagion_rate *. 0.1
+  let delta =
+    { neighbor_avg_methylation -. current_methyl } *. contagion_rate *. 0.1
 
   Genome(
     ..genome,
@@ -843,7 +937,8 @@ pub fn tick_genome(
       // Slight healing
       apply_celebration_healing(genome, event_intensity *. 0.5, tick)
     }
-    _ -> genome  // No effect for other events
+    _ -> genome
+    // No effect for other events
   }
 }
 
@@ -879,9 +974,8 @@ pub fn generation_stats(
 // =============================================================================
 
 fn average_methylation(genomes: List(Genome)) -> Float {
-  let total = list.fold(genomes, 0.0, fn(acc, g) {
-    acc +. g.epigenetics.methylation
-  })
+  let total =
+    list.fold(genomes, 0.0, fn(acc, g) { acc +. g.epigenetics.methylation })
   let count = list.length(genomes) |> int.to_float
   case count <. 1.0 {
     True -> 0.0
@@ -890,9 +984,10 @@ fn average_methylation(genomes: List(Genome)) -> Float {
 }
 
 fn average_trauma(genomes: List(Genome)) -> Float {
-  let total = list.fold(genomes, 0.0, fn(acc, g) {
-    acc +. g.epigenetics.trauma_methylation
-  })
+  let total =
+    list.fold(genomes, 0.0, fn(acc, g) {
+      acc +. g.epigenetics.trauma_methylation
+    })
   let count = list.length(genomes) |> int.to_float
   case count <. 1.0 {
     True -> 0.0
@@ -901,9 +996,8 @@ fn average_trauma(genomes: List(Genome)) -> Float {
 }
 
 fn average_fluency(genomes: List(Genome)) -> Float {
-  let total = list.fold(genomes, 0.0, fn(acc, g) {
-    acc +. emotional_fluency(g)
-  })
+  let total =
+    list.fold(genomes, 0.0, fn(acc, g) { acc +. emotional_fluency(g) })
   let count = list.length(genomes) |> int.to_float
   case count <. 1.0 {
     True -> 0.0
@@ -949,12 +1043,15 @@ pub fn forced_adaptive_mutation(
     True -> {
       // Force recovery gene boost based on stagnation severity
       let severe_threshold = stagnation_threshold * 2
-      let moderate_threshold = { stagnation_threshold * 3 } / 2  // 1.5x
+      let moderate_threshold = { stagnation_threshold * 3 } / 2
+      // 1.5x
 
       let boost_amount = case ticks_without_improvement {
-        t if t >= severe_threshold -> 0.4  // Severe stagnation
+        t if t >= severe_threshold -> 0.4
+        // Severe stagnation
         t if t >= moderate_threshold -> 0.3
-        _ -> 0.2  // Mild stagnation
+        _ -> 0.2
+        // Mild stagnation
       }
 
       // Reduce trauma methylation proportionally
@@ -964,7 +1061,11 @@ pub fn forced_adaptive_mutation(
         ..genome,
         modulators: ModulatorGenes(
           ..genome.modulators,
-          recovery_gene: clamp(genome.modulators.recovery_gene +. boost_amount, 0.0, 1.0),
+          recovery_gene: clamp(
+            genome.modulators.recovery_gene +. boost_amount,
+            0.0,
+            1.0,
+          ),
           // Also reduce crisis sensitivity to prevent re-trauma
           crisis_sensitivity: clamp(
             genome.modulators.crisis_sensitivity -. boost_amount *. 0.3,
@@ -994,23 +1095,24 @@ pub fn forced_adaptive_mutation(
 /// Neurotic Emergency Protocol
 /// Intensive intervention for neurotics trapped in Stressed quadrant
 /// Combines isolation (reduced social contagion) + intensive therapy
-pub fn neurotic_emergency_protocol(
-  genome: Genome,
-  intensity: Float,
-) -> Genome {
+pub fn neurotic_emergency_protocol(genome: Genome, intensity: Float) -> Genome {
   // Only apply to neurotics (high sensitivity + low recovery)
-  let is_neurotic = genome.modulators.crisis_sensitivity >. 0.8
-                 && genome.modulators.recovery_gene <. 0.2
+  let is_neurotic =
+    genome.modulators.crisis_sensitivity >. 0.8
+    && genome.modulators.recovery_gene <. 0.2
 
   case is_neurotic {
     True -> {
       // Isolation: temporarily reduce social contagion to prevent trauma spread
-      let new_contagion = genome.modulators.social_contagion *. { 1.0 -. intensity *. 0.7 }
+      let new_contagion =
+        genome.modulators.social_contagion *. { 1.0 -. intensity *. 0.7 }
 
       // Intensive therapy: aggressive trauma reduction
       let therapy_factor = intensity *. 0.8
-      let new_trauma = genome.epigenetics.trauma_methylation *. { 1.0 -. therapy_factor }
-      let new_methyl = genome.epigenetics.methylation *. { 1.0 -. therapy_factor *. 0.6 }
+      let new_trauma =
+        genome.epigenetics.trauma_methylation *. { 1.0 -. therapy_factor }
+      let new_methyl =
+        genome.epigenetics.methylation *. { 1.0 -. therapy_factor *. 0.6 }
 
       // Boost recovery gene (learned resilience)
       let recovery_boost = intensity *. 0.25
@@ -1023,10 +1125,15 @@ pub fn neurotic_emergency_protocol(
         modulators: ModulatorGenes(
           ..genome.modulators,
           social_contagion: clamp(new_contagion, 0.1, 1.0),
-          recovery_gene: clamp(genome.modulators.recovery_gene +. recovery_boost, 0.0, 0.6),
+          recovery_gene: clamp(
+            genome.modulators.recovery_gene +. recovery_boost,
+            0.0,
+            0.6,
+          ),
           crisis_sensitivity: clamp(
             genome.modulators.crisis_sensitivity -. sensitivity_reduction,
-            0.3,  // Never fully desensitize
+            0.3,
+            // Never fully desensitize
             1.0,
           ),
         ),
@@ -1034,11 +1141,16 @@ pub fn neurotic_emergency_protocol(
           ..genome.epigenetics,
           trauma_methylation: clamp(new_trauma, 0.0, 1.0),
           methylation: clamp(new_methyl, 0.0, 1.0),
-          healing_factor: clamp(genome.epigenetics.healing_factor +. intensity *. 0.15, 0.0, 1.0),
+          healing_factor: clamp(
+            genome.epigenetics.healing_factor +. intensity *. 0.15,
+            0.0,
+            1.0,
+          ),
         ),
       )
     }
-    False -> genome  // Not neurotic, no intervention needed
+    False -> genome
+    // Not neurotic, no intervention needed
   }
 }
 
@@ -1062,8 +1174,10 @@ pub fn emotional_vaccination(
     False -> {
       // Check if it's time for next dose
       let ready_for_dose = case vaccination_state.vaccinated {
-        False -> True  // First dose
-        True -> current_tick - vaccination_state.vaccination_tick >= dose_interval
+        False -> True
+        // First dose
+        True ->
+          current_tick - vaccination_state.vaccination_tick >= dose_interval
       }
 
       case ready_for_dose {
@@ -1073,54 +1187,67 @@ pub fn emotional_vaccination(
 
           // Micro-trauma: controlled small crisis (decreases with each dose)
           let micro_trauma_intensity = 0.3 /. int.to_float(dose_number)
-          let genome_after_trauma = apply_crisis_methylation(
-            genome,
-            micro_trauma_intensity,
-            current_tick,
-          )
+          let genome_after_trauma =
+            apply_crisis_methylation(
+              genome,
+              micro_trauma_intensity,
+              current_tick,
+            )
 
           // Immediate therapy (stronger than trauma to ensure net positive)
           let therapy_intensity = 0.5 +. { int.to_float(dose_number) *. 0.1 }
-          let genome_after_therapy = genome_after_trauma
+          let genome_after_therapy =
+            genome_after_trauma
             |> apply_celebration_healing(therapy_intensity, current_tick)
 
           // Build immunity: boost recovery + increase rupture threshold
           let immunity_boost = 0.15 *. int.to_float(dose_number)
-          let vaccinated_genome = Genome(
-            ..genome_after_therapy,
-            modulators: ModulatorGenes(
-              ..genome_after_therapy.modulators,
-              recovery_gene: clamp(
-                genome_after_therapy.modulators.recovery_gene +. immunity_boost *. 0.5,
-                0.0,
-                1.0,
+          let vaccinated_genome =
+            Genome(
+              ..genome_after_therapy,
+              modulators: ModulatorGenes(
+                ..genome_after_therapy.modulators,
+                recovery_gene: clamp(
+                  genome_after_therapy.modulators.recovery_gene
+                    +. immunity_boost
+                    *. 0.5,
+                  0.0,
+                  1.0,
+                ),
+                rupture_threshold: clamp(
+                  genome_after_therapy.modulators.rupture_threshold
+                    +. immunity_boost
+                    *. 0.3,
+                  0.0,
+                  1.0,
+                ),
+                // Slight desensitization (controlled exposure)
+                crisis_sensitivity: clamp(
+                  genome_after_therapy.modulators.crisis_sensitivity
+                    -. immunity_boost
+                    *. 0.1,
+                  0.1,
+                  // Never below 0.1 (need some sensitivity)
+                  1.0,
+                ),
               ),
-              rupture_threshold: clamp(
-                genome_after_therapy.modulators.rupture_threshold +. immunity_boost *. 0.3,
-                0.0,
-                1.0,
-              ),
-              // Slight desensitization (controlled exposure)
-              crisis_sensitivity: clamp(
-                genome_after_therapy.modulators.crisis_sensitivity -. immunity_boost *. 0.1,
-                0.1,  // Never below 0.1 (need some sensitivity)
-                1.0,
-              ),
-            ),
-          )
+            )
 
-          let new_immunity = clamp(
-            vaccination_state.immunity_level +. 0.25,
-            0.0,
-            0.75,  // Max 75% immunity (never fully immune)
-          )
+          let new_immunity =
+            clamp(
+              vaccination_state.immunity_level +. 0.25,
+              0.0,
+              0.75,
+              // Max 75% immunity (never fully immune)
+            )
 
-          let new_vaccination_state = VaccinationState(
-            vaccinated: True,
-            vaccination_tick: current_tick,
-            doses: dose_number,
-            immunity_level: new_immunity,
-          )
+          let new_vaccination_state =
+            VaccinationState(
+              vaccinated: True,
+              vaccination_tick: current_tick,
+              doses: dose_number,
+              immunity_level: new_immunity,
+            )
 
           #(vaccinated_genome, new_vaccination_state)
         }
@@ -1143,9 +1270,12 @@ pub fn apply_immunity(
 
 /// Check if VIVA needs emergency intervention
 pub type EmergencyStatus {
-  Critical     // Needs immediate intervention
-  Warning      // Should monitor closely
-  Stable       // Healthy
+  Critical
+  // Needs immediate intervention
+  Warning
+  // Should monitor closely
+  Stable
+  // Healthy
 }
 
 pub fn check_emergency_status(genome: Genome) -> EmergencyStatus {
@@ -1154,9 +1284,8 @@ pub fn check_emergency_status(genome: Genome) -> EmergencyStatus {
   let sensitivity = genome.modulators.crisis_sensitivity
 
   // Critical: high trauma + low recovery + high sensitivity
-  let critical_score = trauma_level *. 2.0
-                    +. { 1.0 -. recovery } *. 1.5
-                    +. sensitivity *. 0.5
+  let critical_score =
+    trauma_level *. 2.0 +. { 1.0 -. recovery } *. 1.5 +. sensitivity *. 0.5
 
   case critical_score >. 3.5 {
     True -> Critical
@@ -1189,31 +1318,32 @@ pub fn apply_population_survival(
     True -> {
       // Apply interventions
       let combined = list.zip(genomes, vaccination_states)
-      let result = list.map(combined, fn(pair) {
-        let #(genome, vax_state) = pair
+      let result =
+        list.map(combined, fn(pair) {
+          let #(genome, vax_state) = pair
 
-        // Check emergency status
-        let status = check_emergency_status(genome)
+          // Check emergency status
+          let status = check_emergency_status(genome)
 
-        case status {
-          Critical -> {
-            // Neurotic emergency protocol + vaccination
-            let treated = neurotic_emergency_protocol(genome, 0.8)
-            emotional_vaccination(treated, vax_state, current_tick)
-          }
-          Warning -> {
-            // Just vaccination
-            emotional_vaccination(genome, vax_state, current_tick)
-          }
-          Stable -> {
-            // Preventive vaccination only
-            case vax_state.doses < 3 {
-              True -> emotional_vaccination(genome, vax_state, current_tick)
-              False -> #(genome, vax_state)
+          case status {
+            Critical -> {
+              // Neurotic emergency protocol + vaccination
+              let treated = neurotic_emergency_protocol(genome, 0.8)
+              emotional_vaccination(treated, vax_state, current_tick)
+            }
+            Warning -> {
+              // Just vaccination
+              emotional_vaccination(genome, vax_state, current_tick)
+            }
+            Stable -> {
+              // Preventive vaccination only
+              case vax_state.doses < 3 {
+                True -> emotional_vaccination(genome, vax_state, current_tick)
+                False -> #(genome, vax_state)
+              }
             }
           }
-        }
-      })
+        })
 
       let new_genomes = list.map(result, fn(r) { r.0 })
       let new_vax_states = list.map(result, fn(r) { r.1 })
@@ -1228,9 +1358,8 @@ pub fn apply_population_survival(
 
 /// Average recovery gene in population
 pub fn average_recovery(genomes: List(Genome)) -> Float {
-  let total = list.fold(genomes, 0.0, fn(acc, g) {
-    acc +. g.modulators.recovery_gene
-  })
+  let total =
+    list.fold(genomes, 0.0, fn(acc, g) { acc +. g.modulators.recovery_gene })
   let count = list.length(genomes) |> int.to_float
   case count <. 1.0 {
     True -> 0.0

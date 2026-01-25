@@ -90,16 +90,23 @@ pub type NamedTensorError {
 // =============================================================================
 
 /// Create named tensor from data and axis specs
-pub fn new(data: Tensor, axes: List(AxisSpec)) -> Result(NamedTensor, NamedTensorError) {
+pub fn new(
+  data: Tensor,
+  axes: List(AxisSpec),
+) -> Result(NamedTensor, NamedTensorError) {
   // Validate: axis count matches rank
   let data_rank = tensor.rank(data)
   let axes_count = list.length(axes)
 
   case data_rank == axes_count {
-    False -> Error(InvalidOp(
-      "Axis count (" <> int.to_string(axes_count) <>
-      ") doesn't match tensor rank (" <> int.to_string(data_rank) <> ")"
-    ))
+    False ->
+      Error(InvalidOp(
+        "Axis count ("
+        <> int.to_string(axes_count)
+        <> ") doesn't match tensor rank ("
+        <> int.to_string(data_rank)
+        <> ")",
+      ))
     True -> {
       // Validate: sizes match
       case validate_sizes(data.shape, axes) {
@@ -160,16 +167,45 @@ pub fn axis(name: Axis, size: Int) -> AxisSpec {
 }
 
 /// Shorthand constructors for common axes
-pub fn batch(size: Int) -> AxisSpec { AxisSpec(name: Batch, size: size) }
-pub fn seq(size: Int) -> AxisSpec { AxisSpec(name: Seq, size: size) }
-pub fn feature(size: Int) -> AxisSpec { AxisSpec(name: Feature, size: size) }
-pub fn height(size: Int) -> AxisSpec { AxisSpec(name: Height, size: size) }
-pub fn width(size: Int) -> AxisSpec { AxisSpec(name: Width, size: size) }
-pub fn input(size: Int) -> AxisSpec { AxisSpec(name: Input, size: size) }
-pub fn output(size: Int) -> AxisSpec { AxisSpec(name: Output, size: size) }
-pub fn head(size: Int) -> AxisSpec { AxisSpec(name: Head, size: size) }
-pub fn embed(size: Int) -> AxisSpec { AxisSpec(name: Embed, size: size) }
-pub fn named(name: String, size: Int) -> AxisSpec { AxisSpec(name: Named(name), size: size) }
+pub fn batch(size: Int) -> AxisSpec {
+  AxisSpec(name: Batch, size: size)
+}
+
+pub fn seq(size: Int) -> AxisSpec {
+  AxisSpec(name: Seq, size: size)
+}
+
+pub fn feature(size: Int) -> AxisSpec {
+  AxisSpec(name: Feature, size: size)
+}
+
+pub fn height(size: Int) -> AxisSpec {
+  AxisSpec(name: Height, size: size)
+}
+
+pub fn width(size: Int) -> AxisSpec {
+  AxisSpec(name: Width, size: size)
+}
+
+pub fn input(size: Int) -> AxisSpec {
+  AxisSpec(name: Input, size: size)
+}
+
+pub fn output(size: Int) -> AxisSpec {
+  AxisSpec(name: Output, size: size)
+}
+
+pub fn head(size: Int) -> AxisSpec {
+  AxisSpec(name: Head, size: size)
+}
+
+pub fn embed(size: Int) -> AxisSpec {
+  AxisSpec(name: Embed, size: size)
+}
+
+pub fn named(name: String, size: Int) -> AxisSpec {
+  AxisSpec(name: Named(name), size: size)
+}
 
 // =============================================================================
 // AXIS LOOKUP & MANIPULATION
@@ -180,7 +216,11 @@ pub fn find_axis(t: NamedTensor, name: Axis) -> Result(Int, NamedTensorError) {
   find_axis_in_list(t.axes, name, 0)
 }
 
-fn find_axis_in_list(axes: List(AxisSpec), name: Axis, idx: Int) -> Result(Int, NamedTensorError) {
+fn find_axis_in_list(
+  axes: List(AxisSpec),
+  name: Axis,
+  idx: Int,
+) -> Result(Int, NamedTensorError) {
   case axes {
     [] -> Error(AxisNotFound(name))
     [first, ..rest] -> {
@@ -238,23 +278,31 @@ pub fn size(t: NamedTensor) -> Int {
 // =============================================================================
 
 /// Rename an axis
-pub fn rename_axis(t: NamedTensor, from: Axis, to: Axis) -> Result(NamedTensor, NamedTensorError) {
+pub fn rename_axis(
+  t: NamedTensor,
+  from: Axis,
+  to: Axis,
+) -> Result(NamedTensor, NamedTensorError) {
   case find_axis(t, from) {
     Error(e) -> Error(e)
     Ok(idx) -> {
-      let new_axes = list.index_map(t.axes, fn(spec, i) {
-        case i == idx {
-          True -> AxisSpec(..spec, name: to)
-          False -> spec
-        }
-      })
+      let new_axes =
+        list.index_map(t.axes, fn(spec, i) {
+          case i == idx {
+            True -> AxisSpec(..spec, name: to)
+            False -> spec
+          }
+        })
       Ok(NamedTensor(..t, axes: new_axes))
     }
   }
 }
 
 /// Transpose/reorder axes by names
-pub fn transpose(t: NamedTensor, new_order: List(Axis)) -> Result(NamedTensor, NamedTensorError) {
+pub fn transpose(
+  t: NamedTensor,
+  new_order: List(Axis),
+) -> Result(NamedTensor, NamedTensorError) {
   // Find indices for each axis in new order
   let indices_result = list.try_map(new_order, fn(name) { find_axis(t, name) })
 
@@ -294,7 +342,10 @@ pub fn unsqueeze(t: NamedTensor, name: Axis, position: Int) -> NamedTensor {
 }
 
 /// Remove axis of size 1 by name
-pub fn squeeze(t: NamedTensor, name: Axis) -> Result(NamedTensor, NamedTensorError) {
+pub fn squeeze(
+  t: NamedTensor,
+  name: Axis,
+) -> Result(NamedTensor, NamedTensorError) {
   case find_axis(t, name) {
     Error(e) -> Error(e)
     Ok(idx) -> {
@@ -307,10 +358,12 @@ pub fn squeeze(t: NamedTensor, name: Axis) -> Result(NamedTensor, NamedTensorErr
               case tensor.squeeze_axis(t.data, idx) {
                 Error(e) -> Error(TensorErr(e))
                 Ok(squeezed) -> {
-                  let new_axes = list.filter(
-                    list.index_map(t.axes, fn(a, i) { #(a, i) }),
-                    fn(pair) { pair.1 != idx }
-                  ) |> list.map(fn(pair) { pair.0 })
+                  let new_axes =
+                    list.filter(
+                      list.index_map(t.axes, fn(a, i) { #(a, i) }),
+                      fn(pair) { pair.1 != idx },
+                    )
+                    |> list.map(fn(pair) { pair.0 })
                   Ok(NamedTensor(data: squeezed, axes: new_axes))
                 }
               }
@@ -349,7 +402,10 @@ pub fn sum(t: NamedTensor, along: Axis) -> Result(NamedTensor, NamedTensorError)
 }
 
 /// Mean along named axis
-pub fn mean(t: NamedTensor, along: Axis) -> Result(NamedTensor, NamedTensorError) {
+pub fn mean(
+  t: NamedTensor,
+  along: Axis,
+) -> Result(NamedTensor, NamedTensorError) {
   case find_axis(t, along) {
     Error(e) -> Error(e)
     Ok(idx) -> {
@@ -369,7 +425,10 @@ pub fn mean(t: NamedTensor, along: Axis) -> Result(NamedTensor, NamedTensorError
 }
 
 /// Max value along named axis
-pub fn max_along(t: NamedTensor, along: Axis) -> Result(NamedTensor, NamedTensorError) {
+pub fn max_along(
+  t: NamedTensor,
+  along: Axis,
+) -> Result(NamedTensor, NamedTensorError) {
   // For now, only support 2D
   case find_axis(t, along), t.data.shape {
     Error(e), _ -> Error(e)
@@ -380,7 +439,7 @@ pub fn max_along(t: NamedTensor, along: Axis) -> Result(NamedTensor, NamedTensor
           list.range(0, cols - 1)
           |> list.map(fn(col) {
             list.range(0, rows - 1)
-            |> list.fold(0.0 -. 999999.0, fn(acc, row) {
+            |> list.fold(0.0 -. 999_999.0, fn(acc, row) {
               case tensor.get2d(t.data, row, col) {
                 Ok(v) -> float_max(acc, v)
                 Error(_) -> acc
@@ -393,7 +452,7 @@ pub fn max_along(t: NamedTensor, along: Axis) -> Result(NamedTensor, NamedTensor
           list.range(0, rows - 1)
           |> list.map(fn(row) {
             list.range(0, cols - 1)
-            |> list.fold(0.0 -. 999999.0, fn(acc, col) {
+            |> list.fold(0.0 -. 999_999.0, fn(acc, col) {
               case tensor.get2d(t.data, row, col) {
                 Ok(v) -> float_max(acc, v)
                 Error(_) -> acc
@@ -415,7 +474,10 @@ pub fn max_along(t: NamedTensor, along: Axis) -> Result(NamedTensor, NamedTensor
 }
 
 /// Argmax along named axis
-pub fn argmax_along(t: NamedTensor, along: Axis) -> Result(List(Int), NamedTensorError) {
+pub fn argmax_along(
+  t: NamedTensor,
+  along: Axis,
+) -> Result(List(Int), NamedTensorError) {
   case find_axis(t, along), t.data.shape {
     Error(e), _ -> Error(e)
     Ok(axis_idx), [rows, cols] -> {
@@ -426,7 +488,7 @@ pub fn argmax_along(t: NamedTensor, along: Axis) -> Result(List(Int), NamedTenso
           |> list.map(fn(col) {
             let #(best_idx, _, _) =
               list.range(0, rows - 1)
-              |> list.fold(#(0, 0.0 -. 999999.0, 0), fn(acc, row) {
+              |> list.fold(#(0, 0.0 -. 999_999.0, 0), fn(acc, row) {
                 let #(best, best_val, curr) = acc
                 case tensor.get2d(t.data, row, col) {
                   Ok(v) if v >. best_val -> #(curr, v, curr + 1)
@@ -442,7 +504,7 @@ pub fn argmax_along(t: NamedTensor, along: Axis) -> Result(List(Int), NamedTenso
           |> list.map(fn(row) {
             let #(best_idx, _, _) =
               list.range(0, cols - 1)
-              |> list.fold(#(0, 0.0 -. 999999.0, 0), fn(acc, col) {
+              |> list.fold(#(0, 0.0 -. 999_999.0, 0), fn(acc, col) {
                 let #(best, best_val, curr) = acc
                 case tensor.get2d(t.data, row, col) {
                   Ok(v) if v >. best_val -> #(curr, v, curr + 1)
@@ -465,7 +527,10 @@ pub fn argmax_along(t: NamedTensor, along: Axis) -> Result(List(Int), NamedTenso
 // =============================================================================
 
 /// Element-wise addition (axes must match or be broadcastable)
-pub fn add(a: NamedTensor, b: NamedTensor) -> Result(NamedTensor, NamedTensorError) {
+pub fn add(
+  a: NamedTensor,
+  b: NamedTensor,
+) -> Result(NamedTensor, NamedTensorError) {
   case align_axes(a, b) {
     Error(e) -> Error(e)
     Ok(#(a_aligned, b_aligned, result_axes)) -> {
@@ -478,7 +543,10 @@ pub fn add(a: NamedTensor, b: NamedTensor) -> Result(NamedTensor, NamedTensorErr
 }
 
 /// Element-wise subtraction
-pub fn sub(a: NamedTensor, b: NamedTensor) -> Result(NamedTensor, NamedTensorError) {
+pub fn sub(
+  a: NamedTensor,
+  b: NamedTensor,
+) -> Result(NamedTensor, NamedTensorError) {
   case align_axes(a, b) {
     Error(e) -> Error(e)
     Ok(#(a_aligned, b_aligned, result_axes)) -> {
@@ -491,7 +559,10 @@ pub fn sub(a: NamedTensor, b: NamedTensor) -> Result(NamedTensor, NamedTensorErr
 }
 
 /// Element-wise multiplication
-pub fn mul(a: NamedTensor, b: NamedTensor) -> Result(NamedTensor, NamedTensorError) {
+pub fn mul(
+  a: NamedTensor,
+  b: NamedTensor,
+) -> Result(NamedTensor, NamedTensorError) {
   case align_axes(a, b) {
     Error(e) -> Error(e)
     Ok(#(a_aligned, b_aligned, result_axes)) -> {
@@ -559,7 +630,11 @@ pub fn matmul(
 }
 
 /// Dot product over named axis
-pub fn dot(a: NamedTensor, b: NamedTensor, along: Axis) -> Result(Float, NamedTensorError) {
+pub fn dot(
+  a: NamedTensor,
+  b: NamedTensor,
+  along: Axis,
+) -> Result(Float, NamedTensorError) {
   use _a_idx <- result.try(find_axis(a, along))
   use _b_idx <- result.try(find_axis(b, along))
 
@@ -634,19 +709,23 @@ pub type SliceSpec {
 }
 
 /// Apply slice to tensor
-pub fn slice(t: NamedTensor, spec: SliceSpec) -> Result(NamedTensor, NamedTensorError) {
+pub fn slice(
+  t: NamedTensor,
+  spec: SliceSpec,
+) -> Result(NamedTensor, NamedTensorError) {
   case spec {
     SliceFirst(axis, n) -> {
       case find_axis(t, axis) {
         Error(e) -> Error(e)
         Ok(idx) if idx == 0 -> {
           let new_data = tensor.take_first(t.data, n)
-          let new_axes = list.index_map(t.axes, fn(a, i) {
-            case i == idx {
-              True -> AxisSpec(..a, size: n)
-              False -> a
-            }
-          })
+          let new_axes =
+            list.index_map(t.axes, fn(a, i) {
+              case i == idx {
+                True -> AxisSpec(..a, size: n)
+                False -> a
+              }
+            })
           Ok(NamedTensor(data: new_data, axes: new_axes))
         }
         Ok(_) -> Error(InvalidOp("SliceFirst only supported on first axis"))
@@ -657,12 +736,13 @@ pub fn slice(t: NamedTensor, spec: SliceSpec) -> Result(NamedTensor, NamedTensor
         Error(e) -> Error(e)
         Ok(idx) if idx == 0 -> {
           let new_data = tensor.take_last(t.data, n)
-          let new_axes = list.index_map(t.axes, fn(a, i) {
-            case i == idx {
-              True -> AxisSpec(..a, size: n)
-              False -> a
-            }
-          })
+          let new_axes =
+            list.index_map(t.axes, fn(a, i) {
+              case i == idx {
+                True -> AxisSpec(..a, size: n)
+                False -> a
+              }
+            })
           Ok(NamedTensor(data: new_data, axes: new_axes))
         }
         Ok(_) -> Error(InvalidOp("SliceLast only supported on first axis"))
@@ -673,21 +753,30 @@ pub fn slice(t: NamedTensor, spec: SliceSpec) -> Result(NamedTensor, NamedTensor
         Error(e) -> Error(e)
         Ok(idx) -> {
           // Build starts and lengths lists
-          let starts = list.index_map(t.axes, fn(_, i) {
-            case i == idx { True -> start  False -> 0 }
-          })
-          let lengths = list.index_map(t.axes, fn(a, i) {
-            case i == idx { True -> length  False -> a.size }
-          })
+          let starts =
+            list.index_map(t.axes, fn(_, i) {
+              case i == idx {
+                True -> start
+                False -> 0
+              }
+            })
+          let lengths =
+            list.index_map(t.axes, fn(a, i) {
+              case i == idx {
+                True -> length
+                False -> a.size
+              }
+            })
           case tensor.slice(t.data, starts, lengths) {
             Error(e) -> Error(TensorErr(e))
             Ok(sliced) -> {
-              let new_axes = list.index_map(t.axes, fn(a, i) {
-                case i == idx {
-                  True -> AxisSpec(..a, size: length)
-                  False -> a
-                }
-              })
+              let new_axes =
+                list.index_map(t.axes, fn(a, i) {
+                  case i == idx {
+                    True -> AxisSpec(..a, size: length)
+                    False -> a
+                  }
+                })
               Ok(NamedTensor(data: sliced, axes: new_axes))
             }
           }
@@ -699,12 +788,20 @@ pub fn slice(t: NamedTensor, spec: SliceSpec) -> Result(NamedTensor, NamedTensor
       case find_axis(t, axis) {
         Error(e) -> Error(e)
         Ok(idx) -> {
-          let starts = list.index_map(t.axes, fn(_, i) {
-            case i == idx { True -> index  False -> 0 }
-          })
-          let lengths = list.index_map(t.axes, fn(a, i) {
-            case i == idx { True -> 1  False -> a.size }
-          })
+          let starts =
+            list.index_map(t.axes, fn(_, i) {
+              case i == idx {
+                True -> index
+                False -> 0
+              }
+            })
+          let lengths =
+            list.index_map(t.axes, fn(a, i) {
+              case i == idx {
+                True -> 1
+                False -> a.size
+              }
+            })
           case tensor.slice(t.data, starts, lengths) {
             Error(e) -> Error(TensorErr(e))
             Ok(sliced) -> {
@@ -725,14 +822,15 @@ pub fn slice(t: NamedTensor, spec: SliceSpec) -> Result(NamedTensor, NamedTensor
 // =============================================================================
 
 /// Stack tensors along new axis
-pub fn stack(tensors: List(NamedTensor), new_axis: Axis) -> Result(NamedTensor, NamedTensorError) {
+pub fn stack(
+  tensors: List(NamedTensor),
+  new_axis: Axis,
+) -> Result(NamedTensor, NamedTensorError) {
   case tensors {
     [] -> Error(InvalidOp("Cannot stack empty list"))
     [first, ..rest] -> {
       // Check all have same axes
-      let all_same = list.all(rest, fn(t) {
-        axes_equal(t.axes, first.axes)
-      })
+      let all_same = list.all(rest, fn(t) { axes_equal(t.axes, first.axes) })
       case all_same {
         False -> Error(InvalidOp("All tensors must have same axes to stack"))
         True -> {
@@ -752,7 +850,10 @@ pub fn stack(tensors: List(NamedTensor), new_axis: Axis) -> Result(NamedTensor, 
 }
 
 /// Concatenate tensors along existing axis
-pub fn concat(tensors: List(NamedTensor), along: Axis) -> Result(NamedTensor, NamedTensorError) {
+pub fn concat(
+  tensors: List(NamedTensor),
+  along: Axis,
+) -> Result(NamedTensor, NamedTensorError) {
   case tensors {
     [] -> Error(InvalidOp("Cannot concat empty list"))
     [first, ..rest] -> {
@@ -770,7 +871,8 @@ pub fn concat(tensors: List(NamedTensor), along: Axis) -> Result(NamedTensor, Na
                   let #(ta, fa) = pair
                   case i == axis_idx {
                     True -> acc && axis_equals(ta.name, fa.name)
-                    False -> acc && axis_equals(ta.name, fa.name) && ta.size == fa.size
+                    False ->
+                      acc && axis_equals(ta.name, fa.name) && ta.size == fa.size
                   }
                 })
               }
@@ -779,25 +881,28 @@ pub fn concat(tensors: List(NamedTensor), along: Axis) -> Result(NamedTensor, Na
 
           let all_compatible = list.all(rest, check_compatible)
           case all_compatible {
-            False -> Error(InvalidOp("Tensors have incompatible axes for concat"))
+            False ->
+              Error(InvalidOp("Tensors have incompatible axes for concat"))
             True -> {
               let data_list = list.map(tensors, fn(t) { t.data })
               case tensor.concat_axis(data_list, axis_idx) {
                 Error(e) -> Error(TensorErr(e))
                 Ok(concatenated) -> {
                   // Sum sizes along concat axis
-                  let total_size = list.fold(tensors, 0, fn(acc, t) {
-                    case list_at(t.axes, axis_idx) {
-                      Ok(spec) -> acc + spec.size
-                      Error(_) -> acc
-                    }
-                  })
-                  let new_axes = list.index_map(first.axes, fn(a, i) {
-                    case i == axis_idx {
-                      True -> AxisSpec(..a, size: total_size)
-                      False -> a
-                    }
-                  })
+                  let total_size =
+                    list.fold(tensors, 0, fn(acc, t) {
+                      case list_at(t.axes, axis_idx) {
+                        Ok(spec) -> acc + spec.size
+                        Error(_) -> acc
+                      }
+                    })
+                  let new_axes =
+                    list.index_map(first.axes, fn(a, i) {
+                      case i == axis_idx {
+                        True -> AxisSpec(..a, size: total_size)
+                        False -> a
+                      }
+                    })
                   Ok(NamedTensor(data: concatenated, axes: new_axes))
                 }
               }
@@ -849,7 +954,10 @@ pub fn axis_to_string(a: Axis) -> String {
 // INTERNAL HELPERS
 // =============================================================================
 
-fn validate_sizes(shape: List(Int), axes: List(AxisSpec)) -> Result(Nil, NamedTensorError) {
+fn validate_sizes(
+  shape: List(Int),
+  axes: List(AxisSpec),
+) -> Result(Nil, NamedTensorError) {
   case shape, axes {
     [], [] -> Ok(Nil)
     [s, ..s_rest], [a, ..a_rest] -> {
@@ -863,12 +971,17 @@ fn validate_sizes(shape: List(Int), axes: List(AxisSpec)) -> Result(Nil, NamedTe
 }
 
 fn validate_unique_names(axes: List(AxisSpec)) -> Result(Nil, NamedTensorError) {
-  let named_axes = list.filter(axes, fn(a) {
-    case a.name { Anon -> False  _ -> True }
-  })
+  let named_axes =
+    list.filter(axes, fn(a) {
+      case a.name {
+        Anon -> False
+        _ -> True
+      }
+    })
   let names = list.map(named_axes, fn(a) { a.name })
   case has_duplicates(names) {
-    True -> Error(DuplicateAxis(Anon))  // Simplified error
+    True -> Error(DuplicateAxis(Anon))
+    // Simplified error
     False -> Ok(Nil)
   }
 }
@@ -906,7 +1019,9 @@ fn axes_equal(a: List(AxisSpec), b: List(AxisSpec)) -> Bool {
   case a, b {
     [], [] -> True
     [a1, ..a_rest], [b1, ..b_rest] ->
-      axis_equals(a1.name, b1.name) && a1.size == b1.size && axes_equal(a_rest, b_rest)
+      axis_equals(a1.name, b1.name)
+      && a1.size == b1.size
+      && axes_equal(a_rest, b_rest)
     _, _ -> False
   }
 }
@@ -927,7 +1042,7 @@ fn list_at(lst: List(a), idx: Int) -> Result(a, Nil) {
 /// Align axes for broadcasting
 fn align_axes(
   a: NamedTensor,
-  b: NamedTensor
+  b: NamedTensor,
 ) -> Result(#(NamedTensor, NamedTensor, List(AxisSpec)), NamedTensorError) {
   // Simple case: same axes
   case axes_equal(a.axes, b.axes) {

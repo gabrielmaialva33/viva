@@ -92,11 +92,12 @@ pub fn forward(
   case layer.mode {
     Inference -> {
       // During inference, just pass through unchanged
-      let cache = DropoutCache(
-        mask: tensor.ones(input.shape),
-        scale: 1.0,
-        input_shape: input.shape,
-      )
+      let cache =
+        DropoutCache(
+          mask: tensor.ones(input.shape),
+          scale: 1.0,
+          input_shape: input.shape,
+        )
       Ok(#(input, cache))
     }
     Training -> {
@@ -117,22 +118,20 @@ fn forward_training(
     True -> {
       // Drop everything
       let zeros = tensor.zeros(input.shape)
-      let cache = DropoutCache(
-        mask: zeros,
-        scale: 0.0,
-        input_shape: input.shape,
-      )
+      let cache =
+        DropoutCache(mask: zeros, scale: 0.0, input_shape: input.shape)
       Ok(#(zeros, cache))
     }
     False -> {
       case keep_prob >=. 1.0 {
         True -> {
           // Keep everything
-          let cache = DropoutCache(
-            mask: tensor.ones(input.shape),
-            scale: 1.0,
-            input_shape: input.shape,
-          )
+          let cache =
+            DropoutCache(
+              mask: tensor.ones(input.shape),
+              scale: 1.0,
+              input_shape: input.shape,
+            )
           Ok(#(input, cache))
         }
         False -> {
@@ -143,11 +142,8 @@ fn forward_training(
           use masked <- result.try(tensor.mul(input, mask))
           let output = tensor.scale(masked, scale)
 
-          let cache = DropoutCache(
-            mask: mask,
-            scale: scale,
-            input_shape: input.shape,
-          )
+          let cache =
+            DropoutCache(mask: mask, scale: scale, input_shape: input.shape)
           Ok(#(output, cache))
         }
       }
@@ -206,10 +202,7 @@ pub fn backward(
 /// Spatial Dropout - drops entire feature maps
 /// Useful for convolutional networks
 pub type SpatialDropoutLayer {
-  SpatialDropoutLayer(
-    rate: Float,
-    mode: DropoutMode,
-  )
+  SpatialDropoutLayer(rate: Float, mode: DropoutMode)
 }
 
 /// Create spatial dropout layer
@@ -226,11 +219,12 @@ pub fn spatial_forward(
 ) -> Result(#(Tensor, DropoutCache), TensorError) {
   case layer.mode {
     Inference -> {
-      let cache = DropoutCache(
-        mask: tensor.ones(input.shape),
-        scale: 1.0,
-        input_shape: input.shape,
-      )
+      let cache =
+        DropoutCache(
+          mask: tensor.ones(input.shape),
+          scale: 1.0,
+          input_shape: input.shape,
+        )
       Ok(#(input, cache))
     }
     Training -> {
@@ -238,7 +232,8 @@ pub fn spatial_forward(
         [batch, channels, height, width] -> {
           // Create mask for [batch, channels] and broadcast to full shape
           let keep_prob = 1.0 -. layer.rate
-          let #(channel_mask, scale) = utils.dropout_mask([batch, channels], keep_prob)
+          let #(channel_mask, scale) =
+            utils.dropout_mask([batch, channels], keep_prob)
 
           // Broadcast mask to full spatial dimensions
           let full_mask_data =
@@ -257,19 +252,18 @@ pub fn spatial_forward(
               })
             })
 
-          let full_mask = Tensor(
-            data: full_mask_data,
-            shape: [batch, channels, height, width],
-          )
+          let full_mask =
+            Tensor(data: full_mask_data, shape: [batch, channels, height, width])
 
           use masked <- result.try(tensor.mul(input, full_mask))
           let output = tensor.scale(masked, scale)
 
-          let cache = DropoutCache(
-            mask: full_mask,
-            scale: scale,
-            input_shape: input.shape,
-          )
+          let cache =
+            DropoutCache(
+              mask: full_mask,
+              scale: scale,
+              input_shape: input.shape,
+            )
           Ok(#(output, cache))
         }
         _ -> {
@@ -291,10 +285,7 @@ pub fn spatial_forward(
 /// Alpha Dropout - maintains mean and variance for self-normalizing networks
 /// Used with SELU activation
 pub type AlphaDropoutLayer {
-  AlphaDropoutLayer(
-    rate: Float,
-    mode: DropoutMode,
-  )
+  AlphaDropoutLayer(rate: Float, mode: DropoutMode)
 }
 
 /// Alpha dropout constants (for SELU self-normalization)
@@ -316,21 +307,23 @@ pub fn alpha_forward(
 ) -> Result(#(Tensor, DropoutCache), TensorError) {
   case layer.mode {
     Inference -> {
-      let cache = DropoutCache(
-        mask: tensor.ones(input.shape),
-        scale: 1.0,
-        input_shape: input.shape,
-      )
+      let cache =
+        DropoutCache(
+          mask: tensor.ones(input.shape),
+          scale: 1.0,
+          input_shape: input.shape,
+        )
       Ok(#(input, cache))
     }
     Training -> {
       let keep_prob = 1.0 -. layer.rate
 
       // Compute affine transformation parameters
-      let a = float_pow(
-        keep_prob +. alpha_p *. alpha_p *. keep_prob *. { 1.0 -. keep_prob },
-        -0.5,
-      )
+      let a =
+        float_pow(
+          keep_prob +. alpha_p *. alpha_p *. keep_prob *. { 1.0 -. keep_prob },
+          -0.5,
+        )
       let b = 0.0 -. a *. { 1.0 -. keep_prob } *. alpha_p
 
       // Generate mask
@@ -350,11 +343,7 @@ pub fn alpha_forward(
       // Apply affine transformation: a * x + b
       let output = tensor.add_scalar(tensor.scale(dropout_tensor, a), b)
 
-      let cache = DropoutCache(
-        mask: mask,
-        scale: a,
-        input_shape: input.shape,
-      )
+      let cache = DropoutCache(mask: mask, scale: a, input_shape: input.shape)
       Ok(#(output, cache))
     }
   }

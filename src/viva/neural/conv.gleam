@@ -7,8 +7,8 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/result
-import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
 import viva/neural/activation.{type ActivationType}
+import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
 
 // =============================================================================
 // TYPES
@@ -120,7 +120,8 @@ pub fn new_asymmetric(
 ) -> Conv2DLayer {
   // Initialize filters with He initialization
   let fan_in = in_channels * kernel_h * kernel_w
-  let filters = he_init_4d(out_channels, in_channels, kernel_h, kernel_w, fan_in)
+  let filters =
+    he_init_4d(out_channels, in_channels, kernel_h, kernel_w, fan_in)
   let biases = tensor.zeros([out_channels])
 
   Conv2DLayer(
@@ -178,15 +179,16 @@ pub fn forward(
   case input.shape {
     [batch, in_ch, in_h, in_w] if in_ch == layer.in_channels -> {
       // Calculate padding
-      let #(pad_h, pad_w) = calculate_padding(
-        layer.padding,
-        in_h,
-        in_w,
-        layer.kernel_h,
-        layer.kernel_w,
-        layer.stride_h,
-        layer.stride_w,
-      )
+      let #(pad_h, pad_w) =
+        calculate_padding(
+          layer.padding,
+          in_h,
+          in_w,
+          layer.kernel_h,
+          layer.kernel_w,
+          layer.stride_h,
+          layer.stride_w,
+        )
 
       // Calculate output dimensions
       let out_h = { in_h + 2 * pad_h - layer.kernel_h } / layer.stride_h + 1
@@ -207,21 +209,23 @@ pub fn forward(
           let sample = Tensor(data: sample_data, shape: [in_ch, in_h, in_w])
 
           // Apply im2col
-          let col = im2col(
-            sample,
-            layer.kernel_h,
-            layer.kernel_w,
-            layer.stride_h,
-            layer.stride_w,
-            pad_h,
-            pad_w,
-          )
+          let col =
+            im2col(
+              sample,
+              layer.kernel_h,
+              layer.kernel_w,
+              layer.stride_h,
+              layer.stride_w,
+              pad_h,
+              pad_w,
+            )
 
           // Reshape filters to 2D: [out_ch, in_ch * kH * kW]
-          let filters_2d = tensor.reshape(
-            layer.filters,
-            [layer.out_channels, layer.in_channels * layer.kernel_h * layer.kernel_w],
-          )
+          let filters_2d =
+            tensor.reshape(layer.filters, [
+              layer.out_channels,
+              layer.in_channels * layer.kernel_h * layer.kernel_w,
+            ])
 
           // Convolution via matmul: filters_2d @ col
           let conv_result = case filters_2d {
@@ -253,27 +257,33 @@ pub fn forward(
         })
 
       // Apply activation
-      let pre_act = Tensor(
-        data: output_data,
-        shape: [batch, layer.out_channels, out_h, out_w],
-      )
+      let pre_act =
+        Tensor(data: output_data, shape: [
+          batch,
+          layer.out_channels,
+          out_h,
+          out_w,
+        ])
       let output = apply_activation(pre_act, layer.activation)
 
       // Store col for backward pass
-      let col_tensor = Tensor(
-        data: col_data,
-        shape: [batch, layer.in_channels * layer.kernel_h * layer.kernel_w, out_h * out_w],
-      )
+      let col_tensor =
+        Tensor(data: col_data, shape: [
+          batch,
+          layer.in_channels * layer.kernel_h * layer.kernel_w,
+          out_h * out_w,
+        ])
 
-      let cache = Conv2DCache(
-        input: input,
-        col: col_tensor,
-        pre_activation: pre_act,
-        out_h: out_h,
-        out_w: out_w,
-        pad_h: pad_h,
-        pad_w: pad_w,
-      )
+      let cache =
+        Conv2DCache(
+          input: input,
+          col: col_tensor,
+          pre_activation: pre_act,
+          out_h: out_h,
+          out_w: out_w,
+          pad_h: pad_h,
+          pad_w: pad_w,
+        )
 
       Ok(#(output, cache))
     }
@@ -299,11 +309,12 @@ pub fn backward(
       if out_ch == layer.out_channels
     -> {
       // Apply activation derivative
-      let d_pre_act = apply_activation_backward(
-        upstream,
-        cache.pre_activation,
-        layer.activation,
-      )
+      let d_pre_act =
+        apply_activation_backward(
+          upstream,
+          cache.pre_activation,
+          layer.activation,
+        )
 
       // Compute d_biases: sum over batch and spatial dims
       let d_biases_data =
@@ -325,7 +336,13 @@ pub fn backward(
       let d_filters_data =
         list.range(0, batch - 1)
         |> list.fold(
-          list.repeat(0.0, layer.out_channels * layer.in_channels * layer.kernel_h * layer.kernel_w),
+          list.repeat(
+            0.0,
+            layer.out_channels
+              * layer.in_channels
+              * layer.kernel_h
+              * layer.kernel_w,
+          ),
           fn(acc_data, b) {
             // Get d_pre_act for this batch [out_ch, out_h * out_w]
             let d_start = b * out_ch * out_h * out_w
@@ -333,10 +350,8 @@ pub fn backward(
               d_pre_act.data
               |> list.drop(d_start)
               |> list.take(out_ch * out_h * out_w)
-            let d_batch_tensor = Tensor(
-              data: d_batch,
-              shape: [out_ch, out_h * out_w],
-            )
+            let d_batch_tensor =
+              Tensor(data: d_batch, shape: [out_ch, out_h * out_w])
 
             // Get col for this batch [in_ch * kH * kW, out_h * out_w]
             let col_size =
@@ -350,10 +365,11 @@ pub fn backward(
               cache.col.data
               |> list.drop(col_start)
               |> list.take(col_size)
-            let col_tensor = Tensor(
-              data: col_batch,
-              shape: [layer.in_channels * layer.kernel_h * layer.kernel_w, out_h * out_w],
-            )
+            let col_tensor =
+              Tensor(data: col_batch, shape: [
+                layer.in_channels * layer.kernel_h * layer.kernel_w,
+                out_h * out_w,
+              ])
 
             // d_filters_batch = d_batch @ col^T
             case tensor.transpose(col_tensor) {
@@ -370,10 +386,13 @@ pub fn backward(
           },
         )
 
-      let d_filters = Tensor(
-        data: d_filters_data,
-        shape: [layer.out_channels, layer.in_channels, layer.kernel_h, layer.kernel_w],
-      )
+      let d_filters =
+        Tensor(data: d_filters_data, shape: [
+          layer.out_channels,
+          layer.in_channels,
+          layer.kernel_h,
+          layer.kernel_w,
+        ])
 
       // Compute d_input via col2im
       // d_col = filters^T @ d_pre_act
@@ -385,17 +404,15 @@ pub fn backward(
             d_pre_act.data
             |> list.drop(d_start)
             |> list.take(out_ch * out_h * out_w)
-          let d_batch_tensor = Tensor(
-            data: d_batch,
-            shape: [out_ch, out_h * out_w],
-          )
+          let d_batch_tensor =
+            Tensor(data: d_batch, shape: [out_ch, out_h * out_w])
 
           // Reshape filters to 2D and transpose
           case
-            tensor.reshape(
-              layer.filters,
-              [layer.out_channels, layer.in_channels * layer.kernel_h * layer.kernel_w],
-            )
+            tensor.reshape(layer.filters, [
+              layer.out_channels,
+              layer.in_channels * layer.kernel_h * layer.kernel_w,
+            ])
           {
             Ok(f2d) -> {
               case tensor.transpose(f2d) {
@@ -403,18 +420,19 @@ pub fn backward(
                   case tensor.matmul(f2d_t, d_batch_tensor) {
                     Ok(d_col) -> {
                       // col2im to convert back to input shape
-                      let d_input_sample = col2im(
-                        d_col,
-                        in_ch,
-                        in_h,
-                        in_w,
-                        layer.kernel_h,
-                        layer.kernel_w,
-                        layer.stride_h,
-                        layer.stride_w,
-                        cache.pad_h,
-                        cache.pad_w,
-                      )
+                      let d_input_sample =
+                        col2im(
+                          d_col,
+                          in_ch,
+                          in_h,
+                          in_w,
+                          layer.kernel_h,
+                          layer.kernel_w,
+                          layer.stride_h,
+                          layer.stride_w,
+                          cache.pad_h,
+                          cache.pad_w,
+                        )
                       d_input_sample.data
                     }
                     Error(_) -> list.repeat(0.0, in_ch * in_h * in_w)
@@ -427,12 +445,14 @@ pub fn backward(
           }
         })
 
-      let d_input = Tensor(
-        data: d_input_data,
-        shape: [batch, in_ch, in_h, in_w],
-      )
+      let d_input =
+        Tensor(data: d_input_data, shape: [batch, in_ch, in_h, in_w])
 
-      Ok(Conv2DGradients(d_input: d_input, d_filters: d_filters, d_biases: d_biases))
+      Ok(Conv2DGradients(
+        d_input: d_input,
+        d_filters: d_filters,
+        d_biases: d_biases,
+      ))
     }
     _, _ -> Error(tensor.DimensionError("Shape mismatch in Conv2D backward"))
   }
@@ -488,10 +508,7 @@ fn im2col(
           })
         })
 
-      Tensor(
-        data: col_data,
-        shape: [in_ch * kernel_h * kernel_w, out_h * out_w],
-      )
+      Tensor(data: col_data, shape: [in_ch * kernel_h * kernel_w, out_h * out_w])
     }
     _ -> tensor.zeros([1, 1])
   }
@@ -585,9 +602,7 @@ fn pad_image(
           // Check if in valid (non-padded) region
           let orig_h = h - pad_h
           let orig_w = w - pad_w
-          case
-            orig_h >= 0 && orig_h < in_h && orig_w >= 0 && orig_w < in_w
-          {
+          case orig_h >= 0 && orig_h < in_h && orig_w >= 0 && orig_w < in_w {
             True -> {
               let flat_idx = c * in_h * in_w + orig_h * in_w + orig_w
               case list_at(input.data, flat_idx) {
@@ -699,10 +714,11 @@ fn apply_activation(t: Tensor, act: ActivationType) -> Tensor {
     activation.ReLU -> tensor.map(t, fn(x) { float.max(0.0, x) })
     activation.Sigmoid ->
       tensor.map(t, fn(x) { 1.0 /. { 1.0 +. float_exp(0.0 -. x) } })
-    activation.Tanh -> tensor.map(t, fn(x) {
-      let e2x = float_exp(2.0 *. x)
-      { e2x -. 1.0 } /. { e2x +. 1.0 }
-    })
+    activation.Tanh ->
+      tensor.map(t, fn(x) {
+        let e2x = float_exp(2.0 *. x)
+        { e2x -. 1.0 } /. { e2x +. 1.0 }
+      })
     _ -> t
   }
 }

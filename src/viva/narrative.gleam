@@ -79,10 +79,7 @@ pub type NarrativeConfig {
 
 /// Query result for narrative search
 pub type NarrativeResult {
-  NarrativeResult(
-    link: NarrativeLink,
-    relevance: Float,
-  )
+  NarrativeResult(link: NarrativeLink, relevance: Float)
 }
 
 // =============================================================================
@@ -181,26 +178,29 @@ fn record_link(
   case existing {
     Some(link) -> {
       // Reinforce existing link
-      let new_strength = float.min(1.0, link.strength +. memory.config.reinforce_rate)
-      let updated_link = NarrativeLink(
-        ..link,
-        strength: new_strength,
-        occurrences: link.occurrences + 1,
-        last_seen: tick,
-      )
+      let new_strength =
+        float.min(1.0, link.strength +. memory.config.reinforce_rate)
+      let updated_link =
+        NarrativeLink(
+          ..link,
+          strength: new_strength,
+          occurrences: link.occurrences + 1,
+          last_seen: tick,
+        )
       update_link(memory, updated_link, cause_hash, effect_hash)
     }
     None -> {
       // Create new link
-      let new_link = NarrativeLink(
-        cause: cause,
-        effect: effect,
-        relation: relation,
-        strength: initial_strength,
-        occurrences: 1,
-        first_seen: tick,
-        last_seen: tick,
-      )
+      let new_link =
+        NarrativeLink(
+          cause: cause,
+          effect: effect,
+          relation: relation,
+          strength: initial_strength,
+          occurrences: 1,
+          first_seen: tick,
+          last_seen: tick,
+        )
       add_link(memory, new_link, cause_hash, effect_hash)
     }
   }
@@ -255,7 +255,11 @@ fn add_link(
   NarrativeMemory(
     ..memory,
     links_by_cause: dict.insert(memory.links_by_cause, cause_hash, cause_links),
-    links_by_effect: dict.insert(memory.links_by_effect, effect_hash, effect_links),
+    links_by_effect: dict.insert(
+      memory.links_by_effect,
+      effect_hash,
+      effect_links,
+    ),
     link_count: memory.link_count + 1,
   )
 }
@@ -271,7 +275,10 @@ fn update_link(
   let cause_links = case dict.get(memory.links_by_cause, cause_hash) {
     Ok(links) -> {
       list.map(links, fn(link) {
-        case glyph.equals(link.effect, updated.effect) && link.relation == updated.relation {
+        case
+          glyph.equals(link.effect, updated.effect)
+          && link.relation == updated.relation
+        {
           True -> updated
           False -> link
         }
@@ -284,7 +291,10 @@ fn update_link(
   let effect_links = case dict.get(memory.links_by_effect, effect_hash) {
     Ok(links) -> {
       list.map(links, fn(link) {
-        case glyph.equals(link.cause, updated.cause) && link.relation == updated.relation {
+        case
+          glyph.equals(link.cause, updated.cause)
+          && link.relation == updated.relation
+        {
           True -> updated
           False -> link
         }
@@ -296,7 +306,11 @@ fn update_link(
   NarrativeMemory(
     ..memory,
     links_by_cause: dict.insert(memory.links_by_cause, cause_hash, cause_links),
-    links_by_effect: dict.insert(memory.links_by_effect, effect_hash, effect_links),
+    links_by_effect: dict.insert(
+      memory.links_by_effect,
+      effect_hash,
+      effect_links,
+    ),
   )
 }
 
@@ -305,18 +319,21 @@ fn prune_weakest(memory: NarrativeMemory) -> NarrativeMemory {
   // Simple strategy: remove all links below threshold
   let threshold = memory.config.min_strength *. 2.0
 
-  let filtered_by_cause = dict.map_values(memory.links_by_cause, fn(_, links) {
-    list.filter(links, fn(link) { link.strength >. threshold })
-  })
+  let filtered_by_cause =
+    dict.map_values(memory.links_by_cause, fn(_, links) {
+      list.filter(links, fn(link) { link.strength >. threshold })
+    })
 
-  let filtered_by_effect = dict.map_values(memory.links_by_effect, fn(_, links) {
-    list.filter(links, fn(link) { link.strength >. threshold })
-  })
+  let filtered_by_effect =
+    dict.map_values(memory.links_by_effect, fn(_, links) {
+      list.filter(links, fn(link) { link.strength >. threshold })
+    })
 
   // Recount
-  let new_count = dict.fold(filtered_by_cause, 0, fn(acc, _, links) {
-    acc + list.length(links)
-  })
+  let new_count =
+    dict.fold(filtered_by_cause, 0, fn(acc, _, links) {
+      acc + list.length(links)
+    })
 
   NarrativeMemory(
     ..memory,
@@ -331,13 +348,19 @@ fn prune_weakest(memory: NarrativeMemory) -> NarrativeMemory {
 // =============================================================================
 
 /// What caused this glyph? (look for effects matching this)
-pub fn what_caused(memory: NarrativeMemory, effect: Glyph, limit: Int) -> List(NarrativeResult) {
+pub fn what_caused(
+  memory: NarrativeMemory,
+  effect: Glyph,
+  limit: Int,
+) -> List(NarrativeResult) {
   let effect_hash = glyph_hash(effect)
 
   case dict.get(memory.links_by_effect, effect_hash) {
     Ok(links) -> {
       links
-      |> list.filter(fn(link) { link.relation == Caused || link.relation == Preceded })
+      |> list.filter(fn(link) {
+        link.relation == Caused || link.relation == Preceded
+      })
       |> list.map(fn(link) {
         NarrativeResult(link: link, relevance: link.strength)
       })
@@ -349,13 +372,19 @@ pub fn what_caused(memory: NarrativeMemory, effect: Glyph, limit: Int) -> List(N
 }
 
 /// What did this glyph cause? (look for causes matching this)
-pub fn what_resulted(memory: NarrativeMemory, cause: Glyph, limit: Int) -> List(NarrativeResult) {
+pub fn what_resulted(
+  memory: NarrativeMemory,
+  cause: Glyph,
+  limit: Int,
+) -> List(NarrativeResult) {
   let cause_hash = glyph_hash(cause)
 
   case dict.get(memory.links_by_cause, cause_hash) {
     Ok(links) -> {
       links
-      |> list.filter(fn(link) { link.relation == Caused || link.relation == Preceded })
+      |> list.filter(fn(link) {
+        link.relation == Caused || link.relation == Preceded
+      })
       |> list.map(fn(link) {
         NarrativeResult(link: link, relevance: link.strength)
       })
@@ -367,7 +396,11 @@ pub fn what_resulted(memory: NarrativeMemory, cause: Glyph, limit: Int) -> List(
 }
 
 /// What is similar to this glyph?
-pub fn what_associated(memory: NarrativeMemory, g: Glyph, limit: Int) -> List(NarrativeResult) {
+pub fn what_associated(
+  memory: NarrativeMemory,
+  g: Glyph,
+  limit: Int,
+) -> List(NarrativeResult) {
   let hash = glyph_hash(g)
 
   case dict.get(memory.links_by_cause, hash) {
@@ -385,12 +418,20 @@ pub fn what_associated(memory: NarrativeMemory, g: Glyph, limit: Int) -> List(Na
 }
 
 /// Get the narrative chain starting from a glyph (follow causes)
-pub fn trace_causes(memory: NarrativeMemory, start: Glyph, depth: Int) -> List(Glyph) {
+pub fn trace_causes(
+  memory: NarrativeMemory,
+  start: Glyph,
+  depth: Int,
+) -> List(Glyph) {
   trace_chain(memory, start, depth, True, [])
 }
 
 /// Get the narrative chain starting from a glyph (follow effects)
-pub fn trace_effects(memory: NarrativeMemory, start: Glyph, depth: Int) -> List(Glyph) {
+pub fn trace_effects(
+  memory: NarrativeMemory,
+  start: Glyph,
+  depth: Int,
+) -> List(Glyph) {
   trace_chain(memory, start, depth, False, [])
 }
 
@@ -419,7 +460,11 @@ fn trace_chain(
           // Avoid cycles
           case list.any(visited, fn(v) { glyph.equals(v, next_glyph) }) {
             True -> list.reverse(visited)
-            False -> trace_chain(memory, next_glyph, depth - 1, backwards, [current, ..visited])
+            False ->
+              trace_chain(memory, next_glyph, depth - 1, backwards, [
+                current,
+                ..visited
+              ])
           }
         }
         Error(_) -> list.reverse([current, ..visited])
@@ -437,26 +482,29 @@ pub fn tick(memory: NarrativeMemory) -> NarrativeMemory {
   let decay = memory.config.decay_rate
   let min_strength = memory.config.min_strength
 
-  let decayed_by_cause = dict.map_values(memory.links_by_cause, fn(_, links) {
-    links
-    |> list.map(fn(link) {
-      NarrativeLink(..link, strength: float.max(0.0, link.strength -. decay))
+  let decayed_by_cause =
+    dict.map_values(memory.links_by_cause, fn(_, links) {
+      links
+      |> list.map(fn(link) {
+        NarrativeLink(..link, strength: float.max(0.0, link.strength -. decay))
+      })
+      |> list.filter(fn(link) { link.strength >. min_strength })
     })
-    |> list.filter(fn(link) { link.strength >. min_strength })
-  })
 
-  let decayed_by_effect = dict.map_values(memory.links_by_effect, fn(_, links) {
-    links
-    |> list.map(fn(link) {
-      NarrativeLink(..link, strength: float.max(0.0, link.strength -. decay))
+  let decayed_by_effect =
+    dict.map_values(memory.links_by_effect, fn(_, links) {
+      links
+      |> list.map(fn(link) {
+        NarrativeLink(..link, strength: float.max(0.0, link.strength -. decay))
+      })
+      |> list.filter(fn(link) { link.strength >. min_strength })
     })
-    |> list.filter(fn(link) { link.strength >. min_strength })
-  })
 
   // Recount
-  let new_count = dict.fold(decayed_by_cause, 0, fn(acc, _, links) {
-    acc + list.length(links)
-  })
+  let new_count =
+    dict.fold(decayed_by_cause, 0, fn(acc, _, links) {
+      acc + list.length(links)
+    })
 
   NarrativeMemory(
     ..memory,
@@ -476,7 +524,10 @@ pub fn link_count(memory: NarrativeMemory) -> Int {
 }
 
 /// Get strongest links
-pub fn strongest_links(memory: NarrativeMemory, limit: Int) -> List(NarrativeLink) {
+pub fn strongest_links(
+  memory: NarrativeMemory,
+  limit: Int,
+) -> List(NarrativeLink) {
   memory.links_by_cause
   |> dict.values()
   |> list.flatten()

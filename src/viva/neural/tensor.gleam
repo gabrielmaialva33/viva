@@ -82,8 +82,7 @@ pub fn from_list2d(rows: List(List(Float))) -> Result(Tensor, TensorError) {
     [] -> Ok(Tensor(data: [], shape: [0, 0]))
     [first, ..rest] -> {
       let cols = list.length(first)
-      let valid =
-        list.all(rest, fn(row) { list.length(row) == cols })
+      let valid = list.all(rest, fn(row) { list.length(row) == cols })
 
       case valid {
         False -> Error(InvalidShape("Rows have different lengths"))
@@ -103,7 +102,11 @@ pub fn vector(data: List(Float)) -> Tensor {
 }
 
 /// Create matrix (2D tensor) with explicit dimensions
-pub fn matrix(rows: Int, cols: Int, data: List(Float)) -> Result(Tensor, TensorError) {
+pub fn matrix(
+  rows: Int,
+  cols: Int,
+  data: List(Float),
+) -> Result(Tensor, TensorError) {
   let expected_size = rows * cols
   let actual_size = list.length(data)
 
@@ -209,8 +212,7 @@ pub fn get_col(t: Tensor, col_idx: Int) -> Result(Tensor, TensorError) {
         True -> {
           let col_data =
             list.range(0, num_rows - 1)
-            |> list.filter_map(fn(row) {
-              get2d(t, row, col_idx)            })
+            |> list.filter_map(fn(row) { get2d(t, row, col_idx) })
           Ok(from_list(col_data))
         }
         False -> Error(DimensionError("Column index out of bounds"))
@@ -321,8 +323,7 @@ pub fn mean(t: Tensor) -> Float {
 pub fn max(t: Tensor) -> Float {
   case t.data {
     [] -> 0.0
-    [first, ..rest] ->
-      list.fold(rest, first, fn(acc, x) { float.max(acc, x) })
+    [first, ..rest] -> list.fold(rest, first, fn(acc, x) { float.max(acc, x) })
   }
 }
 
@@ -330,8 +331,7 @@ pub fn max(t: Tensor) -> Float {
 pub fn min(t: Tensor) -> Float {
   case t.data {
     [] -> 0.0
-    [first, ..rest] ->
-      list.fold(rest, first, fn(acc, x) { float.min(acc, x) })
+    [first, ..rest] -> list.fold(rest, first, fn(acc, x) { float.min(acc, x) })
   }
 }
 
@@ -385,8 +385,7 @@ pub fn matmul_vec(mat: Tensor, vec: Tensor) -> Result(Tensor, TensorError) {
         })
       Ok(Tensor(data: result_data, shape: [m]))
     }
-    [_m, n], [vec_n] ->
-      Error(ShapeMismatch(expected: [n], got: [vec_n]))
+    [_m, n], [vec_n] -> Error(ShapeMismatch(expected: [n], got: [vec_n]))
     _, _ -> Error(DimensionError("Expected matrix and vector"))
   }
 }
@@ -417,8 +416,7 @@ pub fn matmul(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
         })
       Ok(Tensor(data: result_data, shape: [m, p]))
     }
-    [_m, n], [n2, _p] ->
-      Error(ShapeMismatch(expected: [n, -1], got: [n2, -1]))
+    [_m, n], [n2, _p] -> Error(ShapeMismatch(expected: [n, -1], got: [n2, -1]))
     _, _ -> Error(DimensionError("Expected two matrices"))
   }
 }
@@ -431,8 +429,7 @@ pub fn transpose(t: Tensor) -> Result(Tensor, TensorError) {
         list.range(0, n - 1)
         |> list.flat_map(fn(j) {
           list.range(0, m - 1)
-          |> list.filter_map(fn(i) {
-            get2d(t, i, j)          })
+          |> list.filter_map(fn(i) { get2d(t, i, j) })
         })
       Ok(Tensor(data: result_data, shape: [n, m]))
     }
@@ -447,9 +444,7 @@ pub fn outer(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
       let m = size(a)
       let n = size(b)
       let result_data =
-        list.flat_map(a.data, fn(ai) {
-          list.map(b.data, fn(bj) { ai *. bj })
-        })
+        list.flat_map(a.data, fn(ai) { list.map(b.data, fn(bj) { ai *. bj }) })
       Ok(Tensor(data: result_data, shape: [m, n]))
     }
     False -> Error(DimensionError("Outer product requires two vectors"))
@@ -559,7 +554,9 @@ pub fn random_normal(shape: List(Int), mean: Float, std: Float) -> Tensor {
       // Approximate Box-Muller transform
       let u1 = float.max(random_float(), 0.0001)
       let u2 = random_float()
-      let z = float_sqrt(-2.0 *. float_log(u1)) *. float_cos(2.0 *. 3.14159265359 *. u2)
+      let z =
+        float_sqrt(-2.0 *. float_log(u1))
+        *. float_cos(2.0 *. 3.14159265359 *. u2)
       mean +. z *. std
     })
   Tensor(data: data, shape: shape)
@@ -623,7 +620,10 @@ pub fn can_broadcast(a: List(Int), b: List(Int)) -> Bool {
 }
 
 /// Compute broadcast shape
-pub fn broadcast_shape(a: List(Int), b: List(Int)) -> Result(List(Int), TensorError) {
+pub fn broadcast_shape(
+  a: List(Int),
+  b: List(Int),
+) -> Result(List(Int), TensorError) {
   case can_broadcast(a, b) {
     False -> Error(ShapeMismatch(expected: a, got: b))
     True -> {
@@ -646,7 +646,10 @@ pub fn broadcast_shape(a: List(Int), b: List(Int)) -> Result(List(Int), TensorEr
 }
 
 /// Broadcast tensor to target shape
-pub fn broadcast_to(t: Tensor, target_shape: List(Int)) -> Result(Tensor, TensorError) {
+pub fn broadcast_to(
+  t: Tensor,
+  target_shape: List(Int),
+) -> Result(Tensor, TensorError) {
   case can_broadcast(t.shape, target_shape) {
     False -> Error(ShapeMismatch(expected: target_shape, got: t.shape))
     True -> {
@@ -690,7 +693,8 @@ fn broadcast_data(t: Tensor, target_shape: List(Int)) -> List(Float) {
           False -> idx
         }
       })
-      |> list.drop(diff)  // Remove padding
+      |> list.drop(diff)
+    // Remove padding
 
     // Convert back to flat index in source
     let src_flat = multi_to_flat(src_indices, src_shape)
@@ -760,7 +764,8 @@ pub fn mul_broadcast(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
 pub fn squeeze(t: Tensor) -> Tensor {
   let new_shape = list.filter(t.shape, fn(dim) { dim != 1 })
   let final_shape = case new_shape {
-    [] -> [1]  // Scalar becomes 1D
+    [] -> [1]
+    // Scalar becomes 1D
     _ -> new_shape
   }
   Tensor(data: t.data, shape: final_shape)
@@ -811,10 +816,11 @@ pub fn expand_dims(t: Tensor, axis: Int) -> Tensor {
 /// Variance of all elements
 pub fn variance(t: Tensor) -> Float {
   let m = mean(t)
-  let squared_diffs = list.map(t.data, fn(x) {
-    let diff = x -. m
-    diff *. diff
-  })
+  let squared_diffs =
+    list.map(t.data, fn(x) {
+      let diff = x -. m
+      diff *. diff
+    })
   let n = int.to_float(size(t))
   case n >. 0.0 {
     True -> list.fold(squared_diffs, 0.0, fn(acc, x) { acc +. x }) /. n
@@ -911,7 +917,8 @@ pub fn stack(tensors: List(Tensor), axis: Int) -> Result(Tensor, TensorError) {
       // Check all shapes are equal
       let all_same = list.all(rest, fn(t) { t.shape == first.shape })
       case all_same {
-        False -> Error(InvalidShape("All tensors must have same shape to stack"))
+        False ->
+          Error(InvalidShape("All tensors must have same shape to stack"))
         True -> {
           let n = list.length(tensors)
           let new_shape = case axis {
@@ -931,7 +938,10 @@ pub fn stack(tensors: List(Tensor), axis: Int) -> Result(Tensor, TensorError) {
 }
 
 /// Concatenate tensors along existing axis
-pub fn concat_axis(tensors: List(Tensor), axis: Int) -> Result(Tensor, TensorError) {
+pub fn concat_axis(
+  tensors: List(Tensor),
+  axis: Int,
+) -> Result(Tensor, TensorError) {
   case tensors {
     [] -> Error(InvalidShape("Cannot concat empty list"))
     [first] -> Ok(first)
@@ -946,12 +956,13 @@ pub fn concat_axis(tensors: List(Tensor), axis: Int) -> Result(Tensor, TensorErr
           // For 2D tensors along axis 0 (vertical stack)
           case first.shape {
             [_rows, cols] if axis == 0 -> {
-              let all_same_cols = list.all(rest, fn(t) {
-                case t.shape {
-                  [_, c] -> c == cols
-                  _ -> False
-                }
-              })
+              let all_same_cols =
+                list.all(rest, fn(t) {
+                  case t.shape {
+                    [_, c] -> c == cols
+                    _ -> False
+                  }
+                })
               case all_same_cols {
                 False -> Error(InvalidShape("Column dimensions must match"))
                 True -> {
@@ -967,7 +978,10 @@ pub fn concat_axis(tensors: List(Tensor), axis: Int) -> Result(Tensor, TensorErr
                 }
               }
             }
-            _ -> Error(DimensionError("concat_axis: unsupported shape/axis combination"))
+            _ ->
+              Error(DimensionError(
+                "concat_axis: unsupported shape/axis combination",
+              ))
           }
         }
       }
@@ -980,7 +994,11 @@ pub fn concat_axis(tensors: List(Tensor), axis: Int) -> Result(Tensor, TensorErr
 // =============================================================================
 
 /// Slice tensor: get subset of data
-pub fn slice(t: Tensor, starts: List(Int), lengths: List(Int)) -> Result(Tensor, TensorError) {
+pub fn slice(
+  t: Tensor,
+  starts: List(Int),
+  lengths: List(Int),
+) -> Result(Tensor, TensorError) {
   case t.shape {
     [_n] -> {
       // 1D slice
@@ -1004,9 +1022,7 @@ pub fn slice(t: Tensor, starts: List(Int), lengths: List(Int)) -> Result(Tensor,
             |> list.flat_map(fn(r) {
               let row_offset = r * cols
               list.range(col_start, col_start + col_len - 1)
-              |> list.filter_map(fn(c) {
-                list_at_float(t.data, row_offset + c)
-              })
+              |> list.filter_map(fn(c) { list_at_float(t.data, row_offset + c) })
             })
           Ok(Tensor(data: data, shape: [row_len, col_len]))
         }

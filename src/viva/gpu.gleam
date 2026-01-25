@@ -58,10 +58,11 @@ pub type PadBatch {
 pub fn detect() -> Backend {
   case gpu_available() {
     True -> GPU
-    False -> case exla_available() {
-      True -> ExlaCpu
-      False -> CPU
-    }
+    False ->
+      case exla_available() {
+        True -> ExlaCpu
+        False -> CPU
+      }
   }
 }
 
@@ -79,12 +80,13 @@ pub fn exla_available() -> Bool {
 pub fn gpu_info() -> GpuInfo {
   case gpu_available() {
     True -> nx_gpu_info()
-    False -> GpuInfo(
-      available: False,
-      name: "None",
-      memory_mb: 0,
-      compute_capability: "N/A",
-    )
+    False ->
+      GpuInfo(
+        available: False,
+        name: "None",
+        memory_mb: 0,
+        compute_capability: "N/A",
+      )
   }
 }
 
@@ -110,7 +112,8 @@ pub fn print_status() -> Nil {
 
 /// Create PAD batch from dict
 pub fn pads_to_batch(pads: Dict(Int, Pad)) -> PadBatch {
-  let data = pads
+  let data =
+    pads
     |> dict.values()
     |> list.flat_map(fn(p) { [p.pleasure, p.arousal, p.dominance] })
 
@@ -145,7 +148,8 @@ pub fn batch_apply_delta(
 }
 
 fn cpu_batch_apply_delta(batch: PadBatch, delta: Pad) -> PadBatch {
-  let new_data = batch.data
+  let new_data =
+    batch.data
     |> list.index_map(fn(val, idx) {
       let dim = idx % 3
       case dim {
@@ -163,7 +167,8 @@ pub fn batch_scale(batch: PadBatch, factor: Float, backend: Backend) -> PadBatch
     GPU -> nx_batch_scale(batch, factor)
     ExlaCpu -> nx_batch_scale(batch, factor)
     CPU -> {
-      let new_data = list.map(batch.data, fn(v) { clamp(v *. factor, -1.0, 1.0) })
+      let new_data =
+        list.map(batch.data, fn(v) { clamp(v *. factor, -1.0, 1.0) })
       PadBatch(..batch, data: new_data)
     }
   }
@@ -184,7 +189,8 @@ pub fn batch_lerp(
 }
 
 fn cpu_batch_lerp(batch: PadBatch, target: Pad, t: Float) -> PadBatch {
-  let new_data = batch.data
+  let new_data =
+    batch.data
     |> list.index_map(fn(val, idx) {
       let dim = idx % 3
       let target_val = case dim {
@@ -284,10 +290,7 @@ fn apply_activation_cpu(t: Tensor, activation: Activation) -> Tensor {
 // =============================================================================
 
 /// Calculate all pairwise resonances (O(n²) but parallelized on GPU)
-pub fn batch_resonance(
-  pads: List(Pad),
-  backend: Backend,
-) -> List(List(Float)) {
+pub fn batch_resonance(pads: List(Pad), backend: Backend) -> List(List(Float)) {
   case backend {
     GPU -> nx_batch_resonance(pads)
     ExlaCpu -> nx_batch_resonance(pads)
@@ -296,11 +299,7 @@ pub fn batch_resonance(
 }
 
 fn cpu_batch_resonance(pads: List(Pad)) -> List(List(Float)) {
-  list.map(pads, fn(p1) {
-    list.map(pads, fn(p2) {
-      pad_similarity(p1, p2)
-    })
-  })
+  list.map(pads, fn(p1) { list.map(pads, fn(p2) { pad_similarity(p1, p2) }) })
 }
 
 fn pad_similarity(p1: Pad, p2: Pad) -> Float {
@@ -308,7 +307,8 @@ fn pad_similarity(p1: Pad, p2: Pad) -> Float {
   let da = p1.arousal -. p2.arousal
   let dd = p1.dominance -. p2.dominance
   let dist = float_sqrt(dp *. dp +. da *. da +. dd *. dd)
-  1.0 -. dist /. 3.464  // max dist is sqrt(12) ≈ 3.464
+  1.0 -. dist /. 3.464
+  // max dist is sqrt(12) ≈ 3.464
 }
 
 // =============================================================================
@@ -318,10 +318,11 @@ fn pad_similarity(p1: Pad, p2: Pad) -> Float {
 fn clamp(val: Float, min: Float, max: Float) -> Float {
   case val <. min {
     True -> min
-    False -> case val >. max {
-      True -> max
-      False -> val
-    }
+    False ->
+      case val >. max {
+        True -> max
+        False -> val
+      }
   }
 }
 

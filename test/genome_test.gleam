@@ -86,17 +86,20 @@ pub fn optimist_crisis_response_dampened_test() {
 
 pub fn neurotic_trapped_in_stressed_test() {
   let g = genome.from_personality(Neurotic)
-  let current = PadVector(-0.8, 0.9, -0.7)  // Already stressed
+  let current = PadVector(-0.8, 0.9, -0.7)
+  // Already stressed
   let positive_event = PadVector(0.3, -0.2, 0.2)
 
-  let delta = genome.compute_emotional_delta(
-    g,
-    current,
-    positive_event,
-    0.3,  // Moderate positive event
-    "Stressed",
-    100,
-  )
+  let delta =
+    genome.compute_emotional_delta(
+      g,
+      current,
+      positive_event,
+      0.3,
+      // Moderate positive event
+      "Stressed",
+      100,
+    )
 
   // Neurotic should barely move even with positive events
   // Due to extremely high inertia in Stressed state
@@ -108,28 +111,34 @@ pub fn energetic_responds_quickly_test() {
   let current = PadVector(0.0, 0.5, 0.0)
   let stimulus = PadVector(0.5, 0.3, 0.2)
 
-  let delta = genome.compute_emotional_delta(
-    g,
-    current,
-    stimulus,
-    0.7,
-    "Excited/Happy",
-    50,
-  )
+  let delta =
+    genome.compute_emotional_delta(
+      g,
+      current,
+      stimulus,
+      0.7,
+      "Excited/Happy",
+      50,
+    )
 
   // Energetic should respond more than neurotic
   let neurotic_g = genome.from_personality(Neurotic)
-  let neurotic_delta = genome.compute_emotional_delta(
-    neurotic_g,
-    current,
-    stimulus,
-    0.7,
-    "Stressed",
-    50,
-  )
+  let neurotic_delta =
+    genome.compute_emotional_delta(
+      neurotic_g,
+      current,
+      stimulus,
+      0.7,
+      "Stressed",
+      50,
+    )
 
-  let energetic_magnitude = abs(delta.pleasure) +. abs(delta.arousal) +. abs(delta.dominance)
-  let neurotic_magnitude = abs(neurotic_delta.pleasure) +. abs(neurotic_delta.arousal) +. abs(neurotic_delta.dominance)
+  let energetic_magnitude =
+    abs(delta.pleasure) +. abs(delta.arousal) +. abs(delta.dominance)
+  let neurotic_magnitude =
+    abs(neurotic_delta.pleasure)
+    +. abs(neurotic_delta.arousal)
+    +. abs(neurotic_delta.dominance)
 
   should.be_true(energetic_magnitude >. neurotic_magnitude)
 }
@@ -154,7 +163,9 @@ pub fn celebration_heals_trauma_test() {
 
   let after_celebration = genome.apply_celebration_healing(g, 0.9, 100)
 
-  should.be_true(after_celebration.epigenetics.trauma_methylation <. initial_trauma)
+  should.be_true(
+    after_celebration.epigenetics.trauma_methylation <. initial_trauma,
+  )
 }
 
 pub fn therapy_resets_methylation_test() {
@@ -162,13 +173,16 @@ pub fn therapy_resets_methylation_test() {
   let initial_trauma = g.epigenetics.trauma_methylation
 
   // Intense therapy (3 celebrations at 0.9 intensity)
-  let after_therapy = g
+  let after_therapy =
+    g
     |> genome.reset_methylation(0.9)
     |> genome.reset_methylation(0.9)
     |> genome.reset_methylation(0.9)
 
   // Should significantly reduce trauma
-  should.be_true(after_therapy.epigenetics.trauma_methylation <. initial_trauma *. 0.5)
+  should.be_true(
+    after_therapy.epigenetics.trauma_methylation <. initial_trauma *. 0.5,
+  )
 }
 
 // =============================================================================
@@ -227,13 +241,14 @@ pub fn trauma_mutation_detected_test() {
   let baseline = genome.from_personality(Balanced)
 
   // Simulate multiple crises increasing sensitivity
-  let traumatized = genome.Genome(
-    ..baseline,
-    modulators: genome.ModulatorGenes(
-      ..baseline.modulators,
-      crisis_sensitivity: baseline.modulators.crisis_sensitivity *. 2.0,
-    ),
-  )
+  let traumatized =
+    genome.Genome(
+      ..baseline,
+      modulators: genome.ModulatorGenes(
+        ..baseline.modulators,
+        crisis_sensitivity: baseline.modulators.crisis_sensitivity *. 2.0,
+      ),
+    )
 
   should.equal(genome.detect_mutation(traumatized, baseline), TraumaMutation)
 }
@@ -242,13 +257,14 @@ pub fn resilience_mutation_detected_test() {
   let baseline = genome.from_personality(Balanced)
 
   // Simulate healing that doubled recovery
-  let healed = genome.Genome(
-    ..baseline,
-    modulators: genome.ModulatorGenes(
-      ..baseline.modulators,
-      recovery_gene: baseline.modulators.recovery_gene *. 2.5,
-    ),
-  )
+  let healed =
+    genome.Genome(
+      ..baseline,
+      modulators: genome.ModulatorGenes(
+        ..baseline.modulators,
+        recovery_gene: baseline.modulators.recovery_gene *. 2.5,
+      ),
+    )
 
   should.equal(genome.detect_mutation(healed, baseline), ResilienceMutation)
 }
@@ -413,7 +429,9 @@ pub fn vaccination_first_dose_builds_immunity_test() {
   should.be_true(new_state.immunity_level >. 0.0)
 
   // Recovery should have improved
-  should.be_true(vaccinated.modulators.recovery_gene >. g.modulators.recovery_gene)
+  should.be_true(
+    vaccinated.modulators.recovery_gene >. g.modulators.recovery_gene,
+  )
 }
 
 pub fn vaccination_three_doses_max_immunity_test() {
@@ -450,12 +468,13 @@ pub fn vaccination_respects_interval_test() {
 }
 
 pub fn immunity_reduces_crisis_intensity_test() {
-  let vax_state = genome.VaccinationState(
-    vaccinated: True,
-    vaccination_tick: 0,
-    doses: 3,
-    immunity_level: 0.5,
-  )
+  let vax_state =
+    genome.VaccinationState(
+      vaccinated: True,
+      vaccination_tick: 0,
+      doses: 3,
+      immunity_level: 0.5,
+    )
 
   let original_crisis = 1.0
   let reduced = genome.apply_immunity(vax_state, original_crisis)
@@ -466,15 +485,16 @@ pub fn immunity_reduces_crisis_intensity_test() {
 
 pub fn check_emergency_status_critical_for_high_trauma_test() {
   // Create a heavily traumatized genome
-  let g = genome.Genome(
-    ..genome.from_personality(Neurotic),
-    epigenetics: genome.EpigeneticState(
-      methylation: 0.8,
-      trauma_methylation: 0.9,
-      healing_factor: 0.1,
-      methylation_history: [],
-    ),
-  )
+  let g =
+    genome.Genome(
+      ..genome.from_personality(Neurotic),
+      epigenetics: genome.EpigeneticState(
+        methylation: 0.8,
+        trauma_methylation: 0.9,
+        healing_factor: 0.1,
+        methylation_history: [],
+      ),
+    )
 
   should.equal(genome.check_emergency_status(g), Critical)
 }
@@ -489,21 +509,22 @@ pub fn check_emergency_status_warning_for_moderate_trauma_test() {
   // critical_score = trauma*2.0 + (1-recovery)*1.5 + sensitivity*0.5
   // For Warning: score > 2.5
   // 0.6*2.0 + 0.7*1.5 + 0.7*0.5 = 1.2 + 1.05 + 0.35 = 2.6 ✓
-  let g = genome.Genome(
-    ..genome.from_personality(Balanced),
-    epigenetics: genome.EpigeneticState(
-      methylation: 0.3,
-      trauma_methylation: 0.6,
-      healing_factor: 0.3,
-      methylation_history: [],
-    ),
-    modulators: genome.ModulatorGenes(
-      crisis_sensitivity: 0.7,
-      social_contagion: 0.5,
-      recovery_gene: 0.3,
-      rupture_threshold: 0.6,
-    ),
-  )
+  let g =
+    genome.Genome(
+      ..genome.from_personality(Balanced),
+      epigenetics: genome.EpigeneticState(
+        methylation: 0.3,
+        trauma_methylation: 0.6,
+        healing_factor: 0.3,
+        methylation_history: [],
+      ),
+      modulators: genome.ModulatorGenes(
+        crisis_sensitivity: 0.7,
+        social_contagion: 0.5,
+        recovery_gene: 0.3,
+        rupture_threshold: 0.6,
+      ),
+    )
 
   should.equal(genome.check_emergency_status(g), Warning)
 }
@@ -516,15 +537,17 @@ pub fn detect_trauma_drift_test() {
   let baseline = genome.from_personality(Balanced)
 
   // Create traumatized population
-  let traumatized = genome.Genome(
-    ..baseline,
-    epigenetics: genome.EpigeneticState(
-      methylation: 0.5,  // Much higher than baseline (0.0)
-      trauma_methylation: 0.4,
-      healing_factor: 0.2,
-      methylation_history: [],
-    ),
-  )
+  let traumatized =
+    genome.Genome(
+      ..baseline,
+      epigenetics: genome.EpigeneticState(
+        methylation: 0.5,
+        // Much higher than baseline (0.0)
+        trauma_methylation: 0.4,
+        healing_factor: 0.2,
+        methylation_history: [],
+      ),
+    )
 
   let population = [traumatized, traumatized, traumatized]
   let drift = genome.detect_epigenetic_drift(population, baseline)
@@ -545,13 +568,14 @@ pub fn population_stats_calculates_trauma_mutations_test() {
   let baseline = genome.from_personality(Balanced)
 
   // Create one trauma mutant
-  let mutant = genome.Genome(
-    ..baseline,
-    modulators: genome.ModulatorGenes(
-      ..baseline.modulators,
-      crisis_sensitivity: baseline.modulators.crisis_sensitivity *. 2.0,
-    ),
-  )
+  let mutant =
+    genome.Genome(
+      ..baseline,
+      modulators: genome.ModulatorGenes(
+        ..baseline.modulators,
+        crisis_sensitivity: baseline.modulators.crisis_sensitivity *. 2.0,
+      ),
+    )
 
   let population = [baseline, baseline, mutant]
   let stats = genome.population_stats(population, baseline)

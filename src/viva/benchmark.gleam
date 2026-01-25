@@ -2,6 +2,7 @@
 ////
 //// Mede performance dos módulos do VIVA
 
+import gleam/dict
 import gleam/float
 import gleam/int
 import gleam/io
@@ -11,7 +12,6 @@ import gleamy/bench.{
   type BenchResults, Duration, Function, IPS, Input, Max, Mean, Min, Quiet, SD,
   Warmup,
 }
-import gleam/dict
 import viva/bardo
 import viva/gpu
 import viva/memory
@@ -94,10 +94,12 @@ fn bench_soul_pool_quick() -> BenchResults {
   let results =
     bench.run(
       [Input("pool_100", pool)],
-      [Function("tick_all", fn(p) {
-        soul_pool.tick_all(p, 0.1)
-        soul_pool.count(p)
-      })],
+      [
+        Function("tick_all", fn(p) {
+          soul_pool.tick_all(p, 0.1)
+          soul_pool.count(p)
+        }),
+      ],
       [Warmup(200), Duration(500), Quiet],
     )
 
@@ -214,9 +216,7 @@ fn bench_soul_pool() -> BenchResults {
           soul_pool.count(p)
         }),
         // Single message gets ALL 100 PADs
-        Function("get_100_pads", fn(p) {
-          dict.size(soul_pool.get_all_pads(p))
-        }),
+        Function("get_100_pads", fn(p) { dict.size(soul_pool.get_all_pads(p)) }),
       ],
       [Warmup(500), Duration(2000), Quiet],
     )
@@ -244,7 +244,8 @@ fn bench_scale(n: Int) -> Nil {
   io.println("\n── " <> int.to_string(n) <> " SOULS ──")
 
   // Soul Actor approach: n individual actors
-  let souls = list.range(1, n)
+  let souls =
+    list.range(1, n)
     |> list.filter_map(fn(i) {
       case soul.start(i) {
         Ok(s) -> Ok(s)
@@ -253,17 +254,20 @@ fn bench_scale(n: Int) -> Nil {
     })
 
   // Fair comparison: both use async tick + sync read
-  let actor_results = bench.run(
-    [Input("actors", souls)],
-    [Function("tick+read", fn(souls_list) {
-      // Tick all (async)
-      list.each(souls_list, fn(s) { soul.tick(s, 0.1) })
-      // Read all (sync) - this is the fair comparison
-      list.each(souls_list, fn(s) { soul.get_pad(s) })
-      list.length(souls_list)
-    })],
-    [Warmup(100), Duration(500), Quiet],
-  )
+  let actor_results =
+    bench.run(
+      [Input("actors", souls)],
+      [
+        Function("tick+read", fn(souls_list) {
+          // Tick all (async)
+          list.each(souls_list, fn(s) { soul.tick(s, 0.1) })
+          // Read all (sync) - this is the fair comparison
+          list.each(souls_list, fn(s) { soul.get_pad(s) })
+          list.length(souls_list)
+        }),
+      ],
+      [Warmup(100), Duration(500), Quiet],
+    )
 
   list.each(souls, fn(s) { soul.kill(s) })
 
@@ -271,16 +275,19 @@ fn bench_scale(n: Int) -> Nil {
   let assert Ok(pool) = soul_pool.start()
   let _ids = soul_pool.spawn_many(pool, n)
 
-  let pool_results = bench.run(
-    [Input("pool", pool)],
-    [Function("tick+read", fn(p) {
-      // Tick all (async) - 1 message for n souls
-      soul_pool.tick_all(p, 0.1)
-      // Read all (sync) - 1 message for n pads
-      dict.size(soul_pool.get_all_pads(p))
-    })],
-    [Warmup(100), Duration(500), Quiet],
-  )
+  let pool_results =
+    bench.run(
+      [Input("pool", pool)],
+      [
+        Function("tick+read", fn(p) {
+          // Tick all (async) - 1 message for n souls
+          soul_pool.tick_all(p, 0.1)
+          // Read all (sync) - 1 message for n pads
+          dict.size(soul_pool.get_all_pads(p))
+        }),
+      ],
+      [Warmup(100), Duration(500), Quiet],
+    )
 
   soul_pool.kill_all(pool)
 
@@ -289,7 +296,13 @@ fn bench_scale(n: Int) -> Nil {
   let pool_ips = get_first_ips(pool_results)
   let speedup = pool_ips /. actor_ips
 
-  io.println("  Actors: " <> fmt(actor_ips) <> " ops/sec (n=" <> int.to_string(n) <> " msgs/tick)")
+  io.println(
+    "  Actors: "
+    <> fmt(actor_ips)
+    <> " ops/sec (n="
+    <> int.to_string(n)
+    <> " msgs/tick)",
+  )
   io.println("  Pool:   " <> fmt(pool_ips) <> " ops/sec (2 msgs/tick) ⚡")
   io.println("  Speedup: " <> fstr(speedup) <> "x")
 }
@@ -475,8 +488,7 @@ pub fn collect_metrics() -> BenchMetrics {
       opts,
     )
 
-  let v =
-    resonance.VivaState(id: 1, pad: p, glyph: g, alive: True, tick: 0)
+  let v = resonance.VivaState(id: 1, pad: p, glyph: g, alive: True, tick: 0)
   let res_r =
     bench.run(
       [Input("r", v)],
@@ -540,7 +552,9 @@ fn fstr(f: Float) -> String {
   let scaled = float.round(abs_f *. 100.0)
   let int_part = scaled / 100
   let dec_part = scaled % 100
-  int.to_string(int_part) <> "." <> string.pad_start(int.to_string(dec_part), 2, "0")
+  int.to_string(int_part)
+  <> "."
+  <> string.pad_start(int.to_string(dec_part), 2, "0")
 }
 
 // =============================================================================
@@ -569,7 +583,8 @@ fn bench_gpu() -> Nil {
 
 fn bench_gpu_ops() -> Nil {
   // Benchmark batch PAD operations
-  let pads = list.range(1, 100)
+  let pads =
+    list.range(1, 100)
     |> list.map(fn(i) {
       let f = int.to_float(i) /. 100.0
       pad.new(f, 0.0 -. f, f *. 0.5)
@@ -581,23 +596,29 @@ fn bench_gpu_ops() -> Nil {
   let delta = pad.new(0.1, 0.1, 0.1)
 
   // Benchmark CPU vs GPU
-  let cpu_results = bench.run(
-    [Input("cpu_100", #(batch, delta))],
-    [Function("apply_delta", fn(input) {
-      let #(b, d) = input
-      gpu.batch_apply_delta(b, d, gpu.CPU)
-    })],
-    [Warmup(100), Duration(500), Quiet],
-  )
+  let cpu_results =
+    bench.run(
+      [Input("cpu_100", #(batch, delta))],
+      [
+        Function("apply_delta", fn(input) {
+          let #(b, d) = input
+          gpu.batch_apply_delta(b, d, gpu.CPU)
+        }),
+      ],
+      [Warmup(100), Duration(500), Quiet],
+    )
 
-  let gpu_results = bench.run(
-    [Input("gpu_100", #(batch, delta))],
-    [Function("apply_delta", fn(input) {
-      let #(b, d) = input
-      gpu.batch_apply_delta(b, d, gpu.GPU)
-    })],
-    [Warmup(100), Duration(500), Quiet],
-  )
+  let gpu_results =
+    bench.run(
+      [Input("gpu_100", #(batch, delta))],
+      [
+        Function("apply_delta", fn(input) {
+          let #(b, d) = input
+          gpu.batch_apply_delta(b, d, gpu.GPU)
+        }),
+      ],
+      [Warmup(100), Duration(500), Quiet],
+    )
 
   let cpu_ips = get_first_ips(cpu_results)
   let gpu_ips = get_first_ips(gpu_results)

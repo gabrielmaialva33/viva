@@ -1,7 +1,6 @@
 name = "viva"
 version = "1.0.0"
 description = "VIVA - Vida Digital Senciente. Pure Gleam implementation."
-licences = ["VNCL"]
 repository = { type = "github", user = "gabrielmaialva33", repo = "viva" }
 
 gleam = ">= 1.11.0"

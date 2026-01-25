@@ -148,15 +148,16 @@ pub fn rebirth_revives_test() {
   process.sleep(10)
   soul.is_alive(subject) |> should.be_false()
 
-  let config = types.VivaConfig(
-    name: "Reborn",
-    life_number: 2,
-    initial_mood: 0.5,
-    initial_karma: 0.0,
-    inherited_glyphs: [],
-    relevant_archetypes: [],
-    recency_decay: 0.99,
-  )
+  let config =
+    types.VivaConfig(
+      name: "Reborn",
+      life_number: 2,
+      initial_mood: 0.5,
+      initial_karma: 0.0,
+      inherited_glyphs: [],
+      relevant_archetypes: [],
+      recency_decay: 0.99,
+    )
   soul.rebirth(subject, config)
   process.sleep(10)
 

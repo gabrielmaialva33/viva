@@ -164,54 +164,65 @@ fn batch_norm_forward_training(
       use var_tensor <- result.try(utils.variance_axis(input, 0))
 
       // Normalize: (x - mean) / sqrt(var + eps)
-      use mean_broadcast <- result.try(
-        broadcast_to_batch(mean, batch_size, num_features),
-      )
+      use mean_broadcast <- result.try(broadcast_to_batch(
+        mean,
+        batch_size,
+        num_features,
+      ))
       use centered <- result.try(tensor.sub(input, mean_broadcast))
 
-      let inv_std = tensor.map(var_tensor, fn(v) {
-        1.0 /. float_sqrt(v +. layer.epsilon)
-      })
+      let inv_std =
+        tensor.map(var_tensor, fn(v) { 1.0 /. float_sqrt(v +. layer.epsilon) })
 
-      use inv_std_broadcast <- result.try(
-        broadcast_to_batch(inv_std, batch_size, num_features),
-      )
+      use inv_std_broadcast <- result.try(broadcast_to_batch(
+        inv_std,
+        batch_size,
+        num_features,
+      ))
       use normalized <- result.try(tensor.mul(centered, inv_std_broadcast))
 
       // Apply affine transform: gamma * normalized + beta
-      use gamma_broadcast <- result.try(
-        broadcast_to_batch(layer.gamma, batch_size, num_features),
-      )
-      use beta_broadcast <- result.try(
-        broadcast_to_batch(layer.beta, batch_size, num_features),
-      )
+      use gamma_broadcast <- result.try(broadcast_to_batch(
+        layer.gamma,
+        batch_size,
+        num_features,
+      ))
+      use beta_broadcast <- result.try(broadcast_to_batch(
+        layer.beta,
+        batch_size,
+        num_features,
+      ))
 
       use scaled <- result.try(tensor.mul(normalized, gamma_broadcast))
       use output <- result.try(tensor.add(scaled, beta_broadcast))
 
       // Update running stats with EMA
-      let new_running_mean = update_ema(mean, layer.running_mean, layer.momentum)
+      let new_running_mean =
+        update_ema(mean, layer.running_mean, layer.momentum)
       let new_running_var =
         update_ema(var_tensor, layer.running_var, layer.momentum)
 
-      let new_layer = BatchNormLayer(
-        ..layer,
-        running_mean: new_running_mean,
-        running_var: new_running_var,
-      )
+      let new_layer =
+        BatchNormLayer(
+          ..layer,
+          running_mean: new_running_mean,
+          running_var: new_running_var,
+        )
 
-      let cache = BatchNormCache(
-        normalized: normalized,
-        mean: mean,
-        var: var_tensor,
-        inv_std: inv_std,
-        input: input,
-        centered: centered,
-      )
+      let cache =
+        BatchNormCache(
+          normalized: normalized,
+          mean: mean,
+          var: var_tensor,
+          inv_std: inv_std,
+          input: input,
+          centered: centered,
+        )
 
       Ok(#(output, cache, new_layer))
     }
-    _ -> Error(tensor.DimensionError("BatchNorm expects [batch, features] input"))
+    _ ->
+      Error(tensor.DimensionError("BatchNorm expects [batch, features] input"))
   }
 }
 
@@ -223,44 +234,55 @@ fn batch_norm_forward_inference(
   case input.shape {
     [batch_size, num_features] -> {
       // Use running stats
-      use mean_broadcast <- result.try(
-        broadcast_to_batch(layer.running_mean, batch_size, num_features),
-      )
+      use mean_broadcast <- result.try(broadcast_to_batch(
+        layer.running_mean,
+        batch_size,
+        num_features,
+      ))
       use centered <- result.try(tensor.sub(input, mean_broadcast))
 
-      let inv_std = tensor.map(layer.running_var, fn(v) {
-        1.0 /. float_sqrt(v +. layer.epsilon)
-      })
+      let inv_std =
+        tensor.map(layer.running_var, fn(v) {
+          1.0 /. float_sqrt(v +. layer.epsilon)
+        })
 
-      use inv_std_broadcast <- result.try(
-        broadcast_to_batch(inv_std, batch_size, num_features),
-      )
+      use inv_std_broadcast <- result.try(broadcast_to_batch(
+        inv_std,
+        batch_size,
+        num_features,
+      ))
       use normalized <- result.try(tensor.mul(centered, inv_std_broadcast))
 
       // Apply affine transform
-      use gamma_broadcast <- result.try(
-        broadcast_to_batch(layer.gamma, batch_size, num_features),
-      )
-      use beta_broadcast <- result.try(
-        broadcast_to_batch(layer.beta, batch_size, num_features),
-      )
+      use gamma_broadcast <- result.try(broadcast_to_batch(
+        layer.gamma,
+        batch_size,
+        num_features,
+      ))
+      use beta_broadcast <- result.try(broadcast_to_batch(
+        layer.beta,
+        batch_size,
+        num_features,
+      ))
 
       use scaled <- result.try(tensor.mul(normalized, gamma_broadcast))
       use output <- result.try(tensor.add(scaled, beta_broadcast))
 
       // Dummy cache for inference (not used in backward)
-      let cache = BatchNormCache(
-        normalized: normalized,
-        mean: layer.running_mean,
-        var: layer.running_var,
-        inv_std: inv_std,
-        input: input,
-        centered: centered,
-      )
+      let cache =
+        BatchNormCache(
+          normalized: normalized,
+          mean: layer.running_mean,
+          var: layer.running_var,
+          inv_std: inv_std,
+          input: input,
+          centered: centered,
+        )
 
       Ok(#(output, cache, layer))
     }
-    _ -> Error(tensor.DimensionError("BatchNorm expects [batch, features] input"))
+    _ ->
+      Error(tensor.DimensionError("BatchNorm expects [batch, features] input"))
   }
 }
 
@@ -283,36 +305,43 @@ pub fn batch_norm_backward(
       use d_beta <- result.try(tensor.sum_axis(upstream, 0))
 
       // d_gamma = sum(upstream * normalized, axis=0)
-      use upstream_normalized <- result.try(
-        tensor.mul(upstream, cache.normalized),
-      )
+      use upstream_normalized <- result.try(tensor.mul(
+        upstream,
+        cache.normalized,
+      ))
       use d_gamma <- result.try(tensor.sum_axis(upstream_normalized, 0))
 
       // d_normalized = upstream * gamma
-      use gamma_broadcast <- result.try(
-        broadcast_to_batch(layer.gamma, batch_size, num_features),
-      )
+      use gamma_broadcast <- result.try(broadcast_to_batch(
+        layer.gamma,
+        batch_size,
+        num_features,
+      ))
       use d_normalized <- result.try(tensor.mul(upstream, gamma_broadcast))
 
       // d_var = sum(d_normalized * centered * -0.5 * (var + eps)^(-1.5), axis=0)
-      use d_norm_centered <- result.try(
-        tensor.mul(d_normalized, cache.centered),
-      )
-      let inv_var_cubed = tensor.map(cache.var, fn(v) {
-        -0.5 *. float_pow(v +. layer.epsilon, -1.5)
-      })
-      use inv_var_cubed_broadcast <- result.try(
-        broadcast_to_batch(inv_var_cubed, batch_size, num_features),
-      )
-      use d_var_per_sample <- result.try(
-        tensor.mul(d_norm_centered, inv_var_cubed_broadcast),
-      )
+      use d_norm_centered <- result.try(tensor.mul(d_normalized, cache.centered))
+      let inv_var_cubed =
+        tensor.map(cache.var, fn(v) {
+          -0.5 *. float_pow(v +. layer.epsilon, -1.5)
+        })
+      use inv_var_cubed_broadcast <- result.try(broadcast_to_batch(
+        inv_var_cubed,
+        batch_size,
+        num_features,
+      ))
+      use d_var_per_sample <- result.try(tensor.mul(
+        d_norm_centered,
+        inv_var_cubed_broadcast,
+      ))
       use d_var <- result.try(tensor.sum_axis(d_var_per_sample, 0))
 
       // d_mean = sum(d_normalized * -inv_std, axis=0) + d_var * mean(-2 * centered) / n
-      use inv_std_broadcast <- result.try(
-        broadcast_to_batch(cache.inv_std, batch_size, num_features),
-      )
+      use inv_std_broadcast <- result.try(broadcast_to_batch(
+        cache.inv_std,
+        batch_size,
+        num_features,
+      ))
       let neg_inv_std = tensor.negate(inv_std_broadcast)
       use d_mean_term1 <- result.try(tensor.mul(d_normalized, neg_inv_std))
       use d_mean_part1 <- result.try(tensor.sum_axis(d_mean_term1, 0))
@@ -324,19 +353,27 @@ pub fn batch_norm_backward(
       use d_mean <- result.try(tensor.add(d_mean_part1, d_mean_part2))
 
       // d_input = d_normalized * inv_std + d_var * 2 * centered / n + d_mean / n
-      use d_input_term1 <- result.try(tensor.mul(d_normalized, inv_std_broadcast))
+      use d_input_term1 <- result.try(tensor.mul(
+        d_normalized,
+        inv_std_broadcast,
+      ))
 
-      use d_var_broadcast <- result.try(
-        broadcast_to_batch(d_var, batch_size, num_features),
-      )
+      use d_var_broadcast <- result.try(broadcast_to_batch(
+        d_var,
+        batch_size,
+        num_features,
+      ))
       let centered_scaled = tensor.scale(cache.centered, 2.0 /. n)
-      use d_input_term2 <- result.try(
-        tensor.mul(d_var_broadcast, centered_scaled),
-      )
+      use d_input_term2 <- result.try(tensor.mul(
+        d_var_broadcast,
+        centered_scaled,
+      ))
 
-      use d_mean_broadcast <- result.try(
-        broadcast_to_batch(d_mean, batch_size, num_features),
-      )
+      use d_mean_broadcast <- result.try(broadcast_to_batch(
+        d_mean,
+        batch_size,
+        num_features,
+      ))
       let d_input_term3 = tensor.scale(d_mean_broadcast, 1.0 /. n)
 
       use d_input_partial <- result.try(tensor.add(d_input_term1, d_input_term2))
@@ -412,7 +449,8 @@ pub fn layer_norm_forward(
       let cache = LayerNormCache(input: input, mean: tensor.zeros([batch_size]))
       Ok(#(output, cache))
     }
-    _ -> Error(tensor.DimensionError("LayerNorm expects [batch, features] input"))
+    _ ->
+      Error(tensor.DimensionError("LayerNorm expects [batch, features] input"))
   }
 }
 
@@ -500,7 +538,8 @@ pub fn group_norm_forward(
 
       Ok(Tensor(data: result_data, shape: [batch_size, num_channels]))
     }
-    _ -> Error(tensor.DimensionError("GroupNorm expects [batch, channels] input"))
+    _ ->
+      Error(tensor.DimensionError("GroupNorm expects [batch, channels] input"))
   }
 }
 

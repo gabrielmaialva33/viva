@@ -180,7 +180,8 @@ pub fn visual_percept_creates_with_attention_test() {
       action: Observe,
     )
 
-  let p = percept.visual_percept(vision, reading, thought, "/tmp/screenshot.png")
+  let p =
+    percept.visual_percept(vision, reading, thought, "/tmp/screenshot.png")
 
   should.equal(p.vision, Some(vision))
   should.equal(p.reading, Some(reading))
@@ -331,7 +332,11 @@ pub fn awareness_process_creates_result_test() {
 
 pub fn awareness_alert_is_urgent_test() {
   let thought =
-    Thought(content: "Error!", emotion: sense.negative_emotion(0.9), action: Alert)
+    Thought(
+      content: "Error!",
+      emotion: sense.negative_emotion(0.9),
+      action: Alert,
+    )
 
   let p = percept.thought_percept(thought)
   let result = awareness.process(p)
@@ -351,7 +356,11 @@ pub fn awareness_observe_not_urgent_test() {
 
 pub fn awareness_response_alert_test() {
   let thought =
-    Thought(content: "Danger!", emotion: sense.negative_emotion(0.9), action: Alert)
+    Thought(
+      content: "Danger!",
+      emotion: sense.negative_emotion(0.9),
+      action: Alert,
+    )
 
   let p = percept.thought_percept(thought)
   let result = awareness.process(p)
@@ -468,7 +477,11 @@ pub fn awareness_momentum_blends_test() {
 
 pub fn awareness_worth_remembering_high_salience_test() {
   let thought =
-    Thought(content: "Important!", emotion: sense.positive_emotion(0.9), action: Alert)
+    Thought(
+      content: "Important!",
+      emotion: sense.positive_emotion(0.9),
+      action: Alert,
+    )
 
   // Create percept with high salience by having Alert action
   let p = percept.thought_percept(thought)
@@ -489,7 +502,11 @@ pub fn hrr_vector_dimension_test() {
 
 pub fn hrr_vector_normalized_test() {
   let thought =
-    Thought(content: "Test", emotion: sense.positive_emotion(0.5), action: Observe)
+    Thought(
+      content: "Test",
+      emotion: sense.positive_emotion(0.5),
+      action: Observe,
+    )
 
   let p = percept.thought_percept(thought)
   let vec = percept.to_memory_vector(p)

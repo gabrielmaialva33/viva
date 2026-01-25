@@ -118,7 +118,8 @@ pub fn train_binary_cross_entropy_loss_test() {
 // =============================================================================
 
 pub fn train_step_basic_test() {
-  let assert Ok(net) = network.new([2, 4, 1], activation.ReLU, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([2, 4, 1], activation.ReLU, activation.Sigmoid)
   let input = tensor.from_list([0.5, 0.5])
   let target = tensor.from_list([1.0])
 
@@ -134,16 +135,22 @@ pub fn train_step_basic_test() {
 }
 
 pub fn train_step_reduces_loss_test() {
-  let assert Ok(net) = network.new([2, 3, 1], activation.Linear, activation.Linear)
+  let assert Ok(net) =
+    network.new([2, 3, 1], activation.Linear, activation.Linear)
   let input = tensor.from_list([1.0, 0.0])
   let target = tensor.from_list([1.0])
 
   let config =
-    train.TrainConfig(..train.default_config(), learning_rate: 0.1, loss: train.MSE)
+    train.TrainConfig(
+      ..train.default_config(),
+      learning_rate: 0.1,
+      loss: train.MSE,
+    )
 
   // Get initial loss
   let assert Ok(initial_output) = network.predict(net, input)
-  let assert Ok(initial_loss) = train.compute_loss(initial_output, target, train.MSE)
+  let assert Ok(initial_loss) =
+    train.compute_loss(initial_output, target, train.MSE)
 
   // Train for a few steps
   let assert Ok(#(net1, _)) = train.train_step(net, input, target, config)
@@ -152,21 +159,24 @@ pub fn train_step_reduces_loss_test() {
 
   // Get final loss
   let assert Ok(final_output) = network.predict(net3, input)
-  let assert Ok(final_loss) = train.compute_loss(final_output, target, train.MSE)
+  let assert Ok(final_loss) =
+    train.compute_loss(final_output, target, train.MSE)
 
   // Loss should decrease (or at least not increase significantly)
   should.be_true(final_loss.loss <=. initial_loss.loss +. 0.1)
 }
 
 pub fn train_step_momentum_test() {
-  let assert Ok(net) = network.new([2, 4, 1], activation.ReLU, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([2, 4, 1], activation.ReLU, activation.Sigmoid)
   let input = tensor.from_list([0.5, 0.5])
   let target = tensor.from_list([1.0])
 
   let config = train.TrainConfig(..train.default_config(), momentum: 0.9)
   let momentum_state = network.init_momentum(net)
 
-  let result = train.train_step_momentum(net, momentum_state, input, target, config)
+  let result =
+    train.train_step_momentum(net, momentum_state, input, target, config)
   should.be_ok(result)
 
   let assert Ok(#(_updated_net, _new_momentum, loss)) = result
@@ -178,7 +188,8 @@ pub fn train_step_momentum_test() {
 // =============================================================================
 
 pub fn train_batch_empty_test() {
-  let assert Ok(net) = network.new([2, 3, 1], activation.ReLU, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([2, 3, 1], activation.ReLU, activation.Sigmoid)
   let config = train.default_config()
 
   let result = train.train_batch(net, [], config)
@@ -189,7 +200,8 @@ pub fn train_batch_empty_test() {
 }
 
 pub fn train_batch_single_sample_test() {
-  let assert Ok(net) = network.new([2, 3, 1], activation.ReLU, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([2, 3, 1], activation.ReLU, activation.Sigmoid)
   let config = train.TrainConfig(..train.default_config(), loss: train.MSE)
 
   let samples = [train.sample([1.0, 0.0], [1.0])]
@@ -199,7 +211,8 @@ pub fn train_batch_single_sample_test() {
 }
 
 pub fn train_batch_multiple_samples_test() {
-  let assert Ok(net) = network.new([2, 4, 1], activation.ReLU, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([2, 4, 1], activation.ReLU, activation.Sigmoid)
   let config = train.TrainConfig(..train.default_config(), loss: train.MSE)
 
   let samples = [
@@ -220,14 +233,16 @@ pub fn train_batch_multiple_samples_test() {
 // =============================================================================
 
 pub fn train_fit_single_epoch_test() {
-  let assert Ok(net) = network.new([2, 4, 1], activation.ReLU, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([2, 4, 1], activation.ReLU, activation.Sigmoid)
 
   let samples = [
     train.sample([1.0, 0.0], [1.0]),
     train.sample([0.0, 1.0], [0.0]),
   ]
 
-  let config = train.TrainConfig(..train.default_config(), epochs: 1, batch_size: 2)
+  let config =
+    train.TrainConfig(..train.default_config(), epochs: 1, batch_size: 2)
   let result = train.fit(net, samples, config)
 
   should.be_ok(result)
@@ -237,14 +252,16 @@ pub fn train_fit_single_epoch_test() {
 }
 
 pub fn train_fit_multiple_epochs_test() {
-  let assert Ok(net) = network.new([2, 3, 1], activation.Tanh, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([2, 3, 1], activation.Tanh, activation.Sigmoid)
 
   let samples = [
     train.sample([1.0, 1.0], [1.0]),
     train.sample([0.0, 0.0], [0.0]),
   ]
 
-  let config = train.TrainConfig(..train.default_config(), epochs: 5, batch_size: 2)
+  let config =
+    train.TrainConfig(..train.default_config(), epochs: 5, batch_size: 2)
   let result = train.fit(net, samples, config)
 
   should.be_ok(result)
@@ -254,7 +271,8 @@ pub fn train_fit_multiple_epochs_test() {
 }
 
 pub fn train_fit_metrics_test() {
-  let assert Ok(net) = network.new([2, 4, 2], activation.ReLU, activation.Softmax)
+  let assert Ok(net) =
+    network.new([2, 4, 2], activation.ReLU, activation.Softmax)
 
   let samples = [
     train.sample([1.0, 0.0], [1.0, 0.0]),
@@ -277,7 +295,8 @@ pub fn train_fit_metrics_test() {
 // =============================================================================
 
 pub fn train_evaluate_test() {
-  let assert Ok(net) = network.new([2, 3, 1], activation.ReLU, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([2, 3, 1], activation.ReLU, activation.Sigmoid)
 
   let samples = [
     train.sample([1.0, 0.0], [1.0]),
@@ -292,7 +311,8 @@ pub fn train_evaluate_test() {
 }
 
 pub fn train_evaluate_empty_test() {
-  let assert Ok(net) = network.new([2, 3, 1], activation.ReLU, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([2, 3, 1], activation.ReLU, activation.Sigmoid)
 
   let result = train.evaluate(net, [], train.MSE)
   should.be_ok(result)
@@ -302,7 +322,8 @@ pub fn train_evaluate_empty_test() {
 }
 
 pub fn train_accuracy_test() {
-  let assert Ok(net) = network.new([2, 4, 2], activation.ReLU, activation.Softmax)
+  let assert Ok(net) =
+    network.new([2, 4, 2], activation.ReLU, activation.Softmax)
 
   let samples = [
     train.sample([1.0, 0.0], [1.0, 0.0]),
@@ -319,7 +340,8 @@ pub fn train_accuracy_test() {
 }
 
 pub fn train_accuracy_empty_test() {
-  let assert Ok(net) = network.new([2, 3, 2], activation.ReLU, activation.Softmax)
+  let assert Ok(net) =
+    network.new([2, 3, 2], activation.ReLU, activation.Softmax)
 
   let result = train.accuracy(net, [])
   should.be_ok(result)
@@ -344,13 +366,18 @@ pub fn train_sample_creation_test() {
 // =============================================================================
 
 pub fn train_gradient_clipping_test() {
-  let assert Ok(net) = network.new([2, 4, 1], activation.ReLU, activation.Linear)
+  let assert Ok(net) =
+    network.new([2, 4, 1], activation.ReLU, activation.Linear)
   let input = tensor.from_list([100.0, 100.0])
   let target = tensor.from_list([0.0])
 
   // Config with gradient clipping
   let config =
-    train.TrainConfig(..train.default_config(), gradient_clip: 1.0, loss: train.MSE)
+    train.TrainConfig(
+      ..train.default_config(),
+      gradient_clip: 1.0,
+      loss: train.MSE,
+    )
 
   // Should not explode even with large inputs
   let result = train.train_step(net, input, target, config)
@@ -358,13 +385,18 @@ pub fn train_gradient_clipping_test() {
 }
 
 pub fn train_l2_regularization_test() {
-  let assert Ok(net) = network.new([2, 4, 1], activation.ReLU, activation.Sigmoid)
+  let assert Ok(net) =
+    network.new([2, 4, 1], activation.ReLU, activation.Sigmoid)
   let input = tensor.from_list([0.5, 0.5])
   let target = tensor.from_list([1.0])
 
   // Config with L2 regularization
   let config =
-    train.TrainConfig(..train.default_config(), l2_lambda: 0.01, loss: train.MSE)
+    train.TrainConfig(
+      ..train.default_config(),
+      l2_lambda: 0.01,
+      loss: train.MSE,
+    )
 
   let result = train.train_step(net, input, target, config)
   should.be_ok(result)

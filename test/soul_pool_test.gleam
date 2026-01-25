@@ -81,7 +81,8 @@ pub fn tick_many_updates_only_specified_test() {
     Error(_) -> should.fail()
   }
   case dict.get(states, 3) {
-    Ok(s) -> should.equal(s.tick, 0)  // Not ticked
+    Ok(s) -> should.equal(s.tick, 0)
+    // Not ticked
     Error(_) -> should.fail()
   }
 
@@ -162,9 +163,7 @@ pub fn apply_delta_all_affects_all_test() {
   soul_pool.tick_all(pool, 1.0)
 
   let pads = soul_pool.get_all_pads(pool)
-  dict.each(pads, fn(_, p) {
-    should.be_true(p.arousal >. 0.0)
-  })
+  dict.each(pads, fn(_, p) { should.be_true(p.arousal >. 0.0) })
 
   soul_pool.kill_all(pool)
 }
@@ -181,7 +180,8 @@ pub fn kill_marks_soul_dead_test() {
 
   soul_pool.kill(pool, id)
 
-  should.equal(soul_pool.count(pool), 0)  // Dead souls don't count
+  should.equal(soul_pool.count(pool), 0)
+  // Dead souls don't count
 
   // State still exists but marked dead
   case soul_pool.get_state(pool, id) {
@@ -202,7 +202,8 @@ pub fn dead_souls_dont_tick_test() {
   soul_pool.tick_all(pool, 0.1)
 
   case soul_pool.get_state(pool, id) {
-    Some(s) -> should.equal(s.tick, 0)  // Still 0, didn't tick
+    Some(s) -> should.equal(s.tick, 0)
+    // Still 0, didn't tick
     None -> should.fail()
   }
 

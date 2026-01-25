@@ -185,9 +185,7 @@ pub fn apply_resonance(
     +. { source_pad.pleasure -. target_pad.pleasure }
     *. scale
   let new_arousal =
-    target_pad.arousal
-    +. { source_pad.arousal -. target_pad.arousal }
-    *. scale
+    target_pad.arousal +. { source_pad.arousal -. target_pad.arousal } *. scale
   let new_dominance =
     target_pad.dominance
     +. { source_pad.dominance -. target_pad.dominance }
@@ -288,7 +286,8 @@ pub fn stats(pool: ResonancePool) -> String {
 }
 
 fn float_to_string(f: Float) -> String {
-  let rounded = float.round(f *. 100.0) |> int.to_float() |> fn(x) { x /. 100.0 }
+  let rounded =
+    float.round(f *. 100.0) |> int.to_float() |> fn(x) { x /. 100.0 }
   erlang_float_to_list(rounded)
 }
 

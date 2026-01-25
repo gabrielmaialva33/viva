@@ -130,11 +130,16 @@ fn combined_importance(percept: Percept) -> Float {
 fn percept_to_stimulus(percept: Percept) -> Stimulus {
   // First check action suggestion
   case percept.thought.action {
-    Alert -> stimulus.NearDeath  // Most urgent - danger
-    OfferHelp -> stimulus.Companionship  // Social engagement
-    Celebrate -> stimulus.Success  // Achievement
-    Empathize -> stimulus.Companionship  // Social connection
-    Rest -> stimulus.Safety  // Calm state
+    Alert -> stimulus.NearDeath
+    // Most urgent - danger
+    OfferHelp -> stimulus.Companionship
+    // Social engagement
+    Celebrate -> stimulus.Success
+    // Achievement
+    Empathize -> stimulus.Companionship
+    // Social connection
+    Rest -> stimulus.Safety
+    // Calm state
     Observe -> {
       // Determine from attention focus
       attention_to_stimulus(percept.attention)
@@ -144,16 +149,26 @@ fn percept_to_stimulus(percept: Percept) -> Stimulus {
 
 fn attention_to_stimulus(attention: AttentionFocus) -> Stimulus {
   case attention {
-    ErrorDetection -> stimulus.Threat  // Error = threat
-    DirectAddress -> stimulus.Acceptance  // Someone addressing us
-    HelpRequest -> stimulus.Companionship  // Someone needs us
-    CodeAnalysis -> stimulus.LucidInsight  // Mental engagement
-    WorkObservation -> stimulus.LucidInsight  // Observing work
-    SocialInteraction -> stimulus.Companionship  // Social
-    PassiveObservation -> stimulus.Safety  // Calm
-    Listening -> stimulus.Safety  // Calm
-    GeneralAwareness -> stimulus.Safety  // Calm
-    Idle -> stimulus.Safety  // Calm
+    ErrorDetection -> stimulus.Threat
+    // Error = threat
+    DirectAddress -> stimulus.Acceptance
+    // Someone addressing us
+    HelpRequest -> stimulus.Companionship
+    // Someone needs us
+    CodeAnalysis -> stimulus.LucidInsight
+    // Mental engagement
+    WorkObservation -> stimulus.LucidInsight
+    // Observing work
+    SocialInteraction -> stimulus.Companionship
+    // Social
+    PassiveObservation -> stimulus.Safety
+    // Calm
+    Listening -> stimulus.Safety
+    // Calm
+    GeneralAwareness -> stimulus.Safety
+    // Calm
+    Idle -> stimulus.Safety
+    // Calm
   }
 }
 
@@ -201,9 +216,12 @@ fn percept_to_context_glyph(percept: Percept) -> Glyph {
 
   // Token 2: Content type (visual/auditory/internal)
   let t2 = case percept.vision, percept.hearing {
-    Some(_), _ -> 200  // Visual
-    _, Some(_) -> 100  // Auditory
-    _, _ -> 50  // Internal
+    Some(_), _ -> 200
+    // Visual
+    _, Some(_) -> 100
+    // Auditory
+    _, _ -> 50
+    // Internal
   }
 
   // Token 3: Novelty (0-255)
@@ -341,7 +359,8 @@ fn attention_priority(attention: AttentionFocus) -> Int {
 /// Is this percept worth storing in memory?
 pub fn worth_remembering(percept: Percept) -> Bool {
   // High salience or novelty
-  percept.salience >. 0.5 || percept.novelty >. 0.7
+  percept.salience >. 0.5
+  || percept.novelty >. 0.7
   // Or emotionally significant
   || sense.emotion_intensity(percept.thought.emotion) >. 0.5
   // Or requires action
@@ -390,11 +409,7 @@ pub fn process_with_state(
 
   // Update emotional momentum (exponential moving average)
   let new_momentum =
-    sense.blend_emotions(
-      state.emotional_momentum,
-      percept.thought.emotion,
-      0.3,
-    )
+    sense.blend_emotions(state.emotional_momentum, percept.thought.emotion, 0.3)
 
   // Update state
   let new_state =
@@ -417,7 +432,8 @@ pub fn get_momentum(state: AwarenessState) -> Emotion {
 pub fn attention_trend(state: AwarenessState) -> AttentionFocus {
   case state.recent {
     [] -> Idle
-    _ -> state.current_attention  // Simplified: just use current
+    _ -> state.current_attention
+    // Simplified: just use current
   }
 }
 

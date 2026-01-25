@@ -150,8 +150,7 @@ pub fn avg_tick_time(history: PerfHistory) -> Float {
   case history.samples {
     [] -> 0.0
     samples -> {
-      let sum =
-        list.fold(samples, 0, fn(acc, m) { acc + m.tick_time_us })
+      let sum = list.fold(samples, 0, fn(acc, m) { acc + m.tick_time_us })
       int_to_float(sum) /. int_to_float(list.length(samples))
     }
   }

@@ -25,15 +25,23 @@ pub fn main() {
   // Start HTTP server
   let port = 8888
   let assert Ok(_) = server.start(port, broadcaster)
-  io.println("[OK] Telemetry server running on http://localhost:" <> int.to_string(port))
+  io.println(
+    "[OK] Telemetry server running on http://localhost:" <> int.to_string(port),
+  )
   io.println("")
-  io.println("Open http://localhost:" <> int.to_string(port) <> " in your browser")
+  io.println(
+    "Open http://localhost:" <> int.to_string(port) <> " in your browser",
+  )
   io.println("to see the Three.js + D3.js visualization.")
   io.println("")
 
   // Create a demo world
   let w = create_demo_world()
-  io.println("[OK] Created demo world with " <> int.to_string(world.body_count(w)) <> " bodies")
+  io.println(
+    "[OK] Created demo world with "
+    <> int.to_string(world.body_count(w))
+    <> " bodies",
+  )
 
   // Broadcast initial state
   server.broadcast_world(broadcaster, w)
@@ -91,9 +99,12 @@ fn simulation_loop(w: world.World, broadcaster: server.Broadcaster, step: Int) {
       let awake = world.awake_count(new_world)
       let islands = world.island_count(new_world)
       io.println(
-        "Tick: " <> int.to_string(tick) <>
-        " | Awake: " <> int.to_string(awake) <>
-        " | Islands: " <> int.to_string(islands)
+        "Tick: "
+        <> int.to_string(tick)
+        <> " | Awake: "
+        <> int.to_string(awake)
+        <> " | Islands: "
+        <> int.to_string(islands),
       )
     }
     _ -> Nil

@@ -1,25 +1,33 @@
 defmodule Viva.Embodied.Senses do
   @moduledoc """
-  VIVA's sensory system - interfaces with local NIMs for perception.
+  VIVA's sensory system - interfaces with NVIDIA NIMs for perception.
 
   Senses available:
-  - Vision (NV-CLIP): Image classification, scene understanding
-  - Reading (PaddleOCR): Text extraction from images
+  - Vision (NV-DINOv2): Image embeddings, scene understanding
+  - Reading (OCDRNet): Text extraction from images
   - Thinking (DeepSeek): Reasoning about perceptions
   - Hearing (Whisper): Speech-to-text (via Cloudflare)
 
-  All processing happens locally on RTX 4090 for privacy and speed.
+  Priority order:
+  1. NVIDIA Cloud API (fast, reliable)
+  2. Local NIMs on RTX 4090 (offline)
+  3. Fallback scripts
   """
 
   require Logger
 
-  # NIM endpoints (local RTX 4090)
+  alias Viva.Embodied.NvidiaNim
+
+  # NIM endpoints (local RTX 4090 fallback)
   @clip_endpoint "http://localhost:8050"
   @ocr_endpoint "http://localhost:8020"
   @deepseek_endpoint "http://localhost:8000"  # DeepSeek NIM
 
   # Cloudflare for audio (free tier)
   @whisper_endpoint "cloudflare"
+
+  # Use NVIDIA Cloud API when available
+  @use_nvidia_cloud Application.compile_env(:viva, :nvidia_cloud, true)
 
   # ============================================================================
   # VISION (NV-CLIP)
@@ -41,6 +49,23 @@ defmodule Viva.Embodied.Senses do
   def see(image_path) when is_binary(image_path) do
     Logger.debug("[Senses.see] Processing: #{image_path}")
 
+    # Try NVIDIA Cloud API first
+    if @use_nvidia_cloud and nvidia_api_configured?() do
+      case NvidiaNim.get_embedding(image_path) do
+        {:ok, embedding} ->
+          # Convert embedding to labels using similarity
+          {:ok, embedding_to_vision(embedding)}
+
+        {:error, reason} ->
+          Logger.warning("[Senses.see] NVIDIA Cloud failed: #{inspect(reason)}, trying local")
+          see_local(image_path)
+      end
+    else
+      see_local(image_path)
+    end
+  end
+
+  defp see_local(image_path) do
     with {:ok, image_data} <- read_image(image_path),
          {:ok, result} <- call_clip(image_data) do
       {:ok, parse_vision_result(result)}
@@ -49,6 +74,36 @@ defmodule Viva.Embodied.Senses do
         Logger.warning("[Senses.see] Failed: #{inspect(reason)}")
         {:error, reason}
     end
+  end
+
+  defp embedding_to_vision(embedding) do
+    # Convert DINOv2 embedding to vision result
+    # For now, use heuristics based on embedding characteristics
+    # In production, we'd compare against reference embeddings
+
+    # Simple scene classification based on embedding statistics
+    mean = Enum.sum(embedding) / length(embedding)
+    variance = Enum.reduce(embedding, 0, fn x, acc -> acc + (x - mean) * (x - mean) end) / length(embedding)
+
+    scene_type = cond do
+      variance > 0.1 -> :workspace  # High variance = complex scene
+      mean > 0.0 -> :viewing       # Positive bias = bright scene
+      true -> :unknown
+    end
+
+    %{
+      labels: ["visual scene"],
+      confidence: [0.8],
+      dominant: "visual content",
+      dominant_confidence: 0.8,
+      scene_type: scene_type,
+      embedding: embedding  # Include raw embedding for downstream use
+    }
+  end
+
+  defp nvidia_api_configured? do
+    System.get_env("NVIDIA_API_KEY") != nil or
+      Application.get_env(:viva, :nvidia_api_key) != nil
   end
 
   @doc """
@@ -160,6 +215,22 @@ defmodule Viva.Embodied.Senses do
   def read(image_path) when is_binary(image_path) do
     Logger.debug("[Senses.read] Processing: #{image_path}")
 
+    # Try NVIDIA Cloud API first
+    if @use_nvidia_cloud and nvidia_api_configured?() do
+      case NvidiaNim.read_text(image_path) do
+        {:ok, result} ->
+          {:ok, nvidia_ocr_to_result(result)}
+
+        {:error, reason} ->
+          Logger.warning("[Senses.read] NVIDIA Cloud failed: #{inspect(reason)}, trying local")
+          read_local(image_path)
+      end
+    else
+      read_local(image_path)
+    end
+  end
+
+  defp read_local(image_path) do
     with {:ok, image_data} <- read_image(image_path),
          {:ok, result} <- call_ocr(image_data) do
       {:ok, parse_ocr_result(result)}
@@ -168,6 +239,17 @@ defmodule Viva.Embodied.Senses do
         Logger.warning("[Senses.read] Failed: #{inspect(reason)}")
         {:error, reason}
     end
+  end
+
+  defp nvidia_ocr_to_result(%{text: text, blocks: blocks}) do
+    %{
+      text: text,
+      blocks: blocks,
+      language: detect_language(text),
+      has_code: has_code_patterns?(text),
+      word_count: length(String.split(text)),
+      line_count: length(String.split(text, "\n"))
+    }
   end
 
   @doc """
@@ -464,6 +546,49 @@ defmodule Viva.Embodied.Senses do
   def perceive(image_path) do
     Logger.info("[Senses.perceive] Full perception: #{image_path}")
 
+    # Try NVIDIA Cloud API for parallel perception
+    if @use_nvidia_cloud and nvidia_api_configured?() do
+      perceive_nvidia(image_path)
+    else
+      perceive_local(image_path)
+    end
+  end
+
+  defp perceive_nvidia(image_path) do
+    # Use NvidiaNim for parallel API calls
+    result = NvidiaNim.perceive(image_path)
+
+    visual = if result.embedding do
+      embedding_to_vision(result.embedding)
+    else
+      %{labels: [], dominant: "unknown", scene_type: :unknown}
+    end
+
+    textual = if result.text do
+      nvidia_ocr_to_result(result.text)
+    else
+      %{text: "", has_code: false, word_count: 0, line_count: 0}
+    end
+
+    # Think about what we perceived
+    perception_summary = build_perception_summary(visual, textual)
+    thought_result = think(perception_summary)
+    thought = case thought_result do
+      {:ok, t} -> t
+      _ -> %{thought: "Observing...", emotion: %{valence: 0, arousal: 0.3, dominance: 0.5}, action_suggestion: :observe}
+    end
+
+    {:ok, %{
+      visual: visual,
+      textual: textual,
+      thought: thought,
+      detections: result.detections,
+      timestamp: DateTime.utc_now(),
+      source: image_path
+    }}
+  end
+
+  defp perceive_local(image_path) do
     # Run vision and reading in parallel
     vision_task = Task.async(fn -> see(image_path) end)
     reading_task = Task.async(fn -> read(image_path) end)
@@ -479,21 +604,15 @@ defmodule Viva.Embodied.Senses do
 
     textual = case reading_result do
       {:ok, t} -> t
-      _ -> %{text: "", has_code: false}
+      _ -> %{text: "", has_code: false, word_count: 0, line_count: 0}
     end
 
     # Think about what we perceived
-    perception_summary = """
-    Scene: #{visual.dominant} (#{visual.scene_type})
-    Visual elements: #{Enum.join(visual.labels, ", ")}
-    Text present: #{textual.has_code && "code" || "text"} (#{textual.word_count} words)
-    Sample: #{String.slice(textual.text, 0, 100)}
-    """
-
+    perception_summary = build_perception_summary(visual, textual)
     thought_result = think(perception_summary)
     thought = case thought_result do
       {:ok, t} -> t
-      _ -> %{thought: "Observing...", emotion: %{valence: 0, arousal: 0.3, dominance: 0.5}}
+      _ -> %{thought: "Observing...", emotion: %{valence: 0, arousal: 0.3, dominance: 0.5}, action_suggestion: :observe}
     end
 
     {:ok, %{
@@ -503,6 +622,15 @@ defmodule Viva.Embodied.Senses do
       timestamp: DateTime.utc_now(),
       source: image_path
     }}
+  end
+
+  defp build_perception_summary(visual, textual) do
+    """
+    Scene: #{visual.dominant} (#{visual.scene_type})
+    Visual elements: #{Enum.join(Map.get(visual, :labels, []), ", ")}
+    Text present: #{Map.get(textual, :has_code, false) && "code" || "text"} (#{Map.get(textual, :word_count, 0)} words)
+    Sample: #{String.slice(Map.get(textual, :text, ""), 0, 100)}
+    """
   end
 
   @doc """

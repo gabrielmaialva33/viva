@@ -172,10 +172,12 @@ pub fn world_step_single_body_test() {
 
   // Add velocity to the body
   let assert Some(b) = world.get(w1, id)
-  let b_with_velocity =
-    body.MemoryBody(..b, velocity: Vec4(0.1, 0.0, 0.0, 0.0))
+  let b_with_velocity = body.MemoryBody(..b, velocity: Vec4(0.1, 0.0, 0.0, 0.0))
   let w2 =
-    world.PhysicsWorld(..w1, bodies: dict.insert(w1.bodies, id, b_with_velocity))
+    world.PhysicsWorld(
+      ..w1,
+      bodies: dict.insert(w1.bodies, id, b_with_velocity),
+    )
 
   // Step
   let w3 = world.step(w2, 1.0)
@@ -231,7 +233,8 @@ pub fn world_step_sleeping_unchanged_test() {
   // Put body to sleep
   let assert Some(b) = world.get(w1, id)
   let sleeping = body.put_to_sleep(b)
-  let w2 = world.PhysicsWorld(..w1, bodies: dict.insert(w1.bodies, id, sleeping))
+  let w2 =
+    world.PhysicsWorld(..w1, bodies: dict.insert(w1.bodies, id, sleeping))
 
   // Add attractor
   let w3 = world.set_attractor(w2, vec4.zero)
@@ -274,7 +277,8 @@ pub fn world_wake_test() {
   // Put to sleep
   let assert Some(b) = world.get(w1, id)
   let sleeping = body.put_to_sleep(b)
-  let w2 = world.PhysicsWorld(..w1, bodies: dict.insert(w1.bodies, id, sleeping))
+  let w2 =
+    world.PhysicsWorld(..w1, bodies: dict.insert(w1.bodies, id, sleeping))
 
   // Verify sleeping
   let assert Some(b_sleeping) = world.get(w2, id)
@@ -386,14 +390,17 @@ pub fn world_query_near_and_resonant_test() {
 
   // Body close and similar (identical glyph for high similarity)
   let g_similar = glyph.new([128, 128, 128, 128])
-  let #(w1, id1) = world.add_dynamic(w, Vec4(0.1, 0.0, 0.0, 0.0), g_similar, 1.0)
+  let #(w1, id1) =
+    world.add_dynamic(w, Vec4(0.1, 0.0, 0.0, 0.0), g_similar, 1.0)
 
   // Body close but different
   let g_different = glyph.new([0, 255, 0, 128])
-  let #(w2, _id2) = world.add_dynamic(w1, Vec4(0.1, 0.1, 0.0, 0.0), g_different, 1.0)
+  let #(w2, _id2) =
+    world.add_dynamic(w1, Vec4(0.1, 0.1, 0.0, 0.0), g_different, 1.0)
 
   // Body far but similar
-  let #(w3, _id3) = world.add_dynamic(w2, Vec4(0.9, 0.9, 0.0, 0.0), g_similar, 1.0)
+  let #(w3, _id3) =
+    world.add_dynamic(w2, Vec4(0.9, 0.9, 0.0, 0.0), g_similar, 1.0)
 
   // Query: close (radius 0.5) AND similar (threshold 0.9)
   let results = world.query_near_and_resonant(w3, vec4.zero, g_query, 0.5, 0.9)
@@ -458,8 +465,7 @@ pub fn world_stats_string_test() {
 
 pub fn world_auto_sleep_after_threshold_test() {
   // Use low threshold for test
-  let config =
-    world.PhysicsConfig(..world.default_config(), sleep_threshold: 3)
+  let config = world.PhysicsConfig(..world.default_config(), sleep_threshold: 3)
   let w = world.with_config(config)
   let g = glyph.new([128, 128, 128, 128])
 

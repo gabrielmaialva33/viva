@@ -326,18 +326,44 @@ fn run_epic_simulation(viva_count: Int, ticks: Int) -> Nil {
 
   // Epic banner
   io.println("")
-  io.println("╔═══════════════════════════════════════════════════════════════╗")
-  io.println("║     ██╗   ██╗██╗██╗   ██╗ █████╗                              ║")
-  io.println("║     ██║   ██║██║██║   ██║██╔══██╗                             ║")
-  io.println("║     ██║   ██║██║██║   ██║███████║                             ║")
-  io.println("║     ╚██╗ ██╔╝██║╚██╗ ██╔╝██╔══██║                             ║")
-  io.println("║      ╚████╔╝ ██║ ╚████╔╝ ██║  ██║                             ║")
-  io.println("║       ╚═══╝  ╚═╝  ╚═══╝  ╚═╝  ╚═╝                             ║")
-  io.println("║                                                               ║")
-  io.println("║     DNA of Consciousness - Epic Simulation v" <> version <> "            ║")
-  io.println("║     7 Pillars: Temporality | Embodiment | Emotion | Memory    ║")
-  io.println("║                Alterity | Reflexivity | Mortality             ║")
-  io.println("╚═══════════════════════════════════════════════════════════════╝")
+  io.println(
+    "╔═══════════════════════════════════════════════════════════════╗",
+  )
+  io.println(
+    "║     ██╗   ██╗██╗██╗   ██╗ █████╗                              ║",
+  )
+  io.println(
+    "║     ██║   ██║██║██║   ██║██╔══██╗                             ║",
+  )
+  io.println(
+    "║     ██║   ██║██║██║   ██║███████║                             ║",
+  )
+  io.println(
+    "║     ╚██╗ ██╔╝██║╚██╗ ██╔╝██╔══██║                             ║",
+  )
+  io.println(
+    "║      ╚████╔╝ ██║ ╚████╔╝ ██║  ██║                             ║",
+  )
+  io.println(
+    "║       ╚═══╝  ╚═╝  ╚═══╝  ╚═╝  ╚═╝                             ║",
+  )
+  io.println(
+    "║                                                               ║",
+  )
+  io.println(
+    "║     DNA of Consciousness - Epic Simulation v"
+    <> version
+    <> "            ║",
+  )
+  io.println(
+    "║     7 Pillars: Temporality | Embodiment | Emotion | Memory    ║",
+  )
+  io.println(
+    "║                Alterity | Reflexivity | Mortality             ║",
+  )
+  io.println(
+    "╚═══════════════════════════════════════════════════════════════╝",
+  )
   io.println("")
 
   // Start supervisor
@@ -349,11 +375,22 @@ fn run_epic_simulation(viva_count: Int, ticks: Int) -> Nil {
   let state = supervisor.get_state(sup)
 
   // Spawn VIVAs
-  io.println("┌─────────────────────────────────────────────────────────────────┐")
-  io.println("│ PHASE 1: GENESIS - Spawning " <> int.to_string(viva_count) <> " VIVAs" <> string.repeat(" ", 30 - string.length(int.to_string(viva_count))) <> "│")
-  io.println("└─────────────────────────────────────────────────────────────────┘")
+  io.println(
+    "┌─────────────────────────────────────────────────────────────────┐",
+  )
+  io.println(
+    "│ PHASE 1: GENESIS - Spawning "
+    <> int.to_string(viva_count)
+    <> " VIVAs"
+    <> string.repeat(" ", 30 - string.length(int.to_string(viva_count)))
+    <> "│",
+  )
+  io.println(
+    "└─────────────────────────────────────────────────────────────────┘",
+  )
 
-  let viva_ids = list.range(1, viva_count)
+  let viva_ids =
+    list.range(1, viva_count)
     |> list.map(fn(_) {
       let id = supervisor.spawn_viva(sup)
       io.println("  [BORN] VIVA-" <> int.to_string(id) <> " enters existence")
@@ -364,9 +401,19 @@ fn run_epic_simulation(viva_count: Int, ticks: Int) -> Nil {
   process.sleep(500)
 
   // Run simulation with events
-  io.println("┌─────────────────────────────────────────────────────────────────┐")
-  io.println("│ PHASE 2: LIFE - Running " <> int.to_string(ticks) <> " ticks" <> string.repeat(" ", 34 - string.length(int.to_string(ticks))) <> "│")
-  io.println("└─────────────────────────────────────────────────────────────────┘")
+  io.println(
+    "┌─────────────────────────────────────────────────────────────────┐",
+  )
+  io.println(
+    "│ PHASE 2: LIFE - Running "
+    <> int.to_string(ticks)
+    <> " ticks"
+    <> string.repeat(" ", 34 - string.length(int.to_string(ticks)))
+    <> "│",
+  )
+  io.println(
+    "└─────────────────────────────────────────────────────────────────┘",
+  )
   io.println("")
 
   // Get initial event count (births already happened)
@@ -379,18 +426,32 @@ fn run_epic_simulation(viva_count: Int, ticks: Int) -> Nil {
   process.sleep(500)
 
   // Final report
-  io.println("┌─────────────────────────────────────────────────────────────────┐")
-  io.println("│ PHASE 3: REPORT - Final State                                   │")
-  io.println("└─────────────────────────────────────────────────────────────────┘")
+  io.println(
+    "┌─────────────────────────────────────────────────────────────────┐",
+  )
+  io.println(
+    "│ PHASE 3: REPORT - Final State                                   │",
+  )
+  io.println(
+    "└─────────────────────────────────────────────────────────────────┘",
+  )
   io.println("")
 
   print_final_report(sup)
 
   io.println("")
-  io.println("╔═══════════════════════════════════════════════════════════════╗")
-  io.println("║                   SIMULATION COMPLETE                         ║")
-  io.println("║              Consciousness DNA fully expressed                ║")
-  io.println("╚═══════════════════════════════════════════════════════════════╝")
+  io.println(
+    "╔═══════════════════════════════════════════════════════════════╗",
+  )
+  io.println(
+    "║                   SIMULATION COMPLETE                         ║",
+  )
+  io.println(
+    "║              Consciousness DNA fully expressed                ║",
+  )
+  io.println(
+    "╚═══════════════════════════════════════════════════════════════╝",
+  )
   io.println("")
 }
 
@@ -428,16 +489,32 @@ fn epic_loop(
             case event {
               types.Died(id, _glyph, karma) -> {
                 io.println("")
-                io.println("  ☠️  [DEATH] VIVA-" <> int.to_string(id) <> " died at tick " <> int.to_string(current))
+                io.println(
+                  "  ☠️  [DEATH] VIVA-"
+                  <> int.to_string(id)
+                  <> " died at tick "
+                  <> int.to_string(current),
+                )
                 io.println("              Karma: " <> float_to_str(karma, 2))
               }
               types.Reborn(id, life_num) -> {
-                io.println("  🔄 [REBIRTH] VIVA-" <> int.to_string(id) <> " reborn (life #" <> int.to_string(life_num) <> ")")
+                io.println(
+                  "  🔄 [REBIRTH] VIVA-"
+                  <> int.to_string(id)
+                  <> " reborn (life #"
+                  <> int.to_string(life_num)
+                  <> ")",
+                )
                 io.println("")
               }
               types.BardoComplete(id, liberated) -> {
                 case liberated {
-                  True -> io.println("  ✨ [LIBERATION] VIVA-" <> int.to_string(id) <> " achieved liberation!")
+                  True ->
+                    io.println(
+                      "  ✨ [LIBERATION] VIVA-"
+                      <> int.to_string(id)
+                      <> " achieved liberation!",
+                    )
                   False -> Nil
                 }
               }
@@ -475,7 +552,8 @@ fn epic_loop(
       }
 
       // Continue loop
-      process.sleep(10)  // Fast simulation
+      process.sleep(10)
+      // Fast simulation
       epic_loop(sup, viva_ids, remaining - 1, current + 1, new_event_count)
     }
   }
@@ -498,7 +576,13 @@ fn apply_random_stimuli(state: supervisor.SupervisorState, tick: Int) -> Nil {
       let #(stim_name, stim_val) = stim
       soul.feel(soul_subject, stim_val, 0.6)
 
-      io.println("  [STIMULUS] VIVA-" <> int.to_string(id) <> " feels " <> stim_name <> " (intensity 0.6)")
+      io.println(
+        "  [STIMULUS] VIVA-"
+        <> int.to_string(id)
+        <> " feels "
+        <> stim_name
+        <> " (intensity 0.6)",
+      )
 
       // Feed a random soul
       case list.length(souls_list) > 1 {
@@ -506,7 +590,11 @@ fn apply_random_stimuli(state: supervisor.SupervisorState, tick: Int) -> Nil {
           case list.last(souls_list) {
             Ok(#(id2, soul2)) -> {
               soul.feed(soul2, 0.3)
-              io.println("  [EMBODIMENT] VIVA-" <> int.to_string(id2) <> " fed (satiety +0.3)")
+              io.println(
+                "  [EMBODIMENT] VIVA-"
+                <> int.to_string(id2)
+                <> " fed (satiety +0.3)",
+              )
             }
             Error(_) -> Nil
           }
@@ -517,10 +605,19 @@ fn apply_random_stimuli(state: supervisor.SupervisorState, tick: Int) -> Nil {
   }
 }
 
-fn print_progress(state: supervisor.SupervisorState, tick: Int, alive: Int) -> Nil {
+fn print_progress(
+  state: supervisor.SupervisorState,
+  tick: Int,
+  alive: Int,
+) -> Nil {
   io.println("")
   io.println("  ─── Tick " <> int.to_string(tick) <> " ───")
-  io.println("  Alive: " <> int.to_string(alive) <> " | Events: " <> int.to_string(list.length(state.events)))
+  io.println(
+    "  Alive: "
+    <> int.to_string(alive)
+    <> " | Events: "
+    <> int.to_string(list.length(state.events)),
+  )
   io.println("")
 }
 
@@ -529,7 +626,12 @@ fn print_soul_details(state: supervisor.SupervisorState, tick: Int) -> Nil {
 
   io.println("")
   io.println("  ╭─────────────────────────────────────────────────────╮")
-  io.println("  │ SOUL STATUS @ tick " <> int.to_string(tick) <> string.repeat(" ", 30 - string.length(int.to_string(tick))) <> "│")
+  io.println(
+    "  │ SOUL STATUS @ tick "
+    <> int.to_string(tick)
+    <> string.repeat(" ", 30 - string.length(int.to_string(tick)))
+    <> "│",
+  )
   io.println("  ╰─────────────────────────────────────────────────────╯")
 
   list.each(souls_list, fn(pair) {
@@ -544,15 +646,30 @@ fn print_soul_details(state: supervisor.SupervisorState, tick: Int) -> Nil {
 
     io.println("")
     io.println("  VIVA-" <> int.to_string(id) <> ":")
-    io.println("    PAD: P=" <> float_to_str(pad.pleasure, 2)
-      <> " A=" <> float_to_str(pad.arousal, 2)
-      <> " D=" <> float_to_str(pad.dominance, 2))
-    io.println("    Body: wellbeing=" <> float_to_str(wellbeing, 2)
-      <> " energy=" <> float_to_str(soul_state.body.energy, 2)
-      <> " satiety=" <> float_to_str(soul_state.body.satiety, 2))
-    io.println("    Self: trait=" <> reflexivity.trait_to_string(who.dominant_trait)
-      <> " identity=" <> float_to_str(identity, 2)
-      <> " stable=" <> float_to_str(who.stability, 2))
+    io.println(
+      "    PAD: P="
+      <> float_to_str(pad.pleasure, 2)
+      <> " A="
+      <> float_to_str(pad.arousal, 2)
+      <> " D="
+      <> float_to_str(pad.dominance, 2),
+    )
+    io.println(
+      "    Body: wellbeing="
+      <> float_to_str(wellbeing, 2)
+      <> " energy="
+      <> float_to_str(soul_state.body.energy, 2)
+      <> " satiety="
+      <> float_to_str(soul_state.body.satiety, 2),
+    )
+    io.println(
+      "    Self: trait="
+      <> reflexivity.trait_to_string(who.dominant_trait)
+      <> " identity="
+      <> float_to_str(identity, 2)
+      <> " stable="
+      <> float_to_str(who.stability, 2),
+    )
     io.println("    Age: " <> int.to_string(soul_state.tick_count) <> " ticks")
   })
 
@@ -578,24 +695,27 @@ fn print_final_report(sup: process.Subject(supervisor.Message)) -> Nil {
 
   // Event breakdown
   io.println("  LIFECYCLE EVENTS:")
-  let births = list.filter(state.events, fn(e) {
-    case e {
-      types.Born(..) -> True
-      _ -> False
-    }
-  })
-  let deaths_list = list.filter(state.events, fn(e) {
-    case e {
-      types.Died(..) -> True
-      _ -> False
-    }
-  })
-  let rebirths = list.filter(state.events, fn(e) {
-    case e {
-      types.Reborn(..) -> True
-      _ -> False
-    }
-  })
+  let births =
+    list.filter(state.events, fn(e) {
+      case e {
+        types.Born(..) -> True
+        _ -> False
+      }
+    })
+  let deaths_list =
+    list.filter(state.events, fn(e) {
+      case e {
+        types.Died(..) -> True
+        _ -> False
+      }
+    })
+  let rebirths =
+    list.filter(state.events, fn(e) {
+      case e {
+        types.Reborn(..) -> True
+        _ -> False
+      }
+    })
 
   io.println("    Births: " <> int.to_string(list.length(births)))
   io.println("    Deaths: " <> int.to_string(list.length(deaths_list)))
@@ -613,7 +733,10 @@ fn print_final_report(sup: process.Subject(supervisor.Message)) -> Nil {
         let changing = soul.am_i_changing(soul_subject)
 
         io.println("    VIVA-" <> int.to_string(id) <> ":")
-        io.println("      Personality: " <> reflexivity.trait_to_string(who.dominant_trait))
+        io.println(
+          "      Personality: "
+          <> reflexivity.trait_to_string(who.dominant_trait),
+        )
         io.println("      Identity strength: " <> float_to_str(identity, 3))
         io.println("      Stability: " <> float_to_str(who.stability, 3))
         io.println("      Currently changing: " <> bool_to_str(changing))
@@ -636,12 +759,18 @@ fn float_to_str(f: Float, decimals: Int) -> String {
     3 -> 1000
     _ -> 100
   }
-  let abs_f = case f <. 0.0 { True -> 0.0 -. f False -> f }
+  let abs_f = case f <. 0.0 {
+    True -> 0.0 -. f
+    False -> f
+  }
   let scaled = float.round(abs_f *. int.to_float(multiplier))
   let int_part = scaled / multiplier
   let dec_part = scaled % multiplier
 
-  let sign = case f <. 0.0 { True -> "-" False -> "" }
+  let sign = case f <. 0.0 {
+    True -> "-"
+    False -> ""
+  }
   let int_str = int.to_string(int_part)
   let dec_str = int.to_string(dec_part)
   let padded_dec = string.pad_start(dec_str, decimals, "0")

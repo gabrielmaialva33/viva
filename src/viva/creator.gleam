@@ -215,11 +215,10 @@ pub fn spawn_life(creator: Creator) -> #(Creator, LifeSeed) {
     )
 
   let new_creator =
-    Creator(
-      ..creator,
-      next_viva_id: creator.next_viva_id + 1,
-      life_registry: [record, ..creator.life_registry],
-    )
+    Creator(..creator, next_viva_id: creator.next_viva_id + 1, life_registry: [
+      record,
+      ..creator.life_registry
+    ])
 
   #(new_creator, seed)
 }
@@ -252,20 +251,15 @@ pub fn process_death(
   // Upload glyphs to akashic
   let new_creator =
     transcendent_glyphs
-    |> list.fold(
-      Creator(..creator, life_registry: registry),
-      fn(c, g) { upload_to_akashic(c, g, viva_id) },
-    )
+    |> list.fold(Creator(..creator, life_registry: registry), fn(c, g) {
+      upload_to_akashic(c, g, viva_id)
+    })
 
   new_creator
 }
 
 /// Upload glyph to akashic (merge if similar exists)
-pub fn upload_to_akashic(
-  creator: Creator,
-  g: Glyph,
-  source: VivaId,
-) -> Creator {
+pub fn upload_to_akashic(creator: Creator, g: Glyph, source: VivaId) -> Creator {
   // Search similar glyphs
   let similar =
     creator.akashic_glyphs
@@ -387,7 +381,10 @@ fn count_lives(creator: Creator, viva_id: VivaId) -> Int {
 }
 
 /// Find relevant archetypes for glyphs
-fn find_relevant_archetypes(creator: Creator, glyphs: List(Glyph)) -> List(ArchetypeId) {
+fn find_relevant_archetypes(
+  creator: Creator,
+  glyphs: List(Glyph),
+) -> List(ArchetypeId) {
   creator.archetypes
   |> dict.to_list()
   |> list.filter_map(fn(pair) {

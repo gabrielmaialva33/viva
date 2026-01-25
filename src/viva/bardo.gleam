@@ -166,7 +166,8 @@ pub fn process_chikhai(
     }
     _ -> {
       // Did not recognize - continues to Chonyid
-      let transcendent = memory.select_transcendent(bank, transcendence_threshold)
+      let transcendent =
+        memory.select_transcendent(bank, transcendence_threshold)
       let seed_glyphs = list.map(transcendent, fn(m) { m.glyph })
       let rebirth_pad = calculate_rebirth_tendency(bank.total_karma)
       ContinuedSamsara(seed_glyphs: seed_glyphs, rebirth_tendency: rebirth_pad)
@@ -337,7 +338,8 @@ pub fn describe_outcome(outcome: LiberationOutcome) -> String {
 }
 
 fn float_to_string(f: Float) -> String {
-  let rounded = float.round(f *. 100.0) |> int.to_float() |> fn(x) { x /. 100.0 }
+  let rounded =
+    float.round(f *. 100.0) |> int.to_float() |> fn(x) { x /. 100.0 }
   erlang_float_to_list(rounded)
 }
 

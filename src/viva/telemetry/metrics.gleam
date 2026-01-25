@@ -36,10 +36,7 @@ pub type WorldMetrics {
 
 /// Time-series metrics for trends
 pub type MetricsHistory {
-  MetricsHistory(
-    samples: List(WorldMetrics),
-    max_samples: Int,
-  )
+  MetricsHistory(samples: List(WorldMetrics), max_samples: Int)
 }
 
 // =============================================================================
@@ -52,7 +49,8 @@ pub fn collect(w: World) -> WorldMetrics {
   let total = list.length(bodies_list)
 
   let awake = list.filter(bodies_list, fn(b) { !b.sleeping }) |> list.length
-  let static_count = list.filter(bodies_list, fn(b) { body.is_static(b) }) |> list.length
+  let static_count =
+    list.filter(bodies_list, fn(b) { body.is_static(b) }) |> list.length
   let dynamic_count = total - static_count
 
   let energies = list.map(bodies_list, fn(b) { b.energy })
@@ -93,7 +91,10 @@ pub fn new_history(max_samples: Int) -> MetricsHistory {
 }
 
 /// Add sample to history (FIFO, drops oldest if full)
-pub fn add_sample(history: MetricsHistory, metrics: WorldMetrics) -> MetricsHistory {
+pub fn add_sample(
+  history: MetricsHistory,
+  metrics: WorldMetrics,
+) -> MetricsHistory {
   let new_samples = [metrics, ..history.samples]
   let trimmed = case list.length(new_samples) > history.max_samples {
     True -> list.take(new_samples, history.max_samples)
@@ -115,19 +116,25 @@ pub fn get_trend(history: MetricsHistory, n: Int) -> List(WorldMetrics) {
 pub fn metrics_to_json(m: WorldMetrics) -> Json {
   json.object([
     #("tick", json.int(m.tick)),
-    #("bodies", json.object([
-      #("total", json.int(m.total_bodies)),
-      #("awake", json.int(m.awake_bodies)),
-      #("sleeping", json.int(m.sleeping_bodies)),
-      #("static", json.int(m.static_bodies)),
-      #("dynamic", json.int(m.dynamic_bodies)),
-    ])),
+    #(
+      "bodies",
+      json.object([
+        #("total", json.int(m.total_bodies)),
+        #("awake", json.int(m.awake_bodies)),
+        #("sleeping", json.int(m.sleeping_bodies)),
+        #("static", json.int(m.static_bodies)),
+        #("dynamic", json.int(m.dynamic_bodies)),
+      ]),
+    ),
     #("islands", json.int(m.island_count)),
-    #("energy", json.object([
-      #("avg", json.float(m.avg_energy)),
-      #("max", json.float(m.max_energy)),
-      #("min", json.float(m.min_energy)),
-    ])),
+    #(
+      "energy",
+      json.object([
+        #("avg", json.float(m.avg_energy)),
+        #("max", json.float(m.max_energy)),
+        #("min", json.float(m.min_energy)),
+      ]),
+    ),
     #("velocity_avg", json.float(m.avg_velocity_magnitude)),
     #("centroid", json.array(m.centroid, json.float)),
     #("spread", json.float(m.spread)),
@@ -150,23 +157,23 @@ pub fn trend_to_json(samples: List(WorldMetrics)) -> Json {
 
 /// Compute similarity matrix between N most active bodies
 pub fn similarity_matrix(w: World, n: Int) -> List(List(Float)) {
-  let top_bodies = dict.to_list(w.bodies)
+  let top_bodies =
+    dict.to_list(w.bodies)
     |> list.map(fn(p) { p.1 })
     |> list.filter(fn(b) { !b.sleeping })
     |> list.sort(fn(a, b) { float.compare(b.energy, a.energy) })
     |> list.take(n)
 
   list.map(top_bodies, fn(a) {
-    list.map(top_bodies, fn(b) {
-      hrr.similarity(a.shape, b.shape)
-    })
+    list.map(top_bodies, fn(b) { hrr.similarity(a.shape, b.shape) })
   })
 }
 
 /// Similarity matrix to JSON (for D3.js heatmap)
 pub fn similarity_matrix_to_json(w: World, n: Int) -> Json {
   let matrix = similarity_matrix(w, n)
-  let bodies = dict.to_list(w.bodies)
+  let bodies =
+    dict.to_list(w.bodies)
     |> list.map(fn(p) { p.1 })
     |> list.filter(fn(b) { !b.sleeping })
     |> list.sort(fn(a, b) { float.compare(b.energy, a.energy) })
@@ -188,19 +195,20 @@ pub fn to_force_graph(w: World, similarity_threshold: Float) -> Json {
   let bodies_list = dict.to_list(w.bodies)
 
   // Nodes
-  let nodes = list.map(bodies_list, fn(pair) {
-    let #(id, b) = pair
-    json.object([
-      #("id", json.int(id)),
-      #("label", json.string(b.label)),
-      #("energy", json.float(b.energy)),
-      #("sleeping", json.bool(b.sleeping)),
-      #("group", json.int(b.island_id)),
-      #("x", json.float(list_get(b.position.data, 0, 0.0))),
-      #("y", json.float(list_get(b.position.data, 1, 0.0))),
-      #("z", json.float(list_get(b.position.data, 2, 0.0))),
-    ])
-  })
+  let nodes =
+    list.map(bodies_list, fn(pair) {
+      let #(id, b) = pair
+      json.object([
+        #("id", json.int(id)),
+        #("label", json.string(b.label)),
+        #("energy", json.float(b.energy)),
+        #("sleeping", json.bool(b.sleeping)),
+        #("group", json.int(b.island_id)),
+        #("x", json.float(list_get(b.position.data, 0, 0.0))),
+        #("y", json.float(list_get(b.position.data, 1, 0.0))),
+        #("z", json.float(list_get(b.position.data, 2, 0.0))),
+      ])
+    })
 
   // Links (similarity-based)
   let links = build_similarity_links(bodies_list, similarity_threshold)
@@ -211,7 +219,10 @@ pub fn to_force_graph(w: World, similarity_threshold: Float) -> Json {
   ])
 }
 
-fn build_similarity_links(bodies: List(#(Int, Body)), threshold: Float) -> List(Json) {
+fn build_similarity_links(
+  bodies: List(#(Int, Body)),
+  threshold: Float,
+) -> List(Json) {
   list.flat_map(bodies, fn(pair_a) {
     let #(id_a, body_a) = pair_a
     list.filter_map(bodies, fn(pair_b) {
@@ -220,11 +231,14 @@ fn build_similarity_links(bodies: List(#(Int, Body)), threshold: Float) -> List(
         True -> {
           let sim = hrr.similarity(body_a.shape, body_b.shape)
           case sim >. threshold {
-            True -> Ok(json.object([
-              #("source", json.int(id_a)),
-              #("target", json.int(id_b)),
-              #("value", json.float(sim)),
-            ]))
+            True ->
+              Ok(
+                json.object([
+                  #("source", json.int(id_a)),
+                  #("target", json.int(id_b)),
+                  #("value", json.float(sim)),
+                ]),
+              )
             False -> Error(Nil)
           }
         }
@@ -248,12 +262,13 @@ fn compute_centroid(bodies: List(Body)) -> List(Float) {
     [] -> [0.0, 0.0, 0.0, 0.0]
     _ -> {
       let n = int_to_float(list.length(bodies))
-      let sum = list.fold(bodies, [], fn(acc, b) {
-        case acc {
-          [] -> b.position.data
-          _ -> list.map2(acc, b.position.data, fn(a, x) { a +. x })
-        }
-      })
+      let sum =
+        list.fold(bodies, [], fn(acc, b) {
+          case acc {
+            [] -> b.position.data
+            _ -> list.map2(acc, b.position.data, fn(a, x) { a +. x })
+          }
+        })
       list.map(sum, fn(x) { x /. n })
     }
   }
@@ -263,11 +278,12 @@ fn compute_spread(bodies: List(Body), centroid: List(Float)) -> Float {
   case bodies {
     [] -> 0.0
     _ -> {
-      let distances = list.map(bodies, fn(b) {
-        let diff = list.map2(b.position.data, centroid, fn(a, c) { a -. c })
-        let sq_sum = list.fold(diff, 0.0, fn(acc, x) { acc +. x *. x })
-        float_sqrt(sq_sum)
-      })
+      let distances =
+        list.map(bodies, fn(b) {
+          let diff = list.map2(b.position.data, centroid, fn(a, c) { a -. c })
+          let sq_sum = list.fold(diff, 0.0, fn(acc, x) { acc +. x *. x })
+          float_sqrt(sq_sum)
+        })
       safe_avg(distances)
     }
   }
@@ -285,16 +301,23 @@ fn safe_avg(values: List(Float)) -> Float {
 
 fn safe_max(values: List(Float)) -> Float {
   list.fold(values, 0.0, fn(acc, x) {
-    case x >. acc { True -> x False -> acc }
+    case x >. acc {
+      True -> x
+      False -> acc
+    }
   })
 }
 
 fn safe_min(values: List(Float)) -> Float {
   case values {
     [] -> 0.0
-    [first, ..rest] -> list.fold(rest, first, fn(acc, x) {
-      case x <. acc { True -> x False -> acc }
-    })
+    [first, ..rest] ->
+      list.fold(rest, first, fn(acc, x) {
+        case x <. acc {
+          True -> x
+          False -> acc
+        }
+      })
   }
 }
 

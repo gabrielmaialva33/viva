@@ -39,7 +39,8 @@ pub fn world_to_string(w: World) -> String {
 /// Lightweight frame with only positions and energies
 /// Ideal for high-frequency updates
 pub fn frame_to_json(w: World) -> Json {
-  let bodies = dict.to_list(w.bodies)
+  let bodies =
+    dict.to_list(w.bodies)
     |> list.map(fn(pair) {
       let #(id, b) = pair
       json.object([
@@ -67,12 +68,13 @@ pub fn frame_to_string(w: World) -> String {
 
 /// Delta update with specific body IDs
 pub fn delta_to_json(w: World, changed_ids: List(Int)) -> Json {
-  let changed_bodies = list.filter_map(changed_ids, fn(id) {
-    case dict.get(w.bodies, id) {
-      Ok(b) -> Ok(body_to_json(b))
-      Error(_) -> Error(Nil)
-    }
-  })
+  let changed_bodies =
+    list.filter_map(changed_ids, fn(id) {
+      case dict.get(w.bodies, id) {
+        Ok(b) -> Ok(body_to_json(b))
+        Error(_) -> Error(Nil)
+      }
+    })
 
   json.object([
     #("t", json.int(w.tick)),

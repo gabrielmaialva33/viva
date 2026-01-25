@@ -98,7 +98,9 @@ fn activation_decoder() -> Decoder(ActivationType) {
 }
 
 /// Deserialize activation type
-pub fn activation_from_dynamic(dyn: Dynamic) -> Result(ActivationType, SerializeError) {
+pub fn activation_from_dynamic(
+  dyn: Dynamic,
+) -> Result(ActivationType, SerializeError) {
   case decode.run(dyn, activation_decoder()) {
     Ok(a) -> Ok(a)
     Error(errors) -> Error(DecodeError(errors))
@@ -139,16 +141,17 @@ fn dense_layer_decoder() -> Decoder(DenseLayer) {
         output_size: output_size,
       ))
     }
-    _ -> decode.failure(
-      layer.DenseLayer(
-        weights: tensor.Tensor(data: [], shape: []),
-        biases: tensor.Tensor(data: [], shape: []),
-        activation: activation.Linear,
-        input_size: 0,
-        output_size: 0,
-      ),
-      "Unknown layer type",
-    )
+    _ ->
+      decode.failure(
+        layer.DenseLayer(
+          weights: tensor.Tensor(data: [], shape: []),
+          biases: tensor.Tensor(data: [], shape: []),
+          activation: activation.Linear,
+          input_size: 0,
+          output_size: 0,
+        ),
+        "Unknown layer type",
+      )
   }
 }
 
@@ -196,10 +199,11 @@ fn network_decoder() -> Decoder(Network) {
         output_size: output_size,
       ))
     }
-    _, _ -> decode.failure(
-      network.Network(layers: [], input_size: 0, output_size: 0),
-      "Invalid network version or type",
-    )
+    _, _ ->
+      decode.failure(
+        network.Network(layers: [], input_size: 0, output_size: 0),
+        "Invalid network version or type",
+      )
   }
 }
 
@@ -225,9 +229,7 @@ pub fn network_from_string(json_str: String) -> Result(Network, SerializeError) 
 
 /// Compact format: weights only as list of floats
 pub fn network_to_weights(net: Network) -> List(Float) {
-  list.flat_map(net.layers, fn(l) {
-    list.append(l.weights.data, l.biases.data)
-  })
+  list.flat_map(net.layers, fn(l) { list.append(l.weights.data, l.biases.data) })
 }
 
 /// Recreate network from weights (needs architecture)
@@ -241,8 +243,7 @@ pub fn network_from_weights(
     Ok(template) -> {
       // Distribute weights across layers
       case distribute_weights(template.layers, weights, []) {
-        Ok(new_layers) ->
-          Ok(network.Network(..template, layers: new_layers))
+        Ok(new_layers) -> Ok(network.Network(..template, layers: new_layers))
         Error(e) -> Error(e)
       }
     }
@@ -277,10 +278,10 @@ fn distribute_weights(
           let new_layer =
             layer.DenseLayer(
               ..l,
-              weights: tensor.Tensor(
-                data: layer_weights,
-                shape: [l.input_size, l.output_size],
-              ),
+              weights: tensor.Tensor(data: layer_weights, shape: [
+                l.input_size,
+                l.output_size,
+              ]),
               biases: tensor.Tensor(data: layer_biases, shape: [l.output_size]),
             )
 

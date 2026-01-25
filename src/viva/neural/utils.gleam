@@ -28,9 +28,11 @@ pub fn split(t: Tensor, n: Int, axis: Int) -> Result(List(Tensor), TensorError) 
       let rows_per_chunk = rows / n
       let elements_per_chunk = rows_per_chunk * cols
       let chunks = chunk_list(t.data, elements_per_chunk)
-      Ok(list.map(chunks, fn(data) {
-        Tensor(data: data, shape: [rows_per_chunk, cols])
-      }))
+      Ok(
+        list.map(chunks, fn(data) {
+          Tensor(data: data, shape: [rows_per_chunk, cols])
+        }),
+      )
     }
     [rows, cols] if axis == 1 -> {
       // Split columns (more complex - need to gather non-contiguous data)
@@ -44,9 +46,7 @@ pub fn split(t: Tensor, n: Int, axis: Int) -> Result(List(Tensor), TensorError) 
             |> list.flat_map(fn(row) {
               let row_start = row * cols
               list.range(start_col, start_col + cols_per_chunk - 1)
-              |> list.filter_map(fn(col) {
-                list_at(t.data, row_start + col)
-              })
+              |> list.filter_map(fn(col) { list_at(t.data, row_start + col) })
             })
           Tensor(data: data, shape: [rows, cols_per_chunk])
         })
@@ -88,9 +88,7 @@ pub fn softmax_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
           // Extract column
           let col_data =
             list.range(0, rows - 1)
-            |> list.filter_map(fn(row) {
-              list_at(t.data, row * cols + col_idx)
-            })
+            |> list.filter_map(fn(row) { list_at(t.data, row * cols + col_idx) })
           let col_tensor = Tensor(data: col_data, shape: [rows])
           softmax(col_tensor).data
         })
@@ -99,9 +97,7 @@ pub fn softmax_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
         list.range(0, rows - 1)
         |> list.flat_map(fn(row) {
           list.range(0, cols - 1)
-          |> list.filter_map(fn(col) {
-            list_at(data, col * rows + row)
-          })
+          |> list.filter_map(fn(col) { list_at(data, col * rows + row) })
         })
       Ok(Tensor(data: transposed, shape: [rows, cols]))
     }
@@ -122,18 +118,16 @@ pub fn variance_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
         |> list.map(fn(col_idx) {
           let col_data =
             list.range(0, rows - 1)
-            |> list.filter_map(fn(row) {
-              list_at(t.data, row * cols + col_idx)
-            })
-          let col_mean = list.fold(col_data, 0.0, fn(a, x) { a +. x })
-            /. int.to_float(rows)
+            |> list.filter_map(fn(row) { list_at(t.data, row * cols + col_idx) })
+          let col_mean =
+            list.fold(col_data, 0.0, fn(a, x) { a +. x }) /. int.to_float(rows)
           let squared_diffs =
             list.map(col_data, fn(x) {
               let diff = x -. col_mean
               diff *. diff
             })
           list.fold(squared_diffs, 0.0, fn(a, x) { a +. x })
-            /. int.to_float(rows)
+          /. int.to_float(rows)
         })
       Ok(Tensor(data: vars, shape: [cols]))
     }
@@ -147,15 +141,15 @@ pub fn variance_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
             t.data
             |> list.drop(start)
             |> list.take(cols)
-          let row_mean = list.fold(row_data, 0.0, fn(a, x) { a +. x })
-            /. int.to_float(cols)
+          let row_mean =
+            list.fold(row_data, 0.0, fn(a, x) { a +. x }) /. int.to_float(cols)
           let squared_diffs =
             list.map(row_data, fn(x) {
               let diff = x -. row_mean
               diff *. diff
             })
           list.fold(squared_diffs, 0.0, fn(a, x) { a +. x })
-            /. int.to_float(cols)
+          /. int.to_float(cols)
         })
       Ok(Tensor(data: vars, shape: [rows]))
     }
@@ -247,7 +241,8 @@ pub fn concat_along_axis(
                 })
               Ok(Tensor(data: data, shape: [rows, total_cols]))
             }
-            _ -> Error(tensor.DimensionError("concat axis 1 requires 2D tensors"))
+            _ ->
+              Error(tensor.DimensionError("concat axis 1 requires 2D tensors"))
           }
         }
       }
@@ -288,7 +283,10 @@ pub fn repeat(t: Tensor, n: Int) -> Tensor {
 }
 
 /// Tile tensor to match target shape (broadcasting helper)
-pub fn tile_to_shape(t: Tensor, target: List(Int)) -> Result(Tensor, TensorError) {
+pub fn tile_to_shape(
+  t: Tensor,
+  target: List(Int),
+) -> Result(Tensor, TensorError) {
   tensor.broadcast_to(t, target)
 }
 

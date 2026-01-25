@@ -97,71 +97,113 @@ fn bench_tensor_ops() {
   io.println("")
 
   // Addition
-  let #(pure_add_us, _) = time_us(fn() {
-    list.range(1, 1000)
-    |> list.each(fn(_) {
-      let _ = nx_backend.add(a, b, Pure)
-      Nil
+  let #(pure_add_us, _) =
+    time_us(fn() {
+      list.range(1, 1000)
+      |> list.each(fn(_) {
+        let _ = nx_backend.add(a, b, Pure)
+        Nil
+      })
     })
-  })
 
-  let #(nx_add_us, _) = time_us(fn() {
-    list.range(1, 1000)
-    |> list.each(fn(_) {
-      let _ = nx_backend.add(a, b, Nx)
-      Nil
+  let #(nx_add_us, _) =
+    time_us(fn() {
+      list.range(1, 1000)
+      |> list.each(fn(_) {
+        let _ = nx_backend.add(a, b, Nx)
+        Nil
+      })
     })
-  })
 
   io.println("  ADD (1000 ops):")
-  io.println("    Pure:  " <> fmt_us(pure_add_us) <> " (" <> fmt_ops(1000.0 /. { pure_add_us /. 1000.0 }) <> ")")
-  io.println("    Nx:    " <> fmt_us(nx_add_us) <> " (" <> fmt_ops(1000.0 /. { nx_add_us /. 1000.0 }) <> ")")
+  io.println(
+    "    Pure:  "
+    <> fmt_us(pure_add_us)
+    <> " ("
+    <> fmt_ops(1000.0 /. { pure_add_us /. 1000.0 })
+    <> ")",
+  )
+  io.println(
+    "    Nx:    "
+    <> fmt_us(nx_add_us)
+    <> " ("
+    <> fmt_ops(1000.0 /. { nx_add_us /. 1000.0 })
+    <> ")",
+  )
   print_speedup(pure_add_us, nx_add_us)
 
   // Multiplication
-  let #(pure_mul_us, _) = time_us(fn() {
-    list.range(1, 1000)
-    |> list.each(fn(_) {
-      let _ = nx_backend.mul(a, b, Pure)
-      Nil
+  let #(pure_mul_us, _) =
+    time_us(fn() {
+      list.range(1, 1000)
+      |> list.each(fn(_) {
+        let _ = nx_backend.mul(a, b, Pure)
+        Nil
+      })
     })
-  })
 
-  let #(nx_mul_us, _) = time_us(fn() {
-    list.range(1, 1000)
-    |> list.each(fn(_) {
-      let _ = nx_backend.mul(a, b, Nx)
-      Nil
+  let #(nx_mul_us, _) =
+    time_us(fn() {
+      list.range(1, 1000)
+      |> list.each(fn(_) {
+        let _ = nx_backend.mul(a, b, Nx)
+        Nil
+      })
     })
-  })
 
   io.println("")
   io.println("  MUL (1000 ops):")
-  io.println("    Pure:  " <> fmt_us(pure_mul_us) <> " (" <> fmt_ops(1000.0 /. { pure_mul_us /. 1000.0 }) <> ")")
-  io.println("    Nx:    " <> fmt_us(nx_mul_us) <> " (" <> fmt_ops(1000.0 /. { nx_mul_us /. 1000.0 }) <> ")")
+  io.println(
+    "    Pure:  "
+    <> fmt_us(pure_mul_us)
+    <> " ("
+    <> fmt_ops(1000.0 /. { pure_mul_us /. 1000.0 })
+    <> ")",
+  )
+  io.println(
+    "    Nx:    "
+    <> fmt_us(nx_mul_us)
+    <> " ("
+    <> fmt_ops(1000.0 /. { nx_mul_us /. 1000.0 })
+    <> ")",
+  )
   print_speedup(pure_mul_us, nx_mul_us)
 
   // Softmax
-  let #(pure_sm_us, _) = time_us(fn() {
-    list.range(1, 1000)
-    |> list.each(fn(_) {
-      let _ = nx_backend.softmax(a, Pure)
-      Nil
+  let #(pure_sm_us, _) =
+    time_us(fn() {
+      list.range(1, 1000)
+      |> list.each(fn(_) {
+        let _ = nx_backend.softmax(a, Pure)
+        Nil
+      })
     })
-  })
 
-  let #(nx_sm_us, _) = time_us(fn() {
-    list.range(1, 1000)
-    |> list.each(fn(_) {
-      let _ = nx_backend.softmax(a, Nx)
-      Nil
+  let #(nx_sm_us, _) =
+    time_us(fn() {
+      list.range(1, 1000)
+      |> list.each(fn(_) {
+        let _ = nx_backend.softmax(a, Nx)
+        Nil
+      })
     })
-  })
 
   io.println("")
   io.println("  SOFTMAX (1000 ops):")
-  io.println("    Pure:  " <> fmt_us(pure_sm_us) <> " (" <> fmt_ops(1000.0 /. { pure_sm_us /. 1000.0 }) <> ")")
-  io.println("    Nx:    " <> fmt_us(nx_sm_us) <> " (" <> fmt_ops(1000.0 /. { nx_sm_us /. 1000.0 }) <> ")")
+  io.println(
+    "    Pure:  "
+    <> fmt_us(pure_sm_us)
+    <> " ("
+    <> fmt_ops(1000.0 /. { pure_sm_us /. 1000.0 })
+    <> ")",
+  )
+  io.println(
+    "    Nx:    "
+    <> fmt_us(nx_sm_us)
+    <> " ("
+    <> fmt_ops(1000.0 /. { nx_sm_us /. 1000.0 })
+    <> ")",
+  )
   print_speedup(pure_sm_us, nx_sm_us)
 }
 
@@ -183,28 +225,44 @@ fn bench_matmul_size(rows: Int, cols: Int, iterations: Int) {
   let b = tensor.random_uniform([cols, rows])
 
   io.println("")
-  io.println("  MATMUL [" <> int.to_string(rows) <> "x" <> int.to_string(cols) <> "] x [" <> int.to_string(cols) <> "x" <> int.to_string(rows) <> "] (" <> int.to_string(iterations) <> " ops):")
+  io.println(
+    "  MATMUL ["
+    <> int.to_string(rows)
+    <> "x"
+    <> int.to_string(cols)
+    <> "] x ["
+    <> int.to_string(cols)
+    <> "x"
+    <> int.to_string(rows)
+    <> "] ("
+    <> int.to_string(iterations)
+    <> " ops):",
+  )
 
-  let #(pure_us, _) = time_us(fn() {
-    list.range(1, iterations)
-    |> list.each(fn(_) {
-      let _ = nx_backend.matmul(a, b, Pure)
-      Nil
+  let #(pure_us, _) =
+    time_us(fn() {
+      list.range(1, iterations)
+      |> list.each(fn(_) {
+        let _ = nx_backend.matmul(a, b, Pure)
+        Nil
+      })
     })
-  })
 
-  let #(nx_us, _) = time_us(fn() {
-    list.range(1, iterations)
-    |> list.each(fn(_) {
-      let _ = nx_backend.matmul(a, b, Nx)
-      Nil
+  let #(nx_us, _) =
+    time_us(fn() {
+      list.range(1, iterations)
+      |> list.each(fn(_) {
+        let _ = nx_backend.matmul(a, b, Nx)
+        Nil
+      })
     })
-  })
 
   let pure_ops = int.to_float(iterations) /. { pure_us /. 1_000_000.0 }
   let nx_ops = int.to_float(iterations) /. { nx_us /. 1_000_000.0 }
 
-  io.println("    Pure:  " <> fmt_us(pure_us) <> " (" <> fmt_ops(pure_ops) <> ")")
+  io.println(
+    "    Pure:  " <> fmt_us(pure_us) <> " (" <> fmt_ops(pure_ops) <> ")",
+  )
   io.println("    Nx:    " <> fmt_us(nx_us) <> " (" <> fmt_ops(nx_ops) <> ")")
   print_speedup(pure_us, nx_us)
 }
@@ -215,11 +273,12 @@ fn bench_matmul_size(rows: Int, cols: Int, iterations: Int) {
 
 fn bench_forward() {
   // Create network: 16 -> 64 -> 32 -> 8
-  let assert Ok(net) = network.from_layers([
-    layer.dense(16, 64, activation.ReLU),
-    layer.dense(64, 32, activation.ReLU),
-    layer.dense(32, 8, activation.Softmax),
-  ])
+  let assert Ok(net) =
+    network.from_layers([
+      layer.dense(16, 64, activation.ReLU),
+      layer.dense(64, 32, activation.ReLU),
+      layer.dense(32, 8, activation.Softmax),
+    ])
 
   let input = tensor.random_uniform([16])
   let iterations = 500
@@ -228,27 +287,31 @@ fn bench_forward() {
   io.println("  Iterations: " <> int.to_string(iterations))
   io.println("")
 
-  let #(pure_us, _) = time_us(fn() {
-    list.range(1, iterations)
-    |> list.each(fn(_) {
-      let _ = accel.predict_with_backend(net, input, Pure)
-      Nil
+  let #(pure_us, _) =
+    time_us(fn() {
+      list.range(1, iterations)
+      |> list.each(fn(_) {
+        let _ = accel.predict_with_backend(net, input, Pure)
+        Nil
+      })
     })
-  })
 
-  let #(nx_us, _) = time_us(fn() {
-    list.range(1, iterations)
-    |> list.each(fn(_) {
-      let _ = accel.predict_with_backend(net, input, Nx)
-      Nil
+  let #(nx_us, _) =
+    time_us(fn() {
+      list.range(1, iterations)
+      |> list.each(fn(_) {
+        let _ = accel.predict_with_backend(net, input, Nx)
+        Nil
+      })
     })
-  })
 
   let pure_ops = int.to_float(iterations) /. { pure_us /. 1_000_000.0 }
   let nx_ops = int.to_float(iterations) /. { nx_us /. 1_000_000.0 }
 
   io.println("  FORWARD PASS:")
-  io.println("    Pure:  " <> fmt_us(pure_us) <> " (" <> fmt_ops(pure_ops) <> ")")
+  io.println(
+    "    Pure:  " <> fmt_us(pure_us) <> " (" <> fmt_ops(pure_ops) <> ")",
+  )
   io.println("    Nx:    " <> fmt_us(nx_us) <> " (" <> fmt_ops(nx_ops) <> ")")
   print_speedup(pure_us, nx_us)
 }
@@ -259,11 +322,12 @@ fn bench_forward() {
 
 fn bench_batch() {
   // Create network
-  let assert Ok(net) = network.from_layers([
-    layer.dense(16, 64, activation.ReLU),
-    layer.dense(64, 32, activation.ReLU),
-    layer.dense(32, 8, activation.Softmax),
-  ])
+  let assert Ok(net) =
+    network.from_layers([
+      layer.dense(16, 64, activation.ReLU),
+      layer.dense(64, 32, activation.ReLU),
+      layer.dense(32, 8, activation.Softmax),
+    ])
 
   // Batch sizes to test
   bench_batch_size(net, 64)
@@ -272,27 +336,42 @@ fn bench_batch() {
 }
 
 fn bench_batch_size(net: network.Network, batch_size: Int) {
-  let inputs = list.range(1, batch_size)
+  let inputs =
+    list.range(1, batch_size)
     |> list.map(fn(_) { tensor.random_uniform([16]) })
 
   io.println("")
   io.println("  BATCH SIZE: " <> int.to_string(batch_size))
 
-  let #(pure_us, _) = time_us(fn() {
-    let _ = accel.predict_batch_with_backend(net, inputs, Pure)
-    Nil
-  })
+  let #(pure_us, _) =
+    time_us(fn() {
+      let _ = accel.predict_batch_with_backend(net, inputs, Pure)
+      Nil
+    })
 
-  let #(nx_us, _) = time_us(fn() {
-    let _ = accel.predict_batch_with_backend(net, inputs, Nx)
-    Nil
-  })
+  let #(nx_us, _) =
+    time_us(fn() {
+      let _ = accel.predict_batch_with_backend(net, inputs, Nx)
+      Nil
+    })
 
   let pure_throughput = int.to_float(batch_size) /. { pure_us /. 1_000_000.0 }
   let nx_throughput = int.to_float(batch_size) /. { nx_us /. 1_000_000.0 }
 
-  io.println("    Pure:  " <> fmt_us(pure_us) <> " (" <> fmt_throughput(pure_throughput) <> ")")
-  io.println("    Nx:    " <> fmt_us(nx_us) <> " (" <> fmt_throughput(nx_throughput) <> ")")
+  io.println(
+    "    Pure:  "
+    <> fmt_us(pure_us)
+    <> " ("
+    <> fmt_throughput(pure_throughput)
+    <> ")",
+  )
+  io.println(
+    "    Nx:    "
+    <> fmt_us(nx_us)
+    <> " ("
+    <> fmt_throughput(nx_throughput)
+    <> ")",
+  )
   print_speedup(pure_us, nx_us)
 }
 
@@ -311,52 +390,73 @@ fn bench_viva_brain() {
   io.println("  Iterations: " <> int.to_string(iterations))
   io.println("")
 
-  let #(pure_us, _) = time_us(fn() {
-    list.range(1, iterations)
-    |> list.each(fn(_) {
-      let _ = accel.predict_with_backend(brain, input, Pure)
-      Nil
+  let #(pure_us, _) =
+    time_us(fn() {
+      list.range(1, iterations)
+      |> list.each(fn(_) {
+        let _ = accel.predict_with_backend(brain, input, Pure)
+        Nil
+      })
     })
-  })
 
-  let #(nx_us, _) = time_us(fn() {
-    list.range(1, iterations)
-    |> list.each(fn(_) {
-      let _ = accel.predict_with_backend(brain, input, Nx)
-      Nil
+  let #(nx_us, _) =
+    time_us(fn() {
+      list.range(1, iterations)
+      |> list.each(fn(_) {
+        let _ = accel.predict_with_backend(brain, input, Nx)
+        Nil
+      })
     })
-  })
 
   let pure_ticks = int.to_float(iterations) /. { pure_us /. 1_000_000.0 }
   let nx_ticks = int.to_float(iterations) /. { nx_us /. 1_000_000.0 }
 
   io.println("  VIVA DECIDE (soul-ticks/sec):")
-  io.println("    Pure:  " <> fmt_us(pure_us) <> " (" <> fmt_ticks(pure_ticks) <> ")")
-  io.println("    Nx:    " <> fmt_us(nx_us) <> " (" <> fmt_ticks(nx_ticks) <> ")")
+  io.println(
+    "    Pure:  " <> fmt_us(pure_us) <> " (" <> fmt_ticks(pure_ticks) <> ")",
+  )
+  io.println(
+    "    Nx:    " <> fmt_us(nx_us) <> " (" <> fmt_ticks(nx_ticks) <> ")",
+  )
   print_speedup(pure_us, nx_us)
 
   // Batch decision (multiple souls thinking at once)
   io.println("")
   io.println("  BATCH DECISION (100 souls):")
 
-  let soul_inputs = list.range(1, 100)
+  let soul_inputs =
+    list.range(1, 100)
     |> list.map(fn(_) { tensor.random_uniform([16]) })
 
-  let #(pure_batch_us, _) = time_us(fn() {
-    let _ = accel.predict_batch_with_backend(brain, soul_inputs, Pure)
-    Nil
-  })
+  let #(pure_batch_us, _) =
+    time_us(fn() {
+      let _ = accel.predict_batch_with_backend(brain, soul_inputs, Pure)
+      Nil
+    })
 
-  let #(nx_batch_us, _) = time_us(fn() {
-    let _ = accel.predict_batch_with_backend(brain, soul_inputs, Nx)
-    Nil
-  })
+  let #(nx_batch_us, _) =
+    time_us(fn() {
+      let _ = accel.predict_batch_with_backend(brain, soul_inputs, Nx)
+      Nil
+    })
 
   let pure_batch_ticks = 100.0 /. { pure_batch_us /. 1_000_000.0 }
   let nx_batch_ticks = 100.0 /. { nx_batch_us /. 1_000_000.0 }
 
-  io.println("    Pure:  " <> fmt_us(pure_batch_us) <> " (" <> fmt_ticks(pure_batch_ticks) <> ")")
-  io.println("    Nx:    " <> fmt_us(nx_batch_us) <> " (" <> fmt_ticks(nx_batch_ticks) <> ")")
+  io.println(
+    "    Pure:  "
+    <> fmt_us(pure_batch_us)
+    <> " ("
+    <> fmt_ticks(pure_batch_ticks)
+    <> ")",
+  )
+  io.println(
+    "    Nx:    "
+    <> fmt_us(nx_batch_us)
+    <> " ("
+    <> fmt_ticks(nx_batch_ticks)
+    <> ")",
+  )
   print_speedup(pure_batch_us, nx_batch_us)
 }
 
@@ -377,7 +477,8 @@ fn erlang_monotonic_time_native() -> Int
 fn erlang_monotonic_time_micro() -> Int {
   // Convert native to microseconds
   let native = erlang_monotonic_time_native()
-  native / 1000  // Approximate, depends on system
+  native / 1000
+  // Approximate, depends on system
 }
 
 fn bool_str(b: Bool) -> String {
@@ -398,10 +499,11 @@ fn backend_str(b: nx_backend.Backend) -> String {
 fn fmt_us(us: Float) -> String {
   case us >. 1_000_000.0 {
     True -> fstr(us /. 1_000_000.0) <> "s"
-    False -> case us >. 1000.0 {
-      True -> fstr(us /. 1000.0) <> "ms"
-      False -> fstr(us) <> "us"
-    }
+    False ->
+      case us >. 1000.0 {
+        True -> fstr(us /. 1000.0) <> "ms"
+        False -> fstr(us) <> "us"
+      }
   }
   |> string.pad_start(10, " ")
 }
@@ -409,30 +511,33 @@ fn fmt_us(us: Float) -> String {
 fn fmt_ops(ops: Float) -> String {
   case ops >. 1_000_000.0 {
     True -> fstr(ops /. 1_000_000.0) <> "M ops/s"
-    False -> case ops >. 1000.0 {
-      True -> fstr(ops /. 1000.0) <> "K ops/s"
-      False -> fstr(ops) <> " ops/s"
-    }
+    False ->
+      case ops >. 1000.0 {
+        True -> fstr(ops /. 1000.0) <> "K ops/s"
+        False -> fstr(ops) <> " ops/s"
+      }
   }
 }
 
 fn fmt_throughput(t: Float) -> String {
   case t >. 1_000_000.0 {
     True -> fstr(t /. 1_000_000.0) <> "M samples/s"
-    False -> case t >. 1000.0 {
-      True -> fstr(t /. 1000.0) <> "K samples/s"
-      False -> fstr(t) <> " samples/s"
-    }
+    False ->
+      case t >. 1000.0 {
+        True -> fstr(t /. 1000.0) <> "K samples/s"
+        False -> fstr(t) <> " samples/s"
+      }
   }
 }
 
 fn fmt_ticks(t: Float) -> String {
   case t >. 1_000_000.0 {
     True -> fstr(t /. 1_000_000.0) <> "M ticks/s"
-    False -> case t >. 1000.0 {
-      True -> fstr(t /. 1000.0) <> "K ticks/s"
-      False -> fstr(t) <> " ticks/s"
-    }
+    False ->
+      case t >. 1000.0 {
+        True -> fstr(t /. 1000.0) <> "K ticks/s"
+        False -> fstr(t) <> " ticks/s"
+      }
   }
 }
 
@@ -444,7 +549,9 @@ fn print_speedup(pure_us: Float, nx_us: Float) {
     }
     False -> {
       let slowdown = nx_us /. pure_us
-      io.println("    Slowdown: " <> fstr(slowdown) <> "x (Pure faster - overhead)")
+      io.println(
+        "    Slowdown: " <> fstr(slowdown) <> "x (Pure faster - overhead)",
+      )
     }
   }
 }
@@ -457,5 +564,7 @@ fn fstr(f: Float) -> String {
   let scaled = float.round(abs_f *. 100.0)
   let int_part = scaled / 100
   let dec_part = scaled % 100
-  int.to_string(int_part) <> "." <> string.pad_start(int.to_string(dec_part), 2, "0")
+  int.to_string(int_part)
+  <> "."
+  <> string.pad_start(int.to_string(dec_part), 2, "0")
 }

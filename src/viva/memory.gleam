@@ -158,11 +158,16 @@ fn calculate_karma(intensity: Float) -> Float {
 }
 
 /// Search similar memories
-pub fn recall(bank: KarmaBank, query: GlyphQuery, limit: Int) -> List(GlyphMemory) {
+pub fn recall(
+  bank: KarmaBank,
+  query: GlyphQuery,
+  limit: Int,
+) -> List(GlyphMemory) {
   bank.memories
   |> list.map(fn(m) {
     let emotion_sim = viva_glyph.similarity(m.glyph, query.glyph)
-    let context_sim = viva_glyph.similarity(m.context_glyph, query.context_glyph)
+    let context_sim =
+      viva_glyph.similarity(m.context_glyph, query.context_glyph)
     let combined = 0.6 *. emotion_sim +. 0.4 *. context_sim
     #(m, combined)
   })
@@ -194,7 +199,10 @@ pub fn recall_and_strengthen(
 }
 
 /// Select transcendent memories (high DRE)
-pub fn select_transcendent(bank: KarmaBank, threshold: Float) -> List(GlyphMemory) {
+pub fn select_transcendent(
+  bank: KarmaBank,
+  threshold: Float,
+) -> List(GlyphMemory) {
   bank.memories
   |> list.filter(fn(m) { m.karma_weight >. threshold })
   |> list.sort(fn(a, b) { float.compare(b.karma_weight, a.karma_weight) })
@@ -277,7 +285,8 @@ pub fn stats(bank: KarmaBank) -> String {
 }
 
 fn float_to_string(f: Float) -> String {
-  let rounded = float.round(f *. 100.0) |> int.to_float() |> fn(x) { x /. 100.0 }
+  let rounded =
+    float.round(f *. 100.0) |> int.to_float() |> fn(x) { x /. 100.0 }
   erlang_float_to_list(rounded)
 }
 

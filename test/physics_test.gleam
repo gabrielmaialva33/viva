@@ -112,20 +112,28 @@ pub fn vec4_clamp_test() {
   let max = Vec4(1.0, 1.0, 1.0, 1.0)
 
   let result = vec4.clamp(v, min, max)
-  should.equal(result.x, 1.0)   // clamped from 2.0
-  should.equal(result.y, -1.0)  // clamped from -2.0
-  should.equal(result.z, 0.5)   // unchanged
-  should.equal(result.w, 1.0)   // clamped from 1.5
+  should.equal(result.x, 1.0)
+  // clamped from 2.0
+  should.equal(result.y, -1.0)
+  // clamped from -2.0
+  should.equal(result.z, 0.5)
+  // unchanged
+  should.equal(result.w, 1.0)
+  // clamped from 1.5
 }
 
 pub fn vec4_clamp_pad_test() {
   let v = Vec4(2.0, -2.0, 0.5, -0.5)
   let result = vec4.clamp_pad(v)
 
-  should.equal(result.x, 1.0)   // PAD max
-  should.equal(result.y, -1.0)  // PAD min
-  should.equal(result.z, 0.5)   // unchanged
-  should.equal(result.w, 0.0)   // intensity min is 0
+  should.equal(result.x, 1.0)
+  // PAD max
+  should.equal(result.y, -1.0)
+  // PAD min
+  should.equal(result.z, 0.5)
+  // unchanged
+  should.equal(result.w, 0.0)
+  // intensity min is 0
 }
 
 pub fn vec4_from_pad_test() {
@@ -170,7 +178,8 @@ pub fn body_new_static_test() {
   let b = body.new_static(1, pos, g, 0)
 
   should.equal(b.motion_type, body.Static)
-  should.equal(b.mass, 1000.0)  // High mass for static
+  should.equal(b.mass, 1000.0)
+  // High mass for static
 }
 
 pub fn body_is_dynamic_test() {
@@ -239,7 +248,8 @@ pub fn body_integrate_clamps_position_test() {
   let b =
     body.MemoryBody(
       ..body.new_dynamic(1, pos, g, 1.0, 0),
-      velocity: Vec4(0.5, 0.0, 0.0, 0.0),  // Would go to 1.4
+      velocity: Vec4(0.5, 0.0, 0.0, 0.0),
+      // Would go to 1.4
     )
 
   let integrated = body.integrate(b, 1.0)
@@ -250,7 +260,8 @@ pub fn body_integrate_clamps_position_test() {
 
 pub fn body_apply_force_test() {
   let g = glyph.new([128, 128, 128, 128])
-  let b = body.new_dynamic(1, vec4.zero, g, 2.0, 0)  // mass = 2.0
+  let b = body.new_dynamic(1, vec4.zero, g, 2.0, 0)
+  // mass = 2.0
   let force = Vec4(4.0, 0.0, 0.0, 0.0)
   let dt = 1.0
 
@@ -291,7 +302,8 @@ pub fn body_tick_inactive_moving_test() {
   let b =
     body.MemoryBody(
       ..body.new_dynamic(1, vec4.zero, g, 1.0, 0),
-      velocity: Vec4(1.0, 0.0, 0.0, 0.0),  // Moving
+      velocity: Vec4(1.0, 0.0, 0.0, 0.0),
+      // Moving
       inactive_ticks: 10,
     )
 
@@ -306,7 +318,8 @@ pub fn body_tick_inactive_stationary_test() {
   let b =
     body.MemoryBody(
       ..body.new_dynamic(1, vec4.zero, g, 1.0, 0),
-      velocity: vec4.zero,  // Not moving
+      velocity: vec4.zero,
+      // Not moving
       inactive_ticks: 10,
     )
 
@@ -367,7 +380,8 @@ pub fn physics_attraction_test() {
 
   // Calculate attraction force
   let direction = vec4.sub(attractor, b.position)
-  let force = vec4.scale(direction, 0.1)  // Weak attraction
+  let force = vec4.scale(direction, 0.1)
+  // Weak attraction
 
   let b1 = body.apply_force(b, force, 1.0)
 

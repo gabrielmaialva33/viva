@@ -215,7 +215,11 @@ pub fn wake(world: PhysicsWorld, id: Int) -> PhysicsWorld {
 // =============================================================================
 
 /// Query bodies within radius (brute force, fine for < 1000)
-pub fn query_radius(world: PhysicsWorld, center: Vec4, radius: Float) -> List(Int) {
+pub fn query_radius(
+  world: PhysicsWorld,
+  center: Vec4,
+  radius: Float,
+) -> List(Int) {
   let radius_sq = radius *. radius
 
   world.bodies
@@ -231,7 +235,11 @@ pub fn query_radius(world: PhysicsWorld, center: Vec4, radius: Float) -> List(In
 }
 
 /// Query k nearest bodies
-pub fn query_nearest(world: PhysicsWorld, center: Vec4, k: Int) -> List(#(Int, Float)) {
+pub fn query_nearest(
+  world: PhysicsWorld,
+  center: Vec4,
+  k: Int,
+) -> List(#(Int, Float)) {
   world.bodies
   |> dict.to_list
   |> list.map(fn(pair) {

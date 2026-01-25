@@ -145,7 +145,8 @@ fn apply_scalar(x: Float, activation: ActivationType) -> ActivationResult {
     Linear -> linear(x)
     Swish -> swish(x)
     GELU -> gelu(x)
-    Softmax -> linear(x) // Softmax is handled separately (needs entire vector)
+    Softmax -> linear(x)
+    // Softmax is handled separately (needs entire vector)
   }
 }
 
@@ -216,7 +217,8 @@ pub fn from_name(name: String) -> ActivationType {
     "linear" -> Linear
     "swish" -> Swish
     "gelu" -> GELU
-    _ -> ReLU // default
+    _ -> ReLU
+    // default
   }
 }
 
