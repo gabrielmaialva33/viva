@@ -316,6 +316,9 @@ cache/
 /data/
 /data/simulations/
 
+# Generated output (images, plots)
+/output/
+
 # Local experiments
 /experiments/
 !/experiments/.gitkeep
