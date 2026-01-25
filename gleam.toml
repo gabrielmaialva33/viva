@@ -26,6 +26,12 @@ argv = ">= 1.0.0 and < 2.0.0"
 gleamy_bench = ">= 0.6.0 and < 1.0.0"
 mist = ">= 5.0.0 and < 6.0.0"
 gleam_http = ">= 4.0.0 and < 5.0.0"
+lustre = ">= 5.5.2 and < 6.0.0"
+
+# Static Site Generator (Landing Page)
+# NOTA: lustre/lustre_ssg removidos temporariamente - conflito de deps
+# lustre = ">= 4.0.0 and < 5.0.0"
+# lustre_ssg = ">= 0.8.0 and < 1.0.0"
 
 [dev-dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
