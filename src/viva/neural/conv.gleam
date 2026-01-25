@@ -2,12 +2,18 @@
 ////
 //// Implements Conv2D using the im2col approach for efficiency.
 //// Converts convolution into matrix multiplication for better performance.
+////
+//// GPU Acceleration (Qwen3-235B Priority #1):
+//// - forward_gpu uses nx_backend for GPU-accelerated convolution
+//// - forward uses Pure Gleam (portable, no deps)
+//// - forward_auto selects backend based on input size
 
 import gleam/float
 import gleam/int
 import gleam/list
 import gleam/result
 import viva/neural/activation.{type ActivationType}
+import viva/neural/nx_backend.{type Backend, CUDA, Nx, Pure}
 import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
 
 // =============================================================================
@@ -294,6 +300,155 @@ pub fn forward(
   }
 }
 
+/// GPU-accelerated forward pass using nx_backend
+/// Uses CUDA/EXLA for matmul operations (Qwen3-235B Priority #1)
+pub fn forward_gpu(
+  layer: Conv2DLayer,
+  input: Tensor,
+) -> Result(#(Tensor, Conv2DCache), TensorError) {
+  case input.shape {
+    [batch, in_ch, in_h, in_w] if in_ch == layer.in_channels -> {
+      // Calculate padding
+      let #(pad_h, pad_w) =
+        calculate_padding(
+          layer.padding,
+          in_h,
+          in_w,
+          layer.kernel_h,
+          layer.kernel_w,
+          layer.stride_h,
+          layer.stride_w,
+        )
+
+      // Calculate output dimensions
+      let out_h = { in_h + 2 * pad_h - layer.kernel_h } / layer.stride_h + 1
+      let out_w = { in_w + 2 * pad_w - layer.kernel_w } / layer.stride_w + 1
+
+      // Process each batch sample with GPU matmul
+      let #(output_data, col_data) =
+        list.range(0, batch - 1)
+        |> list.fold(#([], []), fn(acc, b) {
+          let #(out_acc, col_acc) = acc
+
+          // Extract single sample [in_ch, in_h, in_w]
+          let sample_start = b * in_ch * in_h * in_w
+          let sample_data =
+            input.data
+            |> list.drop(sample_start)
+            |> list.take(in_ch * in_h * in_w)
+          let sample = Tensor(data: sample_data, shape: [in_ch, in_h, in_w])
+
+          // Apply im2col
+          let col =
+            im2col(
+              sample,
+              layer.kernel_h,
+              layer.kernel_w,
+              layer.stride_h,
+              layer.stride_w,
+              pad_h,
+              pad_w,
+            )
+
+          // Reshape filters to 2D: [out_ch, in_ch * kH * kW]
+          let filters_2d =
+            tensor.reshape(layer.filters, [
+              layer.out_channels,
+              layer.in_channels * layer.kernel_h * layer.kernel_w,
+            ])
+
+          // GPU-accelerated matmul: filters_2d @ col
+          let conv_result = case filters_2d {
+            Ok(f2d) -> {
+              case nx_backend.matmul(f2d, col, Nx) {
+                Ok(result) -> result
+                Error(_) -> tensor.zeros([layer.out_channels, out_h * out_w])
+              }
+            }
+            Error(_) -> tensor.zeros([layer.out_channels, out_h * out_w])
+          }
+
+          // Add bias (broadcast to each output position)
+          let biased_data =
+            list.range(0, layer.out_channels - 1)
+            |> list.flat_map(fn(c) {
+              let bias_val = case list_at(layer.biases.data, c) {
+                Ok(bv) -> bv
+                Error(_) -> 0.0
+              }
+              let row_start = c * out_h * out_w
+              conv_result.data
+              |> list.drop(row_start)
+              |> list.take(out_h * out_w)
+              |> list.map(fn(x) { x +. bias_val })
+            })
+
+          #(list.append(out_acc, biased_data), list.append(col_acc, col.data))
+        })
+
+      // Apply activation
+      let pre_act =
+        Tensor(data: output_data, shape: [
+          batch,
+          layer.out_channels,
+          out_h,
+          out_w,
+        ])
+      let output = apply_activation(pre_act, layer.activation)
+
+      // Store col for backward pass
+      let col_tensor =
+        Tensor(data: col_data, shape: [
+          batch,
+          layer.in_channels * layer.kernel_h * layer.kernel_w,
+          out_h * out_w,
+        ])
+
+      let cache =
+        Conv2DCache(
+          input: input,
+          col: col_tensor,
+          pre_activation: pre_act,
+          out_h: out_h,
+          out_w: out_w,
+          pad_h: pad_h,
+          pad_w: pad_w,
+        )
+
+      Ok(#(output, cache))
+    }
+    _ ->
+      Error(tensor.DimensionError(
+        "Conv2D expects [batch, in_channels, height, width] input",
+      ))
+  }
+}
+
+/// Auto-select backend based on input size
+/// GPU for large inputs (>= 64x64), Pure for small
+pub fn forward_auto(
+  layer: Conv2DLayer,
+  input: Tensor,
+) -> Result(#(Tensor, Conv2DCache), TensorError) {
+  case input.shape {
+    [_batch, _in_ch, in_h, in_w] if in_h >= 64 && in_w >= 64 ->
+      forward_gpu(layer, input)
+    _ -> forward(layer, input)
+  }
+}
+
+/// Forward with explicit backend selection
+pub fn forward_with_backend(
+  layer: Conv2DLayer,
+  input: Tensor,
+  backend: Backend,
+) -> Result(#(Tensor, Conv2DCache), TensorError) {
+  case backend {
+    Pure -> forward(layer, input)
+    Nx | CUDA(_) -> forward_gpu(layer, input)
+  }
+}
+
 // =============================================================================
 // BACKWARD PASS
 // =============================================================================
@@ -455,6 +610,171 @@ pub fn backward(
       ))
     }
     _, _ -> Error(tensor.DimensionError("Shape mismatch in Conv2D backward"))
+  }
+}
+
+/// GPU-accelerated backward pass using nx_backend
+pub fn backward_gpu(
+  layer: Conv2DLayer,
+  cache: Conv2DCache,
+  upstream: Tensor,
+) -> Result(Conv2DGradients, TensorError) {
+  case upstream.shape, cache.input.shape {
+    [batch, out_ch, out_h, out_w], [_b, in_ch, in_h, in_w]
+      if out_ch == layer.out_channels
+    -> {
+      // Apply activation derivative
+      let d_pre_act =
+        apply_activation_backward(
+          upstream,
+          cache.pre_activation,
+          layer.activation,
+        )
+
+      // Compute d_biases: sum over batch and spatial dims
+      let d_biases_data =
+        list.range(0, layer.out_channels - 1)
+        |> list.map(fn(c) {
+          list.range(0, batch - 1)
+          |> list.fold(0.0, fn(acc, b) {
+            let start = { b * out_ch + c } * out_h * out_w
+            d_pre_act.data
+            |> list.drop(start)
+            |> list.take(out_h * out_w)
+            |> list.fold(acc, fn(a, x) { a +. x })
+          })
+        })
+      let d_biases = Tensor(data: d_biases_data, shape: [layer.out_channels])
+
+      // Compute d_filters with GPU matmul
+      let d_filters_data =
+        list.range(0, batch - 1)
+        |> list.fold(
+          list.repeat(
+            0.0,
+            layer.out_channels
+              * layer.in_channels
+              * layer.kernel_h
+              * layer.kernel_w,
+          ),
+          fn(acc_data, b) {
+            let d_start = b * out_ch * out_h * out_w
+            let d_batch =
+              d_pre_act.data
+              |> list.drop(d_start)
+              |> list.take(out_ch * out_h * out_w)
+            let d_batch_tensor =
+              Tensor(data: d_batch, shape: [out_ch, out_h * out_w])
+
+            let col_size =
+              layer.in_channels
+              * layer.kernel_h
+              * layer.kernel_w
+              * out_h
+              * out_w
+            let col_start = b * col_size
+            let col_batch =
+              cache.col.data
+              |> list.drop(col_start)
+              |> list.take(col_size)
+            let col_tensor =
+              Tensor(data: col_batch, shape: [
+                layer.in_channels * layer.kernel_h * layer.kernel_w,
+                out_h * out_w,
+              ])
+
+            // GPU-accelerated matmul: d_batch @ col^T
+            case nx_backend.transpose(col_tensor, Nx) {
+              Ok(col_t) -> {
+                case nx_backend.matmul(d_batch_tensor, col_t, Nx) {
+                  Ok(d_f) -> list.map2(acc_data, d_f.data, fn(a, bv) { a +. bv })
+                  Error(_) -> acc_data
+                }
+              }
+              Error(_) -> acc_data
+            }
+          },
+        )
+
+      let d_filters =
+        Tensor(data: d_filters_data, shape: [
+          layer.out_channels,
+          layer.in_channels,
+          layer.kernel_h,
+          layer.kernel_w,
+        ])
+
+      // Compute d_input with GPU matmul
+      let d_input_data =
+        list.range(0, batch - 1)
+        |> list.flat_map(fn(b) {
+          let d_start = b * out_ch * out_h * out_w
+          let d_batch =
+            d_pre_act.data
+            |> list.drop(d_start)
+            |> list.take(out_ch * out_h * out_w)
+          let d_batch_tensor =
+            Tensor(data: d_batch, shape: [out_ch, out_h * out_w])
+
+          case
+            tensor.reshape(layer.filters, [
+              layer.out_channels,
+              layer.in_channels * layer.kernel_h * layer.kernel_w,
+            ])
+          {
+            Ok(f2d) -> {
+              case nx_backend.transpose(f2d, Nx) {
+                Ok(f2d_t) -> {
+                  case nx_backend.matmul(f2d_t, d_batch_tensor, Nx) {
+                    Ok(d_col) -> {
+                      let d_input_sample =
+                        col2im(
+                          d_col,
+                          in_ch,
+                          in_h,
+                          in_w,
+                          layer.kernel_h,
+                          layer.kernel_w,
+                          layer.stride_h,
+                          layer.stride_w,
+                          cache.pad_h,
+                          cache.pad_w,
+                        )
+                      d_input_sample.data
+                    }
+                    Error(_) -> list.repeat(0.0, in_ch * in_h * in_w)
+                  }
+                }
+                Error(_) -> list.repeat(0.0, in_ch * in_h * in_w)
+              }
+            }
+            Error(_) -> list.repeat(0.0, in_ch * in_h * in_w)
+          }
+        })
+
+      let d_input =
+        Tensor(data: d_input_data, shape: [batch, in_ch, in_h, in_w])
+
+      Ok(Conv2DGradients(
+        d_input: d_input,
+        d_filters: d_filters,
+        d_biases: d_biases,
+      ))
+    }
+    _, _ -> Error(tensor.DimensionError("Shape mismatch in Conv2D backward"))
+  }
+}
+
+/// Backward with explicit backend selection
+pub fn backward_with_backend(
+  layer: Conv2DLayer,
+  cache: Conv2DCache,
+  upstream: Tensor,
+  backend: Backend,
+) -> Result(Conv2DGradients, TensorError) {
+  case backend {
+    Pure -> backward(layer, cache, upstream)
+    Nx | CUDA(_) -> backward_gpu(layer, cache, upstream)
   }
 }
 
