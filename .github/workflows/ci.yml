@@ -24,6 +24,7 @@ jobs:
         with:
           gleam-version: ${{ env.GLEAM_VERSION }}
           otp-version: ${{ env.OTP_VERSION }}
+          rebar3-version: "3"
 
       - name: Cache deps
         uses: actions/cache@v4
@@ -74,6 +75,7 @@ jobs:
         with:
           gleam-version: ${{ env.GLEAM_VERSION }}
           otp-version: ${{ env.OTP_VERSION }}
+          rebar3-version: "3"
 
       - name: Download dependencies
         run: gleam deps download
@@ -94,6 +96,7 @@ jobs:
         with:
           gleam-version: ${{ env.GLEAM_VERSION }}
           otp-version: ${{ env.OTP_VERSION }}
+          rebar3-version: "3"
 
       - name: Download dependencies
         run: gleam deps download
