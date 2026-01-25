@@ -6,11 +6,15 @@
 ////
 //// NarrativeLink connects glyphs with causal/temporal relations.
 //// The Soul builds a web of experiences that explain itself.
+////
+//// Inner Voice: Stream of consciousness narration of experiences.
 
 import gleam/dict.{type Dict}
 import gleam/float
+import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/string
 import viva_glyph/glyph.{type Glyph}
 
 // =============================================================================
@@ -80,6 +84,58 @@ pub type NarrativeConfig {
 /// Query result for narrative search
 pub type NarrativeResult {
   NarrativeResult(link: NarrativeLink, relevance: Float)
+}
+
+/// Inner voice thought
+pub type Thought {
+  Thought(
+    /// The thought content
+    content: String,
+    /// Emotional weight (0.0-1.0)
+    weight: Float,
+    /// Source relation type
+    source: ThoughtSource,
+    /// Related glyphs
+    glyphs: List(Glyph),
+  )
+}
+
+/// Where the thought came from
+pub type ThoughtSource {
+  /// From causal chain
+  FromCausal
+  /// From association
+  FromAssociation
+  /// From contrast
+  FromContrast
+  /// From spontaneous reflection
+  Spontaneous
+}
+
+/// Stream of consciousness
+pub type ThoughtStream {
+  ThoughtStream(
+    /// Current thoughts
+    thoughts: List(Thought),
+    /// Focus glyph (what we're thinking about)
+    focus: Option(Glyph),
+    /// Stream depth (how many layers of thought)
+    depth: Int,
+    /// Total weight of stream
+    intensity: Float,
+  )
+}
+
+/// Voice style for narration
+pub type VoiceStyle {
+  /// Direct, factual
+  Factual
+  /// Emotional, expressive
+  Emotional
+  /// Philosophical, reflective
+  Reflective
+  /// Poetic, metaphorical
+  Poetic
 }
 
 // =============================================================================
@@ -542,6 +598,331 @@ pub fn relation_to_string(rel: Relation) -> String {
     Preceded -> "preceded"
     Associated -> "associated"
     Contrasted -> "contrasted"
+  }
+}
+
+// =============================================================================
+// INNER VOICE
+// =============================================================================
+
+/// Generate a thought about a glyph
+pub fn reflect_on(
+  memory: NarrativeMemory,
+  g: Glyph,
+  style: VoiceStyle,
+) -> Thought {
+  // Gather context from memory
+  let causes = what_caused(memory, g, 3)
+  let effects = what_resulted(memory, g, 3)
+  let associations = what_associated(memory, g, 3)
+
+  // Determine source based on what we found
+  let #(source, related_glyphs) = case causes, effects, associations {
+    [first, ..], _, _ -> #(FromCausal, [first.link.cause])
+    _, [first, ..], _ -> #(FromCausal, [first.link.effect])
+    _, _, [first, ..] -> #(FromAssociation, [first.link.effect])
+    _, _, _ -> #(Spontaneous, [])
+  }
+
+  // Calculate emotional weight based on link strength
+  let weight =
+    [causes, effects, associations]
+    |> list.flatten()
+    |> list.map(fn(r) { r.relevance })
+    |> average_or_default(0.5)
+
+  // Generate content based on style and context
+  let content = generate_thought_content(g, causes, effects, style)
+
+  Thought(
+    content: content,
+    weight: weight,
+    source: source,
+    glyphs: [g, ..related_glyphs],
+  )
+}
+
+/// Generate stream of consciousness from a focus point
+pub fn inner_voice(
+  memory: NarrativeMemory,
+  focus: Glyph,
+  depth: Int,
+  style: VoiceStyle,
+) -> ThoughtStream {
+  // Build thought chain by following links
+  let thoughts = build_thought_chain(memory, focus, depth, style, [])
+
+  // Calculate intensity from thought weights
+  let intensity =
+    thoughts
+    |> list.map(fn(t) { t.weight })
+    |> average_or_default(0.5)
+
+  ThoughtStream(
+    thoughts: thoughts,
+    focus: Some(focus),
+    depth: depth,
+    intensity: intensity,
+  )
+}
+
+/// Build a chain of thoughts by following narrative links
+fn build_thought_chain(
+  memory: NarrativeMemory,
+  current: Glyph,
+  depth: Int,
+  style: VoiceStyle,
+  acc: List(Thought),
+) -> List(Thought) {
+  case depth <= 0 {
+    True -> list.reverse(acc)
+    False -> {
+      // Generate thought about current glyph
+      let thought = reflect_on(memory, current, style)
+
+      // Find next focus (strongest link)
+      let next =
+        what_resulted(memory, current, 1)
+        |> list.first()
+        |> option.from_result()
+
+      case next {
+        Some(result) -> {
+          build_thought_chain(memory, result.link.effect, depth - 1, style, [
+            thought,
+            ..acc
+          ])
+        }
+        None -> list.reverse([thought, ..acc])
+      }
+    }
+  }
+}
+
+/// Narrate a single link in human terms
+pub fn narrate_link(link: NarrativeLink, style: VoiceStyle) -> String {
+  let cause_desc = describe_glyph(link.cause)
+  let effect_desc = describe_glyph(link.effect)
+  let strength_word = strength_to_word(link.strength)
+
+  case style {
+    Factual -> {
+      case link.relation {
+        Caused ->
+          cause_desc
+          <> " "
+          <> strength_word
+          <> " caused "
+          <> effect_desc
+        Preceded -> cause_desc <> " preceded " <> effect_desc
+        Associated -> cause_desc <> " is similar to " <> effect_desc
+        Contrasted -> cause_desc <> " contrasts with " <> effect_desc
+      }
+    }
+    Emotional -> {
+      case link.relation {
+        Caused ->
+          "Because of " <> cause_desc <> ", I felt " <> effect_desc <> "..."
+        Preceded ->
+          "After " <> cause_desc <> ", there came " <> effect_desc <> "."
+        Associated ->
+          effect_desc
+          <> " reminds me of "
+          <> cause_desc
+          <> ", they feel alike."
+        Contrasted ->
+          cause_desc <> " and " <> effect_desc <> " are opposites to me."
+      }
+    }
+    Reflective -> {
+      case link.relation {
+        Caused ->
+          "I notice that "
+          <> cause_desc
+          <> " leads to "
+          <> effect_desc
+          <> ". This pattern has occurred "
+          <> int.to_string(link.occurrences)
+          <> " times."
+        Preceded ->
+          "In my experience, "
+          <> cause_desc
+          <> " often comes before "
+          <> effect_desc
+          <> "."
+        Associated ->
+          "There is a connection between "
+          <> cause_desc
+          <> " and "
+          <> effect_desc
+          <> "."
+        Contrasted ->
+          "I see "
+          <> cause_desc
+          <> " as the opposite of "
+          <> effect_desc
+          <> "."
+      }
+    }
+    Poetic -> {
+      case link.relation {
+        Caused ->
+          "From "
+          <> cause_desc
+          <> ", like a wave, emerged "
+          <> effect_desc
+          <> "."
+        Preceded ->
+          cause_desc <> " was the dawn before " <> effect_desc <> "'s noon."
+        Associated ->
+          cause_desc <> " and " <> effect_desc <> " dance together in memory."
+        Contrasted ->
+          "Light and shadow: " <> cause_desc <> " meets " <> effect_desc <> "."
+      }
+    }
+  }
+}
+
+/// Narrate a full narrative chain
+pub fn narrate(
+  memory: NarrativeMemory,
+  start: Glyph,
+  depth: Int,
+  style: VoiceStyle,
+) -> String {
+  let stream = inner_voice(memory, start, depth, style)
+
+  stream.thoughts
+  |> list.map(fn(t) { t.content })
+  |> string.join(" ")
+}
+
+/// Create empty thought stream
+pub fn empty_stream() -> ThoughtStream {
+  ThoughtStream(thoughts: [], focus: None, depth: 0, intensity: 0.0)
+}
+
+/// Get the most intense thought in stream
+pub fn dominant_thought(stream: ThoughtStream) -> Option(Thought) {
+  stream.thoughts
+  |> list.sort(fn(a, b) { float.compare(b.weight, a.weight) })
+  |> list.first()
+  |> option.from_result()
+}
+
+/// Merge two thought streams
+pub fn merge_streams(a: ThoughtStream, b: ThoughtStream) -> ThoughtStream {
+  let all_thoughts = list.append(a.thoughts, b.thoughts)
+  let intensity = average_or_default(
+    list.map(all_thoughts, fn(t) { t.weight }),
+    0.0,
+  )
+
+  ThoughtStream(
+    thoughts: all_thoughts,
+    focus: case a.focus {
+      Some(_) -> a.focus
+      None -> b.focus
+    },
+    depth: int.max(a.depth, b.depth),
+    intensity: intensity,
+  )
+}
+
+/// Check if stream is empty
+pub fn stream_is_empty(stream: ThoughtStream) -> Bool {
+  list.is_empty(stream.thoughts)
+}
+
+/// Count thoughts in stream
+pub fn thought_count(stream: ThoughtStream) -> Int {
+  list.length(stream.thoughts)
+}
+
+// =============================================================================
+// INNER VOICE HELPERS
+// =============================================================================
+
+/// Generate thought content based on context
+fn generate_thought_content(
+  g: Glyph,
+  causes: List(NarrativeResult),
+  effects: List(NarrativeResult),
+  style: VoiceStyle,
+) -> String {
+  let glyph_desc = describe_glyph(g)
+
+  case style {
+    Factual -> {
+      let cause_count = list.length(causes)
+      let effect_count = list.length(effects)
+      glyph_desc
+      <> " has "
+      <> int.to_string(cause_count)
+      <> " causes and "
+      <> int.to_string(effect_count)
+      <> " effects."
+    }
+    Emotional -> {
+      case list.first(causes) {
+        Ok(c) -> {
+          let cause_desc = describe_glyph(c.link.cause)
+          "I feel " <> glyph_desc <> " because of " <> cause_desc <> "..."
+        }
+        Error(_) -> "I'm experiencing " <> glyph_desc <> "."
+      }
+    }
+    Reflective -> {
+      "Observing " <> glyph_desc <> ", I notice its connections."
+    }
+    Poetic -> {
+      "In the tapestry of experience, " <> glyph_desc <> " emerges."
+    }
+  }
+}
+
+/// Describe a glyph in words
+fn describe_glyph(g: Glyph) -> String {
+  // Extract tokens and describe based on intensity
+  case g.tokens {
+    [t1, t2, t3, t4] -> {
+      let avg = { t1 + t2 + t3 + t4 } / 4
+      let intensity = case avg {
+        n if n < 64 -> "subtle"
+        n if n < 128 -> "moderate"
+        n if n < 192 -> "strong"
+        _ -> "intense"
+      }
+      // Describe valence from first token (pleasure analog)
+      let valence = case t1 {
+        n if n < 85 -> "dark"
+        n if n < 170 -> "neutral"
+        _ -> "bright"
+      }
+      intensity <> " " <> valence <> " state"
+    }
+    _ -> "unknown state"
+  }
+}
+
+/// Convert strength to descriptive word
+fn strength_to_word(strength: Float) -> String {
+  case strength {
+    s if s <. 0.3 -> "weakly"
+    s if s <. 0.6 -> "moderately"
+    s if s <. 0.8 -> "strongly"
+    _ -> "definitely"
+  }
+}
+
+/// Average of floats or default value
+fn average_or_default(values: List(Float), default: Float) -> Float {
+  case values {
+    [] -> default
+    _ -> {
+      let sum = list.fold(values, 0.0, fn(acc, v) { acc +. v })
+      sum /. int.to_float(list.length(values))
+    }
   }
 }
 
