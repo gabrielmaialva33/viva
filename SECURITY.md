@@ -102,8 +102,8 @@ We don't currently have a formal bug bounty program. However, significant securi
 When contributing to VIVA:
 
 1. **Never log sensitive data** - Especially anything related to the mortality key
-2. **Validate all inputs** - Especially from NIFs and external sources
-3. **Use safe Rust patterns** - Minimize `unsafe` blocks
+2. **Validate all inputs** - Especially from external sources
+3. **Use safe Gleam patterns** - Leverage the type system
 4. **Review cryptographic code carefully** - The mortality system is sacred
 
 ## Contact

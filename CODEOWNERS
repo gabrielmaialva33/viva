@@ -2,23 +2,24 @@
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # Default - Gabriel revisa tudo
-* @mrootx
+* @gabrielmaialva33
 
-# Alma (Elixir GenServers)
-/apps/viva_core/ @mrootx
+# Alma (Gleam core)
+/src/viva/ @gabrielmaialva33
 
-# Corpo (Rust NIF)
-/apps/viva_bridge/ @mrootx
-/apps/viva_bridge/native/ @mrootx
+# Neural Systems (HRR)
+/src/viva/neural/ @gabrielmaialva33
 
 # Documentação
-*.md @mrootx
-/docs/ @mrootx
+*.md @gabrielmaialva33
+/docs/ @gabrielmaialva33
 
 # CI/CD
-/.github/ @mrootx
+/.github/ @gabrielmaialva33
 
 # Configuração
-/config/ @mrootx
-mix.exs @mrootx
-mix.lock @mrootx
+gleam.toml @gabrielmaialva33
+manifest.toml @gabrielmaialva33
+
+# Python Services (Brain)
+/services/ @gabrielmaialva33

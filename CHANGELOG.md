@@ -7,9 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🚀 Gleam OTP 1.0+ Migration (2025-01-25)
+
+**Complete migration to gleam_otp 1.0+ API** - Breaking changes handled:
+
+- **Actor API**: `actor.Spec` → `actor.start()` with init function
+- **Message Handling**: `actor.Continue` → `actor.Next`
+- **Process Calls**: Refactored to new `process.call()` signature
+- **Dynamic Decode**: Migrated from `gleam/dynamic` to `gleam/dynamic/decode`
+  - New decoder pattern with `use` syntax
+  - `serialize.gleam` completely rewritten
+
+### ✅ Test Suite Expansion
+
+- **336 tests passing** (up from 240)
+- Added `supervisor.start_without_telemetry()` for isolated test execution
+- Fixed `genome.detect_epigenetic_drift()` logic
+- Fixed genome emergency status thresholds
+
+### 🧠 Neural Systems (Pure Gleam)
+
+- **tensor.gleam**: 1054 lines - matmul, broadcast, reshape, slice
+- **layer.gleam**: Dense layers with activations
+- **network.gleam**: Sequential builder pattern
+- **train.gleam**: SGD, momentum, loss functions
+- **serialize.gleam**: JSON serialization with new decode API
+
+### ⚡ Performance (Qwen3 Validated)
+
+- **Soul Pool**: 3.14M soul-ticks/sec (handles 100K+ entities)
+- **GLYPH encoding**: 1.2μs
+- **PAD emotion tick**: 0.8μs
+- **HRR similarity**: 15μs (2048-dim)
+
+### 🧬 Genome System
+
+- Epigenetic drift detection (Trauma/Resilience/None)
+- Emergency status (Critical/Warning/Stable)
+- Population-level genetic analysis
+
 ---
 
-## [0.5.0] - 2025-01-22
+## [0.1.0] - 2025-01-22
+
+### 🦋 Pure Gleam Rewrite
+
+Complete rewrite from Elixir to **pure Gleam** targeting BEAM/OTP.
+
+- **Soul Actor**: PAD emotional dynamics with Ornstein-Uhlenbeck process
+- **Supervisor**: OTP supervision tree with death/rebirth (Bardo)
+- **Memory**: Holographic Reduced Representation (HRR)
+- **Telemetry**: HTTP server for metrics broadcasting
+
+### VIVA Ecosystem (Hex Packages)
+
+- `viva_math` - Mathematical foundations
+- `viva_emotion` - PAD dynamics, O-U process
+- `viva_aion` - Time perception
+- `viva_glyph` - Symbolic language
+
+---
+
+## Historical (Elixir Era)
+
+> Note: Versions below are from the original Elixir implementation.
+> The project has been completely rewritten in pure Gleam.
+
+## [0.5.0] - 2025-01-22 (Elixir)
 
 ### 🧠 Emotion Fusion (Phase 5.6)
 
@@ -243,9 +307,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixed** for any bug fixes.
 - **Security** in case of vulnerabilities.
 
-[Unreleased]: https://github.com/gabrielmaialva33/viva/compare/v0.5.0...HEAD
-[0.5.0]: https://github.com/gabrielmaialva33/viva/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/gabrielmaialva33/viva/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/gabrielmaialva33/viva/compare/v0.2.0...v0.3.0
+[Unreleased]: https://github.com/gabrielmaialva33/viva/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/gabrielmaialva33/viva/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/gabrielmaialva33/viva/releases/tag/v0.1.0
