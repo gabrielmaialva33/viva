@@ -1,0 +1,6 @@
+# Clippy configuration for VIVA Body
+# Allow missing docs while project is in active development
+# TODO: Enable stricter linting as API stabilizes
+
+# Disable overly pedantic lints
+avoid-breaking-exported-api = false

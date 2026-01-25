@@ -1,0 +1,63 @@
+[package]
+name = "viva_body"
+version = "0.1.0"
+authors = []
+edition = "2021"
+
+[lib]
+name = "viva_body"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.36.0"
+lazy_static = "1.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+anyhow = "1.0"
+chrono = "0.4"
+thiserror = "1.0"
+rand = "0.8"
+rand_distr = "0.4"
+rusqlite = { version = "0.29", features = ["bundled"] }
+serialport = "4.2"
+hnsw_rs = "0.3"
+anndists = "0.1"
+combine = "4.6"
+
+# Bevy ECS (Headless)
+bevy_app = "0.15"
+bevy_ecs = "0.15"
+bevy_core = "0.15"
+bevy_time = "0.15"
+bevy_log = "0.15"
+bevy_utils = "0.15"
+
+# Hardware Sensing
+sysinfo = "0.33"
+
+# Async Channel (Bridge)
+crossbeam-channel = "0.5"
+
+# Jolt Physics (AAA deterministic physics)
+rolt = "0.3"
+joltc-sys = "0.3"  # Direct bindings for step() and snapshot
+glam = "0.27"
+bytemuck = { version = "1.14", features = ["derive"] }  # Zero-copy serialization
+aes-gcm = "0.10.3"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+perf-event = "0.4"
+nvml-wrapper = "0.10"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+nvml-wrapper = "0.10"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3", features = ["Performance"] }
+
+[dev-dependencies]
+proptest = "1.4"
