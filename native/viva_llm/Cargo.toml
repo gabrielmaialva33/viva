@@ -1,0 +1,25 @@
+[package]
+name = "viva_llm"
+version = "0.1.0"
+authors = ["mrootx"]
+edition = "2021"
+
+[lib]
+name = "viva_llm"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.36"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+llama-cpp-2 = "0.1.68"
+sysinfo = "0.30" # Added for Proprioception
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = 3
+debug = false

@@ -1,0 +1,5 @@
+[build]
+# === NATIVE ARCHITECTURE ===
+# This tells rustc to use all available instructions on the current CPU (i9-13900K via WSL2).
+# Unlocks AVX2, AVX512, FMA, BMI2 automatically.
+rustflags = ["-C", "target-cpu=native"]
