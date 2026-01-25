@@ -6,6 +6,7 @@ import viva/neural/activation
 import viva/neural/attention
 import viva/neural/conv
 import viva/neural/normalization
+import viva/neural/nx_backend.{Pure}
 import viva/neural/recurrent
 import viva/neural/regularization
 import viva/neural/tensor
@@ -463,4 +464,28 @@ pub fn relative_position_bias_test() {
   let rpb = attention.relative_position_bias_new(8)
   let bias = attention.compute_relative_bias(rpb, 5)
   should.equal(bias.shape, [5, 5])
+}
+
+// =============================================================================
+// CONV2D GPU BACKEND SELECTION TESTS
+// =============================================================================
+
+pub fn conv2d_forward_auto_small_uses_pure_test() {
+  // Small input (< 64x64) should use Pure backend
+  let layer = conv.new(1, 1, 3, 1, conv.Valid, activation.Linear)
+  let input = tensor.ones([1, 1, 8, 8])
+  let result = conv.forward_auto(layer, input)
+  should.be_ok(result)
+  let assert Ok(#(output, _cache)) = result
+  // Output shape: (8 - 3 + 1) = 6
+  should.equal(output.shape, [1, 1, 6, 6])
+}
+
+pub fn conv2d_forward_with_backend_pure_test() {
+  let layer = conv.new(1, 2, 3, 1, conv.Same, activation.ReLU)
+  let input = tensor.ones([1, 1, 4, 4])
+  let result = conv.forward_with_backend(layer, input, Pure)
+  should.be_ok(result)
+  let assert Ok(#(output, _cache)) = result
+  should.equal(output.shape, [1, 2, 4, 4])
 }
