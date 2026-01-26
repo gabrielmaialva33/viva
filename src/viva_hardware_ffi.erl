@@ -5,27 +5,28 @@
 -module(viva_hardware_ffi).
 -export([open_serial_port/2, configure_port/2]).
 
-%% Open a serial port using Erlang's open_port
-%% For production, consider using a proper serial driver like:
-%% - circuits_uart (Elixir/Nerves)
-%% - erlang-serial (https://github.com/tonyg/erlang-serial)
-%%
-%% This implementation uses a simple approach via stty + cat for demo purposes.
+%% Open a serial port using Python serial bridge
+%% The bridge handles bidirectional communication properly.
 -spec open_serial_port(binary(), integer()) -> port().
 open_serial_port(Device, Baud) ->
     DeviceStr = binary_to_list(Device),
     BaudStr = integer_to_list(Baud),
 
-    %% Configure the serial port first
-    ConfigCmd = "stty -F " ++ DeviceStr ++ " " ++ BaudStr ++
-                " raw -echo -echoe -echok -echoctl -echoke",
-    os:cmd(ConfigCmd),
+    %% Find the serial bridge script
+    ScriptPath = filename:join([code:priv_dir(viva), "..", "scripts", "serial_bridge.py"]),
 
-    %% Open the port
-    %% Using {spawn_executable, ...} for better control
-    Port = open_port({spawn, "cat " ++ DeviceStr}, [
+    %% Fall back to relative path if priv_dir fails
+    ActualPath = case filelib:is_file(ScriptPath) of
+        true -> ScriptPath;
+        false -> "scripts/serial_bridge.py"
+    end,
+
+    %% Open port using Python serial bridge
+    Cmd = "python3 " ++ ActualPath ++ " " ++ DeviceStr ++ " " ++ BaudStr,
+
+    Port = open_port({spawn, Cmd}, [
         binary,
-        {line, 1024},
+        stream,
         use_stdio,
         exit_status
     ]),

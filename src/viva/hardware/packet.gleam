@@ -296,3 +296,55 @@ pub fn binaural_beat(seq: Int, base_freq: Int, beat_freq: Int, duration: Int) ->
     waveform: 0,  // sine
   ))
 }
+
+/// Create PAD state packet
+pub fn pad_state(seq: Int, pleasure: Float, arousal: Float, dominance: Float) -> Packet {
+  PacketPadState(PadState(seq:, pleasure:, arousal:, dominance:))
+}
+
+/// Describe a packet in human-readable form
+pub fn describe(packet: Packet) -> String {
+  case packet {
+    PacketHeartbeat(p) -> "Heartbeat(seq=" <> int.to_string(p.seq) <> ")"
+    PacketSensorData(p) -> {
+      "SensorData(seq=" <> int.to_string(p.seq)
+      <> ", temp=" <> float.to_string(p.temperature)
+      <> ", light=" <> int.to_string(p.light)
+      <> ", touch=" <> bool_to_string(p.touch)
+      <> ", audio=" <> int.to_string(p.audio_level) <> ")"
+    }
+    PacketCommand(p) -> {
+      "Command(seq=" <> int.to_string(p.seq)
+      <> ", servo=" <> int.to_string(p.servo_angle)
+      <> ", led=" <> bool_to_string(p.led_state)
+      <> ", vib=" <> int.to_string(p.vibration) <> ")"
+    }
+    PacketPadState(p) -> {
+      "PadState(seq=" <> int.to_string(p.seq)
+      <> ", P=" <> float.to_string(p.pleasure)
+      <> ", A=" <> float.to_string(p.arousal)
+      <> ", D=" <> float.to_string(p.dominance) <> ")"
+    }
+    PacketAudioCommand(p) -> {
+      "AudioCmd(seq=" <> int.to_string(p.seq)
+      <> ", L=" <> int.to_string(p.freq_left) <> "Hz"
+      <> ", R=" <> int.to_string(p.freq_right) <> "Hz"
+      <> ", dur=" <> int.to_string(p.duration_ms) <> "ms)"
+    }
+    PacketAck(p) -> {
+      "Ack(seq=" <> int.to_string(p.seq)
+      <> ", acked=" <> int.to_string(p.acked_seq) <> ")"
+    }
+    PacketError(p) -> {
+      "Error(seq=" <> int.to_string(p.seq)
+      <> ", code=" <> int.to_string(p.error_code) <> ")"
+    }
+  }
+}
+
+fn bool_to_string(b: Bool) -> String {
+  case b {
+    True -> "true"
+    False -> "false"
+  }
+}
