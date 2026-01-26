@@ -25,11 +25,17 @@ import gleam/otp/actor
 import gleam/set.{type Set}
 import mist.{type Connection, type ResponseData}
 import viva/memory/world.{type World}
+import viva/neural/tensor.{type Tensor}
 import viva/telemetry/frontend
 import viva/telemetry/metrics
 import viva/telemetry/perf
 import viva/telemetry/system
 import viva/telemetry/world_json
+
+/// Helper to extract data from tensor
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
 
 // =============================================================================
 // TYPES
@@ -172,7 +178,7 @@ fn world_to_csv(w: World) -> String {
   let header = "id,label,x,y,z,w,energy,sleeping,island_id\n"
   let rows =
     dict.fold(w.bodies, "", fn(acc, id, body) {
-      let pos = body.position.data
+      let pos = td(body.position)
       let x = float.to_string(list_get_float(pos, 0))
       let y = float.to_string(list_get_float(pos, 1))
       let z = float.to_string(list_get_float(pos, 2))

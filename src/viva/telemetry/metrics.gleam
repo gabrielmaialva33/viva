@@ -10,6 +10,12 @@ import gleam/list
 import viva/memory/body.{type Body}
 import viva/memory/hrr
 import viva/memory/world.{type World}
+import viva/neural/tensor.{type Tensor}
+
+/// Helper to extract data from tensor
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
 
 // =============================================================================
 // TYPES
@@ -204,9 +210,9 @@ pub fn to_force_graph(w: World, similarity_threshold: Float) -> Json {
         #("energy", json.float(b.energy)),
         #("sleeping", json.bool(b.sleeping)),
         #("group", json.int(b.island_id)),
-        #("x", json.float(list_get(b.position.data, 0, 0.0))),
-        #("y", json.float(list_get(b.position.data, 1, 0.0))),
-        #("z", json.float(list_get(b.position.data, 2, 0.0))),
+        #("x", json.float(list_get(td(b.position), 0, 0.0))),
+        #("y", json.float(list_get(td(b.position), 1, 0.0))),
+        #("z", json.float(list_get(td(b.position), 2, 0.0))),
       ])
     })
 
@@ -253,7 +259,7 @@ fn build_similarity_links(
 // =============================================================================
 
 fn velocity_magnitude(b: Body) -> Float {
-  let sum = list.fold(b.velocity.data, 0.0, fn(acc, x) { acc +. x *. x })
+  let sum = list.fold(td(b.velocity), 0.0, fn(acc, x) { acc +. x *. x })
   float_sqrt(sum)
 }
 
@@ -265,8 +271,8 @@ fn compute_centroid(bodies: List(Body)) -> List(Float) {
       let sum =
         list.fold(bodies, [], fn(acc, b) {
           case acc {
-            [] -> b.position.data
-            _ -> list.map2(acc, b.position.data, fn(a, x) { a +. x })
+            [] -> td(b.position)
+            _ -> list.map2(acc, td(b.position), fn(a, x) { a +. x })
           }
         })
       list.map(sum, fn(x) { x /. n })
@@ -280,7 +286,7 @@ fn compute_spread(bodies: List(Body), centroid: List(Float)) -> Float {
     _ -> {
       let distances =
         list.map(bodies, fn(b) {
-          let diff = list.map2(b.position.data, centroid, fn(a, c) { a -. c })
+          let diff = list.map2(td(b.position), centroid, fn(a, c) { a -. c })
           let sq_sum = list.fold(diff, 0.0, fn(acc, x) { acc +. x *. x })
           float_sqrt(sq_sum)
         })

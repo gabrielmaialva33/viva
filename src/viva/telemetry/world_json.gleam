@@ -9,6 +9,12 @@ import gleam/list
 import gleam/option.{None, Some}
 import viva/memory/body.{type Body}
 import viva/memory/world.{type Island, type World, type WorldConfig}
+import viva/neural/tensor.{type Tensor}
+
+/// Helper to extract data from tensor
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
 
 // =============================================================================
 // FULL WORLD SERIALIZATION
@@ -45,7 +51,7 @@ pub fn frame_to_json(w: World) -> Json {
       let #(id, b) = pair
       json.object([
         #("id", json.int(id)),
-        #("pos", floats_to_json(b.position.data)),
+        #("pos", floats_to_json(td(b.position))),
         #("e", json.float(b.energy)),
         #("s", json.bool(b.sleeping)),
       ])
@@ -91,13 +97,13 @@ pub fn body_to_json(b: Body) -> Json {
   json.object([
     #("id", json.int(b.id)),
     #("label", json.string(b.label)),
-    #("position", floats_to_json(b.position.data)),
-    #("velocity", floats_to_json(b.velocity.data)),
+    #("position", floats_to_json(td(b.position))),
+    #("velocity", floats_to_json(td(b.velocity))),
     #("energy", json.float(b.energy)),
     #("sleeping", json.bool(b.sleeping)),
     #("island_id", json.int(b.island_id)),
     #("motion_type", motion_type_to_json(b.motion_type)),
-    #("hrr_norm", json.float(hrr_norm(b.shape.vector.data))),
+    #("hrr_norm", json.float(hrr_norm(td(b.shape.vector)))),
   ])
 }
 
@@ -143,7 +149,7 @@ fn islands_to_json(islands: List(Island)) -> Json {
 
 fn attractor_to_json(w: World) -> Json {
   case w.attractor {
-    Some(att) -> floats_to_json(att.data)
+    Some(att) -> floats_to_json(td(att))
     None -> json.null()
   }
 }
