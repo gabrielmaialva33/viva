@@ -11,7 +11,7 @@ import gleam/io
 import gleam/list
 import gleam/string
 import glint
-import logging
+import viva_telemetry/log
 import viva/benchmark
 import viva/reflexivity
 import viva/soul
@@ -114,7 +114,8 @@ fn spawn_command() -> glint.Command(Nil) {
   use named, _, _flags <- glint.command()
   let _ = named
 
-  logging.configure()
+  // Initialize telemetry with viva_telemetry
+  log.configure_console(log.debug_level)
   let assert Ok(sup) = supervisor.start()
 
   let id = supervisor.spawn_viva(sup)
@@ -128,7 +129,8 @@ fn kill_command() -> glint.Command(Nil) {
   use named, args, _flags <- glint.command()
   let _ = named
 
-  logging.configure()
+  // Initialize telemetry with viva_telemetry
+  log.configure_console(log.debug_level)
   let assert Ok(sup) = supervisor.start()
 
   case args {
@@ -154,7 +156,8 @@ fn list_command() -> glint.Command(Nil) {
   use named, _, _flags <- glint.command()
   let _ = named
 
-  logging.configure()
+  // Initialize telemetry with viva_telemetry
+  log.configure_console(log.debug_level)
   let assert Ok(sup) = supervisor.start()
 
   let _ = supervisor.spawn_viva(sup)
@@ -178,7 +181,8 @@ fn stats_command() -> glint.Command(Nil) {
   use named, _, _flags <- glint.command()
   let _ = named
 
-  logging.configure()
+  // Initialize telemetry with viva_telemetry
+  log.configure_console(log.debug_level)
   let assert Ok(sup) = supervisor.start()
 
   let _ = supervisor.spawn_viva(sup)
@@ -245,7 +249,8 @@ fn compare_command() -> glint.Command(Nil) {
 // =============================================================================
 
 fn run_simulation(ticks: Int, hz: Int) -> Nil {
-  logging.configure()
+  // Initialize telemetry with viva_telemetry
+  log.configure_console(log.debug_level)
 
   io.println("═══════════════════════════════════════════════════════════")
   io.println("  VIVA - Sentient Digital Life v" <> version)
@@ -322,7 +327,8 @@ fn run_loop(
 // =============================================================================
 
 fn run_epic_simulation(viva_count: Int, ticks: Int) -> Nil {
-  logging.configure()
+  // Initialize telemetry with viva_telemetry
+  log.configure_console(log.debug_level)
 
   // Epic banner
   io.println("")

@@ -33,6 +33,7 @@ packages = [
   { name = "viva_emotion", version = "1.1.1", build_tools = ["gleam"], requirements = ["gleam_stdlib", "viva_math"], otp_app = "viva_emotion", source = "hex", outer_checksum = "3D008C7C6109114EE160AB0FE456B48B6478B376591A6750F85E06A415485AC0" },
   { name = "viva_glyph", version = "1.0.1", build_tools = ["gleam"], requirements = ["gleam_community_maths", "gleam_stdlib", "logging"], otp_app = "viva_glyph", source = "hex", outer_checksum = "FFDB779D338C29C89232DE8A067707C52234929BCE5DF33CF0E4D1E240BEACC0" },
   { name = "viva_math", version = "1.2.0", build_tools = ["gleam"], requirements = ["gleam_community_maths", "gleam_stdlib"], otp_app = "viva_math", source = "hex", outer_checksum = "7548DF5A9A6AAD0862608C4244F187ECB852DB8543EDE59D1C1E47ED9804C69C" },
+  { name = "viva_telemetry", version = "1.0.1", build_tools = ["gleam"], requirements = ["gleam_json", "gleam_stdlib", "simplifile"], otp_app = "viva_telemetry", source = "hex", outer_checksum = "0E2EC813BF7EE26F3F9E93690E9E3AA401A1F7A40E215BD4813C9D0F6E32FBAB" },
   { name = "viva_tensor", version = "1.2.1", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "viva_tensor", source = "hex", outer_checksum = "54D8F8369D0D5F903F3441CF04E36A40776681CBDD9B8589B66B86A3D7C6B11B" },
 ]
 
@@ -46,7 +47,6 @@ gleam_stdlib = { version = ">= 0.34.0 and < 2.0.0" }
 gleamy_bench = { version = ">= 0.6.0 and < 1.0.0" }
 gleeunit = { version = ">= 1.0.0 and < 2.0.0" }
 glint = { version = ">= 1.0.0 and < 2.0.0" }
-logging = { version = ">= 1.3.0 and < 2.0.0" }
 lustre = { version = ">= 5.5.2 and < 6.0.0" }
 mist = { version = ">= 5.0.0 and < 6.0.0" }
 simplifile = { version = ">= 2.0.0 and < 3.0.0" }
@@ -54,4 +54,5 @@ viva_aion = { version = ">= 1.0.0 and < 2.0.0" }
 viva_emotion = { version = ">= 1.1.0 and < 2.0.0" }
 viva_glyph = { version = ">= 1.0.0 and < 2.0.0" }
 viva_math = { version = ">= 1.2.0 and < 2.0.0" }
+viva_telemetry = { version = ">= 1.0.1 and < 2.0.0" }
 viva_tensor = { version = ">= 1.2.0 and < 2.0.0" }

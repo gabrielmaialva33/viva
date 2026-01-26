@@ -19,7 +19,8 @@ viva_emotion = ">= 1.1.0 and < 2.0.0"
 viva_aion = ">= 1.0.0 and < 2.0.0"
 viva_glyph = ">= 1.0.0 and < 2.0.0"
 viva_tensor = ">= 1.2.0 and < 2.0.0"
-logging = ">= 1.3.0 and < 2.0.0"
+# viva_telemetry replaces logging with better structured logging + metrics + bench
+viva_telemetry = ">= 1.0.1 and < 2.0.0"
 
 # CLI tools
 glint = ">= 1.0.0 and < 2.0.0"

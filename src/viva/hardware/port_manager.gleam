@@ -8,7 +8,7 @@ import gleam/erlang/process.{type Subject}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
-import logging
+import viva_telemetry/log
 import viva/hardware/cobs
 import viva/hardware/packet.{type Packet}
 
@@ -180,7 +180,7 @@ fn handle_message(state: State, message: Message) -> actor.Next(State, Message) 
 
     // Port closed unexpectedly
     PortClosed -> {
-      logging.log(logging.Warning, "Port closed, attempting reconnect...")
+      log.warning("Port closed, attempting reconnect...", [])
       case reconnect(state) {
         Ok(new_state) -> actor.continue(new_state)
         Error(_) -> actor.continue(state)
@@ -220,7 +220,7 @@ fn handle_message(state: State, message: Message) -> actor.Next(State, Message) 
 fn reconnect(state: State) -> Result(State, String) {
   case open_serial_port(state.device, state.baud) {
     Ok(port) -> {
-      logging.log(logging.Info, "Reconnected to " <> state.device)
+      log.info("Reconnected", [#("device", state.device)])
       let new_stats =
         Stats(..state.stats, reconnects: state.stats.reconnects + 1)
       Ok(State(..state, port: Some(port), stats: new_stats))
