@@ -4,10 +4,12 @@
 //// Now integrated with Glyph, KarmaBank, and full lifecycle.
 
 import gleam/erlang/process.{type Subject}
+import gleam/float
 import gleam/int
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
 import viva/embodiment.{type Body, type BodyStimulus}
+import viva/imprint.{type ImprintState}
 import viva/memory.{type GlyphMemory, type KarmaBank}
 import viva/narrative.{type NarrativeMemory}
 import viva/reflexivity.{type SelfModel}
@@ -49,6 +51,20 @@ pub type SoulState {
     self_model: SelfModel,
     /// Narrative memory (causal links)
     narrative: NarrativeMemory,
+    /// Imprinting state (critical period learning)
+    imprint: ImprintState,
+    /// Last sensory input (for imprinting)
+    last_sensation: SensationInput,
+  )
+}
+
+/// Sensory input for imprinting
+pub type SensationInput {
+  SensationInput(
+    light: Int,      // 0-1023
+    sound: Int,      // 0-1023
+    touch: Bool,
+    entity: Option(String),
   )
 }
 
@@ -76,6 +92,9 @@ pub type Message {
 
   /// Apply stimulus to body (feed, rest, energize)
   ApplyBodyStimulus(stimulus: BodyStimulus)
+
+  /// Receive sensory input (for imprinting)
+  ReceiveSensation(light: Int, sound: Int, touch: Bool, entity: Option(String))
 
   // === Queries (request-reply) ===
   /// Get current PAD
@@ -220,6 +239,18 @@ pub fn body_stimulus(soul: Subject(Message), stimulus: BodyStimulus) -> Nil {
   process.send(soul, ApplyBodyStimulus(stimulus))
 }
 
+/// Receive sensory input (for imprinting)
+/// light/sound: 0-1023, entity: Some("Gabriel") if present
+pub fn receive_sensation(
+  soul: Subject(Message),
+  light: Int,
+  sound: Int,
+  touch: Bool,
+  entity: Option(String),
+) -> Nil {
+  process.send(soul, ReceiveSensation(light, sound, touch, entity))
+}
+
 /// Feed the body
 pub fn feed(soul: Subject(Message), amount: Float) -> Nil {
   process.send(soul, ApplyBodyStimulus(embodiment.Feed(amount)))
@@ -280,6 +311,24 @@ pub fn am_i_changing(soul: Subject(Message)) -> Bool {
   reflexivity.am_i_changing(self_model, state.tick_count)
 }
 
+/// Is imprinting in critical period?
+pub fn is_imprinting(soul: Subject(Message)) -> Bool {
+  let state = process.call(soul, 1000, fn(reply) { GetState(reply) })
+  imprint.is_critical_period(state.imprint, state.tick_count)
+}
+
+/// Get imprinting progress (0.0 to 1.0)
+pub fn imprinting_progress(soul: Subject(Message)) -> Float {
+  let state = process.call(soul, 1000, fn(reply) { GetState(reply) })
+  imprint.progress(state.imprint, state.tick_count)
+}
+
+/// Get imprinting description
+pub fn describe_imprinting(soul: Subject(Message)) -> String {
+  let state = process.call(soul, 1000, fn(reply) { GetState(reply) })
+  imprint.describe(state.imprint, state.tick_count)
+}
+
 // =============================================================================
 // INTERNAL
 // =============================================================================
@@ -304,6 +353,11 @@ fn init(id: VivaId, config: VivaConfig) -> SoulState {
   let initial_pad = viva_emotion.get_pad(emotional)
   let self_model = reflexivity.from_initial(initial_pad, initial_glyph)
 
+  // Initialize imprinting (start critical period immediately)
+  let imprint_state =
+    imprint.new_default()
+    |> imprint.start(0)
+
   SoulState(
     id: id,
     emotional: emotional,
@@ -317,6 +371,13 @@ fn init(id: VivaId, config: VivaConfig) -> SoulState {
     context_glyph: glyph.neutral(),
     self_model: self_model,
     narrative: narrative.new(),
+    imprint: imprint_state,
+    last_sensation: SensationInput(
+      light: 500,
+      sound: 200,
+      touch: False,
+      entity: None,
+    ),
   )
 }
 
@@ -428,6 +489,21 @@ fn handle_message(
         }
       }
 
+      // Imprinting: process critical period learning
+      let #(new_imprint, _imprint_events) =
+        imprint.tick(
+          state.imprint,
+          current_pad.pleasure,
+          current_pad.arousal,
+          current_pad.dominance,
+          state.last_sensation.light,
+          state.last_sensation.sound,
+          state.last_sensation.touch,
+          state.last_sensation.entity,
+          new_body.energy,
+          state.tick_count + 1,
+        )
+
       let new_state =
         SoulState(
           ..state,
@@ -437,6 +513,7 @@ fn handle_message(
           body: new_body,
           self_model: new_self_model,
           narrative: new_narrative,
+          imprint: new_imprint,
           tick_count: state.tick_count + 1,
         )
       actor.continue(new_state)
@@ -493,6 +570,17 @@ fn handle_message(
       // Apply stimulus to body (feed, rest, energize, etc)
       let new_body = embodiment.apply_stimulus(state.body, stimulus)
       actor.continue(SoulState(..state, body: new_body))
+    }
+
+    ReceiveSensation(light, sound, touch, entity) -> {
+      // Store sensory input for imprinting (processed on next Tick)
+      let sensation = SensationInput(
+        light: clamp_int(light, 0, 1023),
+        sound: clamp_int(sound, 0, 1023),
+        touch: touch,
+        entity: entity,
+      )
+      actor.continue(SoulState(..state, last_sensation: sensation))
     }
 
     // === Queries ===
@@ -580,6 +668,37 @@ fn handle_message(
       let memories = memory.recall(state.karma_bank, query, limit)
       process.send(reply, memories)
       actor.continue(state)
+    }
+
+    // === Sensory Input (for Imprinting) ===
+    ReceiveSensation(light:, sound:, touch:, entity:) -> {
+      // Store new sensation
+      let new_sensation = SensationInput(light:, sound:, touch:, entity:)
+
+      // Get current PAD for imprinting
+      let current_pad = viva_emotion.get_pad(state.emotional)
+
+      // Process imprinting (learns during critical period)
+      let #(new_imprint, _events) = imprint.tick(
+        state.imprint,
+        current_pad.pleasure,
+        current_pad.arousal,
+        current_pad.dominance,
+        light,
+        sound,
+        touch,
+        entity,
+        state.body.energy,
+        state.tick_count,
+      )
+
+      let new_state = SoulState(
+        ..state,
+        last_sensation: new_sensation,
+        imprint: new_imprint,
+      )
+
+      actor.continue(new_state)
     }
   }
 }
