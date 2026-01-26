@@ -9,7 +9,7 @@ import viva/neural/axis.{
   type Axis, type AxisSpec, Anon, AxisSpec, axis_equals,
   axis_to_string,
 }
-import viva/neural/tensor.{type Tensor, type TensorError}
+import viva_tensor/tensor.{type Tensor, type TensorError}
 
 // =============================================================================
 // NAMED TENSOR TYPE

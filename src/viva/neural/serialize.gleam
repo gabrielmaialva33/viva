@@ -10,7 +10,7 @@ import gleam/list
 import viva/neural/activation.{type ActivationType}
 import viva/neural/layer.{type DenseLayer}
 import viva/neural/network.{type Network}
-import viva/neural/tensor.{type Tensor, type TensorError}
+import viva_tensor/tensor.{type Tensor, type TensorError}
 
 /// Helper to extract data from tensor
 fn td(t: Tensor) -> List(Float) {

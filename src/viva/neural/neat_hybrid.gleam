@@ -22,7 +22,7 @@ import viva/neural/conv
 import viva/neural/neat.{
   type Genome, type Population, Genome, Hidden, Output,
 }
-import viva/neural/tensor.{type Tensor}
+import viva_tensor/tensor.{type Tensor}
 
 // =============================================================================
 // TYPES - Hybrid Architecture Structures

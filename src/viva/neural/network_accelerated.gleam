@@ -15,7 +15,7 @@ import viva/neural/network.{
   type Network, type NetworkCache, type NetworkGradients,
 }
 import viva/neural/nx_backend.{type Backend, CUDA, Nx, Pure}
-import viva/neural/tensor.{type Tensor, type TensorError}
+import viva_tensor/tensor.{type Tensor, type TensorError}
 
 // =============================================================================
 // RUNTIME DETECTION

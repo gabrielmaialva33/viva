@@ -6,7 +6,7 @@ import gleam/float
 import gleam/result
 import gleeunit/should
 import viva/neural/activation
-import viva/neural/tensor
+import viva_tensor/tensor
 
 // =============================================================================
 // TENSOR CONSTRUCTORS

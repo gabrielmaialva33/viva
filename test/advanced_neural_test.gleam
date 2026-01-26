@@ -9,7 +9,7 @@ import viva/neural/normalization
 import viva/neural/nx_backend.{Pure}
 import viva/neural/recurrent
 import viva/neural/regularization
-import viva/neural/tensor
+import viva_tensor/tensor
 import viva/neural/utils
 
 /// Helper to extract data from tensor

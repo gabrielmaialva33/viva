@@ -11,7 +11,7 @@ import viva/neural/layer.{DenseGradients}
 import viva/neural/network.{
   type MomentumState, type Network, type NetworkGradients,
 }
-import viva/neural/tensor.{type Tensor, type TensorError}
+import viva_tensor/tensor.{type Tensor, type TensorError}
 
 /// Helper to extract data from tensor
 fn td(t: Tensor) -> List(Float) {

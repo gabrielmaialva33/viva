@@ -19,7 +19,7 @@
 ////   let result = nx_backend.matmul(a, b, Pure) // Gleam puro
 
 import gleam/list
-import viva/neural/tensor.{type Tensor, type TensorError}
+import viva_tensor/tensor.{type Tensor, type TensorError}
 
 // =============================================================================
 // TYPES

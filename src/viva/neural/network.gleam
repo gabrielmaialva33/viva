@@ -7,7 +7,7 @@ import gleam/int
 import gleam/list
 import viva/neural/activation.{type ActivationType}
 import viva/neural/layer.{type DenseCache, type DenseGradients, type DenseLayer}
-import viva/neural/tensor.{type Tensor, type TensorError}
+import viva_tensor/tensor.{type Tensor, type TensorError}
 
 // =============================================================================
 // TYPES

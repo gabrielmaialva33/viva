@@ -13,7 +13,9 @@
     array_fold/3,
     array_dot/2,
     array_matmul/5,
-    strided_get/4
+    strided_get/4,
+    % For vision FFI
+    tensor_to_list/1
 ]).
 
 %% Convert list to array (O(n) once, then O(1) access)
@@ -96,3 +98,35 @@ compute_strided_index(Offset, Strides, Indices) ->
         Offset,
         lists:zip(Strides, Indices)
     ).
+
+%% ============================================================================
+%% TENSOR EXTRACTION (for vision FFI)
+%% ============================================================================
+
+%% Convert tensor (any term with data field) to list
+-spec tensor_to_list(term()) -> [float()].
+tensor_to_list(Tensor) when is_map(Tensor) ->
+    case maps:get(data, Tensor, undefined) of
+        undefined -> [];
+        Data when is_list(Data) -> Data;
+        _ -> []
+    end;
+tensor_to_list(Tensor) when is_tuple(Tensor) ->
+    %% Handle Gleam record: {tensor, Data, Shape} or {hrr, Vector, Dim}
+    case Tensor of
+        {tensor, Data, _Shape} when is_list(Data) -> Data;
+        {hrr, Vector, _Dim} -> tensor_to_list(Vector);
+        {'Tensor', Data, _Shape} when is_list(Data) -> Data;
+        {'HRR', Vector, _Dim} -> tensor_to_list(Vector);
+        _ ->
+            %% Try to extract from tuple elements
+            TupleList = tuple_to_list(Tensor),
+            case lists:filter(fun is_list/1, TupleList) of
+                [L | _] -> L;
+                [] -> []
+            end
+    end;
+tensor_to_list(List) when is_list(List) ->
+    List;
+tensor_to_list(_) ->
+    [].

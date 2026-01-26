@@ -13,7 +13,7 @@ import gleam/float
 import gleam/io
 import gleam/list
 import gleam/result
-import viva/neural/tensor.{type Tensor}
+import viva_tensor/tensor.{type Tensor}
 import viva_emotion/pad.{type Pad}
 
 // =============================================================================

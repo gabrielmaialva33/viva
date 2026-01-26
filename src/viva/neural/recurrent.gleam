@@ -7,7 +7,7 @@
 import gleam/int
 import gleam/list
 import gleam/result
-import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
+import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
 
 /// Helper to extract data from tensor
 fn td(t: Tensor) -> List(Float) {

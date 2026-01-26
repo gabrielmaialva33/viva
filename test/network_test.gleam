@@ -7,7 +7,7 @@ import gleam/list
 import gleeunit/should
 import viva/neural/activation
 import viva/neural/network
-import viva/neural/tensor
+import viva_tensor/tensor
 
 // =============================================================================
 // CONSTRUCTOR TESTS

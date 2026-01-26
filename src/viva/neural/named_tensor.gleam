@@ -15,7 +15,7 @@ import viva/neural/axis
 import viva/neural/einsum
 import viva/neural/named_ops.{SliceFirst, SliceIndex, SliceLast, SliceRange}
 import viva/neural/named_tensor_core
-import viva/neural/tensor.{type Tensor}
+import viva_tensor/tensor.{type Tensor}
 
 // =============================================================================
 // RE-EXPORTS: TYPES

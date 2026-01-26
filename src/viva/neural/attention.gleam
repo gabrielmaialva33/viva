@@ -10,7 +10,7 @@ import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
-import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
+import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
 import viva/neural/utils
 
 // =============================================================================

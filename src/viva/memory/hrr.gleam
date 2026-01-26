@@ -14,7 +14,7 @@
 
 import gleam/float
 import gleam/list
-import viva/neural/tensor.{type Tensor}
+import viva_tensor/tensor.{type Tensor}
 
 /// Helper to extract data from tensor
 fn td(t: Tensor) -> List(Float) {

@@ -3,7 +3,7 @@ import gleam/list
 import gleeunit/should
 import viva/neural/neat
 import viva/neural/neat_hybrid
-import viva/neural/tensor
+import viva_tensor/tensor
 
 // =============================================================================
 // CONFIG TESTS

@@ -16,7 +16,7 @@ import viva/narrative.{
   type NarrativeLink, type NarrativeMemory, type NarrativeResult, type Thought,
   type VoiceStyle, FromAssociation, FromCausal,
 }
-import viva/neural/tensor.{type Tensor}
+import viva_tensor/tensor.{type Tensor}
 import viva_glyph/glyph.{type Glyph}
 
 // =============================================================================

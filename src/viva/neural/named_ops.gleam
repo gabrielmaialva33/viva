@@ -8,7 +8,7 @@ import gleam/result
 import viva/neural/axis.{
   type Axis, type AxisSpec, Anon, AxisSpec, axes_equal, axis_equals,
 }
-import viva/neural/tensor
+import viva_tensor/tensor
 
 // Re-import from named_tensor_core
 import viva/neural/named_tensor_core.{

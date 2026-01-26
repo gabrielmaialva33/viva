@@ -4,7 +4,7 @@
 //// Functional design: pure functions, no side effects.
 
 import gleam/list
-import viva/neural/tensor.{type Tensor}
+import viva_tensor/tensor.{type Tensor}
 
 // =============================================================================
 // TYPES

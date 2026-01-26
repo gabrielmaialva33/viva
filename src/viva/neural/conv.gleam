@@ -13,7 +13,7 @@ import gleam/int
 import gleam/list
 import viva/neural/activation.{type ActivationType}
 import viva/neural/nx_backend.{type Backend, CUDA, Nx, Pure}
-import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
+import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
 
 /// Helper to extract data from tensor (avoids t.data which doesn't work with union types)
 fn td(t: Tensor) -> List(Float) {

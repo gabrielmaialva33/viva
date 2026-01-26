@@ -25,7 +25,7 @@ import gleam/otp/actor
 import gleam/set.{type Set}
 import mist.{type Connection, type ResponseData}
 import viva/memory/world.{type World}
-import viva/neural/tensor.{type Tensor}
+import viva_tensor/tensor.{type Tensor}
 import viva/telemetry/frontend
 import viva/telemetry/metrics
 import viva/telemetry/perf

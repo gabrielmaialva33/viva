@@ -9,7 +9,7 @@ import gleam/list
 import gleam/option.{None, Some}
 import viva/memory/body.{type Body}
 import viva/memory/world.{type Island, type World, type WorldConfig}
-import viva/neural/tensor.{type Tensor}
+import viva_tensor/tensor.{type Tensor}
 
 /// Helper to extract data from tensor
 fn td(t: Tensor) -> List(Float) {

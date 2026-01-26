@@ -6,7 +6,7 @@
 import gleam/float
 import gleam/int
 import gleam/list
-import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
+import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
 
 // =============================================================================
 // AXIS-AWARE OPERATIONS
