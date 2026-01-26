@@ -322,7 +322,7 @@ fn factorial(n: Int) -> Float {
 /// Executa forward pass em um genoma
 pub fn forward(genome: Genome, inputs: List(Float)) -> List(Float) {
   // Mapeia nós por ID para acesso rápido
-  let node_map =
+  let _node_map =
     list.fold(genome.nodes, dict.new(), fn(acc, node) {
       dict.insert(acc, node.id, node)
     })
@@ -837,7 +837,7 @@ pub fn speciate(population: Population, config: NeatConfig) -> Population {
 
   // Remove espécies vazias
   let non_empty_species =
-    list.filter(final_species, fn(s) { list.length(s.members) > 0 })
+    list.filter(final_species, fn(s) { !list.is_empty(s.members) })
 
   Population(
     ..population,

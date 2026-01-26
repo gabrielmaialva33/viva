@@ -18,9 +18,7 @@
 ////   let result = nx_backend.matmul(a, b, Nx)  // GPU/EXLA
 ////   let result = nx_backend.matmul(a, b, Pure) // Gleam puro
 
-import gleam/dynamic.{type Dynamic}
 import gleam/list
-import gleam/result
 import viva/neural/tensor.{type Tensor, type TensorError}
 
 // =============================================================================

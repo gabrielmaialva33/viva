@@ -44,10 +44,7 @@ fn list_to_array(lst: List(Float)) -> ErlangArray {
   list_to_array_ffi(lst)
 }
 
-/// Convert Erlang array back to list
-fn array_to_list(arr: ErlangArray) -> List(Float) {
-  array_to_list_ffi(arr)
-}
+// array_to_list removed - unused private function
 
 /// Get array size
 fn array_size(arr: ErlangArray) -> Int {
@@ -222,7 +219,7 @@ pub fn dot_smart(
 pub fn get_smart(
   t: Tensor,
   index: Int,
-  config: TensorConfig,
+  _config: TensorConfig,
 ) -> Result(Float, TensorError) {
   // If already strided, use fast path directly (no conversion)
   case t {
@@ -242,7 +239,7 @@ pub fn get2d_smart(
   t: Tensor,
   row: Int,
   col: Int,
-  config: TensorConfig,
+  _config: TensorConfig,
 ) -> Result(Float, TensorError) {
   // If already strided, use fast path directly (no conversion)
   case t {
@@ -947,17 +944,11 @@ fn random_float() -> Float
 @external(erlang, "viva_tensor_ffi", "list_to_array")
 fn list_to_array_ffi(lst: List(Float)) -> ErlangArray
 
-@external(erlang, "viva_tensor_ffi", "array_to_list")
-fn array_to_list_ffi(arr: ErlangArray) -> List(Float)
-
 @external(erlang, "viva_tensor_ffi", "array_get")
 fn array_get_ffi(arr: ErlangArray, index: Int) -> Float
 
 @external(erlang, "viva_tensor_ffi", "array_size")
 fn array_size_ffi(arr: ErlangArray) -> Int
-
-@external(erlang, "viva_tensor_ffi", "array_set")
-fn array_set_ffi(arr: ErlangArray, index: Int, value: Float) -> ErlangArray
 
 // =============================================================================
 // SIMD NIFs - AVX/SSE ACCELERATION
@@ -1550,7 +1541,7 @@ pub fn transpose_strided(t: Tensor) -> Result(Tensor, TensorError) {
   case t {
     Tensor(_, shape) -> {
       case shape {
-        [m, n] -> {
+        [_m, _n] -> {
           // Convert to strided first, then transpose
           let strided = to_strided(t)
           transpose_strided(strided)
@@ -1804,15 +1795,6 @@ fn array_matmul_ffi(
   k: Int,
 ) -> ErlangArray
 
-@external(erlang, "viva_tensor_ffi", "array_map")
-fn array_map_ffi(arr: ErlangArray, f: fn(Float) -> Float) -> ErlangArray
-
-@external(erlang, "viva_tensor_ffi", "array_map2")
-fn array_map2_ffi(
-  a: ErlangArray,
-  b: ErlangArray,
-  f: fn(Float, Float) -> Float,
-) -> ErlangArray
-
-@external(erlang, "viva_tensor_ffi", "array_fold")
-fn array_fold_ffi(arr: ErlangArray, acc: a, f: fn(a, Float) -> a) -> a
+// Unused FFI functions removed:
+// array_map_ffi, array_map2_ffi, array_fold_ffi
+// Can be re-added when needed for strided tensor operations

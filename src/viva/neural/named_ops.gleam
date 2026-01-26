@@ -2,14 +2,13 @@
 ////
 //// Reduction, element-wise, and matrix operations using named axes.
 
-import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
 import viva/neural/axis.{
   type Axis, type AxisSpec, Anon, AxisSpec, axes_equal, axis_equals,
 }
-import viva/neural/tensor.{type Tensor}
+import viva/neural/tensor
 
 // Re-import from named_tensor_core
 import viva/neural/named_tensor_core.{

@@ -5,7 +5,7 @@
 
 import gleam/int
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option, Some}
 import gleam/result
 import viva/neural/activation.{type ActivationType, ReLU}
 import viva/neural/attention.{
@@ -14,7 +14,7 @@ import viva/neural/attention.{
   positional_encoding_new,
 }
 import viva/neural/normalization.{
-  type LayerNormLayer, layer_norm_forward, layer_norm_new,
+  type LayerNormLayer, layer_norm_new,
 }
 import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
 

@@ -6,7 +6,7 @@ import gleam/int
 import gleam/list
 import gleam/string
 import viva/neural/axis.{
-  type Axis, type AxisSpec, Anon, AxisSpec, axes_equal, axis_equals,
+  type Axis, type AxisSpec, Anon, AxisSpec, axis_equals,
   axis_to_string,
 }
 import viva/neural/tensor.{type Tensor, type TensorError}

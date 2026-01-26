@@ -4,7 +4,6 @@
 //// mechanisms for learning long-range dependencies.
 //// Inspired by Axon's lstm_cell and gru_cell implementations.
 
-import gleam/float
 import gleam/int
 import gleam/list
 import gleam/result
@@ -255,7 +254,7 @@ pub fn lstm_backward(
   d_h_next: Tensor,
   d_c_next: Tensor,
 ) -> Result(LSTMGradients, TensorError) {
-  let h = cell.hidden_size
+  let _h = cell.hidden_size
 
   // d_o = d_h_next * tanh(c_new) * sigmoid'(o_pre)
   let c_tanh = tensor.map(cache.c_new, tanh)

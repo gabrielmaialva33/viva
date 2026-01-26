@@ -14,8 +14,8 @@ import gleam/int
 import gleam/list
 import gleam/result
 import viva/neural/neat.{
-  type ConnectionGene, type Genome, type NeatConfig, type Population,
-  ConnectionGene, Genome, Population,
+  type ConnectionGene, type Genome, type Population,
+  ConnectionGene, Genome,
 }
 
 // =============================================================================

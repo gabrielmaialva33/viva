@@ -6,7 +6,6 @@
 import gleam/float
 import gleam/int
 import gleam/list
-import gleam/result
 import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
 
 // =============================================================================

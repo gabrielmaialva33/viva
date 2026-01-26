@@ -4,7 +4,6 @@
 //// Inspired by Axon's dropout implementation.
 
 import gleam/float
-import gleam/int
 import gleam/list
 import gleam/result
 import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
@@ -295,8 +294,7 @@ pub type AlphaDropoutLayer {
 
 /// Alpha dropout constants (for SELU self-normalization)
 const alpha_p: Float = -1.7580993408473766
-
-const a_prime: Float = 1.7580993408473772
+// a_prime constant removed - unused
 
 /// Create alpha dropout layer
 pub fn alpha_new(rate: Float) -> AlphaDropoutLayer {

@@ -3,7 +3,6 @@
 //// Implements normalization layers essential for deep networks.
 //// Based on the formula: y = (x - mean) / sqrt(var + eps) * gamma + beta
 
-import gleam/float
 import gleam/int
 import gleam/list
 import gleam/result

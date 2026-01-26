@@ -11,7 +11,6 @@
 import gleam/float
 import gleam/int
 import gleam/list
-import gleam/result
 import viva/neural/activation.{type ActivationType}
 import viva/neural/nx_backend.{type Backend, CUDA, Nx, Pure}
 import viva/neural/tensor.{type Tensor, type TensorError, Tensor}

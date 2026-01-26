@@ -104,7 +104,7 @@ pub fn scaled_dot_product_attention(
   mask: Option(Tensor),
 ) -> Result(#(AttentionResult, AttentionCache), TensorError) {
   case query.shape, key.shape, value.shape {
-    [seq_q, d_k], [seq_k, d_k2], [seq_k2, d_v]
+    [_seq_q, d_k], [seq_k, d_k2], [seq_k2, _d_v]
       if d_k == d_k2 && seq_k == seq_k2
     -> {
       // 1. Compute attention scores: Q @ K^T
@@ -173,7 +173,7 @@ pub fn attention_backward(
   d_output: Tensor,
 ) -> Result(AttentionGradients, TensorError) {
   case d_output.shape, cache.value.shape, cache.query.shape {
-    [seq_q, d_v], [seq_k, _d_v2], [_seq_q2, d_k] -> {
+    [seq_q, _d_v], [seq_k, _d_v2], [_seq_q2, d_k] -> {
       // d_V = weights^T @ d_output
       use weights_t <- result.try(tensor.transpose(cache.weights))
       use d_value <- result.try(tensor.matmul(weights_t, d_output))
