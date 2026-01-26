@@ -188,16 +188,19 @@ pub fn attention_backward(
         d_weights,
         cache.weights,
       ))
+      let dww_data = tensor.to_list(d_weights_times_weights)
       let row_sums =
         list.range(0, seq_q - 1)
         |> list.map(fn(row) {
           let start = row * seq_k
-          d_weights_times_weights.data
+          dww_data
           |> list.drop(start)
           |> list.take(seq_k)
           |> list.fold(0.0, fn(acc, x) { acc +. x })
         })
 
+      let weights_data = tensor.to_list(cache.weights)
+      let d_weights_data = tensor.to_list(d_weights)
       let d_scores_data =
         list.range(0, seq_q - 1)
         |> list.flat_map(fn(row) {
@@ -208,11 +211,11 @@ pub fn attention_backward(
           list.range(0, seq_k - 1)
           |> list.map(fn(col) {
             let idx = row * seq_k + col
-            let w = case list_at(cache.weights.data, idx) {
+            let w = case list_at(weights_data, idx) {
               Ok(v) -> v
               Error(_) -> 0.0
             }
-            let dw = case list_at(d_weights.data, idx) {
+            let dw = case list_at(d_weights_data, idx) {
               Ok(v) -> v
               Error(_) -> 0.0
             }
@@ -301,8 +304,9 @@ pub fn mha_forward(
         list.range(0, seq_q - 1)
         |> list.flat_map(fn(row) {
           list.flat_map(head_outputs, fn(head) {
+            let head_data = tensor.to_list(head)
             let start = row * layer.d_k
-            head.data
+            head_data
             |> list.drop(start)
             |> list.take(layer.d_k)
           })
@@ -397,16 +401,18 @@ pub fn combine_masks(
   // Broadcast padding [1, seq] to [seq, seq]
   case causal.shape, padding.shape {
     [seq, seq2], [1, seq3] if seq == seq2 && seq == seq3 -> {
+      let causal_data = tensor.to_list(causal)
+      let padding_data = tensor.to_list(padding)
       let data =
         list.range(0, seq - 1)
         |> list.flat_map(fn(i) {
           list.range(0, seq - 1)
           |> list.map(fn(j) {
-            let causal_val = case list_at(causal.data, i * seq + j) {
+            let causal_val = case list_at(causal_data, i * seq + j) {
               Ok(v) -> v
               Error(_) -> 0.0
             }
-            let padding_val = case list_at(padding.data, j) {
+            let padding_val = case list_at(padding_data, j) {
               Ok(v) -> v
               Error(_) -> 0.0
             }
@@ -460,7 +466,8 @@ pub fn add_positional_encoding(
   case input.shape {
     [seq_len, d_model] if seq_len <= pe.max_len && d_model == pe.d_model -> {
       // Slice encoding to match sequence length
-      let pe_data = list.take(pe.encoding.data, seq_len * d_model)
+      let encoding_data = tensor.to_list(pe.encoding)
+      let pe_data = list.take(encoding_data, seq_len * d_model)
       let pe_slice = Tensor(data: pe_data, shape: [seq_len, d_model])
       tensor.add(input, pe_slice)
     }
@@ -515,6 +522,7 @@ pub fn relative_position_bias_new(max_distance: Int) -> RelativePositionBias {
 
 /// Compute relative position bias matrix
 pub fn compute_relative_bias(rpb: RelativePositionBias, seq_len: Int) -> Tensor {
+  let bias_data = tensor.to_list(rpb.bias_table)
   let data =
     list.range(0, seq_len - 1)
     |> list.flat_map(fn(i) {
@@ -524,7 +532,7 @@ pub fn compute_relative_bias(rpb: RelativePositionBias, seq_len: Int) -> Tensor 
         let clamped =
           int.clamp(relative_pos, -rpb.max_distance + 1, rpb.max_distance - 1)
         let table_idx = clamped + rpb.max_distance - 1
-        case list_at(rpb.bias_table.data, table_idx) {
+        case list_at(bias_data, table_idx) {
           Ok(v) -> v
           Error(_) -> 0.0
         }
@@ -539,6 +547,7 @@ pub fn compute_relative_bias(rpb: RelativePositionBias, seq_len: Int) -> Tensor 
 
 /// Extract head from projected tensor
 fn extract_head(proj: Tensor, head_idx: Int, d_k: Int, seq_len: Int) -> Tensor {
+  let proj_data = tensor.to_list(proj)
   let start_col = head_idx * d_k
   let data =
     list.range(0, seq_len - 1)
@@ -546,7 +555,7 @@ fn extract_head(proj: Tensor, head_idx: Int, d_k: Int, seq_len: Int) -> Tensor {
       case proj.shape {
         [_seq, d_model] -> {
           let row_start = row * d_model
-          proj.data
+          proj_data
           |> list.drop(row_start + start_col)
           |> list.take(d_k)
         }

@@ -13,6 +13,11 @@ import viva/neural/network.{
 }
 import viva/neural/tensor.{type Tensor, type TensorError}
 
+/// Helper to extract data from tensor
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -202,7 +207,7 @@ fn binary_cross_entropy_loss(
 
   // Loss for each element
   let losses =
-    list.map2(clipped.data, target.data, fn(p, t) {
+    list.map2(td(clipped), td(target), fn(p, t) {
       0.0 -. { t *. float_log(p) +. { 1.0 -. t } *. float_log(1.0 -. p) }
     })
   let loss =
@@ -211,7 +216,7 @@ fn binary_cross_entropy_loss(
 
   // Gradient
   let gradient_data =
-    list.map2(clipped.data, target.data, fn(p, t) {
+    list.map2(td(clipped), td(target), fn(p, t) {
       { p -. t } /. { p *. { 1.0 -. p } }
     })
   let n = int.to_float(list.length(gradient_data))

@@ -12,6 +12,11 @@ import viva/neural/layer.{type DenseLayer}
 import viva/neural/network.{type Network}
 import viva/neural/tensor.{type Tensor, type TensorError}
 
+/// Helper to extract data from tensor
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -31,7 +36,7 @@ pub type SerializeError {
 /// Serialize tensor to JSON
 pub fn tensor_to_json(t: Tensor) -> Json {
   json.object([
-    #("data", json.array(t.data, json.float)),
+    #("data", json.array(td(t), json.float)),
     #("shape", json.array(t.shape, json.int)),
   ])
 }
@@ -229,7 +234,7 @@ pub fn network_from_string(json_str: String) -> Result(Network, SerializeError) 
 
 /// Compact format: weights only as list of floats
 pub fn network_to_weights(net: Network) -> List(Float) {
-  list.flat_map(net.layers, fn(l) { list.append(l.weights.data, l.biases.data) })
+  list.flat_map(net.layers, fn(l) { list.append(td(l.weights), td(l.biases)) })
 }
 
 /// Recreate network from weights (needs architecture)

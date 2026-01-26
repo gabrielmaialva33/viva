@@ -1,10 +1,15 @@
-//// Layer - Layer types for neural networks
+//// Layer - Unified layer types for neural networks
 ////
-//// Supports Dense (fully connected) as base.
-//// Each layer maintains weights, biases, and metadata for forward/backward.
+//// Provides a unified Layer union type that wraps all layer types.
+//// Enables building heterogeneous networks with different layer types.
 
 import gleam/result
 import viva/neural/activation.{type ActivationType}
+import viva/neural/attention.{type AttentionCache, type MHAGradients, type MultiHeadAttention}
+import viva/neural/conv.{type Conv2DCache, type Conv2DGradients, type Conv2DLayer}
+import viva/neural/normalization.{type BatchNormCache, type BatchNormGradients, type BatchNormLayer, type LayerNormLayer}
+import viva/neural/recurrent.{type GRUCache, type GRUCell, type GRUGradients, type LSTMCache, type LSTMCell, type LSTMGradients}
+import viva/neural/regularization.{type DropoutCache, type DropoutGradients, type DropoutLayer}
 import viva/neural/tensor.{type Tensor, type TensorError}
 
 // =============================================================================
@@ -55,18 +60,48 @@ pub type DenseCache {
 
 /// Union type for different layer types
 pub type Layer {
+  /// Fully connected layer
   Dense(DenseLayer)
-  // Future: Dropout, BatchNorm, Conv2D, etc.
+  /// Dropout regularization
+  Dropout(DropoutLayer)
+  /// Batch normalization
+  BatchNorm(BatchNormLayer)
+  /// Layer normalization
+  LayerNorm(LayerNormLayer)
+  /// 2D Convolution
+  Conv2D(Conv2DLayer)
+  /// LSTM recurrent cell
+  LSTM(LSTMCell)
+  /// GRU recurrent cell
+  GRU(GRUCell)
+  /// Multi-head attention
+  Attention(MultiHeadAttention)
 }
 
-/// Generic cache
+/// Generic cache for all layer types
 pub type LayerCache {
   DenseLayerCache(DenseCache)
+  DropoutLayerCache(DropoutCache)
+  BatchNormLayerCache(BatchNormCache)
+  Conv2DLayerCache(Conv2DCache)
+  LSTMLayerCache(LSTMCache)
+  GRULayerCache(GRUCache)
+  AttentionLayerCache(AttentionCache)
+  /// LayerNorm doesn't need cache (no batch stats)
+  LayerNormCache(Tensor)
 }
 
-/// Generic gradients
+/// Generic gradients for all layer types
 pub type LayerGradients {
   DenseLayerGradients(DenseGradients)
+  DropoutLayerGradients(DropoutGradients)
+  BatchNormLayerGradients(BatchNormGradients)
+  Conv2DLayerGradients(Conv2DGradients)
+  LSTMLayerGradients(LSTMGradients)
+  GRULayerGradients(GRUGradients)
+  AttentionLayerGradients(MHAGradients)
+  /// LayerNorm gradients
+  LayerNormGradients(d_input: Tensor, d_gamma: Tensor, d_beta: Tensor)
 }
 
 // =============================================================================
@@ -319,8 +354,87 @@ pub fn describe(layer: DenseLayer) -> String {
 }
 
 // =============================================================================
+// UNIFIED LAYER OPERATIONS
+// =============================================================================
+
+/// Check if layer has trainable parameters
+pub fn is_trainable(layer: Layer) -> Bool {
+  case layer {
+    Dense(_) -> True
+    Dropout(_) -> False
+    BatchNorm(_) -> True
+    LayerNorm(_) -> True
+    Conv2D(_) -> True
+    LSTM(_) -> True
+    GRU(_) -> True
+    Attention(_) -> True
+  }
+}
+
+/// Get total parameter count for any layer type
+pub fn layer_param_count(layer: Layer) -> Int {
+  case layer {
+    Dense(l) -> param_count(l)
+    Dropout(_) -> 0
+    BatchNorm(l) -> l.num_features * 2
+    LayerNorm(l) -> tensor.size(l.gamma) + tensor.size(l.beta)
+    Conv2D(l) -> tensor.size(l.filters) + tensor.size(l.biases)
+    LSTM(l) -> tensor.size(l.w_input) + tensor.size(l.w_hidden) + tensor.size(l.biases)
+    GRU(l) -> {
+      tensor.size(l.w_r_input) + tensor.size(l.w_r_hidden) + tensor.size(l.b_r)
+      + tensor.size(l.w_z_input) + tensor.size(l.w_z_hidden) + tensor.size(l.b_z)
+      + tensor.size(l.w_n_input) + tensor.size(l.w_n_hidden) + tensor.size(l.b_n)
+    }
+    Attention(l) -> {
+      tensor.size(l.w_query) + tensor.size(l.w_key)
+      + tensor.size(l.w_value) + tensor.size(l.w_out)
+    }
+  }
+}
+
+/// Describe any layer type
+pub fn layer_describe(layer: Layer) -> String {
+  case layer {
+    Dense(l) -> describe(l)
+    Dropout(l) -> "Dropout(" <> float_to_string(l.rate) <> ")"
+    BatchNorm(l) -> "BatchNorm(" <> int_to_string(l.num_features) <> ")"
+    LayerNorm(l) -> "LayerNorm(" <> shape_to_string(l.normalized_shape) <> ")"
+    Conv2D(l) -> "Conv2D(" <> int_to_string(l.in_channels) <> "->" <> int_to_string(l.out_channels) <> ", " <> int_to_string(l.kernel_h) <> "x" <> int_to_string(l.kernel_w) <> ")"
+    LSTM(l) -> "LSTM(" <> int_to_string(l.input_size) <> "->" <> int_to_string(l.hidden_size) <> ")"
+    GRU(l) -> "GRU(" <> int_to_string(l.input_size) <> "->" <> int_to_string(l.hidden_size) <> ")"
+    Attention(l) -> "MHA(" <> int_to_string(l.num_heads) <> " heads, d=" <> int_to_string(l.d_model) <> ")"
+  }
+}
+
+/// Set training mode for layers that support it
+pub fn set_training(layer: Layer, training: Bool) -> Layer {
+  case layer {
+    Dropout(l) -> Dropout(case training {
+      True -> regularization.train(l)
+      False -> regularization.eval(l)
+    })
+    BatchNorm(l) -> BatchNorm(case training {
+      True -> normalization.batch_norm_train(l)
+      False -> normalization.batch_norm_eval(l)
+    })
+    _ -> layer
+  }
+}
+
+fn shape_to_string(shape: List(Int)) -> String {
+  case shape {
+    [] -> ""
+    [x] -> int_to_string(x)
+    [x, ..rest] -> int_to_string(x) <> "x" <> shape_to_string(rest)
+  }
+}
+
+// =============================================================================
 // EXTERNAL
 // =============================================================================
 
 @external(erlang, "erlang", "integer_to_binary")
 fn int_to_string(i: Int) -> String
+
+@external(erlang, "erlang", "float_to_binary")
+fn float_to_string(f: Float) -> String

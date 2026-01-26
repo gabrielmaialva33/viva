@@ -115,8 +115,9 @@ pub fn gelu(x: Float) -> ActivationResult {
 
 /// Apply activation to tensor, returns values and derivatives separately
 pub fn apply(t: Tensor, activation: ActivationType) -> #(Tensor, Tensor) {
+  let data = tensor.to_list(t)
   let results =
-    t.data
+    data
     |> list.map(fn(x) { apply_scalar(x, activation) })
 
   let values = list.map(results, fn(r) { r.value })

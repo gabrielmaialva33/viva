@@ -10,6 +10,11 @@ import gleam/list
 import gleam/result
 import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
 
+/// Helper to extract data from tensor
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -483,7 +488,7 @@ fn tanh(x: Float) -> Float {
 /// Slice tensor from start to start+length
 fn slice_tensor(t: Tensor, start: Int, length: Int) -> Tensor {
   let data =
-    t.data
+    td(t)
     |> list.drop(start)
     |> list.take(length)
   Tensor(data: data, shape: [length])
@@ -491,7 +496,7 @@ fn slice_tensor(t: Tensor, start: Int, length: Int) -> Tensor {
 
 /// Map over two tensors with custom function
 fn map2_with(a: Tensor, b: Tensor, f: fn(Float, Float) -> Float) -> Tensor {
-  let data = list.map2(a.data, b.data, f)
+  let data = list.map2(td(a), td(b), f)
   Tensor(data: data, shape: a.shape)
 }
 

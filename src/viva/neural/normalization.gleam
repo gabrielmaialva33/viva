@@ -10,6 +10,11 @@ import gleam/result
 import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
 import viva/neural/utils
 
+/// Helper to extract data from tensor
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -414,7 +419,7 @@ pub fn layer_norm_forward(
         |> list.flat_map(fn(b) {
           let start = b * features
           let sample_data =
-            input.data
+            td(input)
             |> list.drop(start)
             |> list.take(features)
 
@@ -433,11 +438,11 @@ pub fn layer_norm_forward(
           // Normalize and apply gamma/beta
           list.index_map(sample_data, fn(x, i) {
             let normalized = { x -. mean } *. inv_std
-            let gamma_i = case list_at(layer.gamma.data, i) {
+            let gamma_i = case list_at(td(layer.gamma), i) {
               Ok(g) -> g
               Error(_) -> 1.0
             }
-            let beta_i = case list_at(layer.beta.data, i) {
+            let beta_i = case list_at(td(layer.beta), i) {
               Ok(b) -> b
               Error(_) -> 0.0
             }
@@ -503,7 +508,7 @@ pub fn group_norm_forward(
           |> list.flat_map(fn(g) {
             let group_start = sample_start + g * channels_per_group
             let group_data =
-              input.data
+              td(input)
               |> list.drop(group_start)
               |> list.take(channels_per_group)
 
@@ -523,11 +528,11 @@ pub fn group_norm_forward(
             list.index_map(group_data, fn(x, i) {
               let global_channel = g * channels_per_group + i
               let normalized = { x -. mean } *. inv_std
-              let gamma_c = case list_at(layer.gamma.data, global_channel) {
+              let gamma_c = case list_at(td(layer.gamma), global_channel) {
                 Ok(g) -> g
                 Error(_) -> 1.0
               }
-              let beta_c = case list_at(layer.beta.data, global_channel) {
+              let beta_c = case list_at(td(layer.beta), global_channel) {
                 Ok(b) -> b
                 Error(_) -> 0.0
               }
@@ -564,15 +569,16 @@ fn broadcast_to_batch(
   batch_size: Int,
   num_features: Int,
 ) -> Result(Tensor, TensorError) {
+  let tdata = td(t)
   case t.shape {
     [n] if n == num_features -> {
       // Repeat data for each batch
-      let data = list.flatten(list.repeat(t.data, batch_size))
+      let data = list.flatten(list.repeat(tdata, batch_size))
       Ok(Tensor(data: data, shape: [batch_size, num_features]))
     }
     [1] -> {
       // Single value, broadcast to all
-      let value = case list.first(t.data) {
+      let value = case list.first(tdata) {
         Ok(v) -> v
         Error(_) -> 0.0
       }

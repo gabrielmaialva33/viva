@@ -20,6 +20,7 @@ import gleam/option.{type Option, None, Some}
 import viva/neural/activation.{type ActivationType}
 import viva/neural/attention
 import viva/neural/conv
+import viva/neural/tensor as tensor_mod
 import viva/neural/neat.{
   type ActivationType as NeatActivation, type ConnectionGene, type Genome,
   type NodeGene, type NodeType, type Population, Genome, Hidden, Input, Output,
@@ -623,12 +624,12 @@ fn reshape_for_conv(input: Tensor, channels: Int) -> Tensor {
     True -> {
       case tensor.reshape(input, [1, channels, side, side]) {
         Ok(reshaped) -> reshaped
-        Error(_) -> tensor.Tensor(data: input.data, shape: [1, 1, 1, size])
+        Error(_) -> tensor.Tensor(data: tensor_mod.to_list(input), shape: [1, 1, 1, size])
       }
     }
     False -> {
       // Can't reshape to square, use 1D
-      tensor.Tensor(data: input.data, shape: [1, 1, 1, size])
+      tensor.Tensor(data: tensor_mod.to_list(input), shape: [1, 1, 1, size])
     }
   }
 }
@@ -642,16 +643,16 @@ fn reshape_for_attention(input: Tensor, d_model: Int) -> Tensor {
     True -> {
       case tensor.reshape(input, [seq_len, d_model]) {
         Ok(reshaped) -> reshaped
-        Error(_) -> tensor.Tensor(data: input.data, shape: [1, size])
+        Error(_) -> tensor.Tensor(data: tensor_mod.to_list(input), shape: [1, size])
       }
     }
-    False -> tensor.Tensor(data: input.data, shape: [1, size])
+    False -> tensor.Tensor(data: tensor_mod.to_list(input), shape: [1, size])
   }
 }
 
 /// Apply pooling operation
 fn apply_pooling(input: Tensor, config: PoolConfig) -> Tensor {
-  let data = input.data
+  let data = tensor_mod.to_list(input)
   let kernel = config.kernel_size
   let stride = config.stride
 
@@ -679,7 +680,7 @@ fn combine_inputs(
   genome: HybridGenome,
 ) -> List(Float) {
   // Start with original input
-  let base_input = original.data
+  let base_input = tensor_mod.to_list(original)
 
   // Add module outputs that connect to input layer
   let module_contribution =
@@ -687,7 +688,7 @@ fn combine_inputs(
     |> list.filter(fn(conn) { conn.direction == FromModule && conn.enabled })
     |> list.flat_map(fn(conn) {
       case dict.get(module_outputs, conn.module_id) {
-        Ok(output) -> list.take(output.data, 4)
+        Ok(output) -> list.take(tensor_mod.to_list(output), 4)
         // Limit contribution size
         Error(_) -> []
       }
@@ -821,7 +822,7 @@ fn find_random_target_node(genome: Genome, seed: Int) -> Int {
 
 fn perturb_tensor(t: Tensor, seed: Int) -> Tensor {
   let perturbed =
-    list.index_map(t.data, fn(x, i) {
+    list.index_map(tensor_mod.to_list(t), fn(x, i) {
       let perturbation = { pseudo_random_float(seed + i) -. 0.5 } *. 0.2
       x +. perturbation
     })

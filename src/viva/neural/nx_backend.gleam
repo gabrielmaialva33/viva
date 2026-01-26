@@ -95,7 +95,7 @@ pub fn set_backend(backend: String) -> Nil {
 
 /// Convert Gleam Tensor to Nx tensor
 pub fn to_nx(t: Tensor) -> NxTensor {
-  nx_tensor_create(t.data, t.shape)
+  nx_tensor_create(tensor.to_list(t), t.shape)
 }
 
 /// Convert Nx tensor back to Gleam Tensor
@@ -107,7 +107,7 @@ pub fn from_nx(nx: NxTensor) -> Tensor {
 
 /// Convert with reshape
 pub fn to_nx_shaped(t: Tensor, shape: List(Int)) -> NxTensor {
-  nx_tensor_create(t.data, shape)
+  nx_tensor_create(tensor.to_list(t), shape)
 }
 
 /// Transfer tensor to GPU (stays on GPU until needed)
@@ -342,7 +342,7 @@ pub fn batch_matmul(
     }
     Nx | CUDA(_) -> {
       // Stack inputs into batch tensor
-      let batch_data = list.flat_map(inputs, fn(t) { t.data })
+      let batch_data = list.flat_map(inputs, fn(t) { tensor.to_list(t) })
       let batch_size = list.length(inputs)
       let input_size = case inputs {
         [first, ..] -> tensor.size(first)
@@ -423,7 +423,7 @@ fn batch_forward_chunk(
   biases: Tensor,
   activation: Activation,
 ) -> List(Tensor) {
-  let input_lists = list.map(inputs, fn(t) { t.data })
+  let input_lists = list.map(inputs, fn(t) { tensor.to_list(t) })
   let activation_str = activation_to_string(activation)
 
   let result_lists =

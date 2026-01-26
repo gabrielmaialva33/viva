@@ -10,6 +10,11 @@ import gleam/result
 import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
 import viva/neural/utils
 
+/// Helper to extract data from tensor
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -243,7 +248,7 @@ pub fn spatial_forward(
               |> list.flat_map(fn(c) {
                 // Get mask value for this batch/channel
                 let idx = b * channels + c
-                let mask_val = case list_at(channel_mask.data, idx) {
+                let mask_val = case list_at(td(channel_mask), idx) {
                   Ok(v) -> v
                   Error(_) -> 1.0
                 }
@@ -331,7 +336,7 @@ pub fn alpha_forward(
 
       // Where mask is 0, replace with alpha_p (saturation value)
       let dropout_data =
-        list.map2(input.data, mask.data, fn(x, m) {
+        list.map2(td(input), td(mask), fn(x, m) {
           case m >. 0.5 {
             True -> x
             False -> alpha_p

@@ -16,6 +16,11 @@ import viva/neural/activation.{type ActivationType}
 import viva/neural/nx_backend.{type Backend, CUDA, Nx, Pure}
 import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
 
+/// Helper to extract data from tensor (avoids t.data which doesn't work with union types)
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -201,6 +206,8 @@ pub fn forward(
       let out_w = { in_w + 2 * pad_w - layer.kernel_w } / layer.stride_w + 1
 
       // Process each batch sample
+      let input_data = tensor.to_list(input)
+      let biases_data = tensor.to_list(layer.biases)
       let #(output_data, col_data) =
         list.range(0, batch - 1)
         |> list.fold(#([], []), fn(acc, b) {
@@ -209,7 +216,7 @@ pub fn forward(
           // Extract single sample [in_ch, in_h, in_w]
           let sample_start = b * in_ch * in_h * in_w
           let sample_data =
-            input.data
+            input_data
             |> list.drop(sample_start)
             |> list.take(in_ch * in_h * in_w)
           let sample = Tensor(data: sample_data, shape: [in_ch, in_h, in_w])
@@ -245,21 +252,23 @@ pub fn forward(
           }
 
           // Add bias (broadcast to each output position)
+          let conv_result_data = tensor.to_list(conv_result)
           let biased_data =
             list.range(0, layer.out_channels - 1)
             |> list.flat_map(fn(c) {
-              let bias_val = case list_at(layer.biases.data, c) {
-                Ok(b) -> b
+              let bias_val = case list_at(biases_data, c) {
+                Ok(bv) -> bv
                 Error(_) -> 0.0
               }
               let row_start = c * out_h * out_w
-              conv_result.data
+              conv_result_data
               |> list.drop(row_start)
               |> list.take(out_h * out_w)
               |> list.map(fn(x) { x +. bias_val })
             })
 
-          #(list.append(out_acc, biased_data), list.append(col_acc, col.data))
+          let col_data = tensor.to_list(col)
+          #(list.append(out_acc, biased_data), list.append(col_acc, col_data))
         })
 
       // Apply activation
@@ -325,6 +334,8 @@ pub fn forward_gpu(
       let out_w = { in_w + 2 * pad_w - layer.kernel_w } / layer.stride_w + 1
 
       // Process each batch sample with GPU matmul
+      let input_data_gpu = tensor.to_list(input)
+      let biases_data_gpu = tensor.to_list(layer.biases)
       let #(output_data, col_data) =
         list.range(0, batch - 1)
         |> list.fold(#([], []), fn(acc, b) {
@@ -333,7 +344,7 @@ pub fn forward_gpu(
           // Extract single sample [in_ch, in_h, in_w]
           let sample_start = b * in_ch * in_h * in_w
           let sample_data =
-            input.data
+            input_data_gpu
             |> list.drop(sample_start)
             |> list.take(in_ch * in_h * in_w)
           let sample = Tensor(data: sample_data, shape: [in_ch, in_h, in_w])
@@ -369,21 +380,23 @@ pub fn forward_gpu(
           }
 
           // Add bias (broadcast to each output position)
+          let conv_result_data_gpu = tensor.to_list(conv_result)
           let biased_data =
             list.range(0, layer.out_channels - 1)
             |> list.flat_map(fn(c) {
-              let bias_val = case list_at(layer.biases.data, c) {
+              let bias_val = case list_at(biases_data_gpu, c) {
                 Ok(bv) -> bv
                 Error(_) -> 0.0
               }
               let row_start = c * out_h * out_w
-              conv_result.data
+              conv_result_data_gpu
               |> list.drop(row_start)
               |> list.take(out_h * out_w)
               |> list.map(fn(x) { x +. bias_val })
             })
 
-          #(list.append(out_acc, biased_data), list.append(col_acc, col.data))
+          let col_data_item = tensor.to_list(col)
+          #(list.append(out_acc, biased_data), list.append(col_acc, col_data_item))
         })
 
       // Apply activation
@@ -478,7 +491,7 @@ pub fn backward(
           list.range(0, batch - 1)
           |> list.fold(0.0, fn(acc, b) {
             let start = { b * out_ch + c } * out_h * out_w
-            d_pre_act.data
+            td(d_pre_act)
             |> list.drop(start)
             |> list.take(out_h * out_w)
             |> list.fold(acc, fn(a, x) { a +. x })
@@ -502,7 +515,7 @@ pub fn backward(
             // Get d_pre_act for this batch [out_ch, out_h * out_w]
             let d_start = b * out_ch * out_h * out_w
             let d_batch =
-              d_pre_act.data
+              td(d_pre_act)
               |> list.drop(d_start)
               |> list.take(out_ch * out_h * out_w)
             let d_batch_tensor =
@@ -517,7 +530,7 @@ pub fn backward(
               * out_w
             let col_start = b * col_size
             let col_batch =
-              cache.col.data
+              td(cache.col)
               |> list.drop(col_start)
               |> list.take(col_size)
             let col_tensor =
@@ -531,7 +544,7 @@ pub fn backward(
               Ok(col_t) -> {
                 case tensor.matmul(d_batch_tensor, col_t) {
                   Ok(d_f) -> {
-                    list.map2(acc_data, d_f.data, fn(a, b) { a +. b })
+                    list.map2(acc_data, td(d_f), fn(a, b) { a +. b })
                   }
                   Error(_) -> acc_data
                 }
@@ -556,7 +569,7 @@ pub fn backward(
         |> list.flat_map(fn(b) {
           let d_start = b * out_ch * out_h * out_w
           let d_batch =
-            d_pre_act.data
+            td(d_pre_act)
             |> list.drop(d_start)
             |> list.take(out_ch * out_h * out_w)
           let d_batch_tensor =
@@ -588,7 +601,7 @@ pub fn backward(
                           cache.pad_h,
                           cache.pad_w,
                         )
-                      d_input_sample.data
+                      td(d_input_sample)
                     }
                     Error(_) -> list.repeat(0.0, in_ch * in_h * in_w)
                   }
@@ -638,7 +651,7 @@ pub fn backward_gpu(
           list.range(0, batch - 1)
           |> list.fold(0.0, fn(acc, b) {
             let start = { b * out_ch + c } * out_h * out_w
-            d_pre_act.data
+            td(d_pre_act)
             |> list.drop(start)
             |> list.take(out_h * out_w)
             |> list.fold(acc, fn(a, x) { a +. x })
@@ -660,7 +673,7 @@ pub fn backward_gpu(
           fn(acc_data, b) {
             let d_start = b * out_ch * out_h * out_w
             let d_batch =
-              d_pre_act.data
+              td(d_pre_act)
               |> list.drop(d_start)
               |> list.take(out_ch * out_h * out_w)
             let d_batch_tensor =
@@ -674,7 +687,7 @@ pub fn backward_gpu(
               * out_w
             let col_start = b * col_size
             let col_batch =
-              cache.col.data
+              td(cache.col)
               |> list.drop(col_start)
               |> list.take(col_size)
             let col_tensor =
@@ -687,7 +700,7 @@ pub fn backward_gpu(
             case nx_backend.transpose(col_tensor, Nx) {
               Ok(col_t) -> {
                 case nx_backend.matmul(d_batch_tensor, col_t, Nx) {
-                  Ok(d_f) -> list.map2(acc_data, d_f.data, fn(a, bv) { a +. bv })
+                  Ok(d_f) -> list.map2(acc_data, td(d_f), fn(a, bv) { a +. bv })
                   Error(_) -> acc_data
                 }
               }
@@ -710,7 +723,7 @@ pub fn backward_gpu(
         |> list.flat_map(fn(b) {
           let d_start = b * out_ch * out_h * out_w
           let d_batch =
-            d_pre_act.data
+            td(d_pre_act)
             |> list.drop(d_start)
             |> list.take(out_ch * out_h * out_w)
           let d_batch_tensor =
@@ -740,7 +753,7 @@ pub fn backward_gpu(
                           cache.pad_h,
                           cache.pad_w,
                         )
-                      d_input_sample.data
+                      td(d_input_sample)
                     }
                     Error(_) -> list.repeat(0.0, in_ch * in_h * in_w)
                   }
@@ -821,7 +834,7 @@ fn im2col(
 
             // Get value from padded input
             let flat_idx = c * padded_h * padded_w + h * padded_w + w
-            case list_at(padded.data, flat_idx) {
+            case list_at(td(padded), flat_idx) {
               Ok(v) -> v
               Error(_) -> 0.0
             }
@@ -873,7 +886,7 @@ fn col2im(
 
         // Get col value
         let col_flat_idx = col_idx * out_h * out_w + out_idx
-        let col_val = case list_at(col.data, col_flat_idx) {
+        let col_val = case list_at(td(col), col_flat_idx) {
           Ok(v) -> v
           Error(_) -> 0.0
         }
@@ -925,7 +938,7 @@ fn pad_image(
           case orig_h >= 0 && orig_h < in_h && orig_w >= 0 && orig_w < in_w {
             True -> {
               let flat_idx = c * in_h * in_w + orig_h * in_w + orig_w
-              case list_at(input.data, flat_idx) {
+              case list_at(td(input), flat_idx) {
                 Ok(v) -> v
                 Error(_) -> 0.0
               }
@@ -961,7 +974,7 @@ fn unpad_image(
               let padded_col = w + pad_w
               let flat_idx =
                 c * padded_h * padded_w + padded_row * padded_w + padded_col
-              case list_at(input.data, flat_idx) {
+              case list_at(td(input), flat_idx) {
                 Ok(v) -> v
                 Error(_) -> 0.0
               }
@@ -1053,7 +1066,7 @@ fn apply_activation_backward(
     activation.Linear -> upstream
     activation.ReLU -> {
       let data =
-        list.map2(upstream.data, pre_act.data, fn(u, p) {
+        list.map2(td(upstream), td(pre_act), fn(u, p) {
           case p >. 0.0 {
             True -> u
             False -> 0.0
@@ -1063,7 +1076,7 @@ fn apply_activation_backward(
     }
     activation.Sigmoid -> {
       let data =
-        list.map2(upstream.data, pre_act.data, fn(u, p) {
+        list.map2(td(upstream), td(pre_act), fn(u, p) {
           let s = 1.0 /. { 1.0 +. float_exp(0.0 -. p) }
           u *. s *. { 1.0 -. s }
         })
@@ -1071,7 +1084,7 @@ fn apply_activation_backward(
     }
     activation.Tanh -> {
       let data =
-        list.map2(upstream.data, pre_act.data, fn(u, p) {
+        list.map2(td(upstream), td(pre_act), fn(u, p) {
           let e2x = float_exp(2.0 *. p)
           let t = { e2x -. 1.0 } /. { e2x +. 1.0 }
           u *. { 1.0 -. t *. t }
