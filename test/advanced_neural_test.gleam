@@ -12,6 +12,11 @@ import viva/neural/regularization
 import viva/neural/tensor
 import viva/neural/utils
 
+/// Helper to extract data from tensor
+fn td(t: tensor.Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
+
 // =============================================================================
 // UTILS TESTS
 // =============================================================================
@@ -20,7 +25,7 @@ pub fn utils_sqrt_test() {
   let t = tensor.from_list([4.0, 9.0, 16.0, 25.0])
   let result = utils.sqrt(t)
   let expected = [2.0, 3.0, 4.0, 5.0]
-  list.map2(result.data, expected, fn(a, b) {
+  list.map2(td(result), expected, fn(a, b) {
     should.be_true(float.loosely_equals(a, b, 0.001))
   })
 }
@@ -52,7 +57,7 @@ pub fn utils_random_bernoulli_shape_test() {
 pub fn utils_random_bernoulli_values_test() {
   // All values should be 0.0 or 1.0
   let t = utils.random_bernoulli([100], 0.5)
-  let all_binary = list.all(t.data, fn(x) { x == 0.0 || x == 1.0 })
+  let all_binary = list.all(td(t), fn(x) { x == 0.0 || x == 1.0 })
   should.be_true(all_binary)
 }
 
@@ -95,7 +100,7 @@ pub fn dropout_inference_passthrough_test() {
   should.be_ok(result)
   let assert Ok(#(output, _cache)) = result
   // In inference mode, output should equal input
-  should.equal(output.data, input.data)
+  should.equal(td(output), td(input))
 }
 
 pub fn dropout_training_drops_test() {
@@ -107,7 +112,7 @@ pub fn dropout_training_drops_test() {
   // Not all values should be the same (some dropped, some scaled)
   let unique_values =
     list.unique(
-      list.map(output.data, fn(x) {
+      list.map(td(output), fn(x) {
         float.round(x *. 100.0)
         // Round to avoid float comparison issues
       }),
@@ -122,7 +127,7 @@ pub fn dropout_zero_rate_passthrough_test() {
   let result = regularization.forward(layer, input)
   should.be_ok(result)
   let assert Ok(#(output, _cache)) = result
-  should.equal(output.data, input.data)
+  should.equal(td(output), td(input))
 }
 
 pub fn dropout_backward_test() {
@@ -260,7 +265,7 @@ pub fn conv2d_identity_kernel_test() {
   should.be_ok(result)
   let assert Ok(#(output, _cache)) = result
   // Output should equal input (identity convolution)
-  should.equal(output.data, input.data)
+  should.equal(td(output), td(input))
 }
 
 // =============================================================================
@@ -281,8 +286,8 @@ pub fn lstm_init_state_test() {
   should.equal(state.c.shape, [32])
   should.equal(state.h.shape, [32])
   // Should be zeros
-  should.be_true(list.all(state.c.data, fn(x) { x == 0.0 }))
-  should.be_true(list.all(state.h.data, fn(x) { x == 0.0 }))
+  should.be_true(list.all(td(state.c), fn(x) { x == 0.0 }))
+  should.be_true(list.all(td(state.h), fn(x) { x == 0.0 }))
 }
 
 pub fn lstm_forward_shapes_test() {

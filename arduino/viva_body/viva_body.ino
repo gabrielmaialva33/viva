@@ -20,7 +20,7 @@
 // Configuration
 // ============================================================================
 
-#define BAUD_RATE 500000
+#define BAUD_RATE 115200  // 500000 not reliable on Uno
 #define TELEMETRY_INTERVAL_MS 10  // 100Hz
 #define HEARTBEAT_TIMEOUT_MS 2000
 

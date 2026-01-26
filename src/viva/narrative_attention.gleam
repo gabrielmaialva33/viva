@@ -12,6 +12,7 @@
 import gleam/float
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import viva/neural/tensor as tensor_mod
 import viva/narrative.{
   type NarrativeLink, type NarrativeMemory, type NarrativeResult, type Thought,
   type ThoughtSource, type ThoughtStream, type VoiceStyle, FromAssociation,
@@ -223,7 +224,7 @@ fn attend_to_candidates(
 fn build_query_vector(current: Glyph, ctx: NarrativeContext) -> List(Float) {
   // Combine glyph features with emotional state
   let glyph_features = glyph_to_features(current)
-  let emotion_features = ctx.emotional_state.data
+  let emotion_features = tensor_mod.to_list(ctx.emotional_state)
 
   // Concatenate and normalize
   list.append(glyph_features, emotion_features)
@@ -317,15 +318,16 @@ fn attended_thought(
 /// Compute emotional weight for a link
 fn compute_emotional_weight(link: NarrativeLink, ctx: NarrativeContext) -> Float {
   let base_weight = link.strength
+  let emo_data = tensor_mod.to_list(ctx.emotional_state)
 
   // Arousal amplifies weight
-  let arousal = case list.drop(ctx.emotional_state.data, 1) |> list.first() {
+  let arousal = case list.drop(emo_data, 1) |> list.first() {
     Ok(a) -> a
     Error(_) -> 0.0
   }
 
   // Dominance affects causal link weight
-  let dominance = case list.drop(ctx.emotional_state.data, 2) |> list.first() {
+  let dominance = case list.drop(emo_data, 2) |> list.first() {
     Ok(d) -> d
     Error(_) -> 0.0
   }

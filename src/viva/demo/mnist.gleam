@@ -21,6 +21,11 @@ import viva/neural/network.{type Network}
 import viva/neural/tensor.{type Tensor, Tensor}
 import viva/neural/train.{type Sample, Sample}
 
+/// Helper to extract data from tensor
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
+
 // =============================================================================
 // LABEL SMOOTHING
 // =============================================================================
@@ -194,7 +199,7 @@ fn evaluate(net: Network, samples: List(Sample)) -> Float {
 
 /// Get index of maximum value
 fn argmax(t: Tensor) -> Int {
-  let indexed = list.index_map(t.data, fn(val, idx) { #(idx, val) })
+  let indexed = list.index_map(td(t), fn(val, idx) { #(idx, val) })
 
   let assert Ok(#(max_idx, _)) =
     list.reduce(indexed, fn(acc, current) {
@@ -218,7 +223,7 @@ fn show_predictions(net: Network, samples: List(Sample)) {
       Ok(#(output, _)) -> {
         let predicted = argmax(output)
         let actual = argmax(sample.target)
-        let confidence = case list_at(output.data, predicted) {
+        let confidence = case list_at(td(output), predicted) {
           Ok(c) -> c
           Error(_) -> 0.0
         }
