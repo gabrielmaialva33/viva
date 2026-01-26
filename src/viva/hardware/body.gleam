@@ -19,9 +19,12 @@ import viva/serial.{type Serial}
 /// Sensations from the body
 pub type Sensation {
   Sensation(
-    light: Int,     // 0-1023: ambient light
-    noise: Int,     // 0-1023: electrical noise (primitive touch)
-    touch: Bool,    // Button/touch pressed
+    light: Int,
+    // 0-1023: ambient light
+    noise: Int,
+    // 0-1023: electrical noise (primitive touch)
+    touch: Bool,
+    // Button/touch pressed
   )
 }
 
@@ -65,13 +68,14 @@ pub type State {
 /// Start connection to the body
 pub fn start(device: String) -> Result(Subject(Message), actor.StartError) {
   // Don't open serial here - it must be opened inside the actor process
-  let state = State(
-    serial: None,
-    device: device,
-    last_sensation: None,
-    subscribers: [],
-    self_subject: None,
-  )
+  let state =
+    State(
+      serial: None,
+      device: device,
+      last_sensation: None,
+      subscribers: [],
+      self_subject: None,
+    )
 
   let builder =
     actor.new(state)
@@ -100,7 +104,12 @@ pub fn set_led(body: Subject(Message), red: Int, green: Int) -> Nil {
 }
 
 /// Play tone on speaker (pin 9 or 10)
-pub fn play_tone(body: Subject(Message), pin: Int, freq: Int, duration: Int) -> Nil {
+pub fn play_tone(
+  body: Subject(Message),
+  pin: Int,
+  freq: Int,
+  duration: Int,
+) -> Nil {
   send(body, PlayTone(pin, freq, duration))
 }
 
@@ -150,9 +159,7 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
       case parse_sensation(line) {
         Some(sensation) -> {
           // Notify subscribers
-          list.each(state.subscribers, fn(sub) {
-            process.send(sub, sensation)
-          })
+          list.each(state.subscribers, fn(sub) { process.send(sub, sensation) })
           actor.continue(State(..state, last_sensation: Some(sensation)))
         }
         None -> actor.continue(state)
@@ -174,7 +181,9 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
                   })
                   // Schedule next poll
                   let _ = process.send_after(self, 50, PollSerial)
-                  actor.continue(State(..state, last_sensation: Some(sensation)))
+                  actor.continue(
+                    State(..state, last_sensation: Some(sensation)),
+                  )
                 }
                 None -> {
                   // Invalid data, keep polling
@@ -240,17 +249,20 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
 fn encode_command(cmd: BodyCommand) -> BitArray {
   case cmd {
     SetLed(r, g) -> {
-      <<0x4C, clamp(r, 0, 255), clamp(g, 0, 255)>>  // 'L' r g
+      <<0x4C, clamp(r, 0, 255), clamp(g, 0, 255)>>
+      // 'L' r g
     }
     PlayTone(pin, freq, dur) -> {
       let fh = freq / 256
       let fl = freq % 256
       let dh = dur / 256
       let dl = dur % 256
-      <<0x53, pin, fh, fl, dh, dl>>  // 'S' pin fH fL dH dL
+      <<0x53, pin, fh, fl, dh, dl>>
+      // 'S' pin fH fL dH dL
     }
     StopAll -> {
-      <<0x58>>  // 'X'
+      <<0x58>>
+      // 'X'
     }
   }
 }
@@ -279,11 +291,11 @@ fn parse_sensation(line: String) -> Option(Sensation) {
 fn clamp(value: Int, min: Int, max: Int) -> Int {
   case value < min {
     True -> min
-    False -> case value > max {
-      True -> max
-      False -> value
-    }
+    False ->
+      case value > max {
+        True -> max
+        False -> value
+      }
   }
 }
-
 // No more FFI - using pure Gleam viva/serial library!

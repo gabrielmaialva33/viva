@@ -106,7 +106,8 @@ fn encode_single_block(block: List(Int), is_last: Bool) -> List(Int) {
   case list.length(block) {
     0 -> {
       // Empty block = just a zero in original
-      [1]  // Code byte pointing to implicit zero
+      [1]
+      // Code byte pointing to implicit zero
     }
     len if len < 254 -> {
       // Block fits in one chunk
@@ -161,10 +162,7 @@ fn decode_loop(
   }
 }
 
-fn take_exactly(
-  input: List(a),
-  n: Int,
-) -> Result(#(List(a), List(a)), Nil) {
+fn take_exactly(input: List(a), n: Int) -> Result(#(List(a), List(a)), Nil) {
   take_exactly_acc(input, n, [])
 }
 
@@ -196,11 +194,13 @@ fn split_on_delimiter(
       // Found delimiter, decode current frame
       let frame_bytes = list.reverse(current)
       case frame_bytes {
-        [] -> split_on_delimiter(rest, [], frames)  // Empty frame, skip
+        [] -> split_on_delimiter(rest, [], frames)
+        // Empty frame, skip
         _ -> {
           case decode(list_to_binary(frame_bytes)) {
             Ok(decoded) -> split_on_delimiter(rest, [], [decoded, ..frames])
-            Error(_) -> split_on_delimiter(rest, [], frames)  // Skip invalid
+            Error(_) -> split_on_delimiter(rest, [], frames)
+            // Skip invalid
           }
         }
       }

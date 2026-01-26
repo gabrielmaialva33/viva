@@ -396,7 +396,10 @@ pub fn forward_gpu(
             })
 
           let col_data_item = tensor.to_list(col)
-          #(list.append(out_acc, biased_data), list.append(col_acc, col_data_item))
+          #(
+            list.append(out_acc, biased_data),
+            list.append(col_acc, col_data_item),
+          )
         })
 
       // Apply activation

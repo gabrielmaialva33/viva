@@ -29,12 +29,8 @@ fn benchmark_tensor_ops() {
       bench.Input("1024 elements", large),
     ],
     [
-      bench.Function("add", fn(t) {
-        tensor.add(t, t) |> result.unwrap(t)
-      }),
-      bench.Function("mul", fn(t) {
-        tensor.mul(t, t) |> result.unwrap(t)
-      }),
+      bench.Function("add", fn(t) { tensor.add(t, t) |> result.unwrap(t) }),
+      bench.Function("mul", fn(t) { tensor.mul(t, t) |> result.unwrap(t) }),
       bench.Function("scale", fn(t) { tensor.scale(t, 2.0) }),
     ],
     [bench.Duration(1000), bench.Warmup(50)],
@@ -85,7 +81,8 @@ fn benchmark_matmul() {
 
   // Create matrices using tensor.matrix(rows, cols, data)
   let mat_8x8 =
-    tensor.matrix(8, 8, list.repeat(0.5, 64)) |> result.unwrap(tensor.zeros([8, 8]))
+    tensor.matrix(8, 8, list.repeat(0.5, 64))
+    |> result.unwrap(tensor.zeros([8, 8]))
   let mat_16x16 =
     tensor.matrix(16, 16, list.repeat(0.5, 256))
     |> result.unwrap(tensor.zeros([16, 16]))
@@ -100,9 +97,7 @@ fn benchmark_matmul() {
       bench.Input("32x32", mat_32x32),
     ],
     [
-      bench.Function("matmul", fn(t) {
-        tensor.matmul(t, t) |> result.unwrap(t)
-      }),
+      bench.Function("matmul", fn(t) { tensor.matmul(t, t) |> result.unwrap(t) }),
       bench.Function("transpose", fn(t) {
         tensor.transpose(t) |> result.unwrap(t)
       }),
@@ -192,7 +187,11 @@ fn benchmark_network() {
     |> network.add_dense(32, activation.ReLU)
     |> network.add_dense(10, activation.Linear)
     |> network.build()
-    |> result.unwrap(network.Network(layers: [], input_size: 64, output_size: 10))
+    |> result.unwrap(network.Network(
+      layers: [],
+      input_size: 64,
+      output_size: 10,
+    ))
 
   let net_deep =
     network.builder(64)
@@ -201,7 +200,11 @@ fn benchmark_network() {
     |> network.add_dense(16, activation.ReLU)
     |> network.add_dense(10, activation.Linear)
     |> network.build()
-    |> result.unwrap(network.Network(layers: [], input_size: 64, output_size: 10))
+    |> result.unwrap(network.Network(
+      layers: [],
+      input_size: 64,
+      output_size: 10,
+    ))
 
   bench.run(
     [

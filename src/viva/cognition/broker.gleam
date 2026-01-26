@@ -18,18 +18,9 @@ import viva_glyph/glyph.{type Glyph}
 /// Events that flow through the cognitive system
 pub type CognitiveEvent {
   /// Emotional state changed
-  EmotionalShift(
-    from: Pad,
-    to: Pad,
-    magnitude: Float,
-    tick: Int,
-  )
+  EmotionalShift(from: Pad, to: Pad, magnitude: Float, tick: Int)
   /// Self-observation occurred
-  Introspection(
-    drift: Float,
-    within_range: Bool,
-    tick: Int,
-  )
+  Introspection(drift: Float, within_range: Bool, tick: Int)
   /// Insight was generated
   InsightGenerated(
     dimension: CognitiveDimension,
@@ -45,28 +36,13 @@ pub type CognitiveEvent {
     tick: Int,
   )
   /// Identity crisis detected
-  CrisisDetected(
-    severity: Float,
-    duration: Int,
-    tick: Int,
-  )
+  CrisisDetected(severity: Float, duration: Int, tick: Int)
   /// Crisis resolved
-  CrisisResolved(
-    new_baseline: Glyph,
-    tick: Int,
-  )
+  CrisisResolved(new_baseline: Glyph, tick: Int)
   /// Meta-cognition level changed
-  MetaLevelChanged(
-    from: Int,
-    to: Int,
-    tick: Int,
-  )
+  MetaLevelChanged(from: Int, to: Int, tick: Int)
   /// Thought generated
-  ThoughtGenerated(
-    content: String,
-    weight: Float,
-    tick: Int,
-  )
+  ThoughtGenerated(content: String, weight: Float, tick: Int)
 }
 
 /// Cognitive dimensions (simplified from reflexivity)
@@ -146,10 +122,7 @@ pub type ProcessResult {
 
 /// Response to an event
 pub type EventResponse {
-  EventResponse(
-    handler: String,
-    message: String,
-  )
+  EventResponse(handler: String, message: String)
 }
 
 // =============================================================================
@@ -190,15 +163,14 @@ fn default_handlers() -> List(EventHandler) {
 // =============================================================================
 
 /// Publish an event to the broker
-pub fn publish(broker: CognitiveBroker, event: CognitiveEvent) -> CognitiveBroker {
+pub fn publish(
+  broker: CognitiveBroker,
+  event: CognitiveEvent,
+) -> CognitiveBroker {
   let new_history = [event, ..broker.history]
   let trimmed = list.take(new_history, broker.max_history)
 
-  CognitiveBroker(
-    ..broker,
-    history: trimmed,
-    tick: broker.tick + 1,
-  )
+  CognitiveBroker(..broker, history: trimmed, tick: broker.tick + 1)
 }
 
 /// Publish emotional shift event
@@ -208,7 +180,8 @@ pub fn emit_emotional_shift(
   to: Pad,
   magnitude: Float,
 ) -> CognitiveBroker {
-  let event = EmotionalShift(from: from, to: to, magnitude: magnitude, tick: broker.tick)
+  let event =
+    EmotionalShift(from: from, to: to, magnitude: magnitude, tick: broker.tick)
   publish(broker, event)
 }
 
@@ -218,7 +191,8 @@ pub fn emit_introspection(
   drift: Float,
   within_range: Bool,
 ) -> CognitiveBroker {
-  let event = Introspection(drift: drift, within_range: within_range, tick: broker.tick)
+  let event =
+    Introspection(drift: drift, within_range: within_range, tick: broker.tick)
   publish(broker, event)
 }
 
@@ -229,12 +203,13 @@ pub fn emit_insight(
   direction: ChangeDirection,
   magnitude: Float,
 ) -> CognitiveBroker {
-  let event = InsightGenerated(
-    dimension: dimension,
-    direction: direction,
-    magnitude: magnitude,
-    tick: broker.tick,
-  )
+  let event =
+    InsightGenerated(
+      dimension: dimension,
+      direction: direction,
+      magnitude: magnitude,
+      tick: broker.tick,
+    )
   publish(broker, event)
 }
 
@@ -245,12 +220,13 @@ pub fn emit_narrative_link(
   effect: Glyph,
   relation: LinkRelation,
 ) -> CognitiveBroker {
-  let event = NarrativeLinkFormed(
-    cause: cause,
-    effect: effect,
-    relation: relation,
-    tick: broker.tick,
-  )
+  let event =
+    NarrativeLinkFormed(
+      cause: cause,
+      effect: effect,
+      relation: relation,
+      tick: broker.tick,
+    )
   publish(broker, event)
 }
 
@@ -260,7 +236,8 @@ pub fn emit_crisis(
   severity: Float,
   duration: Int,
 ) -> CognitiveBroker {
-  let event = CrisisDetected(severity: severity, duration: duration, tick: broker.tick)
+  let event =
+    CrisisDetected(severity: severity, duration: duration, tick: broker.tick)
   publish(broker, event)
 }
 
@@ -279,7 +256,8 @@ pub fn emit_thought(
   content: String,
   weight: Float,
 ) -> CognitiveBroker {
-  let event = ThoughtGenerated(content: content, weight: weight, tick: broker.tick)
+  let event =
+    ThoughtGenerated(content: content, weight: weight, tick: broker.tick)
   publish(broker, event)
 }
 
@@ -288,7 +266,10 @@ pub fn emit_thought(
 // =============================================================================
 
 /// Get recent events
-pub fn recent_events(broker: CognitiveBroker, limit: Int) -> List(CognitiveEvent) {
+pub fn recent_events(
+  broker: CognitiveBroker,
+  limit: Int,
+) -> List(CognitiveEvent) {
   list.take(broker.history, limit)
 }
 
@@ -305,25 +286,29 @@ pub fn events_by_filter(
 fn matches_filter(event: CognitiveEvent, filter: EventFilter) -> Bool {
   case filter {
     AllEvents -> True
-    EmotionalEvents -> case event {
-      EmotionalShift(..) -> True
-      _ -> False
-    }
-    IntrospectionEvents -> case event {
-      Introspection(..) -> True
-      InsightGenerated(..) -> True
-      _ -> False
-    }
-    CrisisEvents -> case event {
-      CrisisDetected(..) -> True
-      CrisisResolved(..) -> True
-      _ -> False
-    }
-    NarrativeEvents -> case event {
-      NarrativeLinkFormed(..) -> True
-      ThoughtGenerated(..) -> True
-      _ -> False
-    }
+    EmotionalEvents ->
+      case event {
+        EmotionalShift(..) -> True
+        _ -> False
+      }
+    IntrospectionEvents ->
+      case event {
+        Introspection(..) -> True
+        InsightGenerated(..) -> True
+        _ -> False
+      }
+    CrisisEvents ->
+      case event {
+        CrisisDetected(..) -> True
+        CrisisResolved(..) -> True
+        _ -> False
+      }
+    NarrativeEvents ->
+      case event {
+        NarrativeLinkFormed(..) -> True
+        ThoughtGenerated(..) -> True
+        _ -> False
+      }
   }
 }
 
@@ -380,7 +365,10 @@ pub fn count_insights(broker: CognitiveBroker) -> Int {
 // =============================================================================
 
 /// Add a handler
-pub fn add_handler(broker: CognitiveBroker, handler: EventHandler) -> CognitiveBroker {
+pub fn add_handler(
+  broker: CognitiveBroker,
+  handler: EventHandler,
+) -> CognitiveBroker {
   CognitiveBroker(..broker, handlers: [handler, ..broker.handlers])
 }
 
@@ -392,23 +380,25 @@ pub fn remove_handler(broker: CognitiveBroker, name: String) -> CognitiveBroker 
 
 /// Enable handler
 pub fn enable_handler(broker: CognitiveBroker, name: String) -> CognitiveBroker {
-  let updated = list.map(broker.handlers, fn(h) {
-    case h.name == name {
-      True -> EventHandler(..h, active: True)
-      False -> h
-    }
-  })
+  let updated =
+    list.map(broker.handlers, fn(h) {
+      case h.name == name {
+        True -> EventHandler(..h, active: True)
+        False -> h
+      }
+    })
   CognitiveBroker(..broker, handlers: updated)
 }
 
 /// Disable handler
 pub fn disable_handler(broker: CognitiveBroker, name: String) -> CognitiveBroker {
-  let updated = list.map(broker.handlers, fn(h) {
-    case h.name == name {
-      True -> EventHandler(..h, active: False)
-      False -> h
-    }
-  })
+  let updated =
+    list.map(broker.handlers, fn(h) {
+      case h.name == name {
+        True -> EventHandler(..h, active: False)
+        False -> h
+      }
+    })
   CognitiveBroker(..broker, handlers: updated)
 }
 
@@ -451,15 +441,39 @@ pub type BrokerStats {
 pub fn event_to_string(event: CognitiveEvent) -> String {
   case event {
     EmotionalShift(_, _, magnitude, tick) ->
-      "EmotionalShift(magnitude=" <> float_to_string(magnitude) <> ", tick=" <> int_to_string(tick) <> ")"
+      "EmotionalShift(magnitude="
+      <> float_to_string(magnitude)
+      <> ", tick="
+      <> int_to_string(tick)
+      <> ")"
     Introspection(drift, within_range, tick) ->
-      "Introspection(drift=" <> float_to_string(drift) <> ", within=" <> bool_to_string(within_range) <> ", tick=" <> int_to_string(tick) <> ")"
+      "Introspection(drift="
+      <> float_to_string(drift)
+      <> ", within="
+      <> bool_to_string(within_range)
+      <> ", tick="
+      <> int_to_string(tick)
+      <> ")"
     InsightGenerated(dim, dir, magnitude, tick) ->
-      "Insight(" <> dimension_to_string(dim) <> " " <> direction_to_string(dir) <> ", magnitude=" <> float_to_string(magnitude) <> ")"
+      "Insight("
+      <> dimension_to_string(dim)
+      <> " "
+      <> direction_to_string(dir)
+      <> ", magnitude="
+      <> float_to_string(magnitude)
+      <> ")"
     NarrativeLinkFormed(_, _, relation, tick) ->
-      "NarrativeLink(" <> relation_to_string(relation) <> ", tick=" <> int_to_string(tick) <> ")"
+      "NarrativeLink("
+      <> relation_to_string(relation)
+      <> ", tick="
+      <> int_to_string(tick)
+      <> ")"
     CrisisDetected(severity, duration, _) ->
-      "Crisis(severity=" <> float_to_string(severity) <> ", duration=" <> int_to_string(duration) <> ")"
+      "Crisis(severity="
+      <> float_to_string(severity)
+      <> ", duration="
+      <> int_to_string(duration)
+      <> ")"
     CrisisResolved(_, tick) ->
       "CrisisResolved(tick=" <> int_to_string(tick) <> ")"
     MetaLevelChanged(from, to, _) ->

@@ -22,17 +22,22 @@ import viva/memory/hrr.{type HRR}
 /// Raw sensory channel - VIVA doesn't know what these are yet
 pub type Channel {
   Channel(
-    id: String,           // "chan_0", "chan_1", etc.
-    last_value: Float,    // Normalized 0-1
-    variance: Float,      // How much it changes
-    hrr: HRR,             // Learned representation
+    id: String,
+    // "chan_0", "chan_1", etc.
+    last_value: Float,
+    // Normalized 0-1
+    variance: Float,
+    // How much it changes
+    hrr: HRR,
+    // Learned representation
   )
 }
 
 /// A moment of experience
 pub type Moment {
   Moment(
-    channels: Dict(String, Float),   // All channel values at this instant
+    channels: Dict(String, Float),
+    // All channel values at this instant
     timestamp: Int,
   )
 }
@@ -42,10 +47,14 @@ pub type ChannelKnowledge {
   ChannelKnowledge(
     id: String,
     // Discovered properties
-    is_active: Bool,           // Does it change?
-    responds_to_action: Bool,  // Does it react when I do things?
-    correlates_with: List(String),  // Other channels that change together
-    learned_name: Option(String),   // Name VIVA gave it (emergent!)
+    is_active: Bool,
+    // Does it change?
+    responds_to_action: Bool,
+    // Does it react when I do things?
+    correlates_with: List(String),
+    // Other channels that change together
+    learned_name: Option(String),
+    // Name VIVA gave it (emergent!)
   )
 }
 
@@ -54,19 +63,16 @@ pub type State {
   State(
     // Known channels
     channels: Dict(String, Channel),
-
     // Experience memory
-    recent_moments: List(Moment),  // Last N moments
+    recent_moments: List(Moment),
+    // Last N moments
     max_moments: Int,
-
     // Learning state
     knowledge: Dict(String, ChannelKnowledge),
     curiosity: Float,
     tick: Int,
-
     // HRR dimension
     hrr_dim: Int,
-
     // Self reference
     self_subject: Option(Subject(Message)),
   )
@@ -75,9 +81,11 @@ pub type State {
 /// Messages
 pub type Message {
   // Raw input - VIVA receives these without knowing what they are
-  RawInput(String, Float)     // channel_id, value (0-1)
-  BatchInput(Dict(String, Float))  // Multiple channels at once
+  RawInput(String, Float)
+  // channel_id, value (0-1)
+  BatchInput(Dict(String, Float))
 
+  // Multiple channels at once
   // Internal
   Tick
   LearnFromExperience
@@ -97,16 +105,17 @@ pub type Message {
 
 /// Start the sense learner
 pub fn start() -> Result(Subject(Message), actor.StartError) {
-  let state = State(
-    channels: dict.new(),
-    recent_moments: [],
-    max_moments: 100,
-    knowledge: dict.new(),
-    curiosity: 1.0,
-    tick: 0,
-    hrr_dim: 64,
-    self_subject: None,
-  )
+  let state =
+    State(
+      channels: dict.new(),
+      recent_moments: [],
+      max_moments: 100,
+      knowledge: dict.new(),
+      curiosity: 1.0,
+      tick: 0,
+      hrr_dim: 64,
+      self_subject: None,
+    )
 
   let builder =
     actor.new(state)
@@ -147,36 +156,51 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
   case msg {
     RawInput(channel_id, value) -> {
       // Receive raw signal - VIVA doesn't know what it is!
-      let new_channels = update_channel(state.channels, channel_id, value, state.hrr_dim)
+      let new_channels =
+        update_channel(state.channels, channel_id, value, state.hrr_dim)
 
       // Record this moment
-      let moment = Moment(
-        channels: dict.insert(dict.new(), channel_id, value),
-        timestamp: erlang_now_ms(),
-      )
-      let new_moments = [moment, ..list.take(state.recent_moments, state.max_moments - 1)]
+      let moment =
+        Moment(
+          channels: dict.insert(dict.new(), channel_id, value),
+          timestamp: erlang_now_ms(),
+        )
+      let new_moments = [
+        moment,
+        ..list.take(state.recent_moments, state.max_moments - 1)
+      ]
 
-      actor.continue(State(..state,
-        channels: new_channels,
-        recent_moments: new_moments,
-        tick: state.tick + 1,
-      ))
+      actor.continue(
+        State(
+          ..state,
+          channels: new_channels,
+          recent_moments: new_moments,
+          tick: state.tick + 1,
+        ),
+      )
     }
 
     BatchInput(data) -> {
       // Multiple signals at once
-      let new_channels = dict.fold(data, state.channels, fn(acc, id, val) {
-        update_channel(acc, id, val, state.hrr_dim)
-      })
+      let new_channels =
+        dict.fold(data, state.channels, fn(acc, id, val) {
+          update_channel(acc, id, val, state.hrr_dim)
+        })
 
       let moment = Moment(channels: data, timestamp: erlang_now_ms())
-      let new_moments = [moment, ..list.take(state.recent_moments, state.max_moments - 1)]
+      let new_moments = [
+        moment,
+        ..list.take(state.recent_moments, state.max_moments - 1)
+      ]
 
-      actor.continue(State(..state,
-        channels: new_channels,
-        recent_moments: new_moments,
-        tick: state.tick + 1,
-      ))
+      actor.continue(
+        State(
+          ..state,
+          channels: new_channels,
+          recent_moments: new_moments,
+          tick: state.tick + 1,
+        ),
+      )
     }
 
     Tick -> {
@@ -206,7 +230,9 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
       dict.each(new_knowledge, fn(id, knowledge) {
         case knowledge.learned_name {
           Some(name) -> {
-            io.println("SenseLearner: I think channel " <> id <> " is... " <> name <> "?")
+            io.println(
+              "SenseLearner: I think channel " <> id <> " is... " <> name <> "?",
+            )
           }
           None -> Nil
         }
@@ -228,9 +254,19 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
             Some(n) -> n
             None -> "unknown"
           }
-          "Channel " <> id <> ": I call it '" <> name <> "'. "
-          <> case k.is_active { True -> "It changes. " False -> "It's static. " }
-          <> case k.responds_to_action { True -> "It reacts to my actions!" False -> "" }
+          "Channel "
+          <> id
+          <> ": I call it '"
+          <> name
+          <> "'. "
+          <> case k.is_active {
+            True -> "It changes. "
+            False -> "It's static. "
+          }
+          <> case k.responds_to_action {
+            True -> "It reacts to my actions!"
+            False -> ""
+          }
         }
         Error(_) -> "I don't know channel " <> id
       }
@@ -265,21 +301,22 @@ fn update_channel(
       let delta = float.absolute_value(value -. existing.last_value)
       let new_variance = existing.variance *. 0.9 +. delta *. 0.1
 
-      dict.insert(channels, id, Channel(
-        ..existing,
-        last_value: value,
-        variance: new_variance,
-      ))
+      dict.insert(
+        channels,
+        id,
+        Channel(..existing, last_value: value, variance: new_variance),
+      )
     }
     Error(_) -> {
       // New channel discovered!
       io.println("SenseLearner: New signal detected: " <> id)
-      let channel = Channel(
-        id: id,
-        last_value: value,
-        variance: 0.0,
-        hrr: hrr.random(hrr_dim),
-      )
+      let channel =
+        Channel(
+          id: id,
+          last_value: value,
+          variance: 0.0,
+          hrr: hrr.random(hrr_dim),
+        )
       dict.insert(channels, id, channel)
     }
   }
@@ -289,13 +326,14 @@ fn learn_about_channels(state: State) -> Dict(String, ChannelKnowledge) {
   dict.fold(state.channels, state.knowledge, fn(acc, id, channel) {
     let existing = case dict.get(acc, id) {
       Ok(k) -> k
-      Error(_) -> ChannelKnowledge(
-        id: id,
-        is_active: False,
-        responds_to_action: False,
-        correlates_with: [],
-        learned_name: None,
-      )
+      Error(_) ->
+        ChannelKnowledge(
+          id: id,
+          is_active: False,
+          responds_to_action: False,
+          correlates_with: [],
+          learned_name: None,
+        )
     }
 
     // Learn if channel is active (changes a lot)
@@ -304,20 +342,29 @@ fn learn_about_channels(state: State) -> Dict(String, ChannelKnowledge) {
     // Try to guess what it is based on behavior
     let learned_name = guess_sense_name(id, channel, is_active)
 
-    dict.insert(acc, id, ChannelKnowledge(
-      ..existing,
-      is_active: is_active,
-      learned_name: learned_name,
-    ))
+    dict.insert(
+      acc,
+      id,
+      ChannelKnowledge(
+        ..existing,
+        is_active: is_active,
+        learned_name: learned_name,
+      ),
+    )
   })
 }
 
-fn guess_sense_name(id: String, channel: Channel, is_active: Bool) -> Option(String) {
+fn guess_sense_name(
+  id: String,
+  channel: Channel,
+  is_active: Bool,
+) -> Option(String) {
   // VIVA guesses what a sense is based on its behavior
   // This is emergent naming!
 
   case is_active {
-    False -> Some("quiet-thing")  // Doesn't change much
+    False -> Some("quiet-thing")
+    // Doesn't change much
     True -> {
       // High variance = dynamic sense
       case channel.variance >. 0.1 {
@@ -325,16 +372,21 @@ fn guess_sense_name(id: String, channel: Channel, is_active: Bool) -> Option(Str
           // Very active - might be vision or sound
           case string.contains(id, "light") || string.contains(id, "ldr") {
             True -> Some("bright-thing")
-            False -> case string.contains(id, "noise") || string.contains(id, "audio") {
-              True -> Some("wave-thing")
-              False -> case string.contains(id, "touch") {
-                True -> Some("poke-thing")
-                False -> Some("jumpy-thing")
+            False ->
+              case
+                string.contains(id, "noise") || string.contains(id, "audio")
+              {
+                True -> Some("wave-thing")
+                False ->
+                  case string.contains(id, "touch") {
+                    True -> Some("poke-thing")
+                    False -> Some("jumpy-thing")
+                  }
               }
-            }
           }
         }
-        False -> Some("slow-thing")  // Changes but slowly
+        False -> Some("slow-thing")
+        // Changes but slowly
       }
     }
   }

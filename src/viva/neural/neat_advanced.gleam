@@ -54,12 +54,10 @@ pub fn lamarckian_crossover(
 
   // Merge connections with intelligent weight inheritance
   let all_innovations =
-    list.unique(
-      list.append(
-        list.map(parent1.connections, fn(c) { c.innovation }),
-        list.map(parent2.connections, fn(c) { c.innovation }),
-      ),
-    )
+    list.unique(list.append(
+      list.map(parent1.connections, fn(c) { c.innovation }),
+      list.map(parent2.connections, fn(c) { c.innovation }),
+    ))
 
   let new_connections =
     list.index_map(all_innovations, fn(innov, idx) {
@@ -187,7 +185,8 @@ pub fn safe_mutate_weights(
       // Increase mutation as stagnation grows
       float.min(
         config.max_strength,
-        config.base_strength *. { 1.0 +. int.to_float(generations_stagnant) *. 0.1 },
+        config.base_strength
+          *. { 1.0 +. int.to_float(generations_stagnant) *. 0.1 },
       )
     False -> config.base_strength
   }
@@ -202,14 +201,16 @@ pub fn safe_mutate_weights(
         2 -> config.depth_decay *. config.depth_decay
         _ -> config.depth_decay *. config.depth_decay *. config.depth_decay
       }
-      let strength = float.max(config.min_strength, adaptive_factor *. decay_factor)
+      let strength =
+        float.max(config.min_strength, adaptive_factor *. decay_factor)
 
       // Safe mutation: small perturbation proportional to current weight
       let rand = pseudo_random(seed + idx * 17)
       case rand <. 0.8 {
         // 80% chance to mutate
         True -> {
-          let delta = { pseudo_random(seed + idx * 17 + 1) -. 0.5 } *. 2.0 *. strength
+          let delta =
+            { pseudo_random(seed + idx * 17 + 1) -. 0.5 } *. 2.0 *. strength
           // Perturbation proportional to weight magnitude (safe)
           let scale = float.max(float.absolute_value(conn.weight), 0.1)
           let new_weight = conn.weight +. delta *. scale
@@ -334,7 +335,8 @@ pub fn calculate_stats(
     })
   let total_nodes = list.fold(sizes, 0, fn(acc, s) { acc + s.0 })
   let total_conns = list.fold(sizes, 0, fn(acc, s) { acc + s.1 })
-  let avg_size = int.to_float(total_nodes + total_conns) /. float.max(count, 1.0)
+  let avg_size =
+    int.to_float(total_nodes + total_conns) /. float.max(count, 1.0)
 
   // Stagnation tracking
   let stagnant = case best >. prev_best +. 0.001 {
@@ -376,10 +378,7 @@ pub fn default_elite_config() -> EliteConfig {
 }
 
 /// Select elites with optional diversity preservation
-pub fn select_elites(
-  genomes: List(Genome),
-  config: EliteConfig,
-) -> List(Genome) {
+pub fn select_elites(genomes: List(Genome), config: EliteConfig) -> List(Genome) {
   let sorted =
     list.sort(genomes, fn(a, b) { float.compare(b.fitness, a.fitness) })
 
@@ -396,12 +395,16 @@ pub fn select_elites(
     True -> {
       // Add most diverse genome (largest structure) if not already elite
       let largest =
-        list.fold(genomes, list.first(genomes) |> result.unwrap(Genome(0, [], [], 0.0, 0.0, 0)), fn(acc, g) {
-          case list.length(g.connections) > list.length(acc.connections) {
-            True -> g
-            False -> acc
-          }
-        })
+        list.fold(
+          genomes,
+          list.first(genomes) |> result.unwrap(Genome(0, [], [], 0.0, 0.0, 0)),
+          fn(acc, g) {
+            case list.length(g.connections) > list.length(acc.connections) {
+              True -> g
+              False -> acc
+            }
+          },
+        )
       case list.any(elites, fn(e) { e.id == largest.id }) {
         True -> elites
         False -> list.append(elites, [largest])
@@ -441,19 +444,23 @@ pub fn tournament_select_with_sharing(
       let idx =
         float.round(
           pseudo_random(seed + i * 31)
-            *. int.to_float(list.length(shared_fitnesses) - 1),
+          *. int.to_float(list.length(shared_fitnesses) - 1),
         )
       list_at(shared_fitnesses, idx)
       |> result.unwrap(#(Genome(0, [], [], 0.0, 0.0, 0), 0.0))
     })
 
   let winner =
-    list.fold(tournament, #(Genome(0, [], [], 0.0, 0.0, 0), -999.0), fn(acc, candidate) {
-      case candidate.1 >. acc.1 {
-        True -> candidate
-        False -> acc
-      }
-    })
+    list.fold(
+      tournament,
+      #(Genome(0, [], [], 0.0, 0.0, 0), -999.0),
+      fn(acc, candidate) {
+        case candidate.1 >. acc.1 {
+          True -> candidate
+          False -> acc
+        }
+      },
+    )
 
   winner.0
 }

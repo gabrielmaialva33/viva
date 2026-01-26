@@ -66,15 +66,16 @@ pub fn start(
   device: String,
   baud: Int,
 ) -> Result(Subject(Message), actor.StartError) {
-  let state = State(
-    port: None,
-    device: device,
-    baud: baud,
-    buffer: <<>>,
-    seq: 0,
-    subscribers: [],
-    stats: Stats(0, 0, 0, 0),
-  )
+  let state =
+    State(
+      port: None,
+      device: device,
+      baud: baud,
+      buffer: <<>>,
+      seq: 0,
+      subscribers: [],
+      stats: Stats(0, 0, 0, 0),
+    )
 
   let builder =
     actor.new(state)
@@ -97,7 +98,10 @@ pub fn subscribe(manager: Subject(Message), subscriber: Subject(Packet)) -> Nil 
 }
 
 /// Unsubscribe from packets
-pub fn unsubscribe(manager: Subject(Message), subscriber: Subject(Packet)) -> Nil {
+pub fn unsubscribe(
+  manager: Subject(Message),
+  subscriber: Subject(Packet),
+) -> Nil {
   process.send(manager, Unsubscribe(subscriber))
 }
 
@@ -115,10 +119,7 @@ pub fn shutdown(manager: Subject(Message)) -> Nil {
 // Actor Implementation
 // ============================================================================
 
-fn handle_message(
-  state: State,
-  message: Message,
-) -> actor.Next(State, Message) {
+fn handle_message(state: State, message: Message) -> actor.Next(State, Message) {
   case message {
     // Send packet to Arduino
     Send(pkt) -> {
@@ -165,9 +166,7 @@ fn handle_message(
           case packet.decode(frame) {
             Ok(pkt) -> {
               // Broadcast to all subscribers
-              list.each(state.subscribers, fn(sub) {
-                process.send(sub, pkt)
-              })
+              list.each(state.subscribers, fn(sub) { process.send(sub, pkt) })
               Stats(..stats, packets_received: stats.packets_received + 1)
             }
             Error(_) -> {

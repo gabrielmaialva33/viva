@@ -12,13 +12,13 @@
 import gleam/float
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import viva/neural/tensor as tensor_mod
 import viva/narrative.{
   type NarrativeLink, type NarrativeMemory, type NarrativeResult, type Thought,
   type ThoughtSource, type ThoughtStream, type VoiceStyle, FromAssociation,
   FromCausal,
 }
 import viva/neural/attention
+import viva/neural/tensor as tensor_mod
 import viva/neural/tensor.{type Tensor}
 import viva_glyph/glyph.{type Glyph}
 
@@ -163,10 +163,10 @@ fn build_attended_chain(
 
           // Update context with current glyph
           let new_ctx =
-            NarrativeContext(
-              ..ctx,
-              recent_glyphs: [current, ..list.take(ctx.recent_glyphs, 4)],
-            )
+            NarrativeContext(..ctx, recent_glyphs: [
+              current,
+              ..list.take(ctx.recent_glyphs, 4)
+            ])
 
           // Continue chain
           build_attended_chain(
@@ -264,9 +264,7 @@ fn glyph_hash(g: Glyph) -> Int {
 }
 
 /// Convert relation type to features
-fn relation_to_features(
-  relation: narrative.Relation,
-) -> List(Float) {
+fn relation_to_features(relation: narrative.Relation) -> List(Float) {
   case relation {
     narrative.Caused -> [1.0, 0.0, 0.0, 0.0]
     narrative.Preceded -> [0.0, 1.0, 0.0, 0.0]

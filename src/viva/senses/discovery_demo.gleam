@@ -109,13 +109,18 @@ fn discovery_loop(
 // Data Sources
 // ============================================================================
 
-fn get_arduino_data(body_actor: process.Subject(body.Message)) -> dict.Dict(String, Float) {
+fn get_arduino_data(
+  body_actor: process.Subject(body.Message),
+) -> dict.Dict(String, Float) {
   case body.get_sensation(body_actor) {
     Some(sensation) -> {
       dict.new()
       |> dict.insert("chan_0", int.to_float(sensation.light) /. 1023.0)
       |> dict.insert("chan_1", int.to_float(sensation.noise) /. 1023.0)
-      |> dict.insert("chan_2", case sensation.touch { True -> 1.0 False -> 0.0 })
+      |> dict.insert("chan_2", case sensation.touch {
+        True -> 1.0
+        False -> 0.0
+      })
     }
     None -> {
       // No data yet
@@ -171,7 +176,8 @@ fn show_tick(tick: Int, data: dict.Dict(String, Float)) -> Nil {
   let tick_str = int.to_string(tick) |> pad_left(3, " ")
 
   // Build channel display
-  let channel_strs = dict.to_list(data)
+  let channel_strs =
+    dict.to_list(data)
     |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
     |> list.map(fn(pair) {
       let #(id, value) = pair
@@ -207,7 +213,9 @@ fn show_discoveries(learner: process.Subject(sense_learner.Message)) -> Nil {
   })
 
   io.println("")
-  io.println("VIVA discovered " <> int.to_string(list.length(knowledge)) <> " senses!")
+  io.println(
+    "VIVA discovered " <> int.to_string(list.length(knowledge)) <> " senses!",
+  )
 }
 
 fn value_to_bar(value: Float, width: Int) -> String {

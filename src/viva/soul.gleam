@@ -61,8 +61,10 @@ pub type SoulState {
 /// Sensory input for imprinting
 pub type SensationInput {
   SensationInput(
-    light: Int,      // 0-1023
-    sound: Int,      // 0-1023
+    light: Int,
+    // 0-1023
+    sound: Int,
+    // 0-1023
     touch: Bool,
     entity: Option(String),
   )
@@ -574,12 +576,13 @@ fn handle_message(
 
     ReceiveSensation(light, sound, touch, entity) -> {
       // Store sensory input for imprinting (processed on next Tick)
-      let sensation = SensationInput(
-        light: clamp_int(light, 0, 1023),
-        sound: clamp_int(sound, 0, 1023),
-        touch: touch,
-        entity: entity,
-      )
+      let sensation =
+        SensationInput(
+          light: clamp_int(light, 0, 1023),
+          sound: clamp_int(sound, 0, 1023),
+          touch: touch,
+          entity: entity,
+        )
       actor.continue(SoulState(..state, last_sensation: sensation))
     }
 
@@ -679,24 +682,22 @@ fn handle_message(
       let current_pad = viva_emotion.get_pad(state.emotional)
 
       // Process imprinting (learns during critical period)
-      let #(new_imprint, _events) = imprint.tick(
-        state.imprint,
-        current_pad.pleasure,
-        current_pad.arousal,
-        current_pad.dominance,
-        light,
-        sound,
-        touch,
-        entity,
-        state.body.energy,
-        state.tick_count,
-      )
+      let #(new_imprint, _events) =
+        imprint.tick(
+          state.imprint,
+          current_pad.pleasure,
+          current_pad.arousal,
+          current_pad.dominance,
+          light,
+          sound,
+          touch,
+          entity,
+          state.body.energy,
+          state.tick_count,
+        )
 
-      let new_state = SoulState(
-        ..state,
-        last_sensation: new_sensation,
-        imprint: new_imprint,
-      )
+      let new_state =
+        SoulState(..state, last_sensation: new_sensation, imprint: new_imprint)
 
       actor.continue(new_state)
     }

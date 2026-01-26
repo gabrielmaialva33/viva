@@ -87,8 +87,7 @@ pub fn learn(
   _current_tick: Int,
 ) -> #(MotorImprint, List(ImprintEvent)) {
   // Check if pattern exists
-  let existing =
-    list.find(imprint.patterns, fn(p) { p.action == action_name })
+  let existing = list.find(imprint.patterns, fn(p) { p.action == action_name })
 
   let #(new_patterns, event) = case existing {
     Ok(pattern) -> {
@@ -128,13 +127,23 @@ pub fn learn(
         True -> "positive"
         False -> "negative"
       }
-      #([pattern, ..imprint.patterns], [MotorLearned(action: action_name, effect: effect_desc)])
+      #([pattern, ..imprint.patterns], [
+        MotorLearned(action: action_name, effect: effect_desc),
+      ])
     }
   }
 
   // Maybe learn reflex if strong stimulus-response
   let new_reflexes = case abs_float(pleasure_delta) >. 0.5 {
-    True -> maybe_add_reflex(imprint.reflexes, before_light, before_sound, before_touch, action_name, intensity)
+    True ->
+      maybe_add_reflex(
+        imprint.reflexes,
+        before_light,
+        before_sound,
+        before_touch,
+        action_name,
+        intensity,
+      )
     False -> imprint.reflexes
   }
 
@@ -184,12 +193,12 @@ fn maybe_add_reflex(
   intensity: Float,
 ) -> List(Reflex) {
   // Check if similar reflex exists
-  let existing =
-    list.find(reflexes, fn(r) { r.action == action })
+  let existing = list.find(reflexes, fn(r) { r.action == action })
 
   case existing {
     Ok(r) -> {
-      let updated = Reflex(..r, strength: min_float(r.strength +. intensity *. 0.2, 1.0))
+      let updated =
+        Reflex(..r, strength: min_float(r.strength +. intensity *. 0.2, 1.0))
       list.map(reflexes, fn(r2) {
         case r2.action == action {
           True -> updated

@@ -37,7 +37,7 @@ const population_size: Int = 100
 const max_generations: Int = 50
 
 /// Target fitness to stop early
-const target_fitness: Float = 0.90
+const target_fitness: Float = 0.9
 
 /// Variations per digit (50 = 500 total samples)
 const variations_per_digit: Int = 50
@@ -59,9 +59,7 @@ pub fn main() {
   let #(train_data, test_data) = load_data()
   let train_size = list.length(train_data)
   let test_size = list.length(test_data)
-  io.println(
-    "   Train: " <> int.to_string(train_size) <> " samples",
-  )
+  io.println("   Train: " <> int.to_string(train_size) <> " samples")
   io.println("   Test:  " <> int.to_string(test_size) <> " samples")
   io.println("")
 
@@ -75,7 +73,7 @@ pub fn main() {
       num_outputs: num_classes,
       // Optimized mutation rates
       add_node_rate: 0.05,
-      add_connection_rate: 0.10,
+      add_connection_rate: 0.1,
       weight_mutation_rate: 0.85,
       weight_perturb_rate: 0.9,
       compatibility_threshold: 3.0,
@@ -120,12 +118,17 @@ pub fn main() {
 
   let #(final_correct, final_total) =
     evaluate_genome_discrete(best_genome, test_data, hybrid_config)
-  let final_accuracy = int_to_float(final_correct) /. int_to_float(final_total) *. 100.0
+  let final_accuracy =
+    int_to_float(final_correct) /. int_to_float(final_total) *. 100.0
 
   io.println(
     "║  Test Accuracy: "
-    <> int.to_string(final_correct) <> "/" <> int.to_string(final_total)
-    <> " = " <> format_float(final_accuracy, 1) <> "%"
+    <> int.to_string(final_correct)
+    <> "/"
+    <> int.to_string(final_total)
+    <> " = "
+    <> format_float(final_accuracy, 1)
+    <> "%"
     <> string.repeat(" ", 20)
     <> "║",
   )
@@ -165,7 +168,8 @@ fn evolve(
   // Evaluate on training data
   let evaluated =
     neat_hybrid.evaluate_population(pop, fn(genome) {
-      let #(correct, total) = evaluate_genome_discrete(genome, train_data, config)
+      let #(correct, total) =
+        evaluate_genome_discrete(genome, train_data, config)
       int_to_float(correct) /. int_to_float(total)
     })
 
@@ -188,7 +192,8 @@ fn evolve(
   }
 
   // Test set evaluation (discrete)
-  let #(test_correct, test_total) = evaluate_genome_discrete(best_genome, test_data, config)
+  let #(test_correct, test_total) =
+    evaluate_genome_discrete(best_genome, test_data, config)
   let test_accuracy = int_to_float(test_correct) /. int_to_float(test_total)
 
   // Calculate stats
@@ -197,9 +202,7 @@ fn evolve(
     /. int_to_float(list.length(evaluated.genomes))
 
   let num_modules =
-    list.fold(evaluated.genomes, 0, fn(acc, g) {
-      acc + list.length(g.modules)
-    })
+    list.fold(evaluated.genomes, 0, fn(acc, g) { acc + list.length(g.modules) })
     / list.length(evaluated.genomes)
 
   let species_count = count_species(evaluated.genomes)
@@ -258,7 +261,8 @@ fn next_generation(
 }
 
 fn tournament_select(genomes: List(HybridGenome), seed: Int) -> HybridGenome {
-  let tournament_size = 5  // Larger tournament for more selective pressure
+  let tournament_size = 5
+  // Larger tournament for more selective pressure
   let candidates =
     list.range(0, tournament_size - 1)
     |> list.filter_map(fn(i) {
@@ -391,13 +395,20 @@ fn augment_pattern(pattern: List(Float), seed: Int, label: Int) -> List(Float) {
   list.index_map(pattern, fn(p, i) {
     // Noise based on seed
     let noise_factor = case seed % 5 {
-      0 -> 0.1   // Low noise
-      1 -> 0.15  // Medium-low
-      2 -> 0.2   // Medium
-      3 -> 0.25  // Medium-high
-      _ -> 0.3   // High noise
+      0 -> 0.1
+      // Low noise
+      1 -> 0.15
+      // Medium-low
+      2 -> 0.2
+      // Medium
+      3 -> 0.25
+      // Medium-high
+      _ -> 0.3
+      // High noise
     }
-    let noise = { pseudo_random_float(seed * 100 + i + label * 1000) -. 0.5 } *. noise_factor
+    let noise =
+      { pseudo_random_float(seed * 100 + i + label * 1000) -. 0.5 }
+      *. noise_factor
     float.clamp(p +. noise, 0.0, 1.0)
   })
 }
@@ -424,7 +435,11 @@ fn print_generation(
     <> " │ "
     <> string.pad_start(format_float(test_acc *. 100.0, 1) <> "%", 7, " ")
     <> " │ "
-    <> string.pad_start(int.to_string(correct) <> "/" <> int.to_string(total), 13, " ")
+    <> string.pad_start(
+      int.to_string(correct) <> "/" <> int.to_string(total),
+      13,
+      " ",
+    )
     <> " │ "
     <> string.pad_start(format_float(avg_fit *. 100.0, 1) <> "%", 6, " ")
     <> " │    "
@@ -495,7 +510,9 @@ fn describe_architecture(genome: HybridGenome) {
         "║    Modules:      None (pure NEAT)                            ║",
       )
     modules -> {
-      io.println("║    Modules:                                                  ║")
+      io.println(
+        "║    Modules:                                                  ║",
+      )
       list.each(modules, fn(m) {
         let desc = case m.module_type {
           Dense -> "Dense"
@@ -525,11 +542,7 @@ fn describe_architecture(genome: HybridGenome) {
             <> ")"
           _ -> "Unknown"
         }
-        io.println(
-          "║      - "
-          <> string.pad_end(desc, 50, " ")
-          <> "  ║",
-        )
+        io.println("║      - " <> string.pad_end(desc, 50, " ") <> "  ║")
       })
     }
   }
@@ -576,131 +589,101 @@ fn show_predictions(
 
 fn digit_0_pattern() -> List(Float) {
   [
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
-    1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
-    1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
-    1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
+    0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+    1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+    1.0, 1.0, 0.0, 0.0,
   ]
 }
 
 fn digit_1_pattern() -> List(Float) {
   [
-    0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0,
+    0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 0.0,
   ]
 }
 
 fn digit_2_pattern() -> List(Float) {
   [
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0,
+    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 0.0,
   ]
 }
 
 fn digit_3_pattern() -> List(Float) {
   [
-    0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
+    0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 0.0, 0.0,
   ]
 }
 
 fn digit_4_pattern() -> List(Float) {
   [
-    0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0,
-    1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0,
+    0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0,
+    0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    1.0, 1.0, 0.0, 0.0,
   ]
 }
 
 fn digit_5_pattern() -> List(Float) {
   [
-    0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
+    0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+    1.0, 1.0, 0.0, 0.0,
   ]
 }
 
 fn digit_6_pattern() -> List(Float) {
   [
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-    1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0,
+    0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0,
+    1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+    1.0, 1.0, 0.0, 0.0,
   ]
 }
 
 fn digit_7_pattern() -> List(Float) {
   [
-    0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+    0.0, 0.0, 0.0, 0.0,
   ]
 }
 
 fn digit_8_pattern() -> List(Float) {
   [
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
+    0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0,
+    0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
+    1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+    1.0, 1.0, 0.0, 0.0,
   ]
 }
 
 fn digit_9_pattern() -> List(Float) {
   [
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
+    0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+    1.0, 0.0, 0.0, 0.0,
   ]
 }
 
@@ -745,7 +728,10 @@ fn format_float(f: Float, decimals: Int) -> String {
 
   case decimals {
     0 -> int.to_string(integer_part)
-    _ -> int.to_string(integer_part) <> "." <> string.pad_start(int.to_string(decimal_part), decimals, "0")
+    _ ->
+      int.to_string(integer_part)
+      <> "."
+      <> string.pad_start(int.to_string(decimal_part), decimals, "0")
   }
 }
 

@@ -19,19 +19,26 @@ import gleam/string
 /// What VIVA perceives
 pub type Percept {
   Percept(
-    visual: Option(String),      // What she saw (description)
-    auditory: Option(String),    // What she heard (transcription)
+    visual: Option(String),
+    // What she saw (description)
+    auditory: Option(String),
+    // What she heard (transcription)
     timestamp: Int,
-    salience: Float,             // How important/interesting (0-1)
+    salience: Float,
+    // How important/interesting (0-1)
   )
 }
 
 /// VIVA's internal drives that trigger perception
 pub type Drive {
-  Curiosity(Float)      // Want to explore (0-1)
-  Vigilance(Float)      // Watching for changes (0-1)
-  Boredom(Float)        // Nothing happening, look around (0-1)
-  Social(Float)         // Looking for interaction (0-1)
+  Curiosity(Float)
+  // Want to explore (0-1)
+  Vigilance(Float)
+  // Watching for changes (0-1)
+  Boredom(Float)
+  // Nothing happening, look around (0-1)
+  Social(Float)
+  // Looking for interaction (0-1)
 }
 
 /// Perceiver state
@@ -41,13 +48,11 @@ pub type State {
     camera: String,
     microphone: String,
     temp_dir: String,
-
     // Internal state
     last_percept: Option(Percept),
     curiosity: Float,
     vigilance: Float,
     tick: Int,
-
     // Self-reference for timers
     self_subject: Option(Subject(Message)),
   )
@@ -56,14 +61,19 @@ pub type State {
 /// Actor messages
 pub type Message {
   // External triggers
-  Look                           // Force a look
-  Listen(Int)                    // Force listen (duration ms)
-  Ask(String)                    // Ask about what she sees
+  Look
+  // Force a look
+  Listen(Int)
+  // Force listen (duration ms)
+  Ask(String)
 
+  // Ask about what she sees
   // Internal drives
-  Tick                           // Periodic check - should I look?
-  PerceptionComplete(Percept)    // Got a percept back
+  Tick
+  // Periodic check - should I look?
+  PerceptionComplete(Percept)
 
+  // Got a percept back
   // Queries
   GetLastPercept(Subject(Option(Percept)))
   GetCuriosity(Subject(Float))
@@ -80,16 +90,18 @@ pub type Message {
 
 /// Start the perceiver - VIVA's autonomous sensory system
 pub fn start() -> Result(Subject(Message), actor.StartError) {
-  let state = State(
-    camera: "Logi C270 HD WebCam",
-    microphone: "Microfone (Realtek USB Audio)",
-    temp_dir: "/mnt/h/Temp",
-    last_percept: None,
-    curiosity: 0.8,      // Start curious!
-    vigilance: 0.5,
-    tick: 0,
-    self_subject: None,
-  )
+  let state =
+    State(
+      camera: "Logi C270 HD WebCam",
+      microphone: "Microfone (Realtek USB Audio)",
+      temp_dir: "/mnt/h/Temp",
+      last_percept: None,
+      curiosity: 0.8,
+      // Start curious!
+      vigilance: 0.5,
+      tick: 0,
+      self_subject: None,
+    )
 
   let builder =
     actor.new(state)
@@ -161,10 +173,9 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
 
       // Curiosity slowly decays
       let new_curiosity = float.max(0.1, state.curiosity *. 0.99)
-      actor.continue(State(..state,
-        tick: state.tick + 1,
-        curiosity: new_curiosity,
-      ))
+      actor.continue(
+        State(..state, tick: state.tick + 1, curiosity: new_curiosity),
+      )
     }
 
     Look -> {
@@ -192,7 +203,9 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
     }
 
     Listen(duration_ms) -> {
-      io.println("Perceiver: *listening for " <> int.to_string(duration_ms) <> "ms*")
+      io.println(
+        "Perceiver: *listening for " <> int.to_string(duration_ms) <> "ms*",
+      )
       // TODO: Implement audio capture + Whisper
       actor.continue(state)
     }
@@ -207,10 +220,13 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
           let curiosity_boost = percept.salience *. 0.3
           let new_curiosity = float.min(1.0, state.curiosity +. curiosity_boost)
 
-          actor.continue(State(..state,
-            last_percept: Some(percept),
-            curiosity: new_curiosity,
-          ))
+          actor.continue(
+            State(
+              ..state,
+              last_percept: Some(percept),
+              curiosity: new_curiosity,
+            ),
+          )
         }
         None -> actor.continue(State(..state, last_percept: Some(percept)))
       }
@@ -270,29 +286,36 @@ fn do_perception(state: State, question: Option(String)) -> Percept {
   let timestamp = erlang_now_ms()
 
   // Build capture command
-  let capture_cmd = string.concat([
-    "powershell.exe -Command \"cd $env:TEMP; ",
-    "ffmpeg -f dshow -i video='", state.camera, "' ",
-    "-frames:v 1 -update 1 -y viva_percept.jpg\" 2>&1",
-  ])
+  let capture_cmd =
+    string.concat([
+      "powershell.exe -Command \"cd $env:TEMP; ", "ffmpeg -f dshow -i video='",
+      state.camera, "' ", "-frames:v 1 -update 1 -y viva_percept.jpg\" 2>&1",
+    ])
 
   // Capture image
   let _ = run_shell(capture_cmd)
 
   // Copy to Linux
-  let copy_cmd = "cp " <> state.temp_dir <> "/viva_percept.jpg /tmp/viva_percept.jpg 2>/dev/null"
+  let copy_cmd =
+    "cp "
+    <> state.temp_dir
+    <> "/viva_percept.jpg /tmp/viva_percept.jpg 2>/dev/null"
   let _ = run_shell(copy_cmd)
 
   // Analyze with NVIDIA
   let prompt = case question {
     Some(q) -> q
-    None -> "Describe what you see briefly. Focus on interesting or unusual things."
+    None ->
+      "Describe what you see briefly. Focus on interesting or unusual things."
   }
 
-  let analyze_cmd = string.concat([
-    "source ~/.zshrc && python3 /home/mrootx/viva_gleam/scripts/viva_see.py ",
-    "/tmp/viva_percept.jpg '", prompt, "' 2>/dev/null"
-  ])
+  let analyze_cmd =
+    string.concat([
+      "source ~/.zshrc && python3 /home/mrootx/viva_gleam/scripts/viva_see.py ",
+      "/tmp/viva_percept.jpg '",
+      prompt,
+      "' 2>/dev/null",
+    ])
 
   let result = run_shell(analyze_cmd)
 
@@ -317,17 +340,23 @@ fn calculate_salience(description: String) -> Float {
   let lower = string.lowercase(description)
 
   // Interesting things
-  let person_bonus = case string.contains(lower, "person") || string.contains(lower, "face") {
+  let person_bonus = case
+    string.contains(lower, "person") || string.contains(lower, "face")
+  {
     True -> 0.4
     False -> 0.0
   }
 
-  let movement_bonus = case string.contains(lower, "moving") || string.contains(lower, "motion") {
+  let movement_bonus = case
+    string.contains(lower, "moving") || string.contains(lower, "motion")
+  {
     True -> 0.3
     False -> 0.0
   }
 
-  let unusual_bonus = case string.contains(lower, "unusual") || string.contains(lower, "strange") {
+  let unusual_bonus = case
+    string.contains(lower, "unusual") || string.contains(lower, "strange")
+  {
     True -> 0.3
     False -> 0.0
   }

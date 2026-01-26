@@ -119,10 +119,7 @@ pub fn observe_presence(
             )
 
           #(
-            SocialImprint(
-              ..imprint,
-              attachments: [att, ..imprint.attachments],
-            ),
+            SocialImprint(..imprint, attachments: [att, ..imprint.attachments]),
             [AttachmentChanged(entity: entity, strength: initial_strength)],
           )
         }

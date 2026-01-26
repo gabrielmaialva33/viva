@@ -2,8 +2,8 @@
 ////
 //// No Python, no external deps - just Erlang ports
 
-import gleam/erlang/process.{type Subject}
 import gleam/bit_array
+import gleam/erlang/process.{type Subject}
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
 import gleam/result

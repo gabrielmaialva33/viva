@@ -11,7 +11,9 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import viva/hardware/body.{type BodyCommand, type Sensation, PlayTone, SetLed, StopAll}
+import viva/hardware/body.{
+  type BodyCommand, type Sensation, PlayTone, SetLed, StopAll,
+}
 import viva/memory/hrr.{type HRR}
 import viva/memory/world.{type World}
 import viva/neural/tensor.{type Tensor}
@@ -28,28 +30,29 @@ fn td(t: Tensor) -> List(Float) {
 /// Observed effect of an action
 pub type Effect {
   Effect(
-    delta_light: Int,    // Light change (-1023 to 1023)
-    delta_noise: Int,    // Noise change
-    got_touch: Bool,     // Received touch during action?
+    delta_light: Int,
+    // Light change (-1023 to 1023)
+    delta_noise: Int,
+    // Noise change
+    got_touch: Bool,
+    // Received touch during action?
   )
 }
 
 /// Available body action
 pub type Action {
   Action(
-    name: String,        // "led_red", "tone_low", etc.
+    name: String,
+    // "led_red", "tone_low", etc.
     command: BodyCommand,
-    hrr: HRR,           // Unique HRR representation
+    hrr: HRR,
+    // Unique HRR representation
   )
 }
 
 /// Memory of an experience
 pub type Experience {
-  Experience(
-    action_name: String,
-    effect: Effect,
-    timestamp: Int,
-  )
+  Experience(action_name: String, effect: Effect, timestamp: Int)
 }
 
 /// Learner state
@@ -114,11 +117,13 @@ pub fn new() -> Learner {
 /// World configuration optimized for learner
 fn learner_world_config() -> world.WorldConfig {
   world.WorldConfig(
-    spatial_dims: 4,     // P, A, D, Intensity
+    spatial_dims: 4,
+    // P, A, D, Intensity
     hrr_dims: 256,
     attraction_strength: 0.2,
     repulsion_strength: 0.03,
-    energy_decay: 0.995, // Memórias duram mais
+    energy_decay: 0.995,
+    // Memórias duram mais
     island_threshold: 4.0,
     damping: 0.9,
     max_velocity: 3.0,
@@ -137,7 +142,10 @@ pub fn explore(learner: Learner) -> #(String, BodyCommand) {
   let chosen_name = case random_float() <. learner.curiosity {
     // High curiosity: explore random
     True -> {
-      let idx = float.truncate(random_float() *. int_to_float(list.length(action_names)))
+      let idx =
+        float.truncate(
+          random_float() *. int_to_float(list.length(action_names)),
+        )
       list_get(action_names, idx, "stop")
     }
     // Low curiosity: choose least explored
@@ -171,11 +179,12 @@ pub fn learn(
   before: Sensation,
   after: Sensation,
 ) -> Learner {
-  let effect = Effect(
-    delta_light: after.light - before.light,
-    delta_noise: after.noise - before.noise,
-    got_touch: after.touch && !before.touch,
-  )
+  let effect =
+    Effect(
+      delta_light: after.light - before.light,
+      delta_noise: after.noise - before.noise,
+      got_touch: after.touch && !before.touch,
+    )
 
   case dict.get(learner.actions, action_name) {
     Error(_) -> learner
@@ -196,11 +205,18 @@ pub fn learn(
             world.add_memory(learner.world, association, position, label)
 
           // Update exploration count
-          let current_count = case dict.get(learner.exploration_count, action_name) {
+          let current_count = case
+            dict.get(learner.exploration_count, action_name)
+          {
             Ok(n) -> n
             Error(_) -> 0
           }
-          let new_count = dict.insert(learner.exploration_count, action_name, current_count + 1)
+          let new_count =
+            dict.insert(
+              learner.exploration_count,
+              action_name,
+              current_count + 1,
+            )
 
           // Decay curiosity
           let new_curiosity = float.max(0.1, learner.curiosity *. 0.998)
@@ -333,9 +349,12 @@ fn encode_effect(effect: Effect, dim: Int) -> HRR {
     list.range(0, dim - 1)
     |> list.map(fn(i) {
       let phase = int_to_float(i) /. int_to_float(dim) *. 6.28318
-      light_norm *. float_cos(phase)
-      +. noise_norm *. float_sin(phase)
-      +. touch_val *. float_cos(phase *. 2.0)
+      light_norm
+      *. float_cos(phase)
+      +. noise_norm
+      *. float_sin(phase)
+      +. touch_val
+      *. float_cos(phase *. 2.0)
     })
 
   hrr.from_list(data)
@@ -380,7 +399,8 @@ fn decode_effect(h: HRR) -> Effect {
 fn effect_to_position(effect: Effect) -> Tensor {
   // Pleasure: increases with positive light, touch
   let pleasure =
-    int_to_float(effect.delta_light) /. 200.0
+    int_to_float(effect.delta_light)
+    /. 200.0
     +. case effect.got_touch {
       True -> 0.5
       False -> 0.0
@@ -388,16 +408,20 @@ fn effect_to_position(effect: Effect) -> Tensor {
 
   // Arousal: increases with large changes
   let arousal =
-    float.absolute_value(int_to_float(effect.delta_light)) /. 300.0
-    +. float.absolute_value(int_to_float(effect.delta_noise)) /. 300.0
+    float.absolute_value(int_to_float(effect.delta_light))
+    /. 300.0
+    +. float.absolute_value(int_to_float(effect.delta_noise))
+    /. 300.0
 
   // Dominance: fixed for now (could vary with prediction success)
   let dominance = 0.5
 
   // Intensity: overall magnitude of effect
   let intensity =
-    float.absolute_value(int_to_float(effect.delta_light)) /. 500.0
-    +. float.absolute_value(int_to_float(effect.delta_noise)) /. 500.0
+    float.absolute_value(int_to_float(effect.delta_light))
+    /. 500.0
+    +. float.absolute_value(int_to_float(effect.delta_noise))
+    /. 500.0
     +. case effect.got_touch {
       True -> 0.3
       False -> 0.0
@@ -448,8 +472,7 @@ fn string_join(parts: List(String), sep: String) -> String {
   case parts {
     [] -> ""
     [single] -> single
-    [first, ..rest] ->
-      list.fold(rest, first, fn(acc, s) { acc <> sep <> s })
+    [first, ..rest] -> list.fold(rest, first, fn(acc, s) { acc <> sep <> s })
   }
 }
 

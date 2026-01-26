@@ -630,7 +630,9 @@ pub fn crisis_does_not_trigger_under_threshold_test() {
 
   let model =
     list.range(1, 20)
-    |> list.fold(model, fn(m, tick) { reflexivity.observe(m, small_change, g, tick) })
+    |> list.fold(model, fn(m, tick) {
+      reflexivity.observe(m, small_change, g, tick)
+    })
 
   let crisis = reflexivity.check_crisis(model)
 

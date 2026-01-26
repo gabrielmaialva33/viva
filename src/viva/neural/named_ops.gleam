@@ -13,8 +13,8 @@ import viva/neural/tensor.{type Tensor}
 
 // Re-import from named_tensor_core
 import viva/neural/named_tensor_core.{
-  type NamedTensor, type NamedTensorError, AxisNotFound, InvalidOp,
-  NamedTensor, SizeMismatch, TensorErr, find_axis, list_at, remove_axis_at,
+  type NamedTensor, type NamedTensorError, AxisNotFound, InvalidOp, NamedTensor,
+  SizeMismatch, TensorErr, find_axis, list_at, remove_axis_at,
 }
 
 // =============================================================================

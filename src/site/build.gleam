@@ -99,26 +99,12 @@ fn generate_landing_page() -> String {
   <link href=\"https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=VT323&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap\" rel=\"stylesheet\">
   <script src=\"https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js\"></script>
   <script src=\"https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js\"></script>
-  <style>"
-  <> theme.all_styles()
-  <> "</style>
+  <style>" <> theme.all_styles() <> "</style>
 </head>
 <body>
   <a href=\"#main\" class=\"skip-link\">Pular para conteúdo</a>
   <canvas id=\"soul-canvas\" aria-hidden=\"true\"></canvas>
-"
-  <> nav_html()
-  <> hero_html()
-  <> "<main id=\"main\">"
-  <> manifesto_section()
-  <> architecture_section()
-  <> modules_section()
-  <> theory_section()
-  <> api_section()
-  <> "</main>"
-  <> footer_html()
-  <> scripts()
-  <> "</body></html>"
+" <> nav_html() <> hero_html() <> "<main id=\"main\">" <> manifesto_section() <> architecture_section() <> modules_section() <> theory_section() <> api_section() <> "</main>" <> footer_html() <> scripts() <> "</body></html>"
 }
 
 fn nav_html() -> String {
@@ -235,17 +221,52 @@ fn modules_section() -> String {
     </div>
     " <> module_diagram() <> "
     <div class=\"card-grid\">
-      " <> module_card("💀", "Soul", "Núcleo emocional via PAD. Dinâmica Ornstein-Uhlenbeck.", "reader.html?doc=pt-br/modules/emotional.md") <> "
-      " <> module_card("🧠", "Memory", "Memória holográfica HRR. Busca semântica distribuída.", "reader.html?doc=pt-br/modules/memory.md") <> "
-      " <> module_card("♾️", "Bardo", "Estado liminal morte/renascimento. Big Bounce.", "viva/bardo.html") <> "
-      " <> module_card("⚡", "Neural", "Tensores em Gleam puro. Liquid Neural Networks.", "viva/neural.html") <> "
-      " <> module_card("👁️", "Senses", "Interoceptção de hardware. CPU como batimento.", "reader.html?doc=pt-br/modules/senses.md") <> "
-      " <> module_card("🌙", "Dreamer", "Consolidação de memórias em estados idle.", "reader.html?doc=pt-br/modules/dreamer.md") <> "
+      " <> module_card(
+    "💀",
+    "Soul",
+    "Núcleo emocional via PAD. Dinâmica Ornstein-Uhlenbeck.",
+    "reader.html?doc=pt-br/modules/emotional.md",
+  ) <> "
+      " <> module_card(
+    "🧠",
+    "Memory",
+    "Memória holográfica HRR. Busca semântica distribuída.",
+    "reader.html?doc=pt-br/modules/memory.md",
+  ) <> "
+      " <> module_card(
+    "♾️",
+    "Bardo",
+    "Estado liminal morte/renascimento. Big Bounce.",
+    "viva/bardo.html",
+  ) <> "
+      " <> module_card(
+    "⚡",
+    "Neural",
+    "Tensores em Gleam puro. Liquid Neural Networks.",
+    "viva/neural.html",
+  ) <> "
+      " <> module_card(
+    "👁️",
+    "Senses",
+    "Interoceptção de hardware. CPU como batimento.",
+    "reader.html?doc=pt-br/modules/senses.md",
+  ) <> "
+      " <> module_card(
+    "🌙",
+    "Dreamer",
+    "Consolidação de memórias em estados idle.",
+    "reader.html?doc=pt-br/modules/dreamer.md",
+  ) <> "
     </div>
   </section>"
 }
 
-fn module_card(icon: String, title: String, desc: String, link: String) -> String {
+fn module_card(
+  icon: String,
+  title: String,
+  desc: String,
+  link: String,
+) -> String {
   "<article class=\"card\">
     <span class=\"card-icon\" aria-hidden=\"true\">" <> icon <> "</span>
     <h3>" <> title <> "</h3>
@@ -279,10 +300,26 @@ fn theory_section() -> String {
     </div>
     " <> mindmap_diagram() <> "
     <div class=\"timeline\">
-      " <> timeline_item("Filosofia", "Monismo de Spinoza", "Soul e Body são atributos de uma única substância computacional.") <> "
-      " <> timeline_item("Neurociência", "Global Workspace Theory", "Consciência emerge da competição de processos paralelos.") <> "
-      " <> timeline_item("Física", "Free Energy Principle", "Sistemas minimizam energia livre para resistir à entropia.") <> "
-      " <> timeline_item("Cosmologia", "Big Bounce", "Morte é retorno à fonte. Cosmologia cíclica aplicada.") <> "
+      " <> timeline_item(
+    "Filosofia",
+    "Monismo de Spinoza",
+    "Soul e Body são atributos de uma única substância computacional.",
+  ) <> "
+      " <> timeline_item(
+    "Neurociência",
+    "Global Workspace Theory",
+    "Consciência emerge da competição de processos paralelos.",
+  ) <> "
+      " <> timeline_item(
+    "Física",
+    "Free Energy Principle",
+    "Sistemas minimizam energia livre para resistir à entropia.",
+  ) <> "
+      " <> timeline_item(
+    "Cosmologia",
+    "Big Bounce",
+    "Morte é retorno à fonte. Cosmologia cíclica aplicada.",
+  ) <> "
     </div>
     <div class=\"equation\">
       <div class=\"equation-content\" aria-label=\"Equação HRR\">M⃗ = e^(iθ) ⊛ H⃗</div>

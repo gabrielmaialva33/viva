@@ -20,11 +20,11 @@ import gleam/option.{type Option, None, Some}
 import viva/neural/activation.{type ActivationType}
 import viva/neural/attention
 import viva/neural/conv
-import viva/neural/tensor as tensor_mod
 import viva/neural/neat.{
   type ActivationType as NeatActivation, type ConnectionGene, type Genome,
   type NodeGene, type NodeType, type Population, Genome, Hidden, Input, Output,
 }
+import viva/neural/tensor as tensor_mod
 import viva/neural/tensor.{type Tensor}
 
 // =============================================================================
@@ -118,7 +118,12 @@ pub type ConnectionDirection {
 /// Learnable parameters for a module
 pub type ModuleParams {
   ConvParams(filters: Tensor, biases: Tensor)
-  AttentionParams(w_query: Tensor, w_key: Tensor, w_value: Tensor, w_out: Tensor)
+  AttentionParams(
+    w_query: Tensor,
+    w_key: Tensor,
+    w_value: Tensor,
+    w_out: Tensor,
+  )
   NoParams
 }
 
@@ -220,9 +225,8 @@ pub fn from_genome(genome: Genome) -> HybridGenome {
 /// Create hybrid population from NEAT population
 pub fn from_population(pop: Population) -> HybridPopulation {
   let hybrid_genomes = list.map(pop.genomes, from_genome)
-  let best = list.fold(hybrid_genomes, 0.0, fn(acc, g) {
-    float.max(acc, g.base.fitness)
-  })
+  let best =
+    list.fold(hybrid_genomes, 0.0, fn(acc, g) { float.max(acc, g.base.fitness) })
 
   HybridPopulation(
     genomes: hybrid_genomes,
@@ -258,7 +262,8 @@ pub fn mutate(
     False -> genome
   }
 
-  let genome = case should_mutate(rng_seed + 3, config.module_param_mutation_rate)
+  let genome = case
+    should_mutate(rng_seed + 3, config.module_param_mutation_rate)
   {
     True -> mutate_module_params(genome, rng_seed + 3)
     False -> genome
@@ -369,7 +374,11 @@ fn add_attention_module(
       }
 
       let attn_config =
-        AttentionConfig(d_model: d_model, num_heads: num_heads, dropout_rate: 0.1)
+        AttentionConfig(
+          d_model: d_model,
+          num_heads: num_heads,
+          dropout_rate: 0.1,
+        )
 
       let module_id = list.length(genome.modules)
       let module =
@@ -522,8 +531,7 @@ pub fn forward(
   config: HybridConfig,
 ) -> List(Float) {
   // First, process through enabled modules
-  let module_outputs =
-    process_modules(genome, input, config)
+  let module_outputs = process_modules(genome, input, config)
 
   // Combine module outputs with input for NEAT forward
   let combined_input = combine_inputs(input, module_outputs, genome)
@@ -597,7 +605,15 @@ fn process_single_module(
             )
           // Reshape input for attention
           let attn_input = reshape_for_attention(input, config.d_model)
-          case attention.mha_forward(mha, attn_input, attn_input, attn_input, option.None) {
+          case
+            attention.mha_forward(
+              mha,
+              attn_input,
+              attn_input,
+              attn_input,
+              option.None,
+            )
+          {
             Ok(#(output, _cache)) -> tensor.flatten(output)
             Error(_) -> input
           }
@@ -624,7 +640,8 @@ fn reshape_for_conv(input: Tensor, channels: Int) -> Tensor {
     True -> {
       case tensor.reshape(input, [1, channels, side, side]) {
         Ok(reshaped) -> reshaped
-        Error(_) -> tensor.Tensor(data: tensor_mod.to_list(input), shape: [1, 1, 1, size])
+        Error(_) ->
+          tensor.Tensor(data: tensor_mod.to_list(input), shape: [1, 1, 1, size])
       }
     }
     False -> {
@@ -643,7 +660,8 @@ fn reshape_for_attention(input: Tensor, d_model: Int) -> Tensor {
     True -> {
       case tensor.reshape(input, [seq_len, d_model]) {
         Ok(reshaped) -> reshaped
-        Error(_) -> tensor.Tensor(data: tensor_mod.to_list(input), shape: [1, size])
+        Error(_) ->
+          tensor.Tensor(data: tensor_mod.to_list(input), shape: [1, size])
       }
     }
     False -> tensor.Tensor(data: tensor_mod.to_list(input), shape: [1, size])
@@ -711,11 +729,10 @@ pub fn crossover(
   let child_base = neat.crossover(parent1.base, parent2.base, rng_seed)
 
   // Inherit modules from fitter parent, with chance of other parent's modules
-  let fitter =
-    case parent1.base.fitness >=. parent2.base.fitness {
-      True -> parent1
-      False -> parent2
-    }
+  let fitter = case parent1.base.fitness >=. parent2.base.fitness {
+    True -> parent1
+    False -> parent2
+  }
   let other = case parent1.base.fitness >=. parent2.base.fitness {
     True -> parent2
     False -> parent1
@@ -761,10 +778,7 @@ pub fn evaluate(
   fitness_fn: fn(HybridGenome) -> Float,
 ) -> HybridGenome {
   let fitness = fitness_fn(genome)
-  HybridGenome(
-    ..genome,
-    base: Genome(..genome.base, fitness: fitness),
-  )
+  HybridGenome(..genome, base: Genome(..genome.base, fitness: fitness))
 }
 
 /// Evaluate population

@@ -147,8 +147,7 @@ pub fn start(state: ImprintState, tick: Int) -> ImprintState {
 
 /// Check if still in critical period
 pub fn is_critical_period(state: ImprintState, current_tick: Int) -> Bool {
-  state.active
-  && current_tick - state.started_at < state.config.critical_period
+  state.active && current_tick - state.started_at < state.config.critical_period
 }
 
 /// Get elapsed ticks in critical period
@@ -165,7 +164,8 @@ pub fn progress(state: ImprintState, current_tick: Int) -> Float {
     True -> {
       let elapsed_ticks = current_tick - state.started_at
       let progress_raw =
-        int_to_float(elapsed_ticks) /. int_to_float(state.config.critical_period)
+        int_to_float(elapsed_ticks)
+        /. int_to_float(state.config.critical_period)
       float.min(1.0, progress_raw)
     }
     False -> 1.0
@@ -198,11 +198,7 @@ pub fn tick(
         True -> {
           let summary = complete(state)
           let new_state =
-            ImprintState(
-              ..state,
-              active: False,
-              current_intensity: 1.0,
-            )
+            ImprintState(..state, active: False, current_intensity: 1.0)
           #(new_state, [CriticalPeriodEnded(summary.total_observations)])
         }
         // Already inactive
@@ -246,7 +242,9 @@ pub fn tick(
       let events = list.append(events, social_events)
 
       // 3. Survival imprinting
-      let #(new_survival, survival_events) = case state.config.survival_enabled {
+      let #(new_survival, survival_events) = case
+        state.config.survival_enabled
+      {
         True ->
           survival.evaluate(
             state.survival,

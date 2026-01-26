@@ -20,7 +20,8 @@ pub fn imprint_starts_inactive_test() {
 }
 
 pub fn imprint_starts_with_critical_period_test() {
-  let state = imprint.new_default()
+  let state =
+    imprint.new_default()
     |> imprint.start(0)
 
   state.active |> should.be_true()
@@ -28,7 +29,8 @@ pub fn imprint_starts_with_critical_period_test() {
 }
 
 pub fn imprint_critical_period_check_test() {
-  let state = imprint.new_default()
+  let state =
+    imprint.new_default()
     |> imprint.start(0)
 
   // Tick 500 - still in critical period (1000 ticks default)
@@ -39,7 +41,8 @@ pub fn imprint_critical_period_check_test() {
 }
 
 pub fn imprint_progress_tracks_correctly_test() {
-  let state = imprint.new_default()
+  let state =
+    imprint.new_default()
     |> imprint.start(0)
 
   // At tick 0 = 0% progress
@@ -54,7 +57,8 @@ pub fn imprint_progress_tracks_correctly_test() {
 }
 
 pub fn imprint_elapsed_tracks_correctly_test() {
-  let state = imprint.new_default()
+  let state =
+    imprint.new_default()
     |> imprint.start(100)
 
   imprint.elapsed(state, 350) |> should.equal(250)
@@ -107,15 +111,25 @@ pub fn motor_new_creates_empty_patterns_test() {
 pub fn motor_learn_creates_pattern_test() {
   let m = motor.new()
 
-  let #(m2, events) = motor.learn(
-    m,
-    "led_red",
-    200, 100, False,  // before
-    400, 150, False,  // after
-    0.5,              // pleasure delta
-    3.0,              // intensity
-    1                 // tick
-  )
+  let #(m2, events) =
+    motor.learn(
+      m,
+      "led_red",
+      200,
+      100,
+      False,
+      // before
+      400,
+      150,
+      False,
+      // after
+      0.5,
+      // pleasure delta
+      3.0,
+      // intensity
+      1,
+      // tick
+    )
 
   motor.pattern_count(m2) |> should.equal(1)
   events |> should.not_equal([])
@@ -139,14 +153,19 @@ pub fn social_new_has_creator_test() {
 pub fn social_observe_presence_updates_attachment_test() {
   let s = social.new("Gabriel")
 
-  let #(s2, _) = social.observe_presence(
-    s,
-    Some("Gabriel"),
-    0.9,   // pleasure
-    0.3,   // arousal (calm)
-    3.0,   // intensity
-    1      // tick
-  )
+  let #(s2, _) =
+    social.observe_presence(
+      s,
+      Some("Gabriel"),
+      0.9,
+      // pleasure
+      0.3,
+      // arousal (calm)
+      3.0,
+      // intensity
+      1,
+      // tick
+    )
 
   // Attachment should increase with positive, calm interaction
   let old_strength = social.attachment_strength(s, "Gabriel")
@@ -157,14 +176,19 @@ pub fn social_observe_presence_updates_attachment_test() {
 pub fn social_observe_new_entity_test() {
   let s = social.new("Gabriel")
 
-  let #(s2, events) = social.observe_presence(
-    s,
-    Some("Unknown"),
-    0.5,   // neutral pleasure
-    0.5,   // neutral arousal
-    3.0,   // intensity
-    1      // tick
-  )
+  let #(s2, events) =
+    social.observe_presence(
+      s,
+      Some("Unknown"),
+      0.5,
+      // neutral pleasure
+      0.5,
+      // neutral arousal
+      3.0,
+      // intensity
+      1,
+      // tick
+    )
 
   social.entity_count(s2) |> should.equal(2)
   events |> should.not_equal([])
@@ -184,16 +208,24 @@ pub fn survival_evaluate_learns_danger_test() {
   let s = survival.new()
 
   // Negative pleasure + loud sound = danger
-  let #(s2, events) = survival.evaluate(
-    s,
-    0.5,    // energy
-    500,    // light
-    900,    // loud sound
-    False,  // no touch
-    0.1,    // low pleasure
-    3.0,    // intensity
-    1       // tick
-  )
+  let #(s2, events) =
+    survival.evaluate(
+      s,
+      0.5,
+      // energy
+      500,
+      // light
+      900,
+      // loud sound
+      False,
+      // no touch
+      0.1,
+      // low pleasure
+      3.0,
+      // intensity
+      1,
+      // tick
+    )
 
   // Should learn a danger signal
   { survival.danger_count(s2) > 0 } |> should.be_true()
@@ -203,16 +235,24 @@ pub fn survival_evaluate_learns_safety_test() {
   let s = survival.new()
 
   // High pleasure + calm environment = safety
-  let #(s2, _) = survival.evaluate(
-    s,
-    0.8,    // good energy
-    300,    // moderate light
-    100,    // quiet
-    False,  // no touch
-    0.8,    // high pleasure
-    3.0,    // intensity
-    1       // tick
-  )
+  let #(s2, _) =
+    survival.evaluate(
+      s,
+      0.8,
+      // good energy
+      300,
+      // moderate light
+      100,
+      // quiet
+      False,
+      // no touch
+      0.8,
+      // high pleasure
+      3.0,
+      // intensity
+      1,
+      // tick
+    )
 
   // Should learn a safety signal
   { survival.safety_count(s2) > 0 } |> should.be_true()
@@ -223,21 +263,32 @@ pub fn survival_evaluate_learns_safety_test() {
 // =============================================================================
 
 pub fn imprint_tick_processes_all_systems_test() {
-  let state = imprint.new_default()
+  let state =
+    imprint.new_default()
     |> imprint.start(0)
 
-  let #(state2, events) = imprint.tick(
-    state,
-    0.7,         // pleasure
-    0.4,         // arousal
-    0.5,         // dominance
-    400,         // light
-    200,         // sound
-    False,       // touch
-    Some("Gabriel"),  // entity present
-    0.8,         // body energy
-    1            // current tick
-  )
+  let #(state2, events) =
+    imprint.tick(
+      state,
+      0.7,
+      // pleasure
+      0.4,
+      // arousal
+      0.5,
+      // dominance
+      400,
+      // light
+      200,
+      // sound
+      False,
+      // touch
+      Some("Gabriel"),
+      // entity present
+      0.8,
+      // body energy
+      1,
+      // current tick
+    )
 
   // Should have processed observations
   state2.total_observations |> should.equal(1)
@@ -247,18 +298,25 @@ pub fn imprint_tick_processes_all_systems_test() {
 }
 
 pub fn imprint_critical_period_ends_test() {
-  let state = imprint.new_default()
+  let state =
+    imprint.new_default()
     |> imprint.start(0)
 
   // Process tick after critical period
-  let #(state2, _events) = imprint.tick(
-    state,
-    0.5, 0.5, 0.5,
-    400, 200, False,
-    None,
-    0.5,
-    1100  // past critical period (1000 ticks)
-  )
+  let #(state2, _events) =
+    imprint.tick(
+      state,
+      0.5,
+      0.5,
+      0.5,
+      400,
+      200,
+      False,
+      None,
+      0.5,
+      1100,
+      // past critical period (1000 ticks)
+    )
 
   // Should deactivate and emit CriticalPeriodEnded
   state2.active |> should.be_false()
@@ -266,35 +324,40 @@ pub fn imprint_critical_period_ends_test() {
 }
 
 pub fn imprint_motor_learning_separate_test() {
-  let state = imprint.new_default()
+  let state =
+    imprint.new_default()
     |> imprint.start(0)
 
-  let #(state2, _events) = imprint.learn_motor(
-    state,
-    "led_green",
-    300, 100, False,  // before
-    500, 150, False,  // after
-    0.6,              // pleasure delta
-    1                 // tick
-  )
+  let #(state2, _events) =
+    imprint.learn_motor(
+      state,
+      "led_green",
+      300,
+      100,
+      False,
+      // before
+      500,
+      150,
+      False,
+      // after
+      0.6,
+      // pleasure delta
+      1,
+      // tick
+    )
 
   // Should have learned motor pattern
   motor.pattern_count(state2.motor) |> should.equal(1)
 }
 
 pub fn imprint_queries_work_test() {
-  let state = imprint.new_default()
+  let state =
+    imprint.new_default()
     |> imprint.start(0)
 
   // Process some ticks to build associations
-  let #(state2, _) = imprint.tick(
-    state,
-    0.8, 0.3, 0.5,
-    500, 200, False,
-    Some("Gabriel"),
-    0.8,
-    1
-  )
+  let #(state2, _) =
+    imprint.tick(state, 0.8, 0.3, 0.5, 500, 200, False, Some("Gabriel"), 0.8, 1)
 
   // Queries should work (may return None if not enough data)
   let _ = imprint.expected_valence(state2, 500, 200, False)
@@ -306,18 +369,13 @@ pub fn imprint_queries_work_test() {
 }
 
 pub fn imprint_complete_generates_summary_test() {
-  let state = imprint.new_default()
+  let state =
+    imprint.new_default()
     |> imprint.start(0)
 
   // Process some ticks
-  let #(state2, _) = imprint.tick(
-    state,
-    0.7, 0.4, 0.5,
-    400, 200, False,
-    Some("Gabriel"),
-    0.8,
-    1
-  )
+  let #(state2, _) =
+    imprint.tick(state, 0.7, 0.4, 0.5, 400, 200, False, Some("Gabriel"), 0.8, 1)
 
   let summary = imprint.complete(state2)
 
@@ -326,7 +384,8 @@ pub fn imprint_complete_generates_summary_test() {
 }
 
 pub fn imprint_describe_returns_string_test() {
-  let state = imprint.new_default()
+  let state =
+    imprint.new_default()
     |> imprint.start(0)
 
   let desc = imprint.describe(state, 500)

@@ -29,7 +29,9 @@ pub fn main() {
       port_manager.send(manager, hb)
 
       // Send binaural beat command
-      io.println("Enviando comando de áudio binaural (440Hz base, 10Hz beat)...")
+      io.println(
+        "Enviando comando de áudio binaural (440Hz base, 10Hz beat)...",
+      )
       let audio = packet.binaural_beat(2, 440, 10, 2000)
       port_manager.send(manager, audio)
 
@@ -45,12 +47,8 @@ pub fn main() {
       // Get stats
       let stats = port_manager.get_stats(manager)
       io.println("\n=== Estatísticas ===")
-      io.println(
-        "Packets enviados: " <> int_to_string(stats.packets_sent),
-      )
-      io.println(
-        "Packets recebidos: " <> int_to_string(stats.packets_received),
-      )
+      io.println("Packets enviados: " <> int_to_string(stats.packets_sent))
+      io.println("Packets recebidos: " <> int_to_string(stats.packets_received))
       io.println("Erros CRC: " <> int_to_string(stats.crc_errors))
 
       // Shutdown

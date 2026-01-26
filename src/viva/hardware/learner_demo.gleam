@@ -87,7 +87,13 @@ fn run_learning_loop(body_actor: Subject(Message), l: Learner, iteration: Int) {
 
       // Show progress
       let delta_light = after.light - before.light
-      show_progress(iteration, action_name, after, delta_light, new_learner.curiosity)
+      show_progress(
+        iteration,
+        action_name,
+        after,
+        delta_light,
+        new_learner.curiosity,
+      )
 
       // Small pause
       process.sleep(100)
@@ -178,7 +184,11 @@ fn curiosity_to_bar(c: Float) -> String {
   string_repeat("█", n) <> string_repeat(" ", 10 - n)
 }
 
-fn dict_get(d: dict.Dict(String, String), key: String, default: String) -> String {
+fn dict_get(
+  d: dict.Dict(String, String),
+  key: String,
+  default: String,
+) -> String {
   case dict.get(d, key) {
     Ok(v) -> v
     Error(_) -> default

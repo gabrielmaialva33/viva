@@ -129,18 +129,17 @@ pub fn narrate_insight(insight: Insight, style: VoiceStyle) -> String {
         Pleasure ->
           case insight.direction {
             Increasing -> "I'm feeling " <> magnitude_word <> " happier..."
-            Decreasing -> "Something is making me " <> magnitude_word <> " sad..."
+            Decreasing ->
+              "Something is making me " <> magnitude_word <> " sad..."
           }
         Arousal ->
           case insight.direction {
-            Increasing ->
-              "I feel my energy " <> magnitude_word <> " rising..."
+            Increasing -> "I feel my energy " <> magnitude_word <> " rising..."
             Decreasing -> "I'm becoming " <> magnitude_word <> " calmer..."
           }
         Dominance ->
           case insight.direction {
-            Increasing ->
-              "I feel " <> magnitude_word <> " more in control..."
+            Increasing -> "I feel " <> magnitude_word <> " more in control..."
             Decreasing ->
               "I sense I'm losing " <> magnitude_word <> " grip on things..."
           }
@@ -190,10 +189,7 @@ pub fn narrate_insights(
 // =============================================================================
 
 /// Narrate who I am
-pub fn narrate_self(
-  self_model: SelfModel,
-  style: VoiceStyle,
-) -> SelfNarration {
+pub fn narrate_self(self_model: SelfModel, style: VoiceStyle) -> SelfNarration {
   let desc = reflexivity.who_am_i(self_model)
   let meta = reflexivity.meta_cognize(self_model)
 
@@ -360,7 +356,8 @@ fn narrate_introspection(intro: Introspection, style: VoiceStyle) -> String {
     Emotional -> {
       case intro.within_range {
         True -> "I feel like myself right now."
-        False -> "I feel " <> drift_word <> " different from who I usually am..."
+        False ->
+          "I feel " <> drift_word <> " different from who I usually am..."
       }
     }
     Reflective -> {
@@ -452,10 +449,7 @@ pub fn narrate_crisis(crisis: IdentityCrisis, style: VoiceStyle) -> String {
 // =============================================================================
 
 /// Generate stream of consciousness about self
-pub fn stream_of_self(
-  inner_life: InnerLife,
-  depth: Int,
-) -> ThoughtStream {
+pub fn stream_of_self(inner_life: InnerLife, depth: Int) -> ThoughtStream {
   // Use narrative's inner voice with current baseline as focus
   narrative.inner_voice(
     inner_life.narrative,

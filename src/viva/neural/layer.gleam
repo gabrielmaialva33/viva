@@ -5,11 +5,23 @@
 
 import gleam/result
 import viva/neural/activation.{type ActivationType}
-import viva/neural/attention.{type AttentionCache, type MHAGradients, type MultiHeadAttention}
-import viva/neural/conv.{type Conv2DCache, type Conv2DGradients, type Conv2DLayer}
-import viva/neural/normalization.{type BatchNormCache, type BatchNormGradients, type BatchNormLayer, type LayerNormLayer}
-import viva/neural/recurrent.{type GRUCache, type GRUCell, type GRUGradients, type LSTMCache, type LSTMCell, type LSTMGradients}
-import viva/neural/regularization.{type DropoutCache, type DropoutGradients, type DropoutLayer}
+import viva/neural/attention.{
+  type AttentionCache, type MHAGradients, type MultiHeadAttention,
+}
+import viva/neural/conv.{
+  type Conv2DCache, type Conv2DGradients, type Conv2DLayer,
+}
+import viva/neural/normalization.{
+  type BatchNormCache, type BatchNormGradients, type BatchNormLayer,
+  type LayerNormLayer,
+}
+import viva/neural/recurrent.{
+  type GRUCache, type GRUCell, type GRUGradients, type LSTMCache, type LSTMCell,
+  type LSTMGradients,
+}
+import viva/neural/regularization.{
+  type DropoutCache, type DropoutGradients, type DropoutLayer,
+}
 import viva/neural/tensor.{type Tensor, type TensorError}
 
 // =============================================================================
@@ -379,15 +391,24 @@ pub fn layer_param_count(layer: Layer) -> Int {
     BatchNorm(l) -> l.num_features * 2
     LayerNorm(l) -> tensor.size(l.gamma) + tensor.size(l.beta)
     Conv2D(l) -> tensor.size(l.filters) + tensor.size(l.biases)
-    LSTM(l) -> tensor.size(l.w_input) + tensor.size(l.w_hidden) + tensor.size(l.biases)
+    LSTM(l) ->
+      tensor.size(l.w_input) + tensor.size(l.w_hidden) + tensor.size(l.biases)
     GRU(l) -> {
-      tensor.size(l.w_r_input) + tensor.size(l.w_r_hidden) + tensor.size(l.b_r)
-      + tensor.size(l.w_z_input) + tensor.size(l.w_z_hidden) + tensor.size(l.b_z)
-      + tensor.size(l.w_n_input) + tensor.size(l.w_n_hidden) + tensor.size(l.b_n)
+      tensor.size(l.w_r_input)
+      + tensor.size(l.w_r_hidden)
+      + tensor.size(l.b_r)
+      + tensor.size(l.w_z_input)
+      + tensor.size(l.w_z_hidden)
+      + tensor.size(l.b_z)
+      + tensor.size(l.w_n_input)
+      + tensor.size(l.w_n_hidden)
+      + tensor.size(l.b_n)
     }
     Attention(l) -> {
-      tensor.size(l.w_query) + tensor.size(l.w_key)
-      + tensor.size(l.w_value) + tensor.size(l.w_out)
+      tensor.size(l.w_query)
+      + tensor.size(l.w_key)
+      + tensor.size(l.w_value)
+      + tensor.size(l.w_out)
     }
   }
 }
@@ -399,24 +420,50 @@ pub fn layer_describe(layer: Layer) -> String {
     Dropout(l) -> "Dropout(" <> float_to_string(l.rate) <> ")"
     BatchNorm(l) -> "BatchNorm(" <> int_to_string(l.num_features) <> ")"
     LayerNorm(l) -> "LayerNorm(" <> shape_to_string(l.normalized_shape) <> ")"
-    Conv2D(l) -> "Conv2D(" <> int_to_string(l.in_channels) <> "->" <> int_to_string(l.out_channels) <> ", " <> int_to_string(l.kernel_h) <> "x" <> int_to_string(l.kernel_w) <> ")"
-    LSTM(l) -> "LSTM(" <> int_to_string(l.input_size) <> "->" <> int_to_string(l.hidden_size) <> ")"
-    GRU(l) -> "GRU(" <> int_to_string(l.input_size) <> "->" <> int_to_string(l.hidden_size) <> ")"
-    Attention(l) -> "MHA(" <> int_to_string(l.num_heads) <> " heads, d=" <> int_to_string(l.d_model) <> ")"
+    Conv2D(l) ->
+      "Conv2D("
+      <> int_to_string(l.in_channels)
+      <> "->"
+      <> int_to_string(l.out_channels)
+      <> ", "
+      <> int_to_string(l.kernel_h)
+      <> "x"
+      <> int_to_string(l.kernel_w)
+      <> ")"
+    LSTM(l) ->
+      "LSTM("
+      <> int_to_string(l.input_size)
+      <> "->"
+      <> int_to_string(l.hidden_size)
+      <> ")"
+    GRU(l) ->
+      "GRU("
+      <> int_to_string(l.input_size)
+      <> "->"
+      <> int_to_string(l.hidden_size)
+      <> ")"
+    Attention(l) ->
+      "MHA("
+      <> int_to_string(l.num_heads)
+      <> " heads, d="
+      <> int_to_string(l.d_model)
+      <> ")"
   }
 }
 
 /// Set training mode for layers that support it
 pub fn set_training(layer: Layer, training: Bool) -> Layer {
   case layer {
-    Dropout(l) -> Dropout(case training {
-      True -> regularization.train(l)
-      False -> regularization.eval(l)
-    })
-    BatchNorm(l) -> BatchNorm(case training {
-      True -> normalization.batch_norm_train(l)
-      False -> normalization.batch_norm_eval(l)
-    })
+    Dropout(l) ->
+      Dropout(case training {
+        True -> regularization.train(l)
+        False -> regularization.eval(l)
+      })
+    BatchNorm(l) ->
+      BatchNorm(case training {
+        True -> normalization.batch_norm_train(l)
+        False -> normalization.batch_norm_eval(l)
+      })
     _ -> layer
   }
 }

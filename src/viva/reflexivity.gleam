@@ -365,8 +365,7 @@ pub fn observe_with_insight(
     None -> updated.insight_history
   }
 
-  let final_model =
-    SelfModel(..updated, insight_history: new_history)
+  let final_model = SelfModel(..updated, insight_history: new_history)
 
   #(final_model, intro.insight)
 }

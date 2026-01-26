@@ -177,7 +177,11 @@ pub fn should_use_strided(
 }
 
 /// Ensure tensor is in optimal format for operation
-pub fn ensure_optimal(t: Tensor, op: OperationType, config: TensorConfig) -> Tensor {
+pub fn ensure_optimal(
+  t: Tensor,
+  op: OperationType,
+  config: TensorConfig,
+) -> Tensor {
   let use_strided = should_use_strided(t, op, config)
 
   case t, use_strided {
@@ -1668,9 +1672,11 @@ pub fn matmul_fast(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
 /// Get element with O(1) access for StridedTensor
 pub fn get_fast(t: Tensor, index: Int) -> Result(Float, TensorError) {
   case t {
-    Tensor(data, _) -> list_at_float(data, index) |> result.map_error(fn(_) {
-      DimensionError("Index " <> int.to_string(index) <> " out of bounds")
-    })
+    Tensor(data, _) ->
+      list_at_float(data, index)
+      |> result.map_error(fn(_) {
+        DimensionError("Index " <> int.to_string(index) <> " out of bounds")
+      })
     StridedTensor(storage, shape, strides, offset) -> {
       let indices = flat_to_multi(index, shape)
       let flat_idx =
@@ -1708,7 +1714,12 @@ pub fn strided(
   offset: Int,
 ) -> Tensor {
   let storage = list_to_array(data)
-  StridedTensor(storage: storage, shape: shape, strides: strides, offset: offset)
+  StridedTensor(
+    storage: storage,
+    shape: shape,
+    strides: strides,
+    offset: offset,
+  )
 }
 
 /// Create strided tensor from existing storage (for views)
@@ -1718,7 +1729,12 @@ pub fn view(
   strides: List(Int),
   offset: Int,
 ) -> Tensor {
-  StridedTensor(storage: storage, shape: shape, strides: strides, offset: offset)
+  StridedTensor(
+    storage: storage,
+    shape: shape,
+    strides: strides,
+    offset: offset,
+  )
 }
 
 /// Check if tensor is contiguous in memory

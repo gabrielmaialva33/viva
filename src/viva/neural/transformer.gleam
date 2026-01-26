@@ -9,8 +9,9 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import viva/neural/activation.{type ActivationType, ReLU}
 import viva/neural/attention.{
-  type MHACache, type MHAGradients, type MultiHeadAttention, type PositionalEncoding,
-  causal_mask, mha_forward, mha_new, positional_encoding_new,
+  type MHACache, type MHAGradients, type MultiHeadAttention,
+  type PositionalEncoding, causal_mask, mha_forward, mha_new,
+  positional_encoding_new,
 }
 import viva/neural/normalization.{
   type LayerNormLayer, layer_norm_forward, layer_norm_new,
@@ -222,7 +223,9 @@ pub fn encoder_new(
 ) -> TransformerEncoder {
   let blocks =
     list.range(1, num_layers)
-    |> list.map(fn(_) { encoder_block_new(d_model, num_heads, d_ff, dropout_rate) })
+    |> list.map(fn(_) {
+      encoder_block_new(d_model, num_heads, d_ff, dropout_rate)
+    })
 
   TransformerEncoder(
     blocks: blocks,
@@ -243,7 +246,9 @@ pub fn decoder_new(
 ) -> TransformerDecoder {
   let blocks =
     list.range(1, num_layers)
-    |> list.map(fn(_) { decoder_block_new(d_model, num_heads, d_ff, dropout_rate) })
+    |> list.map(fn(_) {
+      decoder_block_new(d_model, num_heads, d_ff, dropout_rate)
+    })
 
   TransformerDecoder(
     blocks: blocks,
@@ -267,8 +272,22 @@ pub fn transformer_new(
   let limit = float_sqrt(6.0 /. int.to_float(d_model + vocab_size))
 
   Transformer(
-    encoder: encoder_new(d_model, num_heads, d_ff, num_encoder_layers, max_seq_len, dropout_rate),
-    decoder: decoder_new(d_model, num_heads, d_ff, num_decoder_layers, max_seq_len, dropout_rate),
+    encoder: encoder_new(
+      d_model,
+      num_heads,
+      d_ff,
+      num_encoder_layers,
+      max_seq_len,
+      dropout_rate,
+    ),
+    decoder: decoder_new(
+      d_model,
+      num_heads,
+      d_ff,
+      num_decoder_layers,
+      max_seq_len,
+      dropout_rate,
+    ),
     output_proj: random_uniform_init([d_model, vocab_size], limit),
     vocab_size: vocab_size,
   )
@@ -375,9 +394,12 @@ pub fn decoder_block_forward(
   use x_norm2 <- result.try(layer_norm_forward_2d(block.norm2, x, seq_len))
   use #(cross_attn_out, _) <- result.try(mha_forward(
     block.cross_attn,
-    x_norm2,           // Query from decoder
-    encoder_output,    // Key from encoder
-    encoder_output,    // Value from encoder
+    x_norm2,
+    // Query from decoder
+    encoder_output,
+    // Key from encoder
+    encoder_output,
+    // Value from encoder
     cross_mask,
   ))
   use x <- result.try(tensor.add(x, cross_attn_out))
@@ -627,7 +649,9 @@ fn add_positional_encoding(
   pos_enc: PositionalEncoding,
 ) -> Result(Tensor, TensorError) {
   case x.shape {
-    [seq_len, d_model] if d_model == pos_enc.d_model && seq_len <= pos_enc.max_len -> {
+    [seq_len, d_model]
+      if d_model == pos_enc.d_model && seq_len <= pos_enc.max_len
+    -> {
       let xdata = tensor.to_list(x)
       let pos_data = tensor.to_list(pos_enc.encoding)
 
@@ -660,8 +684,8 @@ fn random_uniform_init(shape: List(Int), limit: Float) -> Tensor {
   let data =
     list.range(1, size)
     |> list.map(fn(i) {
-      let x = int.to_float(i * 1103515245 + 12345)
-      let normalized = float_mod(x, 1000000.0) /. 1000000.0
+      let x = int.to_float(i * 1_103_515_245 + 12_345)
+      let normalized = float_mod(x, 1_000_000.0) /. 1_000_000.0
       { normalized *. 2.0 -. 1.0 } *. limit
     })
   Tensor(data: data, shape: shape)
@@ -691,12 +715,16 @@ pub fn transformer_param_count(transformer: Transformer) -> Int {
 
 /// Encoder parameter count
 pub fn encoder_param_count(encoder: TransformerEncoder) -> Int {
-  list.fold(encoder.blocks, 0, fn(acc, block) { acc + encoder_block_params(block) })
+  list.fold(encoder.blocks, 0, fn(acc, block) {
+    acc + encoder_block_params(block)
+  })
 }
 
 /// Decoder parameter count
 pub fn decoder_param_count(decoder: TransformerDecoder) -> Int {
-  list.fold(decoder.blocks, 0, fn(acc, block) { acc + decoder_block_params(block) })
+  list.fold(decoder.blocks, 0, fn(acc, block) {
+    acc + decoder_block_params(block)
+  })
 }
 
 fn encoder_block_params(block: EncoderBlock) -> Int {
@@ -718,11 +746,17 @@ fn decoder_block_params(block: DecoderBlock) -> Int {
 }
 
 fn mha_params(mha: MultiHeadAttention) -> Int {
-  tensor.size(mha.w_query) + tensor.size(mha.w_key) + tensor.size(mha.w_value) + tensor.size(mha.w_out)
+  tensor.size(mha.w_query)
+  + tensor.size(mha.w_key)
+  + tensor.size(mha.w_value)
+  + tensor.size(mha.w_out)
 }
 
 fn ffn_params(ffn: FeedForward) -> Int {
-  tensor.size(ffn.w1) + tensor.size(ffn.b1) + tensor.size(ffn.w2) + tensor.size(ffn.b2)
+  tensor.size(ffn.w1)
+  + tensor.size(ffn.b1)
+  + tensor.size(ffn.w2)
+  + tensor.size(ffn.b2)
 }
 
 /// Describe transformer architecture

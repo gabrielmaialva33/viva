@@ -94,7 +94,8 @@ pub fn evaluate(
   let events = []
 
   // Detect danger: low pleasure + high arousal stimuli
-  let is_danger_context = pleasure <. 0.3 && { light > 800 || sound > 800 || touch }
+  let is_danger_context =
+    pleasure <. 0.3 && { light > 800 || sound > 800 || touch }
 
   // Detect safety: high pleasure + calm stimuli
   let is_safe_context = pleasure >. 0.6 && light < 500 && sound < 500
@@ -121,8 +122,16 @@ pub fn evaluate(
       danger_signals: new_danger,
       safety_signals: new_safety,
       hunger_threshold: new_hunger,
-      danger_count: imprint.danger_count + case is_danger_context { True -> 1  False -> 0 },
-      safe_count: imprint.safe_count + case is_safe_context { True -> 1  False -> 0 },
+      danger_count: imprint.danger_count
+        + case is_danger_context {
+          True -> 1
+          False -> 0
+        },
+      safe_count: imprint.safe_count
+        + case is_safe_context {
+          True -> 1
+          False -> 0
+        },
     )
 
   #(new_imprint, list.flatten([events, danger_events, safety_events]))
@@ -155,7 +164,9 @@ pub fn is_safety_signal(
   list.any(imprint.safety_signals, fn(s) {
     abs_int(light - s.light_level) < 200
     && abs_int(sound - s.sound_level) < 200
-    && { option.is_none(s.entity_present) || s.entity_present == entity_present }
+    && {
+      option.is_none(s.entity_present) || s.entity_present == entity_present
+    }
     && s.comfort >. 0.5
   })
 }
@@ -185,7 +196,8 @@ fn learn_danger(
   // Check if similar danger exists
   let existing =
     list.find(imprint.danger_signals, fn(d) {
-      abs_int(light - d.light_threshold) < 100 && abs_int(sound - d.sound_threshold) < 100
+      abs_int(light - d.light_threshold) < 100
+      && abs_int(sound - d.sound_threshold) < 100
     })
 
   case existing {
@@ -215,19 +227,17 @@ fn learn_danger(
           intensity: intensity *. 0.5,
           observations: 1,
         )
-      let trigger =
-        case touch {
-          True -> "touch"
-          False ->
-            case light > sound {
-              True -> "bright_light"
-              False -> "loud_sound"
-            }
-        }
-      #(
-        [signal, ..imprint.danger_signals],
-        [DangerLearned(trigger: trigger, intensity: intensity)],
-      )
+      let trigger = case touch {
+        True -> "touch"
+        False ->
+          case light > sound {
+            True -> "bright_light"
+            False -> "loud_sound"
+          }
+      }
+      #([signal, ..imprint.danger_signals], [
+        DangerLearned(trigger: trigger, intensity: intensity),
+      ])
     }
   }
 }
@@ -243,7 +253,8 @@ fn learn_safety(
   // Check if similar safety exists
   let existing =
     list.find(imprint.safety_signals, fn(s) {
-      abs_int(light - s.light_level) < 100 && abs_int(sound - s.sound_level) < 100
+      abs_int(light - s.light_level) < 100
+      && abs_int(sound - s.sound_level) < 100
     })
 
   case existing {
@@ -273,10 +284,9 @@ fn learn_safety(
           observations: 1,
         )
       let trigger = "calm_environment"
-      #(
-        [signal, ..imprint.safety_signals],
-        [SafetyLearned(trigger: trigger, comfort: comfort *. intensity)],
-      )
+      #([signal, ..imprint.safety_signals], [
+        SafetyLearned(trigger: trigger, comfort: comfort *. intensity),
+      ])
     }
   }
 }

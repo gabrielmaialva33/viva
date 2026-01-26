@@ -30,9 +30,7 @@ pub fn new_with_history_sets_limit_test() {
   // Publish more than 50 events
   let b =
     list.range(1, 60)
-    |> list.fold(b, fn(acc, _) {
-      broker.emit_introspection(acc, 0.1, True)
-    })
+    |> list.fold(b, fn(acc, _) { broker.emit_introspection(acc, 0.1, True) })
 
   let stats = broker.stats(b)
   // Should be capped at 50
@@ -215,8 +213,7 @@ pub fn disable_handler_deactivates_test() {
   let b = broker.disable_handler(b, "narrative")
 
   let active = broker.active_handlers(b)
-  let narrative_active =
-    list.any(active, fn(h) { h.name == "narrative" })
+  let narrative_active = list.any(active, fn(h) { h.name == "narrative" })
 
   narrative_active |> should.be_false()
 }
@@ -228,8 +225,7 @@ pub fn enable_handler_reactivates_test() {
   let b = broker.enable_handler(b, "narrative")
 
   let active = broker.active_handlers(b)
-  let narrative_active =
-    list.any(active, fn(h) { h.name == "narrative" })
+  let narrative_active = list.any(active, fn(h) { h.name == "narrative" })
 
   narrative_active |> should.be_true()
 }

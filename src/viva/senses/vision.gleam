@@ -16,20 +16,28 @@ import viva/senses/windows.{type SenseConfig, type Vision}
 /// What VIVA understood from seeing
 pub type Understanding {
   Understanding(
-    description: String,    // Natural language description
-    objects: List(String),  // Detected objects
-    scene: String,          // Scene type (workspace, outdoor, etc)
-    confidence: Float,      // How confident VIVA is
+    description: String,
+    // Natural language description
+    objects: List(String),
+    // Detected objects
+    scene: String,
+    // Scene type (workspace, outdoor, etc)
+    confidence: Float,
+    // How confident VIVA is
     timestamp: Int,
   )
 }
 
 /// Vision analysis request
 pub type AnalysisRequest {
-  Describe           // General description
-  Identify           // Identify specific objects
-  ReadText           // OCR - read text in image
-  Custom(String)     // Custom prompt
+  Describe
+  // General description
+  Identify
+  // Identify specific objects
+  ReadText
+  // OCR - read text in image
+  Custom(String)
+  // Custom prompt
 }
 
 // ============================================================================
@@ -37,10 +45,14 @@ pub type AnalysisRequest {
 // ============================================================================
 
 /// Analyze an image using NVIDIA VLM
-pub fn understand(image_path: String, request: AnalysisRequest) -> Result(Understanding, String) {
+pub fn understand(
+  image_path: String,
+  request: AnalysisRequest,
+) -> Result(Understanding, String) {
   let prompt = case request {
     Describe -> "Describe what you see in this image in detail."
-    Identify -> "List all the objects you can identify in this image, one per line."
+    Identify ->
+      "List all the objects you can identify in this image, one per line."
     ReadText -> "Read and transcribe any text visible in this image."
     Custom(p) -> p
   }
@@ -53,7 +65,8 @@ pub fn understand(image_path: String, request: AnalysisRequest) -> Result(Unders
         description: description,
         objects: extract_objects(description),
         scene: detect_scene(description),
-        confidence: 0.85,  // TODO: extract from API response
+        confidence: 0.85,
+        // TODO: extract from API response
         timestamp: timestamp,
       ))
     }
@@ -70,7 +83,10 @@ pub fn quick_see(config: SenseConfig) -> Result(Understanding, String) {
 }
 
 /// See and describe with custom prompt
-pub fn see_and_ask(config: SenseConfig, question: String) -> Result(String, String) {
+pub fn see_and_ask(
+  config: SenseConfig,
+  question: String,
+) -> Result(String, String) {
   case windows.see(config) {
     Ok(vision) -> {
       case analyze_with_nvidia(vision.path, question) {
@@ -86,12 +102,19 @@ pub fn see_and_ask(config: SenseConfig, question: String) -> Result(String, Stri
 // NVIDIA VLM Integration
 // ============================================================================
 
-fn analyze_with_nvidia(image_path: String, prompt: String) -> Result(String, String) {
+fn analyze_with_nvidia(
+  image_path: String,
+  prompt: String,
+) -> Result(String, String) {
   // Call Python script for NVIDIA API
-  let cmd = string.concat([
-    "python3 /home/mrootx/viva_gleam/scripts/viva_see.py '",
-    image_path, "' '", prompt, "'"
-  ])
+  let cmd =
+    string.concat([
+      "python3 /home/mrootx/viva_gleam/scripts/viva_see.py '",
+      image_path,
+      "' '",
+      prompt,
+      "'",
+    ])
 
   let result = run_shell(cmd)
 
@@ -116,20 +139,20 @@ fn extract_objects(description: String) -> List(String) {
   // Simple extraction - look for common object words
   let words = string.split(string.lowercase(description), " ")
   let object_words = [
-    "cable", "cables", "wire", "wires",
-    "speaker", "screen", "monitor",
-    "keyboard", "mouse", "computer",
-    "camera", "microphone", "arduino",
-    "led", "button", "sensor",
-    "table", "desk", "wall",
-    "person", "hand", "face",
+    "cable", "cables", "wire", "wires", "speaker", "screen", "monitor",
+    "keyboard", "mouse", "computer", "camera", "microphone", "arduino", "led",
+    "button", "sensor", "table", "desk", "wall", "person", "hand", "face",
   ]
 
   words
   |> filter_contains(object_words, [])
 }
 
-fn filter_contains(words: List(String), targets: List(String), acc: List(String)) -> List(String) {
+fn filter_contains(
+  words: List(String),
+  targets: List(String),
+  acc: List(String),
+) -> List(String) {
   case words {
     [] -> acc
     [word, ..rest] -> {
@@ -157,22 +180,27 @@ fn detect_scene(description: String) -> String {
   let lower = string.lowercase(description)
   case string.contains(lower, "workspace") {
     True -> "workspace"
-    False -> case string.contains(lower, "desk") {
-      True -> "workspace"
-      False -> case string.contains(lower, "electronic") {
-        True -> "electronics_lab"
-        False -> case string.contains(lower, "outdoor") {
-          True -> "outdoor"
-          False -> case string.contains(lower, "person") {
-            True -> "people"
-            False -> case string.contains(lower, "text") {
-              True -> "document"
-              False -> "unknown"
-            }
+    False ->
+      case string.contains(lower, "desk") {
+        True -> "workspace"
+        False ->
+          case string.contains(lower, "electronic") {
+            True -> "electronics_lab"
+            False ->
+              case string.contains(lower, "outdoor") {
+                True -> "outdoor"
+                False ->
+                  case string.contains(lower, "person") {
+                    True -> "people"
+                    False ->
+                      case string.contains(lower, "text") {
+                        True -> "document"
+                        False -> "unknown"
+                      }
+                  }
+              }
           }
-        }
       }
-    }
   }
 }
 

@@ -634,12 +634,10 @@ pub fn reflect_on(
   // Generate content based on style and context
   let content = generate_thought_content(g, causes, effects, style)
 
-  Thought(
-    content: content,
-    weight: weight,
-    source: source,
-    glyphs: [g, ..related_glyphs],
-  )
+  Thought(content: content, weight: weight, source: source, glyphs: [
+    g,
+    ..related_glyphs
+  ])
 }
 
 /// Generate stream of consciousness from a focus point
@@ -709,11 +707,7 @@ pub fn narrate_link(link: NarrativeLink, style: VoiceStyle) -> String {
     Factual -> {
       case link.relation {
         Caused ->
-          cause_desc
-          <> " "
-          <> strength_word
-          <> " caused "
-          <> effect_desc
+          cause_desc <> " " <> strength_word <> " caused " <> effect_desc
         Preceded -> cause_desc <> " preceded " <> effect_desc
         Associated -> cause_desc <> " is similar to " <> effect_desc
         Contrasted -> cause_desc <> " contrasts with " <> effect_desc
@@ -726,10 +720,7 @@ pub fn narrate_link(link: NarrativeLink, style: VoiceStyle) -> String {
         Preceded ->
           "After " <> cause_desc <> ", there came " <> effect_desc <> "."
         Associated ->
-          effect_desc
-          <> " reminds me of "
-          <> cause_desc
-          <> ", they feel alike."
+          effect_desc <> " reminds me of " <> cause_desc <> ", they feel alike."
         Contrasted ->
           cause_desc <> " and " <> effect_desc <> " are opposites to me."
       }
@@ -757,11 +748,7 @@ pub fn narrate_link(link: NarrativeLink, style: VoiceStyle) -> String {
           <> effect_desc
           <> "."
         Contrasted ->
-          "I see "
-          <> cause_desc
-          <> " as the opposite of "
-          <> effect_desc
-          <> "."
+          "I see " <> cause_desc <> " as the opposite of " <> effect_desc <> "."
       }
     }
     Poetic -> {
@@ -813,10 +800,8 @@ pub fn dominant_thought(stream: ThoughtStream) -> Option(Thought) {
 /// Merge two thought streams
 pub fn merge_streams(a: ThoughtStream, b: ThoughtStream) -> ThoughtStream {
   let all_thoughts = list.append(a.thoughts, b.thoughts)
-  let intensity = average_or_default(
-    list.map(all_thoughts, fn(t) { t.weight }),
-    0.0,
-  )
+  let intensity =
+    average_or_default(list.map(all_thoughts, fn(t) { t.weight }), 0.0)
 
   ThoughtStream(
     thoughts: all_thoughts,

@@ -14,11 +14,17 @@ import viva/hardware/crc8
 // ============================================================================
 
 pub const type_heartbeat = 0x00
+
 pub const type_sensor_data = 0x01
+
 pub const type_command = 0x02
+
 pub const type_pad_state = 0x10
+
 pub const type_audio_cmd = 0x11
+
 pub const type_ack = 0xFE
+
 pub const type_error = 0xFF
 
 // ============================================================================
@@ -43,22 +49,12 @@ pub type SensorData {
 
 /// Command from Soul to Body
 pub type Command {
-  Command(
-    seq: Int,
-    servo_angle: Int,
-    led_state: Bool,
-    vibration: Int,
-  )
+  Command(seq: Int, servo_angle: Int, led_state: Bool, vibration: Int)
 }
 
 /// PAD emotional state broadcast
 pub type PadState {
-  PadState(
-    seq: Int,
-    pleasure: Float,
-    arousal: Float,
-    dominance: Float,
-  )
+  PadState(seq: Int, pleasure: Float, arousal: Float, dominance: Float)
 }
 
 /// Audio command for speakers
@@ -68,7 +64,8 @@ pub type AudioCommand {
     freq_left: Int,
     freq_right: Int,
     duration_ms: Int,
-    waveform: Int,  // 0=sine, 1=square, 2=saw, 3=noise
+    waveform: Int,
+    // 0=sine, 1=square, 2=saw, 3=noise
   )
 }
 
@@ -201,53 +198,61 @@ fn decode_payload(data: BitArray) -> Result(Packet, String) {
     }
 
     // Sensor Data
-    <<t:8, seq:8, temp:float-32-little, light:16-little, touch:8, audio:16-little>>
+    <<
+      t:8,
+      seq:8,
+      temp:float-32-little,
+      light:16-little,
+      touch:8,
+      audio:16-little,
+    >>
       if t == type_sensor_data
     -> {
-      Ok(PacketSensorData(SensorData(
-        seq: seq,
-        temperature: temp,
-        light: light,
-        touch: touch == 1,
-        audio_level: audio,
-      )))
+      Ok(
+        PacketSensorData(SensorData(
+          seq: seq,
+          temperature: temp,
+          light: light,
+          touch: touch == 1,
+          audio_level: audio,
+        )),
+      )
     }
 
     // Command
-    <<t:8, seq:8, angle:16-little-signed, led:8, vib:8>>
-      if t == type_command
-    -> {
-      Ok(PacketCommand(Command(
-        seq: seq,
-        servo_angle: angle,
-        led_state: led == 1,
-        vibration: vib,
-      )))
+    <<t:8, seq:8, angle:16-little-signed, led:8, vib:8>> if t == type_command -> {
+      Ok(
+        PacketCommand(Command(
+          seq: seq,
+          servo_angle: angle,
+          led_state: led == 1,
+          vibration: vib,
+        )),
+      )
     }
 
     // PAD State
     <<t:8, seq:8, p:float-32-little, a:float-32-little, d:float-32-little>>
       if t == type_pad_state
     -> {
-      Ok(PacketPadState(PadState(
-        seq: seq,
-        pleasure: p,
-        arousal: a,
-        dominance: d,
-      )))
+      Ok(
+        PacketPadState(PadState(seq: seq, pleasure: p, arousal: a, dominance: d)),
+      )
     }
 
     // Audio Command
     <<t:8, seq:8, fl:16-little, fr:16-little, dur:16-little, wave:8>>
       if t == type_audio_cmd
     -> {
-      Ok(PacketAudioCommand(AudioCommand(
-        seq: seq,
-        freq_left: fl,
-        freq_right: fr,
-        duration_ms: dur,
-        waveform: wave,
-      )))
+      Ok(
+        PacketAudioCommand(AudioCommand(
+          seq: seq,
+          freq_left: fl,
+          freq_right: fr,
+          duration_ms: dur,
+          waveform: wave,
+        )),
+      )
     }
 
     // Ack
@@ -287,18 +292,29 @@ pub fn heartbeat(seq: Int) -> Packet {
 }
 
 /// Create audio command for binaural beat
-pub fn binaural_beat(seq: Int, base_freq: Int, beat_freq: Int, duration: Int) -> Packet {
+pub fn binaural_beat(
+  seq: Int,
+  base_freq: Int,
+  beat_freq: Int,
+  duration: Int,
+) -> Packet {
   PacketAudioCommand(AudioCommand(
     seq: seq,
     freq_left: base_freq,
     freq_right: base_freq + beat_freq,
     duration_ms: duration,
-    waveform: 0,  // sine
+    waveform: 0,
+    // sine
   ))
 }
 
 /// Create PAD state packet
-pub fn pad_state(seq: Int, pleasure: Float, arousal: Float, dominance: Float) -> Packet {
+pub fn pad_state(
+  seq: Int,
+  pleasure: Float,
+  arousal: Float,
+  dominance: Float,
+) -> Packet {
   PacketPadState(PadState(seq:, pleasure:, arousal:, dominance:))
 }
 
@@ -307,37 +323,66 @@ pub fn describe(packet: Packet) -> String {
   case packet {
     PacketHeartbeat(p) -> "Heartbeat(seq=" <> int.to_string(p.seq) <> ")"
     PacketSensorData(p) -> {
-      "SensorData(seq=" <> int.to_string(p.seq)
-      <> ", temp=" <> float.to_string(p.temperature)
-      <> ", light=" <> int.to_string(p.light)
-      <> ", touch=" <> bool_to_string(p.touch)
-      <> ", audio=" <> int.to_string(p.audio_level) <> ")"
+      "SensorData(seq="
+      <> int.to_string(p.seq)
+      <> ", temp="
+      <> float.to_string(p.temperature)
+      <> ", light="
+      <> int.to_string(p.light)
+      <> ", touch="
+      <> bool_to_string(p.touch)
+      <> ", audio="
+      <> int.to_string(p.audio_level)
+      <> ")"
     }
     PacketCommand(p) -> {
-      "Command(seq=" <> int.to_string(p.seq)
-      <> ", servo=" <> int.to_string(p.servo_angle)
-      <> ", led=" <> bool_to_string(p.led_state)
-      <> ", vib=" <> int.to_string(p.vibration) <> ")"
+      "Command(seq="
+      <> int.to_string(p.seq)
+      <> ", servo="
+      <> int.to_string(p.servo_angle)
+      <> ", led="
+      <> bool_to_string(p.led_state)
+      <> ", vib="
+      <> int.to_string(p.vibration)
+      <> ")"
     }
     PacketPadState(p) -> {
-      "PadState(seq=" <> int.to_string(p.seq)
-      <> ", P=" <> float.to_string(p.pleasure)
-      <> ", A=" <> float.to_string(p.arousal)
-      <> ", D=" <> float.to_string(p.dominance) <> ")"
+      "PadState(seq="
+      <> int.to_string(p.seq)
+      <> ", P="
+      <> float.to_string(p.pleasure)
+      <> ", A="
+      <> float.to_string(p.arousal)
+      <> ", D="
+      <> float.to_string(p.dominance)
+      <> ")"
     }
     PacketAudioCommand(p) -> {
-      "AudioCmd(seq=" <> int.to_string(p.seq)
-      <> ", L=" <> int.to_string(p.freq_left) <> "Hz"
-      <> ", R=" <> int.to_string(p.freq_right) <> "Hz"
-      <> ", dur=" <> int.to_string(p.duration_ms) <> "ms)"
+      "AudioCmd(seq="
+      <> int.to_string(p.seq)
+      <> ", L="
+      <> int.to_string(p.freq_left)
+      <> "Hz"
+      <> ", R="
+      <> int.to_string(p.freq_right)
+      <> "Hz"
+      <> ", dur="
+      <> int.to_string(p.duration_ms)
+      <> "ms)"
     }
     PacketAck(p) -> {
-      "Ack(seq=" <> int.to_string(p.seq)
-      <> ", acked=" <> int.to_string(p.acked_seq) <> ")"
+      "Ack(seq="
+      <> int.to_string(p.seq)
+      <> ", acked="
+      <> int.to_string(p.acked_seq)
+      <> ")"
     }
     PacketError(p) -> {
-      "Error(seq=" <> int.to_string(p.seq)
-      <> ", code=" <> int.to_string(p.error_code) <> ")"
+      "Error(seq="
+      <> int.to_string(p.seq)
+      <> ", code="
+      <> int.to_string(p.error_code)
+      <> ")"
     }
   }
 }

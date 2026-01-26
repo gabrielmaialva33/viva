@@ -23,7 +23,9 @@ pub fn image_config_test() {
   should.equal(config.input_channels, 1)
   should.be_true(config.input_is_2d)
   // Should have higher conv rate for image processing
-  should.be_true(config.add_conv_rate >. neat_hybrid.default_config().add_conv_rate)
+  should.be_true(
+    config.add_conv_rate >. neat_hybrid.default_config().add_conv_rate,
+  )
 }
 
 pub fn sequence_config_test() {
@@ -252,8 +254,7 @@ pub fn evaluate_test() {
 }
 
 pub fn evaluate_population_test() {
-  let neat_config =
-    neat.NeatConfig(..neat.xor_config(), population_size: 10)
+  let neat_config = neat.NeatConfig(..neat.xor_config(), population_size: 10)
   let pop = neat.create_population(neat_config, 42)
   let hybrid_pop = neat_hybrid.from_population(pop)
 

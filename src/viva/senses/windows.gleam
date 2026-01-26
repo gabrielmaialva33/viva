@@ -17,7 +17,8 @@ pub type Vision {
   Vision(
     width: Int,
     height: Int,
-    path: String,      // Path to captured image
+    path: String,
+    // Path to captured image
     timestamp: Int,
   )
 }
@@ -28,26 +29,20 @@ pub type Hearing {
     duration_ms: Int,
     sample_rate: Int,
     channels: Int,
-    path: String,      // Path to captured audio
+    path: String,
+    // Path to captured audio
     timestamp: Int,
   )
 }
 
 /// Available devices
 pub type Devices {
-  Devices(
-    cameras: List(String),
-    microphones: List(String),
-  )
+  Devices(cameras: List(String), microphones: List(String))
 }
 
 /// Sense configuration
 pub type SenseConfig {
-  SenseConfig(
-    camera: String,
-    microphone: String,
-    temp_dir: String,
-  )
+  SenseConfig(camera: String, microphone: String, temp_dir: String)
 }
 
 // ============================================================================
@@ -71,15 +66,16 @@ pub fn default_config() -> SenseConfig {
 pub fn see(config: SenseConfig) -> Result(Vision, String) {
   let timestamp = erlang_now_ms()
   let filename = "viva_eye_" <> int.to_string(timestamp) <> ".jpg"
-  let win_path = "viva_eye.jpg"  // Temp file in Windows
+  let win_path = "viva_eye.jpg"
+  // Temp file in Windows
   let linux_path = config.temp_dir <> "/" <> win_path
 
   // Build FFmpeg command for Windows
-  let cmd = string.concat([
-    "powershell.exe -Command \"cd $env:TEMP; ",
-    "ffmpeg -f dshow -i video='", config.camera, "' ",
-    "-frames:v 1 -update 1 -y ", win_path, " 2>&1\"",
-  ])
+  let cmd =
+    string.concat([
+      "powershell.exe -Command \"cd $env:TEMP; ", "ffmpeg -f dshow -i video='",
+      config.camera, "' ", "-frames:v 1 -update 1 -y ", win_path, " 2>&1\"",
+    ])
 
   case run_command(cmd) {
     Ok(_output) -> {
@@ -128,11 +124,11 @@ pub fn listen(config: SenseConfig, duration_ms: Int) -> Result(Hearing, String) 
   let duration_sec = int.to_string(duration_ms / 1000)
 
   // Build FFmpeg command
-  let cmd = string.concat([
-    "powershell.exe -Command \"cd $env:TEMP; ",
-    "ffmpeg -f dshow -i audio='", config.microphone, "' ",
-    "-t ", duration_sec, " -y ", win_path, " 2>&1\"",
-  ])
+  let cmd =
+    string.concat([
+      "powershell.exe -Command \"cd $env:TEMP; ", "ffmpeg -f dshow -i audio='",
+      config.microphone, "' ", "-t ", duration_sec, " -y ", win_path, " 2>&1\"",
+    ])
 
   case run_command(cmd) {
     Ok(_output) -> {
@@ -142,7 +138,7 @@ pub fn listen(config: SenseConfig, duration_ms: Int) -> Result(Hearing, String) 
         Ok(_) -> {
           Ok(Hearing(
             duration_ms: duration_ms,
-            sample_rate: 44100,
+            sample_rate: 44_100,
             channels: 2,
             path: "/tmp/" <> filename,
             timestamp: timestamp,
@@ -166,7 +162,8 @@ pub fn listen_burst(config: SenseConfig) -> Result(Hearing, String) {
 
 /// List available audio/video devices
 pub fn list_devices() -> Result(Devices, String) {
-  let cmd = "powershell.exe -Command \"ffmpeg -f dshow -list_devices true -i dummy 2>&1\""
+  let cmd =
+    "powershell.exe -Command \"ffmpeg -f dshow -list_devices true -i dummy 2>&1\""
 
   case run_command(cmd) {
     Ok(output) -> {
@@ -221,11 +218,7 @@ fn extract_quoted(s: String) -> Option(String) {
 
 /// Capture both vision and hearing simultaneously
 pub type Perception {
-  Perception(
-    vision: Option(Vision),
-    hearing: Option(Hearing),
-    timestamp: Int,
-  )
+  Perception(vision: Option(Vision), hearing: Option(Hearing), timestamp: Int)
 }
 
 /// Perceive - capture both senses
@@ -244,11 +237,7 @@ pub fn perceive(config: SenseConfig, audio_ms: Int) -> Perception {
     Error(_) -> None
   }
 
-  Perception(
-    vision: vision,
-    hearing: hearing,
-    timestamp: timestamp,
-  )
+  Perception(vision: vision, hearing: hearing, timestamp: timestamp)
 }
 
 // ============================================================================

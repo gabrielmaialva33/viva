@@ -21,8 +21,10 @@ import viva/memory/hrr.{type HRR}
 
 /// Type of sensory stimulus
 pub type StimulusType {
-  Light(level: Int)    // 0-1023
-  Sound(level: Int)    // 0-1023
+  Light(level: Int)
+  // 0-1023
+  Sound(level: Int)
+  // 0-1023
   Touch(active: Bool)
 }
 
@@ -95,7 +97,14 @@ pub fn observe(
 
   // Observe light
   let #(new_light_assoc, light_event) =
-    observe_light(state.light_associations, light, pleasure, intensity_multiplier, state.hrr_dim, tick)
+    observe_light(
+      state.light_associations,
+      light,
+      pleasure,
+      intensity_multiplier,
+      state.hrr_dim,
+      tick,
+    )
   let events = case light_event {
     Some(e) -> [e, ..events]
     None -> events
@@ -103,7 +112,14 @@ pub fn observe(
 
   // Observe sound
   let #(new_sound_assoc, sound_event) =
-    observe_sound(state.sound_associations, sound, pleasure, intensity_multiplier, state.hrr_dim, tick)
+    observe_sound(
+      state.sound_associations,
+      sound,
+      pleasure,
+      intensity_multiplier,
+      state.hrr_dim,
+      tick,
+    )
   let events = case sound_event {
     Some(e) -> [e, ..events]
     None -> events
@@ -111,7 +127,15 @@ pub fn observe(
 
   // Observe touch
   let #(new_touch_pos, new_touch_neg, touch_event) =
-    observe_touch(state.touch_positive, state.touch_negative, touch, pleasure, intensity_multiplier, state.hrr_dim, tick)
+    observe_touch(
+      state.touch_positive,
+      state.touch_negative,
+      touch,
+      pleasure,
+      intensity_multiplier,
+      state.hrr_dim,
+      tick,
+    )
   let events = case touch_event {
     Some(e) -> [e, ..events]
     None -> events
@@ -138,7 +162,8 @@ fn observe_light(
   hrr_dim: Int,
   tick: Int,
 ) -> #(Dict(Int, SensoryAssociation), Option(ImprintEvent)) {
-  let bin = level / 100  // Bin by 100s (0-10 bins)
+  let bin = level / 100
+  // Bin by 100s (0-10 bins)
 
   case dict.get(associations, bin) {
     // Update existing
@@ -218,7 +243,11 @@ fn observe_touch(
   intensity: Float,
   hrr_dim: Int,
   tick: Int,
-) -> #(Option(SensoryAssociation), Option(SensoryAssociation), Option(ImprintEvent)) {
+) -> #(
+  Option(SensoryAssociation),
+  Option(SensoryAssociation),
+  Option(ImprintEvent),
+) {
   case touched {
     False -> #(touch_pos, touch_neg, None)
     True -> {
@@ -229,21 +258,22 @@ fn observe_touch(
             Some(existing) ->
               Some(update_association(existing, pleasure, intensity, tick))
             None ->
-              Some(
-                SensoryAssociation(
-                  stimulus: Touch(True),
-                  hrr: hrr.random(hrr_dim),
-                  valence: pleasure *. intensity,
-                  confidence: 0.1 *. intensity,
-                  observations: 1,
-                  first_seen: tick,
-                  last_seen: tick,
-                ),
-              )
+              Some(SensoryAssociation(
+                stimulus: Touch(True),
+                hrr: hrr.random(hrr_dim),
+                valence: pleasure *. intensity,
+                confidence: 0.1 *. intensity,
+                observations: 1,
+                first_seen: tick,
+                last_seen: tick,
+              ))
           }
           let event = case touch_pos {
             None ->
-              Some(SensoryLearned(stimulus_type: "touch_positive", valence: pleasure))
+              Some(SensoryLearned(
+                stimulus_type: "touch_positive",
+                valence: pleasure,
+              ))
             Some(_) -> None
           }
           #(new_assoc, touch_neg, event)
@@ -254,21 +284,22 @@ fn observe_touch(
             Some(existing) ->
               Some(update_association(existing, pleasure, intensity, tick))
             None ->
-              Some(
-                SensoryAssociation(
-                  stimulus: Touch(True),
-                  hrr: hrr.random(hrr_dim),
-                  valence: pleasure *. intensity,
-                  confidence: 0.1 *. intensity,
-                  observations: 1,
-                  first_seen: tick,
-                  last_seen: tick,
-                ),
-              )
+              Some(SensoryAssociation(
+                stimulus: Touch(True),
+                hrr: hrr.random(hrr_dim),
+                valence: pleasure *. intensity,
+                confidence: 0.1 *. intensity,
+                observations: 1,
+                first_seen: tick,
+                last_seen: tick,
+              ))
           }
           let event = case touch_neg {
             None ->
-              Some(SensoryLearned(stimulus_type: "touch_negative", valence: pleasure))
+              Some(SensoryLearned(
+                stimulus_type: "touch_negative",
+                valence: pleasure,
+              ))
             Some(_) -> None
           }
           #(touch_pos, new_assoc, event)
@@ -291,7 +322,10 @@ fn update_association(
 
   // Confidence grows asymptotically toward 1.0
   let new_confidence =
-    float.min(1.0, assoc.confidence +. 0.05 *. intensity *. { 1.0 -. assoc.confidence })
+    float.min(
+      1.0,
+      assoc.confidence +. 0.05 *. intensity *. { 1.0 -. assoc.confidence },
+    )
 
   SensoryAssociation(
     ..assoc,
@@ -315,7 +349,8 @@ pub fn query_valence(
 ) -> Option(Float) {
   let light_val = query_light_valence(state.light_associations, light)
   let sound_val = query_sound_valence(state.sound_associations, sound)
-  let touch_val = query_touch_valence(state.touch_positive, state.touch_negative, touch)
+  let touch_val =
+    query_touch_valence(state.touch_positive, state.touch_negative, touch)
 
   // Weighted average of available valences
   let vals =
@@ -331,8 +366,7 @@ pub fn query_valence(
     [] -> None
     vals -> {
       let total_conf = list.fold(vals, 0.0, fn(acc, v) { acc +. v.1 })
-      let weighted_sum =
-        list.fold(vals, 0.0, fn(acc, v) { acc +. v.0 *. v.1 })
+      let weighted_sum = list.fold(vals, 0.0, fn(acc, v) { acc +. v.0 *. v.1 })
       Some(weighted_sum /. total_conf)
     }
   }
@@ -403,10 +437,8 @@ pub fn association_count(state: SensoryImprint) -> Int {
 
 /// Get all associations as list (for debugging)
 pub fn all_associations(state: SensoryImprint) -> List(SensoryAssociation) {
-  let light_list =
-    dict.values(state.light_associations)
-  let sound_list =
-    dict.values(state.sound_associations)
+  let light_list = dict.values(state.light_associations)
+  let sound_list = dict.values(state.sound_associations)
   let touch_list =
     [state.touch_positive, state.touch_negative]
     |> list.filter_map(fn(opt) {
