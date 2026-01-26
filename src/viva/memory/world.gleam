@@ -10,7 +10,7 @@ import gleam/dict.{type Dict}
 import gleam/float
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import viva/memory/body.{type Body, type MotionType}
+import viva/memory/body.{type Body}
 import viva/memory/hrr.{type HRR}
 import viva/neural/tensor.{type Tensor}
 

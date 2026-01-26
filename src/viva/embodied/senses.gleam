@@ -14,7 +14,7 @@ import gleam/string
 import viva/embodied/awareness.{type AwarenessResult, type AwarenessState}
 import viva/embodied/percept.{type Percept}
 import viva/embodied/sense.{
-  type Emotion, type Hearing, type Reading, type SenseError, type Thought,
+  type Hearing, type Reading, type SenseError, type Thought,
   type Vision,
 }
 

@@ -7,7 +7,7 @@
 //// "I felt something" → Broker → Narrative + Reflexivity
 
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option}
 import viva_emotion/pad.{type Pad}
 import viva_glyph/glyph.{type Glyph}
 
@@ -454,7 +454,7 @@ pub fn event_to_string(event: CognitiveEvent) -> String {
       <> ", tick="
       <> int_to_string(tick)
       <> ")"
-    InsightGenerated(dim, dir, magnitude, tick) ->
+    InsightGenerated(dim, dir, magnitude, _tick) ->
       "Insight("
       <> dimension_to_string(dim)
       <> " "

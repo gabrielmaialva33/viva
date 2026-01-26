@@ -6,7 +6,6 @@
 import gleam/bit_array
 import gleam/float
 import gleam/int
-import gleam/option.{type Option, None, Some}
 import viva/hardware/crc8
 
 // ============================================================================

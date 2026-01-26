@@ -4,7 +4,6 @@
 //// Now integrated with Glyph, KarmaBank, and full lifecycle.
 
 import gleam/erlang/process.{type Subject}
-import gleam/float
 import gleam/int
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
@@ -673,34 +672,6 @@ fn handle_message(
       actor.continue(state)
     }
 
-    // === Sensory Input (for Imprinting) ===
-    ReceiveSensation(light:, sound:, touch:, entity:) -> {
-      // Store new sensation
-      let new_sensation = SensationInput(light:, sound:, touch:, entity:)
-
-      // Get current PAD for imprinting
-      let current_pad = viva_emotion.get_pad(state.emotional)
-
-      // Process imprinting (learns during critical period)
-      let #(new_imprint, _events) =
-        imprint.tick(
-          state.imprint,
-          current_pad.pleasure,
-          current_pad.arousal,
-          current_pad.dominance,
-          light,
-          sound,
-          touch,
-          entity,
-          state.body.energy,
-          state.tick_count,
-        )
-
-      let new_state =
-        SoulState(..state, last_sensation: new_sensation, imprint: new_imprint)
-
-      actor.continue(new_state)
-    }
   }
 }
 

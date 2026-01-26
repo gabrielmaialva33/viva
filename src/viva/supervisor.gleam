@@ -372,7 +372,8 @@ fn do_process_death(state: SupervisorState, id: VivaId) -> SupervisorState {
 /// Global tick - evolve all VIVAs
 fn do_global_tick(state: SupervisorState, dt: Float) -> SupervisorState {
   // Tick each soul
-  dict.each(state.souls, fn(_id, soul_subject) { soul.tick(soul_subject, dt) })
+  let _ =
+    dict.each(state.souls, fn(_id, soul_subject) { soul.tick(soul_subject, dt) })
 
   // Propagate resonance and get events
   let #(new_pool, resonance_events) = propagate_all_resonance(state)
@@ -495,9 +496,10 @@ fn do_apply_interoception(state: SupervisorState) -> SupervisorState {
       let delta = interoception.to_pad_delta(intero_state)
 
       // Apply delta to each soul
-      dict.each(state.souls, fn(_id, soul_subject) {
-        soul.apply_delta(soul_subject, delta.x, delta.y, delta.z)
-      })
+      let _ =
+        dict.each(state.souls, fn(_id, soul_subject) {
+          soul.apply_delta(soul_subject, delta.x, delta.y, delta.z)
+        })
 
       state
     }

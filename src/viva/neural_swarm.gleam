@@ -16,7 +16,6 @@ import gleam/erlang/process.{type Subject}
 import gleam/int
 import gleam/io
 import gleam/otp/actor
-import gleam/result
 import viva/gpu.{type Backend}
 import viva/neural/activation
 import viva/neural/tensor.{type Tensor}

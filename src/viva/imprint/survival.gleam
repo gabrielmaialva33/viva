@@ -4,7 +4,7 @@
 //// Learns danger/safety signals from sensory context.
 
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option, None}
 import viva/imprint/types.{type ImprintEvent, DangerLearned, SafetyLearned}
 
 // =============================================================================
@@ -118,7 +118,6 @@ pub fn evaluate(
 
   let new_imprint =
     SurvivalImprint(
-      ..imprint,
       danger_signals: new_danger,
       safety_signals: new_safety,
       hunger_threshold: new_hunger,

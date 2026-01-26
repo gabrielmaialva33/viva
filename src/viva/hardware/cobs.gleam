@@ -103,6 +103,8 @@ fn encode_blocks(blocks: List(List(Int)), output: List(Int)) -> List(Int) {
 
 /// Encode a single block (handles blocks > 254 bytes)
 fn encode_single_block(block: List(Int), is_last: Bool) -> List(Int) {
+  // is_last is used in recursive call for proper termination
+  let _ = is_last
   case list.length(block) {
     0 -> {
       // Empty block = just a zero in original
@@ -134,7 +136,7 @@ fn do_decode(input: List(Int)) -> Result(List(Int), String) {
 fn decode_loop(
   input: List(Int),
   output: List(Int),
-  first: Bool,
+  _first: Bool,
 ) -> Result(List(Int), String) {
   case input {
     [] -> Ok(list.reverse(output))

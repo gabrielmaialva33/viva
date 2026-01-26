@@ -372,7 +372,7 @@ fn run_epic_simulation(viva_count: Int, ticks: Int) -> Nil {
   io.println("")
 
   // Get state for soul access
-  let state = supervisor.get_state(sup)
+  let _state = supervisor.get_state(sup)
 
   // Spawn VIVAs
   io.println(
@@ -462,6 +462,7 @@ fn epic_loop(
   current: Int,
   last_event_count: Int,
 ) -> Nil {
+  let _ = viva_ids
   case remaining {
     0 -> Nil
     _ -> {

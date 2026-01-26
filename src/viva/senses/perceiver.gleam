@@ -7,7 +7,6 @@ import gleam/erlang/process.{type Subject}
 import gleam/float
 import gleam/int
 import gleam/io
-import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
 import gleam/string

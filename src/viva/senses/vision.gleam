@@ -3,11 +3,8 @@
 //// Uses NVIDIA NIM API (Phi-3.5 Vision) to understand images.
 //// Integrates with windows.gleam for webcam capture.
 
-import gleam/int
-import gleam/io
-import gleam/option.{type Option, None, Some}
 import gleam/string
-import viva/senses/windows.{type SenseConfig, type Vision}
+import viva/senses/windows.{type SenseConfig}
 
 // ============================================================================
 // Types

@@ -6,14 +6,13 @@
 ////
 //// Inspired by phenomenology: the "what it is like" of experience.
 
-import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import viva/embodied/sense.{
-  type Emotion, type Hearing, type Reading, type SceneType, type SuggestedAction,
-  type Thought, type Vision, Emotion, Thought,
+  type Emotion, type Hearing, type Reading, type SceneType,
+  type Thought, type Vision, Thought,
 }
 
 // =============================================================================

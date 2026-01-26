@@ -14,15 +14,12 @@
 import gleam/float
 import gleam/int
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option}
 import viva/imprint/motor.{type MotorImprint}
 import viva/imprint/sensory.{type SensoryImprint}
 import viva/imprint/social.{type SocialImprint}
 import viva/imprint/survival.{type SurvivalImprint}
-import viva/imprint/types.{
-  type ImprintEvent, AttachmentChanged, CriticalPeriodEnded, DangerLearned,
-  MotorLearned, SafetyLearned, SensoryLearned,
-}
+import viva/imprint/types.{type ImprintEvent, CriticalPeriodEnded}
 
 // =============================================================================
 // TYPES
@@ -182,7 +179,7 @@ pub fn tick(
   state: ImprintState,
   pleasure: Float,
   arousal: Float,
-  dominance: Float,
+  _dominance: Float,
   light: Int,
   sound: Int,
   touch: Bool,

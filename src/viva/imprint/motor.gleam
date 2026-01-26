@@ -3,9 +3,8 @@
 //// Tracks learned motor patterns during critical period.
 
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option}
 import viva/imprint/types.{type ImprintEvent, MotorLearned}
-import viva/neural/tensor.{type Tensor, Tensor}
 
 // =============================================================================
 // TYPES

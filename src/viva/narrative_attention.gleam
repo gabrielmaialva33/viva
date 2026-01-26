@@ -11,14 +11,11 @@
 
 import gleam/float
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option, Some}
 import viva/narrative.{
   type NarrativeLink, type NarrativeMemory, type NarrativeResult, type Thought,
-  type ThoughtSource, type ThoughtStream, type VoiceStyle, FromAssociation,
-  FromCausal,
+  type VoiceStyle, FromAssociation, FromCausal,
 }
-import viva/neural/attention
-import viva/neural/tensor as tensor_mod
 import viva/neural/tensor.{type Tensor}
 import viva_glyph/glyph.{type Glyph}
 
@@ -195,7 +192,7 @@ fn attend_to_candidates(
 
   // Build key/value from candidates
   let keys = list.map(candidates, fn(c) { link_to_vector(c.link) })
-  let values = list.map(candidates, fn(c) { c.link.strength })
+  let _values = list.map(candidates, fn(c) { c.link.strength })
 
   // Compute attention scores
   let scores = compute_attention_scores(query, keys, ctx.temperature)
@@ -224,7 +221,7 @@ fn attend_to_candidates(
 fn build_query_vector(current: Glyph, ctx: NarrativeContext) -> List(Float) {
   // Combine glyph features with emotional state
   let glyph_features = glyph_to_features(current)
-  let emotion_features = tensor_mod.to_list(ctx.emotional_state)
+  let emotion_features = tensor.to_list(ctx.emotional_state)
 
   // Concatenate and normalize
   list.append(glyph_features, emotion_features)
@@ -316,7 +313,7 @@ fn attended_thought(
 /// Compute emotional weight for a link
 fn compute_emotional_weight(link: NarrativeLink, ctx: NarrativeContext) -> Float {
   let base_weight = link.strength
-  let emo_data = tensor_mod.to_list(ctx.emotional_state)
+  let emo_data = tensor.to_list(ctx.emotional_state)
 
   // Arousal amplifies weight
   let arousal = case list.drop(emo_data, 1) |> list.first() {

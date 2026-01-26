@@ -7,7 +7,6 @@
 import gleam/dict.{type Dict}
 import gleam/erlang/process.{type Subject}
 import gleam/float
-import gleam/int
 import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -227,16 +226,17 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
       let new_knowledge = learn_about_channels(state)
 
       // Report discoveries
-      dict.each(new_knowledge, fn(id, knowledge) {
-        case knowledge.learned_name {
-          Some(name) -> {
-            io.println(
-              "SenseLearner: I think channel " <> id <> " is... " <> name <> "?",
-            )
+      let _ =
+        dict.each(new_knowledge, fn(id, knowledge) {
+          case knowledge.learned_name {
+            Some(name) -> {
+              io.println(
+                "SenseLearner: I think channel " <> id <> " is... " <> name <> "?",
+              )
+            }
+            None -> Nil
           }
-          None -> Nil
-        }
-      })
+        })
 
       actor.continue(State(..state, knowledge: new_knowledge))
     }

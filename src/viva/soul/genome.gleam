@@ -8,10 +8,8 @@
 ////
 //// Based on Qwen3 validation (10/10) - "Emotional Genomics Artificial"
 
-import gleam/float
 import gleam/int
 import gleam/list
-import gleam/option.{type Option, None, Some}
 
 // =============================================================================
 // CORE TYPES
@@ -319,7 +317,7 @@ pub fn express_gene(
   base_value: Float,
   allele: Allele,
   epigenetics: EpigeneticState,
-  event_intensity: Float,
+  _event_intensity: Float,
 ) -> Float {
   let methylation_effect = 1.0 -. epigenetics.methylation
   let trauma_effect = 1.0 -. { epigenetics.trauma_methylation *. 0.5 }
@@ -344,7 +342,7 @@ pub fn express_gene(
 /// Get effective attractor considering secondary attractors and event context
 pub fn get_effective_attractor(
   genome: Genome,
-  current_state: PadVector,
+  _current_state: PadVector,
   event_intensity: Float,
 ) -> PadVector {
   let primary = genome.chromosome_a.primary_attractor
@@ -514,7 +512,6 @@ pub fn apply_celebration_healing(
   Genome(
     ..genome,
     epigenetics: EpigeneticState(
-      ..genome.epigenetics,
       trauma_methylation: clamp(new_trauma, 0.0, 1.0),
       methylation: clamp(new_methyl, 0.0, 1.0),
       healing_factor: clamp(

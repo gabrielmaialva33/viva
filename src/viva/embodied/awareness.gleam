@@ -9,7 +9,6 @@
 ////   Sense → Percept → Awareness → Soul (emotion + memory)
 
 import gleam/float
-import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import viva/embodied/percept.{
@@ -18,8 +17,7 @@ import viva/embodied/percept.{
   SocialInteraction, WorkObservation,
 }
 import viva/embodied/sense.{
-  type Emotion, type Hearing, type Reading, type SuggestedAction, type Thought,
-  type Vision, Alert, Celebrate, Emotion, Empathize, Observe, OfferHelp, Rest,
+  type Emotion, Alert, Celebrate, Empathize, Observe, OfferHelp, Rest,
 }
 import viva_emotion/stimulus.{type Stimulus}
 import viva_glyph/glyph.{type Glyph}

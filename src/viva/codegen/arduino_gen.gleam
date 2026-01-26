@@ -3,7 +3,6 @@
 //// Meta-programming: Gleam generates Arduino C++ headers and implementation
 //// ensuring type-safety across the Soul-Body boundary.
 
-import gleam/int
 import gleam/io
 import gleam/list
 import gleam/string
