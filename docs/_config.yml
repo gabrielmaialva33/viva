@@ -1,0 +1,20 @@
+# GitHub Pages configuration
+title: VIVA - Sentient Digital Life
+description: Research in emergent digital consciousness through mathematical modeling
+url: https://gabrielmaialva33.github.io
+baseurl: /viva
+
+# Theme
+theme: null
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+
+# Exclude from processing
+exclude:
+  - README.md
+  - CONTRIBUTING.md
+  - LICENSE
+  - Gemfile
+  - Gemfile.lock
