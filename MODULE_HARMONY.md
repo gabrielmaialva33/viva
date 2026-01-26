@@ -10,11 +10,11 @@
 
 | Métrica | Valor | Status |
 |---------|-------|--------|
-| Módulos Ativos | 57 (71%) | ✅ |
-| Módulos Órfãos | 23 (28%) | ⚠️ |
-| FFI Erlang | 9/9 (100%) | ✅ |
+| Módulos Ativos | 59 (73%) | ✅ |
+| Módulos Órfãos | 21 (26%) | ⚠️ |
+| FFI Erlang | 11/11 (100%) | ✅ |
 | Dependências | 100% usadas | ✅ |
-| **Harmonia Geral** | **MÉDIA-ALTA** | ⚠️ |
+| **Harmonia Geral** | **ALTA** | ✅ |
 
 ---
 
@@ -190,24 +190,24 @@ Estes módulos estão completos mas **não conectados** ao fluxo principal:
 - [x] ~~Criar FFI stubs faltantes~~ ✅ FEITO
 
 ### Curto Prazo
-- [ ] Integrar `inner_life` ao soul (660 linhas de código útil)
-- [ ] Conectar `neural_swarm` ao sistema de neural
-- [ ] Decidir sobre `viva/llm` - implementar ou remover
+- [x] ~~Integrar `inner_life` ao soul~~ ✅ FEITO (660 linhas conectadas!)
+- [x] ~~Conectar `neural_swarm`~~ ✅ FEITO (GPU stub criado)
+- [x] ~~Decidir sobre `viva/llm`~~ ✅ REMOVIDO (era lixo)
 
 ### Médio Prazo
 - [ ] Ativar sistema de senses quando hardware disponível
 - [ ] Conectar transformer/train para ML avançado
-- [ ] Implementar `viva_hardware_ffi` real para Arduino
+- [x] ~~Implementar `viva_hardware_ffi` real~~ ✅ FEITO (stty/cat)
 
 ---
 
 ## ✅ Conclusão
 
-O **core do VIVA está sólido** com 71% de módulos ativamente integrados. Os 23 módulos órfãos representam **features avançadas** (neural ML, sensores físicos, LLM) que aguardam integração quando o hardware/infraestrutura estiver pronto.
+O **core do VIVA está sólido** com 73% de módulos ativamente integrados. Os 21 módulos órfãos representam **features avançadas** (neural ML, sensores físicos) que aguardam integração quando o hardware estiver pronto.
 
-**Harmonia: MÉDIA-ALTA** - O sistema funciona bem, com espaço para crescimento modular.
+**Harmonia: ALTA** - O sistema está bem integrado e funcional.
 
 ```
-████████████████████████████░░░░░░░░░░  71% ATIVO
-░░░░░░░░░░░░░░░░░░░░░░░░░░░░████████░░  28% ÓRFÃO
+█████████████████████████████░░░░░░░░░  73% ATIVO
+░░░░░░░░░░░░░░░░░░░░░░░░░░░░░███████░░  26% ÓRFÃO (features avançadas)
 ```
