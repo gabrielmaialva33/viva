@@ -9,6 +9,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
 import viva/embodiment.{type Body, type BodyStimulus}
 import viva/imprint.{type ImprintState}
+import viva/inner_life.{type InnerLife}
 import viva/memory.{type GlyphMemory, type KarmaBank}
 import viva/narrative.{type NarrativeMemory}
 import viva/reflexivity.{type SelfModel}
@@ -54,6 +55,8 @@ pub type SoulState {
     imprint: ImprintState,
     /// Last sensory input (for imprinting)
     last_sensation: SensationInput,
+    /// Inner life (verbalized self-reflection)
+    inner_life: InnerLife,
   )
 }
 
@@ -133,6 +136,15 @@ pub type Message {
 
   /// Get memories similar to current state
   Recall(limit: Int, reply: Subject(List(GlyphMemory)))
+
+  /// Get inner voice (verbalized self-reflection)
+  GetInnerVoice(reply: Subject(String))
+
+  /// Speak: generate text about current state
+  Speak(reply: Subject(String))
+
+  /// Get inner monologue (recent thoughts)
+  GetMonologue(reply: Subject(List(String)))
 }
 
 // =============================================================================
@@ -330,6 +342,21 @@ pub fn describe_imprinting(soul: Subject(Message)) -> String {
   imprint.describe(state.imprint, state.tick_count)
 }
 
+/// Get inner voice (verbalized self-reflection)
+pub fn get_inner_voice(soul: Subject(Message)) -> String {
+  process.call(soul, 1000, fn(reply) { GetInnerVoice(reply) })
+}
+
+/// Speak: generate text about current state
+pub fn speak(soul: Subject(Message)) -> String {
+  process.call(soul, 1000, fn(reply) { Speak(reply) })
+}
+
+/// Get inner monologue (recent thoughts)
+pub fn get_monologue(soul: Subject(Message)) -> List(String) {
+  process.call(soul, 1000, fn(reply) { GetMonologue(reply) })
+}
+
 // =============================================================================
 // INTERNAL
 // =============================================================================
@@ -379,6 +406,7 @@ fn init(id: VivaId, config: VivaConfig) -> SoulState {
       touch: False,
       entity: None,
     ),
+    inner_life: inner_life.from_initial(initial_pad, initial_glyph),
   )
 }
 
@@ -505,6 +533,10 @@ fn handle_message(
           state.tick_count + 1,
         )
 
+      // Inner life: verbalized self-reflection
+      let #(new_inner_life, _inner_voice) =
+        inner_life.tick(state.inner_life, current_pad, new_glyph)
+
       let new_state =
         SoulState(
           ..state,
@@ -515,6 +547,7 @@ fn handle_message(
           self_model: new_self_model,
           narrative: new_narrative,
           imprint: new_imprint,
+          inner_life: new_inner_life,
           tick_count: state.tick_count + 1,
         )
       actor.continue(new_state)
@@ -672,6 +705,32 @@ fn handle_message(
       actor.continue(state)
     }
 
+    GetInnerVoice(reply) -> {
+      // Reflect and get verbalized narration
+      let current_pad = viva_emotion.get_pad(state.emotional)
+      let reflection =
+        inner_life.reflect_with_voice(
+          state.inner_life,
+          current_pad,
+          state.current_glyph,
+        )
+      process.send(reply, reflection.narration)
+      actor.continue(SoulState(..state, inner_life: reflection.inner_life))
+    }
+
+    Speak(reply) -> {
+      // Generate text about current state
+      let text = inner_life.speak(state.inner_life)
+      process.send(reply, text)
+      actor.continue(state)
+    }
+
+    GetMonologue(reply) -> {
+      // Get recent thoughts
+      let thoughts = inner_life.get_monologue(state.inner_life)
+      process.send(reply, thoughts)
+      actor.continue(state)
+    }
   }
 }
 
