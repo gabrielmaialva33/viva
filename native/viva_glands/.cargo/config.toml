@@ -4,4 +4,6 @@
 rustflags = [
     "-C", "target-cpu=native",
     "-C", "opt-level=3",
+    "-C", "link-arg=-L/usr/local/cuda/lib64",
+    "-C", "link-arg=-lcufft",
 ]

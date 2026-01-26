@@ -11,12 +11,20 @@ name = "viva_glands"
 path = "src/lib.rs"
 crate-type = ["cdylib"]
 
+[[bin]]
+name = "benchmark"
+path = "src/bin/benchmark.rs"
+
 [dependencies]
 # Erlang/Gleam NIF
 rustler = "0.37"
 
 # llama.cpp bindings (GGUF quantized, way faster than Candle for inference)
 llama-cpp-2 = "0.1"
+
+# GPU acceleration (CUDA)
+candle-core = { version = "0.9", features = ["cuda"] }
+cudarc = { version = "0.19", features = ["cufft"] }
 
 # SIMD operations (AVX2/AVX512)
 wide = "0.7"
