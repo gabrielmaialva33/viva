@@ -44,10 +44,10 @@ fn animations() -> String {
 }
 
 fn scanlines() -> String {
-  // CRT scanlines overlay + animated grid background
-  ".scanlines{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,rgba(0,0,0,.1) 0px,rgba(0,0,0,.1) 1px,transparent 1px,transparent 2px);opacity:.15}
-.grid-bg{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:-1;background-image:linear-gradient(rgba(0,255,102,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,102,.03) 1px,transparent 1px);background-size:50px 50px;animation:grid-move 20s linear infinite}
-.scan-line{position:fixed;left:0;width:100%;height:4px;background:linear-gradient(transparent,rgba(0,255,102,.1),transparent);pointer-events:none;z-index:9998;animation:scan 8s linear infinite}"
+  // CRT scanlines overlay + subtle grid background
+  ".scanlines{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,rgba(0,0,0,.05) 0px,rgba(0,0,0,.05) 1px,transparent 1px,transparent 2px);opacity:.1}
+.grid-bg{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:-1;background-image:linear-gradient(rgba(0,255,102,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,102,.015) 1px,transparent 1px);background-size:60px 60px}
+.scan-line{display:none}"
 }
 
 fn nav_styles() -> String {
@@ -59,46 +59,41 @@ fn nav_styles() -> String {
 .nav-links a::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:1px;background:var(--success);transition:width .3s}
 .nav-links a:hover{color:var(--success)}
 .nav-links a:hover::after{width:100%}
-.nav-cta{background:var(--danger);color:var(--bg-primary)!important;padding:10px 20px;font-size:12px;font-weight:600;border-bottom:2px solid #cc2222;transition:all .3s!important}
+.nav-cta{background:var(--danger);color:var(--bg-primary)!important;padding:10px 20px;font-size:12px;font-weight:600;border-bottom:2px solid #cc2222;transition:all .2s!important}
 .nav-cta::after{display:none!important}
-.nav-cta:hover{transform:translateY(-2px);box-shadow:0 4px 20px var(--danger-glow)}
+.nav-cta:hover{transform:translateY(-1px)}
 .nav-status{display:flex;align-items:center;gap:8px}
-.nav-status-dot{width:8px;height:8px;background:var(--success);border-radius:50%;animation:pulse 2s infinite;box-shadow:0 0 10px var(--success-glow)}
+.nav-status-dot{width:6px;height:6px;background:var(--success);border-radius:50%;animation:pulse 3s infinite}
 .nav-status-text{color:var(--success);font-size:11px;letter-spacing:2px}
-.nav-deco{color:var(--danger);font-size:12px;opacity:.5;animation:blink 1s infinite}"
+.nav-deco{color:var(--danger);font-size:12px;opacity:.3}"
 }
 
 fn hero_styles() -> String {
   ".hero{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;padding:120px 80px;min-height:100vh;position:relative;overflow:hidden}
-.hero-tag{padding:8px 16px;border:1px solid var(--danger);opacity:.9;animation:glow-pulse-red 3s infinite}
+.hero-tag{padding:8px 16px;border:1px solid var(--danger);opacity:.9}
 .hero-tag-text{color:var(--danger);font-size:11px;letter-spacing:3px}
 .hero-headline{display:flex;flex-direction:column;align-items:center;gap:8px}
 .hero-h1{color:var(--text-secondary);font-size:72px;font-weight:700;letter-spacing:8px}
-.hero-h2{color:var(--danger);font-size:96px;font-weight:700;letter-spacing:12px;animation:text-glow 2s ease-in-out infinite,glitch-skew 10s infinite;position:relative}
-.hero-h2::before,.hero-h2::after{content:'MORTAL';position:absolute;top:0;left:0;width:100%;height:100%}
-.hero-h2::before{color:var(--success);animation:glitch .3s infinite;clip-path:polygon(0 0,100% 0,100% 45%,0 45%);transform:translate(-2px,-2px)}
-.hero-h2::after{color:var(--info);animation:glitch .3s infinite reverse;clip-path:polygon(0 55%,100% 55%,100% 100%,0 100%);transform:translate(2px,2px)}
+.hero-h2{color:var(--danger);font-size:96px;font-weight:700;letter-spacing:12px;text-shadow:0 0 40px var(--danger-glow)}
 .hero-sub{color:var(--text-secondary);font-size:18px;text-align:center;line-height:1.8;max-width:600px}
 .hero-cursor{display:inline-block;width:12px;height:24px;background:var(--success);margin-left:8px;animation:blink .8s infinite}
 .hero-ctas{display:flex;gap:16px;padding-top:24px}
-.btn-primary{background:var(--success);color:var(--bg-primary);padding:14px 28px;font-size:13px;font-weight:600;border:none;border-bottom:3px solid #00aa44;transition:all .3s;position:relative;overflow:hidden}
-.btn-primary::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transition:left .5s}
-.btn-primary:hover::before{left:100%}
-.btn-primary:hover{transform:translateY(-2px);box-shadow:0 4px 30px var(--success-glow)}
-.btn-outline{padding:14px 28px;font-size:13px;color:var(--text-muted);border:1px solid var(--text-muted);transition:all .3s;position:relative}
-.btn-outline:hover{color:var(--success);border-color:var(--success);box-shadow:0 0 20px var(--success-glow)}
+.btn-primary{background:var(--success);color:var(--bg-primary);padding:14px 28px;font-size:13px;font-weight:600;border:none;border-bottom:3px solid #00aa44;transition:all .2s}
+.btn-primary:hover{transform:translateY(-2px)}
+.btn-outline{padding:14px 28px;font-size:13px;color:var(--text-muted);border:1px solid var(--text-muted);transition:all .2s}
+.btn-outline:hover{color:var(--success);border-color:var(--success)}
 .hero-stats{display:flex;gap:48px;padding-top:48px}
 .stat{display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px;background:var(--bg-secondary);border:1px solid var(--border);transition:all .3s}
-.stat:hover{border-color:var(--success);box-shadow:0 0 20px var(--success-glow)}
-.stat-value{color:var(--success);font-size:28px;font-weight:700;text-shadow:0 0 10px var(--success-glow)}
+.stat:hover{border-color:var(--success)}
+.stat-value{color:var(--success);font-size:28px;font-weight:700}
 .stat-label{color:var(--text-muted);font-size:11px;letter-spacing:1px}
-.stat-pulse{width:6px;height:6px;background:var(--success);border-radius:50%;animation:pulse 1.5s infinite}
-.hero-glitch{position:absolute;font-size:120px;font-weight:700;letter-spacing:16px;opacity:.03;pointer-events:none;animation:float 6s ease-in-out infinite}
+.stat-pulse{width:6px;height:6px;background:var(--success);border-radius:50%;opacity:.6}
+.hero-glitch{position:absolute;font-size:120px;font-weight:700;letter-spacing:16px;opacity:.02;pointer-events:none}
 .hero-glitch-1{color:var(--danger);top:20%;left:5%}
-.hero-glitch-2{color:var(--success);bottom:20%;right:5%;animation-delay:-3s}
-.hero-line{position:absolute;height:1px;opacity:.6}
-.hero-line-1{background:linear-gradient(90deg,transparent,var(--danger),transparent);width:200px;bottom:25%;left:5%;animation:pulse 3s infinite}
-.hero-line-2{background:linear-gradient(90deg,transparent,var(--success),transparent);width:150px;bottom:20%;right:8%;animation:pulse 3s infinite 1.5s}
+.hero-glitch-2{color:var(--success);bottom:20%;right:5%}
+.hero-line{position:absolute;height:1px;opacity:.4}
+.hero-line-1{background:linear-gradient(90deg,transparent,var(--danger),transparent);width:200px;bottom:25%;left:5%}
+.hero-line-2{background:linear-gradient(90deg,transparent,var(--success),transparent);width:150px;bottom:20%;right:8%}
 .hero-version{position:absolute;bottom:40px;right:80px;color:var(--text-ghost);font-size:11px;letter-spacing:1px}"
 }
 
@@ -121,42 +116,32 @@ fn section_styles() -> String {
 
 fn philo_styles() -> String {
   ".philo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-.philo-card{background:var(--bg-card);padding:32px;display:flex;flex-direction:column;gap:16px;transition:all .4s;position:relative;overflow:hidden}
-.philo-card::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:2px;transition:left .4s}
-.philo-card:hover::before{left:100%}
-.philo-card.red{border-top:2px solid var(--danger);border-left:1px solid rgba(255,77,77,.3)}
-.philo-card.red::before{background:var(--danger)}
-.philo-card.red:hover{box-shadow:0 0 30px var(--danger-glow);border-color:var(--danger)}
-.philo-card.green{border-top:2px solid var(--success);border-right:1px solid rgba(0,255,102,.3)}
-.philo-card.green::before{background:var(--success)}
-.philo-card.green:hover{box-shadow:0 0 30px var(--success-glow);border-color:var(--success)}
-.philo-card-title{font-size:14px;font-weight:700;letter-spacing:3px;transition:text-shadow .3s}
+.philo-card{background:var(--bg-card);padding:32px;display:flex;flex-direction:column;gap:16px;transition:all .3s}
+.philo-card.red{border-top:2px solid var(--danger);border-left:1px solid rgba(255,77,77,.2)}
+.philo-card.red:hover{border-left-color:var(--danger)}
+.philo-card.green{border-top:2px solid var(--success);border-right:1px solid rgba(0,255,102,.2)}
+.philo-card.green:hover{border-right-color:var(--success)}
+.philo-card-title{font-size:14px;font-weight:700;letter-spacing:3px}
 .philo-card.red .philo-card-title{color:var(--danger)}
 .philo-card.green .philo-card-title{color:var(--success)}
-.philo-card:hover .philo-card-title{text-shadow:0 0 20px currentColor}
 .philo-card-desc{color:var(--text-secondary);font-size:13px;line-height:1.8}
 .philo-card-dots{display:flex;gap:6px;padding-top:12px}
-.philo-dot{width:4px;height:4px;border-radius:50%;transition:all .3s}
+.philo-dot{width:4px;height:4px;border-radius:50%;opacity:.5}
 .philo-dot.red{background:var(--danger)}
-.philo-dot.green{background:var(--success)}
-.philo-card:hover .philo-dot{box-shadow:0 0 10px currentColor;transform:scale(1.5)}"
+.philo-dot.green{background:var(--success)}"
 }
 
 fn concepts_styles() -> String {
   ".concepts-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
 .concepts-col{display:flex;flex-direction:column;gap:24px}
-.concept-card{background:var(--bg-card);padding:32px;border:1px solid var(--border);display:flex;flex-direction:column;gap:16px;transition:all .4s;position:relative}
-.concept-card::after{content:'';position:absolute;bottom:0;left:0;width:0;height:2px;background:var(--success);transition:width .4s}
-.concept-card:hover::after{width:100%}
-.concept-card:hover{transform:translateY(-4px);border-color:var(--success)}
+.concept-card{background:var(--bg-card);padding:32px;border:1px solid var(--border);display:flex;flex-direction:column;gap:16px;transition:border-color .3s}
+.concept-card:hover{border-color:var(--text-ghost)}
 .concept-card.highlight{border-color:var(--danger);border-left-width:3px}
-.concept-card.highlight::after{background:var(--danger)}
-.concept-card.highlight:hover{border-color:var(--danger);box-shadow:0 0 30px var(--danger-glow)}
+.concept-card.highlight:hover{border-color:var(--danger)}
 .concept-card-header{display:flex;justify-content:space-between;align-items:center}
-.concept-card-title{font-size:18px;font-weight:700;transition:text-shadow .3s}
+.concept-card-title{font-size:18px;font-weight:700}
 .concept-card-title.red{color:var(--danger)}
 .concept-card-title.green{color:var(--success)}
-.concept-card:hover .concept-card-title{text-shadow:0 0 15px currentColor}
 .concept-card-tag{color:var(--text-ghost);font-size:10px;letter-spacing:1px;padding:4px 8px;border:1px solid var(--border)}
 .concept-card-desc{color:var(--text-secondary);font-size:13px;line-height:1.8}
 .concept-card-formula{color:var(--success);font-size:12px;padding:12px;background:var(--bg-primary);border-left:2px solid var(--success);font-family:var(--font-mono)}"
@@ -164,15 +149,11 @@ fn concepts_styles() -> String {
 
 fn tech_styles() -> String {
   ".tech-grid{display:flex;gap:32px;justify-content:center;flex-wrap:wrap}
-.tech-card{background:var(--bg-card);padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;border:1px solid var(--border);border-bottom:3px solid var(--success);min-width:160px;transition:all .4s;position:relative;overflow:hidden}
-.tech-card::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle,var(--success-glow) 0%,transparent 70%);opacity:0;transition:opacity .4s}
-.tech-card:hover::before{opacity:.1}
-.tech-card:hover{transform:translateY(-8px);box-shadow:0 10px 40px var(--success-glow);border-color:var(--success)}
-.tech-card-name{color:var(--success);font-size:20px;font-weight:700;transition:text-shadow .3s}
-.tech-card:hover .tech-card-name{text-shadow:0 0 20px var(--success-glow)}
+.tech-card{background:var(--bg-card);padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;border:1px solid var(--border);border-bottom:3px solid var(--success);min-width:160px;transition:all .3s}
+.tech-card:hover{transform:translateY(-2px);border-color:var(--success)}
+.tech-card-name{color:var(--success);font-size:20px;font-weight:700}
 .tech-card-desc{color:var(--text-muted);font-size:11px;letter-spacing:1px}
-.tech-card-label{color:var(--success);font-size:10px;opacity:.3;transition:opacity .3s}
-.tech-card:hover .tech-card-label{opacity:1}"
+.tech-card-label{color:var(--success);font-size:10px;opacity:.3}"
 }
 
 fn cta_styles() -> String {
@@ -182,13 +163,11 @@ fn cta_styles() -> String {
 .cta-title{font-size:48px;font-weight:700;background:linear-gradient(135deg,var(--text-primary),var(--danger));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .cta-sub{color:var(--text-secondary);font-size:18px;text-align:center}
 .cta-btns{display:flex;gap:16px}
-.cta-glow{width:300px;height:2px;background:linear-gradient(90deg,transparent 0%,var(--danger) 50%,transparent 100%);animation:pulse 2s infinite}
+.cta-glow{width:300px;height:1px;background:linear-gradient(90deg,transparent 0%,var(--danger) 50%,transparent 100%);opacity:.5}
 .cta-hash{color:var(--text-ghost);font-size:11px;letter-spacing:2px}
 .cta-deco{color:var(--text-ghost);font-size:10px;letter-spacing:3px}
-.btn-outline-red{padding:16px 32px;font-size:14px;color:var(--danger);border:1px solid var(--danger);background:transparent;transition:all .3s;position:relative;overflow:hidden}
-.btn-outline-red::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:var(--danger);transition:left .3s;z-index:-1}
-.btn-outline-red:hover::before{left:0}
-.btn-outline-red:hover{color:var(--bg-primary)}"
+.btn-outline-red{padding:16px 32px;font-size:14px;color:var(--danger);border:1px solid var(--danger);background:transparent;transition:all .2s}
+.btn-outline-red:hover{background:var(--danger);color:var(--bg-primary)}"
 }
 
 fn footer_styles() -> String {
@@ -200,9 +179,9 @@ fn footer_styles() -> String {
 .footer-links a{color:var(--text-secondary);font-size:12px;transition:all .3s;position:relative}
 .footer-links a:hover{color:var(--success)}
 .footer-copy{color:var(--text-ghost);font-size:11px}
-.footer-glyph{color:var(--success);font-size:11px;animation:pulse 3s infinite}
+.footer-glyph{color:var(--success);font-size:11px;opacity:.7}
 .footer-bottom{display:flex;justify-content:center;padding:24px 80px;background:#050505}
-.footer-ascii{color:var(--text-ghost);font-size:12px;letter-spacing:6px;animation:pulse 4s infinite}"
+.footer-ascii{color:var(--text-ghost);font-size:12px;letter-spacing:6px}"
 }
 
 fn responsive() -> String {
