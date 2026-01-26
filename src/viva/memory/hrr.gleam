@@ -16,6 +16,11 @@ import gleam/float
 import gleam/list
 import viva/neural/tensor.{type Tensor}
 
+/// Helper to extract data from tensor
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -81,7 +86,7 @@ pub fn bind(a: HRR, b: HRR) -> Result(HRR, HRRError) {
   case a.dim == b.dim {
     False -> Error(DimensionMismatch(expected: a.dim, got: b.dim))
     True -> {
-      let result = circular_convolution(a.vector.data, b.vector.data)
+      let result = circular_convolution(td(a.vector), td(b.vector))
       Ok(HRR(vector: tensor.Tensor(data: result, shape: [a.dim]), dim: a.dim))
     }
   }
@@ -94,8 +99,8 @@ pub fn unbind(trace: HRR, cue: HRR) -> Result(HRR, HRRError) {
   case trace.dim == cue.dim {
     False -> Error(DimensionMismatch(expected: trace.dim, got: cue.dim))
     True -> {
-      let cue_inv = approximate_inverse(cue.vector.data)
-      let result = circular_convolution(trace.vector.data, cue_inv)
+      let cue_inv = approximate_inverse(td(cue.vector))
+      let result = circular_convolution(td(trace.vector), cue_inv)
       Ok(HRR(
         vector: tensor.Tensor(data: result, shape: [trace.dim]),
         dim: trace.dim,
@@ -116,8 +121,8 @@ pub fn superpose(vectors: List(HRR)) -> Result(HRR, HRRError) {
         False -> Error(DimensionMismatch(expected: dim, got: 0))
         True -> {
           let sum_data =
-            list.fold(rest, first.vector.data, fn(acc, h) {
-              list.map2(acc, h.vector.data, fn(a, b) { a +. b })
+            list.fold(rest, td(first.vector), fn(acc, h) {
+              list.map2(acc, td(h.vector), fn(a, b) { a +. b })
             })
           Ok(HRR(vector: tensor.Tensor(data: sum_data, shape: [dim]), dim: dim))
         }
@@ -128,10 +133,10 @@ pub fn superpose(vectors: List(HRR)) -> Result(HRR, HRRError) {
 
 /// Normalize to unit length
 pub fn normalize(h: HRR) -> HRR {
-  let norm = vector_norm(h.vector.data)
+  let norm = vector_norm(td(h.vector))
   case norm >. 0.0001 {
     True -> {
-      let normalized = list.map(h.vector.data, fn(x) { x /. norm })
+      let normalized = list.map(td(h.vector), fn(x) { x /. norm })
       HRR(vector: tensor.Tensor(data: normalized, shape: [h.dim]), dim: h.dim)
     }
     False -> h
@@ -149,10 +154,10 @@ pub fn similarity(a: HRR, b: HRR) -> Float {
     False -> 0.0
     True -> {
       let dot_product =
-        list.map2(a.vector.data, b.vector.data, fn(x, y) { x *. y })
+        list.map2(td(a.vector), td(b.vector), fn(x, y) { x *. y })
         |> list.fold(0.0, fn(acc, x) { acc +. x })
-      let norm_a = vector_norm(a.vector.data)
-      let norm_b = vector_norm(b.vector.data)
+      let norm_a = vector_norm(td(a.vector))
+      let norm_b = vector_norm(td(b.vector))
       case norm_a *. norm_b >. 0.0001 {
         True -> dot_product /. { norm_a *. norm_b }
         False -> 0.0
@@ -166,7 +171,7 @@ pub fn dot(a: HRR, b: HRR) -> Float {
   case a.dim == b.dim {
     False -> 0.0
     True -> {
-      list.map2(a.vector.data, b.vector.data, fn(x, y) { x *. y })
+      list.map2(td(a.vector), td(b.vector), fn(x, y) { x *. y })
       |> list.fold(0.0, fn(acc, x) { acc +. x })
     }
   }
@@ -270,7 +275,7 @@ pub fn bind_fft(a: HRR, b: HRR) -> Result(HRR, HRRError) {
   case a.dim == b.dim {
     False -> Error(DimensionMismatch(expected: a.dim, got: b.dim))
     True -> {
-      let result = nx_circular_conv(a.vector.data, b.vector.data)
+      let result = nx_circular_conv(td(a.vector), td(b.vector))
       Ok(HRR(vector: tensor.Tensor(data: result, shape: [a.dim]), dim: a.dim))
     }
   }
@@ -281,8 +286,8 @@ pub fn unbind_fft(trace: HRR, cue: HRR) -> Result(HRR, HRRError) {
   case trace.dim == cue.dim {
     False -> Error(DimensionMismatch(expected: trace.dim, got: cue.dim))
     True -> {
-      let cue_inv = approximate_inverse(cue.vector.data)
-      let result = nx_circular_conv(trace.vector.data, cue_inv)
+      let cue_inv = approximate_inverse(td(cue.vector))
+      let result = nx_circular_conv(td(trace.vector), cue_inv)
       Ok(HRR(
         vector: tensor.Tensor(data: result, shape: [trace.dim]),
         dim: trace.dim,

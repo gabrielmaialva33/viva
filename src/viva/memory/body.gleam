@@ -9,6 +9,11 @@ import gleam/list
 import viva/memory/hrr.{type HRR}
 import viva/neural/tensor.{type Tensor}
 
+/// Helper to extract data from tensor
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -245,7 +250,7 @@ pub fn assign_island(body: Body, island_id: Int) -> Body {
 pub fn distance(a: Body, b: Body) -> Float {
   case tensor.sub(a.position, b.position) {
     Ok(diff) -> {
-      let squared = list.map(diff.data, fn(x) { x *. x })
+      let squared = list.map(td(diff), fn(x) { x *. x })
       let sum = list.fold(squared, 0.0, fn(acc, x) { acc +. x })
       float_sqrt(sum)
     }
@@ -263,7 +268,7 @@ pub fn semantic_similarity(a: Body, b: Body) -> Float {
 pub fn attraction_to(body: Body, attractor: Tensor, strength: Float) -> Tensor {
   case tensor.sub(attractor, body.position) {
     Ok(direction) -> {
-      let dist_sq = list.fold(direction.data, 0.0, fn(acc, x) { acc +. x *. x })
+      let dist_sq = list.fold(td(direction), 0.0, fn(acc, x) { acc +. x *. x })
       case dist_sq >. 0.0001 {
         True -> {
           let dist = float_sqrt(dist_sq)
@@ -282,7 +287,7 @@ pub fn attraction_to(body: Body, attractor: Tensor, strength: Float) -> Tensor {
 pub fn repulsion_from(body: Body, other: Body, strength: Float) -> Tensor {
   case tensor.sub(body.position, other.position) {
     Ok(direction) -> {
-      let dist_sq = list.fold(direction.data, 0.0, fn(acc, x) { acc +. x *. x })
+      let dist_sq = list.fold(td(direction), 0.0, fn(acc, x) { acc +. x *. x })
       case dist_sq >. 0.0001 && dist_sq <. 100.0 {
         True -> {
           let dist = float_sqrt(dist_sq)
@@ -302,7 +307,7 @@ pub fn repulsion_from(body: Body, other: Body, strength: Float) -> Tensor {
 
 /// Convert body to simple representation for storage
 pub fn to_tuple(body: Body) -> #(Int, List(Float), List(Float), String) {
-  #(body.id, body.position.data, body.shape.vector.data, body.label)
+  #(body.id, td(body.position), td(body.shape.vector), body.label)
 }
 
 // =============================================================================

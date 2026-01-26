@@ -14,6 +14,11 @@ import viva/memory/body.{type Body, type MotionType}
 import viva/memory/hrr.{type HRR}
 import viva/neural/tensor.{type Tensor}
 
+/// Helper to extract data from tensor
+fn td(t: Tensor) -> List(Float) {
+  tensor.to_list(t)
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -466,7 +471,7 @@ fn random_position(dims: Int) -> Tensor {
 }
 
 fn project_to_spatial(h: HRR, dims: Int) -> Tensor {
-  let data = list.take(h.vector.data, dims)
+  let data = list.take(td(h.vector), dims)
   let padded = case list.length(data) < dims {
     True -> list.append(data, list.repeat(0.0, dims - list.length(data)))
     False -> data
@@ -477,7 +482,7 @@ fn project_to_spatial(h: HRR, dims: Int) -> Tensor {
 fn body_distance_to_point(b: Body, point: Tensor) -> Float {
   case tensor.sub(b.position, point) {
     Ok(diff) -> {
-      let sq_sum = list.fold(diff.data, 0.0, fn(acc, x) { acc +. x *. x })
+      let sq_sum = list.fold(td(diff), 0.0, fn(acc, x) { acc +. x *. x })
       float_sqrt(sq_sum)
     }
     Error(_) -> 9999.0
@@ -485,7 +490,7 @@ fn body_distance_to_point(b: Body, point: Tensor) -> Float {
 }
 
 fn clamp_velocity(vel: Tensor, max: Float) -> Tensor {
-  let mag_sq = list.fold(vel.data, 0.0, fn(acc, x) { acc +. x *. x })
+  let mag_sq = list.fold(td(vel), 0.0, fn(acc, x) { acc +. x *. x })
   let mag = float_sqrt(mag_sq)
   case mag >. max {
     True -> tensor.scale(vel, max /. mag)
