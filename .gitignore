@@ -350,3 +350,7 @@ cache/
 *.png
 *.mp3
 *.mp4
+
+# Build outputs (gerados)
+dist/
+priv/native/*.so

@@ -1,0 +1,7 @@
+# ULTRA Performance Config for i9-13900K + RTX 4090
+
+[build]
+rustflags = [
+    "-C", "target-cpu=native",
+    "-C", "opt-level=3",
+]

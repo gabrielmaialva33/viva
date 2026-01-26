@@ -1,0 +1,63 @@
+[package]
+name = "viva_glands"
+version = "0.2.0"
+authors = ["Gabriel Maia <gabrielmaialva33@gmail.com>"]
+edition = "2024"
+rust-version = "1.85"
+description = "VIVA Glands - ULTRA Performance Neural Extraction & HRR"
+
+[lib]
+name = "viva_glands"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Erlang/Gleam NIF
+rustler = "0.37"
+
+# llama.cpp bindings (GGUF quantized, way faster than Candle for inference)
+llama-cpp-2 = "0.1"
+
+# SIMD operations (AVX2/AVX512)
+wide = "0.7"
+pulp = "0.21"
+
+# FFT for HRR (SIMD optimized)
+rustfft = "6.4"
+realfft = "3.4"
+
+# Memory mapping (zero-copy model loading)
+memmap2 = "0.9"
+
+# Parallel processing
+rayon = "1.10"
+crossbeam = "0.8"
+
+# Utils
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+half = { version = "2.6", features = ["std", "num-traits"] }  # FP16
+
+# Metrics
+hdrhistogram = "7.5"
+
+[features]
+default = ["cuda", "avx2"]
+cuda = []
+avx2 = []
+avx512 = []
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = 3
+debug = false
+
+[profile.release.build-override]
+opt-level = 3
+
+# Target-specific optimizations
+[target.'cfg(target_arch = "x86_64")'.rustflags]
+# Enabled via .cargo/config.toml
