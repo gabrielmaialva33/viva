@@ -102,6 +102,9 @@ fn generate_landing_page() -> String {
   <style>" <> theme.all_styles() <> "</style>
 </head>
 <body>
+  <div class=\"scanlines\" aria-hidden=\"true\"></div>
+  <div class=\"grid-bg\" aria-hidden=\"true\"></div>
+  <div class=\"scan-line\" aria-hidden=\"true\"></div>
   <a href=\"#main\" class=\"skip-link\">Skip to content</a>
 " <> nav_html() <> hero_html() <> "<main id=\"main\">" <> philosophy_section() <> concepts_section() <> tech_section() <> cta_section() <> "</main>" <> footer_html() <> "
 </body>
