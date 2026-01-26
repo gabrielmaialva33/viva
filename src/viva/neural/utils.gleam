@@ -16,18 +16,19 @@ import viva/neural/tensor.{type Tensor, type TensorError, Tensor}
 /// Split tensor into n equal parts along axis
 /// Returns list of tensors, each with shape reduced along axis
 pub fn split(t: Tensor, n: Int, axis: Int) -> Result(List(Tensor), TensorError) {
+  let tdata = tensor.to_list(t)
   case t.shape {
     [size] if axis == 0 -> {
       // 1D split
       let chunk_size = size / n
-      let chunks = chunk_list(t.data, chunk_size)
+      let chunks = chunk_list(tdata, chunk_size)
       Ok(list.map(chunks, fn(data) { Tensor(data: data, shape: [chunk_size]) }))
     }
     [rows, cols] if axis == 0 -> {
       // Split rows
       let rows_per_chunk = rows / n
       let elements_per_chunk = rows_per_chunk * cols
-      let chunks = chunk_list(t.data, elements_per_chunk)
+      let chunks = chunk_list(tdata, elements_per_chunk)
       Ok(
         list.map(chunks, fn(data) {
           Tensor(data: data, shape: [rows_per_chunk, cols])
@@ -46,7 +47,7 @@ pub fn split(t: Tensor, n: Int, axis: Int) -> Result(List(Tensor), TensorError) 
             |> list.flat_map(fn(row) {
               let row_start = row * cols
               list.range(start_col, start_col + cols_per_chunk - 1)
-              |> list.filter_map(fn(col) { list_at(t.data, row_start + col) })
+              |> list.filter_map(fn(col) { list_at(tdata, row_start + col) })
             })
           Tensor(data: data, shape: [rows, cols_per_chunk])
         })
@@ -59,6 +60,7 @@ pub fn split(t: Tensor, n: Int, axis: Int) -> Result(List(Tensor), TensorError) 
 /// Softmax along specific axis
 /// For 2D tensor with axis=1, applies softmax to each row
 pub fn softmax_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
+  let tdata = tensor.to_list(t)
   case t.shape {
     [_n] if axis == 0 -> {
       // 1D softmax - same as regular softmax
@@ -71,12 +73,12 @@ pub fn softmax_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
         |> list.flat_map(fn(row_idx) {
           let start = row_idx * cols
           let row_data =
-            t.data
+            tdata
             |> list.drop(start)
             |> list.take(cols)
           let row_tensor = Tensor(data: row_data, shape: [cols])
           let softmax_row = softmax(row_tensor)
-          softmax_row.data
+          tensor.to_list(softmax_row)
         })
       Ok(Tensor(data: data, shape: [rows, cols]))
     }
@@ -88,9 +90,9 @@ pub fn softmax_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
           // Extract column
           let col_data =
             list.range(0, rows - 1)
-            |> list.filter_map(fn(row) { list_at(t.data, row * cols + col_idx) })
+            |> list.filter_map(fn(row) { list_at(tdata, row * cols + col_idx) })
           let col_tensor = Tensor(data: col_data, shape: [rows])
-          softmax(col_tensor).data
+          tensor.to_list(softmax(col_tensor))
         })
       // Need to transpose result back - data is column-major
       let transposed =
@@ -107,6 +109,7 @@ pub fn softmax_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
 
 /// Variance along axis (for BatchNorm)
 pub fn variance_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
+  let tdata = tensor.to_list(t)
   case t.shape {
     [_n] if axis == 0 -> {
       Ok(Tensor(data: [tensor.variance(t)], shape: [1]))
@@ -118,7 +121,7 @@ pub fn variance_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
         |> list.map(fn(col_idx) {
           let col_data =
             list.range(0, rows - 1)
-            |> list.filter_map(fn(row) { list_at(t.data, row * cols + col_idx) })
+            |> list.filter_map(fn(row) { list_at(tdata, row * cols + col_idx) })
           let col_mean =
             list.fold(col_data, 0.0, fn(a, x) { a +. x }) /. int.to_float(rows)
           let squared_diffs =
@@ -138,7 +141,7 @@ pub fn variance_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
         |> list.map(fn(row_idx) {
           let start = row_idx * cols
           let row_data =
-            t.data
+            tdata
             |> list.drop(start)
             |> list.take(cols)
           let row_mean =
@@ -210,6 +213,7 @@ pub fn concat_along_axis(
     [] -> Error(tensor.InvalidShape("Cannot concat empty list"))
     [single] -> Ok(single)
     [first, ..rest] -> {
+      let _ = rest
       case axis == 0 {
         True -> tensor.concat_axis(tensors, 0)
         False -> {
@@ -228,10 +232,11 @@ pub fn concat_along_axis(
                 list.range(0, rows - 1)
                 |> list.flat_map(fn(row) {
                   list.flat_map(tensors, fn(t) {
+                    let td = tensor.to_list(t)
                     case t.shape {
                       [_, cols] -> {
                         let start = row * cols
-                        t.data
+                        td
                         |> list.drop(start)
                         |> list.take(cols)
                       }
@@ -254,7 +259,9 @@ pub fn concat_along_axis(
 pub fn maximum(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
   case a.shape == b.shape {
     True -> {
-      let data = list.map2(a.data, b.data, fn(x, y) { float.max(x, y) })
+      let a_data = tensor.to_list(a)
+      let b_data = tensor.to_list(b)
+      let data = list.map2(a_data, b_data, fn(x, y) { float.max(x, y) })
       Ok(Tensor(data: data, shape: a.shape))
     }
     False -> Error(tensor.ShapeMismatch(expected: a.shape, got: b.shape))
@@ -265,7 +272,9 @@ pub fn maximum(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
 pub fn minimum(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
   case a.shape == b.shape {
     True -> {
-      let data = list.map2(a.data, b.data, fn(x, y) { float.min(x, y) })
+      let a_data = tensor.to_list(a)
+      let b_data = tensor.to_list(b)
+      let data = list.map2(a_data, b_data, fn(x, y) { float.min(x, y) })
       Ok(Tensor(data: data, shape: a.shape))
     }
     False -> Error(tensor.ShapeMismatch(expected: a.shape, got: b.shape))
@@ -274,7 +283,8 @@ pub fn minimum(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
 
 /// Repeat tensor n times along axis 0
 pub fn repeat(t: Tensor, n: Int) -> Tensor {
-  let data = list.flatten(list.repeat(t.data, n))
+  let tdata = tensor.to_list(t)
+  let data = list.flatten(list.repeat(tdata, n))
   case t.shape {
     [size] -> Tensor(data: data, shape: [size * n])
     [rows, cols] -> Tensor(data: data, shape: [rows * n, cols])

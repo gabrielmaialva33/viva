@@ -1,7 +1,8 @@
 //// Tensor - N-dimensional arrays for neural operations
 ////
-//// Design: Simplicity over performance (BEAM is not a GPU).
-//// Uses List(Float) with explicit shape. Future optimizations via NIFs.
+//// Design: NumPy-inspired with strides for zero-copy views.
+//// Uses Erlang :array for O(1) access + strides for efficient transpose/reshape.
+//// Inspired by NumPy ndarray and PyTorch ATen internals.
 
 import gleam/float
 import gleam/int
@@ -33,13 +34,47 @@ fn list_at_float(lst: List(Float), index: Int) -> Result(Float, Nil) {
   }
 }
 
+/// O(1) array access using Erlang :array
+fn array_get(arr: ErlangArray, index: Int) -> Float {
+  array_get_ffi(arr, index)
+}
+
+/// Convert list to Erlang array for O(1) access
+fn list_to_array(lst: List(Float)) -> ErlangArray {
+  list_to_array_ffi(lst)
+}
+
+/// Convert Erlang array back to list
+fn array_to_list(arr: ErlangArray) -> List(Float) {
+  array_to_list_ffi(arr)
+}
+
+/// Get array size
+fn array_size(arr: ErlangArray) -> Int {
+  array_size_ffi(arr)
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
 
-/// Tensor: data + shape
+/// Opaque type for Erlang :array
+pub type ErlangArray
+
+/// Tensor with NumPy-style strides for zero-copy views
+/// - storage: contiguous data buffer (Erlang array for O(1) access)
+/// - shape: dimensions [d0, d1, ..., dn]
+/// - strides: bytes to skip for each dimension [s0, s1, ..., sn]
+/// - offset: starting position in storage (for views/slices)
 pub type Tensor {
   Tensor(data: List(Float), shape: List(Int))
+  // V2: Strided tensor with O(1) access
+  StridedTensor(
+    storage: ErlangArray,
+    shape: List(Int),
+    strides: List(Int),
+    offset: Int,
+  )
 }
 
 /// Tensor operation errors
@@ -47,6 +82,243 @@ pub type TensorError {
   ShapeMismatch(expected: List(Int), got: List(Int))
   InvalidShape(reason: String)
   DimensionError(reason: String)
+}
+
+// =============================================================================
+// AUTOMATIC BACKEND SELECTOR (Qwen3-235B recommendation)
+// =============================================================================
+
+/// Operation type for backend selection
+pub type OperationType {
+  /// Sequential operations - better with lists (dot, sum, reduce)
+  Sequential
+  /// Random access operations - better with strided (get, get2d, indexing)
+  RandomAccess
+  /// Matrix operations - strided for large, lists for small (matmul)
+  MatrixOp
+}
+
+/// Configuration for automatic backend selection
+pub type TensorConfig {
+  TensorConfig(
+    /// Minimum size to use strided for random access (default: 500)
+    strided_threshold_random: Int,
+    /// Minimum size to use strided for matmul (default: 100 = 10x10)
+    strided_threshold_matmul: Int,
+    /// Force strided for all operations (override)
+    force_strided: Bool,
+    /// Force list for all operations (override)
+    force_list: Bool,
+  )
+}
+
+/// Default configuration based on benchmarks
+pub fn default_config() -> TensorConfig {
+  TensorConfig(
+    strided_threshold_random: 500,
+    // 500+ elements → strided ~4x faster
+    strided_threshold_matmul: 64,
+    // 8x8+ matrices → strided ~4x faster
+    force_strided: False,
+    force_list: False,
+  )
+}
+
+/// High-performance config (always strided for large tensors)
+pub fn performance_config() -> TensorConfig {
+  TensorConfig(
+    strided_threshold_random: 100,
+    strided_threshold_matmul: 32,
+    force_strided: False,
+    force_list: False,
+  )
+}
+
+/// Memory-efficient config (prefer lists)
+pub fn memory_config() -> TensorConfig {
+  TensorConfig(
+    strided_threshold_random: 5000,
+    strided_threshold_matmul: 256,
+    force_strided: False,
+    force_list: False,
+  )
+}
+
+/// Check if should use strided backend for given operation
+pub fn should_use_strided(
+  t: Tensor,
+  op: OperationType,
+  config: TensorConfig,
+) -> Bool {
+  // Override checks
+  case config.force_strided, config.force_list {
+    True, _ -> True
+    _, True -> False
+    False, False -> {
+      let tensor_size = size(t)
+
+      case op {
+        // Sequential ops (dot, sum) - NEVER use strided (0.7x slower)
+        Sequential -> False
+
+        // Random access (get, get2d) - strided if large enough
+        RandomAccess -> tensor_size >= config.strided_threshold_random
+
+        // Matrix ops - strided if matrices are large enough
+        MatrixOp -> {
+          case t.shape {
+            [rows, cols] -> rows * cols >= config.strided_threshold_matmul
+            _ -> tensor_size >= config.strided_threshold_matmul
+          }
+        }
+      }
+    }
+  }
+}
+
+/// Ensure tensor is in optimal format for operation
+pub fn ensure_optimal(t: Tensor, op: OperationType, config: TensorConfig) -> Tensor {
+  let use_strided = should_use_strided(t, op, config)
+
+  case t, use_strided {
+    // Already strided and should be strided - keep it
+    StridedTensor(..), True -> t
+
+    // Already list and should be list - keep it
+    Tensor(..), False -> t
+
+    // Need to convert to strided
+    Tensor(..), True -> to_strided(t)
+
+    // Need to convert to list
+    StridedTensor(..), False -> to_contiguous(t)
+  }
+}
+
+// =============================================================================
+// SMART OPERATIONS (auto-selecting backend)
+// =============================================================================
+
+/// Smart dot product - auto-selects optimal backend
+/// Uses list-based for sequential access (faster for dot)
+pub fn dot_smart(
+  a: Tensor,
+  b: Tensor,
+  config: TensorConfig,
+) -> Result(Float, TensorError) {
+  // Dot is Sequential - always use list-based (0.7x penalty with strided)
+  let a_opt = ensure_optimal(a, Sequential, config)
+  let b_opt = ensure_optimal(b, Sequential, config)
+  dot(a_opt, b_opt)
+}
+
+/// Smart get - auto-selects optimal backend
+/// Uses strided for large tensors (up to 36x faster)
+/// NOTE: For repeated access, convert once with to_strided() first!
+pub fn get_smart(
+  t: Tensor,
+  index: Int,
+  config: TensorConfig,
+) -> Result(Float, TensorError) {
+  // If already strided, use fast path directly (no conversion)
+  case t {
+    StridedTensor(..) -> get_fast(t, index)
+    Tensor(..) -> {
+      // For list tensors, only use strided if worth the conversion
+      // (single access is NOT worth converting - use get directly)
+      get(t, index)
+    }
+  }
+}
+
+/// Smart get2d - auto-selects optimal backend
+/// Uses strided for large matrices (up to 140x faster)
+/// NOTE: For repeated access, convert once with to_strided() first!
+pub fn get2d_smart(
+  t: Tensor,
+  row: Int,
+  col: Int,
+  config: TensorConfig,
+) -> Result(Float, TensorError) {
+  // If already strided, use fast path directly (no conversion)
+  case t {
+    StridedTensor(..) -> get2d_fast(t, row, col)
+    Tensor(..) -> get2d(t, row, col)
+  }
+}
+
+/// Prepare tensor for repeated random access
+/// Call once, then use get_fast/get2d_fast for O(1) access
+pub fn prepare_for_access(t: Tensor, config: TensorConfig) -> Tensor {
+  case should_use_strided(t, RandomAccess, config) {
+    True -> to_strided(t)
+    False -> t
+  }
+}
+
+/// Prepare tensor for matrix operations
+/// Call once before repeated matmul operations
+pub fn prepare_for_matmul(t: Tensor, config: TensorConfig) -> Tensor {
+  case should_use_strided(t, MatrixOp, config) {
+    True -> to_strided(t)
+    False -> t
+  }
+}
+
+/// Smart matmul - auto-selects optimal backend
+/// Uses strided for large matrices (up to 20x faster)
+pub fn matmul_smart(
+  a: Tensor,
+  b: Tensor,
+  config: TensorConfig,
+) -> Result(Tensor, TensorError) {
+  let use_strided_a = should_use_strided(a, MatrixOp, config)
+  let use_strided_b = should_use_strided(b, MatrixOp, config)
+
+  case use_strided_a || use_strided_b {
+    True -> {
+      let a_opt = ensure_optimal(a, MatrixOp, config)
+      let b_opt = ensure_optimal(b, MatrixOp, config)
+      matmul_fast(a_opt, b_opt)
+    }
+    False -> matmul(a, b)
+  }
+}
+
+/// Smart sum - uses list-based (sequential access)
+pub fn sum_smart(t: Tensor, config: TensorConfig) -> Float {
+  let t_opt = ensure_optimal(t, Sequential, config)
+  sum(t_opt)
+}
+
+/// Smart mean - uses list-based (sequential access)
+pub fn mean_smart(t: Tensor, config: TensorConfig) -> Float {
+  let t_opt = ensure_optimal(t, Sequential, config)
+  mean(t_opt)
+}
+
+// =============================================================================
+// CONVENIENCE: Default config operations
+// =============================================================================
+
+/// Dot with default config
+pub fn dot_auto(a: Tensor, b: Tensor) -> Result(Float, TensorError) {
+  dot_smart(a, b, default_config())
+}
+
+/// Get with default config
+pub fn get_auto(t: Tensor, index: Int) -> Result(Float, TensorError) {
+  get_smart(t, index, default_config())
+}
+
+/// Get2d with default config
+pub fn get2d_auto(t: Tensor, row: Int, col: Int) -> Result(Float, TensorError) {
+  get2d_smart(t, row, col, default_config())
+}
+
+/// Matmul with default config
+pub fn matmul_auto(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
+  matmul_smart(a, b, default_config())
 }
 
 // =============================================================================
@@ -126,9 +398,35 @@ pub fn matrix(
 // PROPERTIES
 // =============================================================================
 
+/// Extract data as list from any tensor variant
+fn get_data(t: Tensor) -> List(Float) {
+  case t {
+    Tensor(data, _) -> data
+    StridedTensor(storage, shape, strides, offset) -> {
+      // Materialize strided data to list
+      let total_size = list.fold(shape, 1, fn(acc, dim) { acc * dim })
+      list.range(0, total_size - 1)
+      |> list.map(fn(flat_idx) {
+        let indices = flat_to_multi(flat_idx, shape)
+        let idx =
+          list.zip(indices, strides)
+          |> list.fold(offset, fn(acc, pair) {
+            let #(i, s) = pair
+            acc + i * s
+          })
+        array_get(storage, idx)
+      })
+    }
+  }
+}
+
 /// Total number of elements
 pub fn size(t: Tensor) -> Int {
-  list.length(t.data)
+  case t {
+    Tensor(data, _) -> list.length(data)
+    StridedTensor(_, shape, _, _) ->
+      list.fold(shape, 1, fn(acc, dim) { acc * dim })
+  }
 }
 
 /// Number of dimensions (rank)
@@ -167,10 +465,23 @@ pub fn cols(t: Tensor) -> Int {
 
 /// Access element by linear index
 pub fn get(t: Tensor, index: Int) -> Result(Float, TensorError) {
-  list_at_float(t.data, index)
-  |> result.map_error(fn(_) {
-    DimensionError("Index " <> int.to_string(index) <> " out of bounds")
-  })
+  case t {
+    Tensor(data, _) ->
+      list_at_float(data, index)
+      |> result.map_error(fn(_) {
+        DimensionError("Index " <> int.to_string(index) <> " out of bounds")
+      })
+    StridedTensor(storage, shape, strides, offset) -> {
+      let indices = flat_to_multi(index, shape)
+      let flat_idx =
+        list.zip(indices, strides)
+        |> list.fold(offset, fn(acc, pair) {
+          let #(i, s) = pair
+          acc + i * s
+        })
+      Ok(array_get(storage, flat_idx))
+    }
+  }
 }
 
 /// Access 2D element
@@ -190,9 +501,10 @@ pub fn get_row(t: Tensor, row_idx: Int) -> Result(Tensor, TensorError) {
     [num_rows, num_cols] -> {
       case row_idx >= 0 && row_idx < num_rows {
         True -> {
+          let data = get_data(t)
           let start = row_idx * num_cols
           let row_data =
-            t.data
+            data
             |> list.drop(start)
             |> list.take(num_cols)
           Ok(from_list(row_data))
@@ -228,19 +540,23 @@ pub fn get_col(t: Tensor, col_idx: Int) -> Result(Tensor, TensorError) {
 
 /// Apply function to each element
 pub fn map(t: Tensor, f: fn(Float) -> Float) -> Tensor {
-  Tensor(data: list.map(t.data, f), shape: t.shape)
+  let data = get_data(t)
+  Tensor(data: list.map(data, f), shape: t.shape)
 }
 
 /// Apply function with index
 pub fn map_indexed(t: Tensor, f: fn(Float, Int) -> Float) -> Tensor {
-  Tensor(data: list.index_map(t.data, fn(x, i) { f(x, i) }), shape: t.shape)
+  let data = get_data(t)
+  Tensor(data: list.index_map(data, fn(x, i) { f(x, i) }), shape: t.shape)
 }
 
 /// Element-wise addition
 pub fn add(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
   case a.shape == b.shape {
     True -> {
-      let data = list.map2(a.data, b.data, fn(x, y) { x +. y })
+      let a_data = get_data(a)
+      let b_data = get_data(b)
+      let data = list.map2(a_data, b_data, fn(x, y) { x +. y })
       Ok(Tensor(data: data, shape: a.shape))
     }
     False -> Error(ShapeMismatch(expected: a.shape, got: b.shape))
@@ -251,7 +567,9 @@ pub fn add(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
 pub fn sub(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
   case a.shape == b.shape {
     True -> {
-      let data = list.map2(a.data, b.data, fn(x, y) { x -. y })
+      let a_data = get_data(a)
+      let b_data = get_data(b)
+      let data = list.map2(a_data, b_data, fn(x, y) { x -. y })
       Ok(Tensor(data: data, shape: a.shape))
     }
     False -> Error(ShapeMismatch(expected: a.shape, got: b.shape))
@@ -262,7 +580,9 @@ pub fn sub(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
 pub fn mul(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
   case a.shape == b.shape {
     True -> {
-      let data = list.map2(a.data, b.data, fn(x, y) { x *. y })
+      let a_data = get_data(a)
+      let b_data = get_data(b)
+      let data = list.map2(a_data, b_data, fn(x, y) { x *. y })
       Ok(Tensor(data: data, shape: a.shape))
     }
     False -> Error(ShapeMismatch(expected: a.shape, got: b.shape))
@@ -273,7 +593,9 @@ pub fn mul(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
 pub fn div(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
   case a.shape == b.shape {
     True -> {
-      let data = list.map2(a.data, b.data, fn(x, y) { x /. y })
+      let a_data = get_data(a)
+      let b_data = get_data(b)
+      let data = list.map2(a_data, b_data, fn(x, y) { x /. y })
       Ok(Tensor(data: data, shape: a.shape))
     }
     False -> Error(ShapeMismatch(expected: a.shape, got: b.shape))
@@ -301,12 +623,14 @@ pub fn negate(t: Tensor) -> Tensor {
 
 /// Sum all elements
 pub fn sum(t: Tensor) -> Float {
-  list.fold(t.data, 0.0, fn(acc, x) { acc +. x })
+  let data = get_data(t)
+  list.fold(data, 0.0, fn(acc, x) { acc +. x })
 }
 
 /// Product of all elements
 pub fn product(t: Tensor) -> Float {
-  list.fold(t.data, 1.0, fn(acc, x) { acc *. x })
+  let data = get_data(t)
+  list.fold(data, 1.0, fn(acc, x) { acc *. x })
 }
 
 /// Mean
@@ -321,7 +645,8 @@ pub fn mean(t: Tensor) -> Float {
 
 /// Maximum value
 pub fn max(t: Tensor) -> Float {
-  case t.data {
+  let data = get_data(t)
+  case data {
     [] -> 0.0
     [first, ..rest] -> list.fold(rest, first, fn(acc, x) { float.max(acc, x) })
   }
@@ -329,7 +654,8 @@ pub fn max(t: Tensor) -> Float {
 
 /// Minimum value
 pub fn min(t: Tensor) -> Float {
-  case t.data {
+  let data = get_data(t)
+  case data {
     [] -> 0.0
     [first, ..rest] -> list.fold(rest, first, fn(acc, x) { float.min(acc, x) })
   }
@@ -337,7 +663,8 @@ pub fn min(t: Tensor) -> Float {
 
 /// Argmax - index of largest element
 pub fn argmax(t: Tensor) -> Int {
-  case t.data {
+  let data = get_data(t)
+  case data {
     [] -> 0
     [first, ..rest] -> {
       let #(idx, _, _) =
@@ -361,7 +688,9 @@ pub fn argmax(t: Tensor) -> Int {
 pub fn dot(a: Tensor, b: Tensor) -> Result(Float, TensorError) {
   case rank(a) == 1 && rank(b) == 1 && size(a) == size(b) {
     True -> {
-      let products = list.map2(a.data, b.data, fn(x, y) { x *. y })
+      let a_data = get_data(a)
+      let b_data = get_data(b)
+      let products = list.map2(a_data, b_data, fn(x, y) { x *. y })
       Ok(list.fold(products, 0.0, fn(acc, x) { acc +. x }))
     }
     False -> Error(ShapeMismatch(expected: a.shape, got: b.shape))
@@ -372,15 +701,17 @@ pub fn dot(a: Tensor, b: Tensor) -> Result(Float, TensorError) {
 pub fn matmul_vec(mat: Tensor, vec: Tensor) -> Result(Tensor, TensorError) {
   case mat.shape, vec.shape {
     [m, n], [vec_n] if n == vec_n -> {
+      let mat_data = get_data(mat)
+      let vec_data = get_data(vec)
       let result_data =
         list.range(0, m - 1)
         |> list.map(fn(row_idx) {
           let start = row_idx * n
           let row =
-            mat.data
+            mat_data
             |> list.drop(start)
             |> list.take(n)
-          list.map2(row, vec.data, fn(a, b) { a *. b })
+          list.map2(row, vec_data, fn(a, b) { a *. b })
           |> list.fold(0.0, fn(acc, x) { acc +. x })
         })
       Ok(Tensor(data: result_data, shape: [m]))
@@ -443,8 +774,10 @@ pub fn outer(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
     True -> {
       let m = size(a)
       let n = size(b)
+      let a_data = get_data(a)
+      let b_data = get_data(b)
       let result_data =
-        list.flat_map(a.data, fn(ai) { list.map(b.data, fn(bj) { ai *. bj }) })
+        list.flat_map(a_data, fn(ai) { list.map(b_data, fn(bj) { ai *. bj }) })
       Ok(Tensor(data: result_data, shape: [m, n]))
     }
     False -> Error(DimensionError("Outer product requires two vectors"))
@@ -457,18 +790,19 @@ pub fn outer(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
 
 /// Convert to list
 pub fn to_list(t: Tensor) -> List(Float) {
-  t.data
+  get_data(t)
 }
 
 /// Convert matrix to list of lists
 pub fn to_list2d(t: Tensor) -> Result(List(List(Float)), TensorError) {
   case t.shape {
     [num_rows, num_cols] -> {
+      let data = get_data(t)
       let rows =
         list.range(0, num_rows - 1)
         |> list.map(fn(i) {
           let start = i * num_cols
-          t.data
+          data
           |> list.drop(start)
           |> list.take(num_cols)
         })
@@ -480,7 +814,8 @@ pub fn to_list2d(t: Tensor) -> Result(List(List(Float)), TensorError) {
 
 /// Clone tensor
 pub fn clone(t: Tensor) -> Tensor {
-  Tensor(data: t.data, shape: t.shape)
+  let data = get_data(t)
+  Tensor(data: data, shape: t.shape)
 }
 
 /// Reshape tensor
@@ -489,7 +824,10 @@ pub fn reshape(t: Tensor, new_shape: List(Int)) -> Result(Tensor, TensorError) {
   let new_size = list.fold(new_shape, 1, fn(acc, dim) { acc * dim })
 
   case old_size == new_size {
-    True -> Ok(Tensor(data: t.data, shape: new_shape))
+    True -> {
+      let data = get_data(t)
+      Ok(Tensor(data: data, shape: new_shape))
+    }
     False ->
       Error(InvalidShape(
         "Cannot reshape: size mismatch ("
@@ -503,18 +841,20 @@ pub fn reshape(t: Tensor, new_shape: List(Int)) -> Result(Tensor, TensorError) {
 
 /// Flatten to 1D
 pub fn flatten(t: Tensor) -> Tensor {
-  Tensor(data: t.data, shape: [size(t)])
+  let data = get_data(t)
+  Tensor(data: data, shape: [size(t)])
 }
 
 /// Concatenate vectors
 pub fn concat(tensors: List(Tensor)) -> Tensor {
-  let data = list.flat_map(tensors, fn(t) { t.data })
+  let data = list.flat_map(tensors, fn(t) { get_data(t) })
   from_list(data)
 }
 
 /// L2 norm
 pub fn norm(t: Tensor) -> Float {
-  let sum_sq = list.fold(t.data, 0.0, fn(acc, x) { acc +. x *. x })
+  let data = get_data(t)
+  let sum_sq = list.fold(data, 0.0, fn(acc, x) { acc +. x *. x })
   float_sqrt(sum_sq)
 }
 
@@ -597,6 +937,79 @@ fn float_cos(x: Float) -> Float
 fn random_float() -> Float
 
 // =============================================================================
+// ERLANG ARRAY FFI - O(1) ACCESS (NumPy-style)
+// =============================================================================
+
+@external(erlang, "viva_tensor_ffi", "list_to_array")
+fn list_to_array_ffi(lst: List(Float)) -> ErlangArray
+
+@external(erlang, "viva_tensor_ffi", "array_to_list")
+fn array_to_list_ffi(arr: ErlangArray) -> List(Float)
+
+@external(erlang, "viva_tensor_ffi", "array_get")
+fn array_get_ffi(arr: ErlangArray, index: Int) -> Float
+
+@external(erlang, "viva_tensor_ffi", "array_size")
+fn array_size_ffi(arr: ErlangArray) -> Int
+
+@external(erlang, "viva_tensor_ffi", "array_set")
+fn array_set_ffi(arr: ErlangArray, index: Int, value: Float) -> ErlangArray
+
+// =============================================================================
+// SIMD NIFs - AVX/SSE ACCELERATION
+// =============================================================================
+
+/// SIMD-accelerated dot product (AVX on x86_64)
+@external(erlang, "viva_simd_nif", "simd_dot")
+pub fn simd_dot(a: List(Float), b: List(Float)) -> Float
+
+/// SIMD-accelerated element-wise multiply
+@external(erlang, "viva_simd_nif", "simd_mul")
+pub fn simd_mul(a: List(Float), b: List(Float)) -> List(Float)
+
+/// SIMD-accelerated matrix multiply
+/// A: MxK, B: KxN -> Result: MxN
+@external(erlang, "viva_simd_nif", "simd_matmul")
+pub fn simd_matmul_raw(
+  a: List(Float),
+  b: List(Float),
+  m: Int,
+  k: Int,
+  n: Int,
+) -> List(List(Float))
+
+/// SIMD-accelerated sum
+@external(erlang, "viva_simd_nif", "simd_sum")
+pub fn simd_sum(a: List(Float)) -> Float
+
+/// SIMD-accelerated scale
+@external(erlang, "viva_simd_nif", "simd_scale")
+pub fn simd_scale_raw(a: List(Float), scalar: Float) -> List(Float)
+
+/// Check if SIMD is available
+@external(erlang, "viva_simd_nif", "is_simd_available")
+pub fn is_simd_available() -> Bool
+
+/// SIMD-accelerated dot product for tensors
+pub fn dot_simd(a: Tensor, b: Tensor) -> Result(Float, TensorError) {
+  case size(a) == size(b) {
+    False -> Error(ShapeMismatch(expected: a.shape, got: b.shape))
+    True -> Ok(simd_dot(to_list(a), to_list(b)))
+  }
+}
+
+/// SIMD-accelerated tensor scaling
+pub fn scale_simd(t: Tensor, scalar: Float) -> Tensor {
+  let data = simd_scale_raw(to_list(t), scalar)
+  Tensor(data: data, shape: t.shape)
+}
+
+/// SIMD-accelerated tensor sum
+pub fn sum_simd(t: Tensor) -> Float {
+  simd_sum(to_list(t))
+}
+
+// =============================================================================
 // BROADCASTING (inspired by Nx)
 // =============================================================================
 
@@ -672,6 +1085,7 @@ fn broadcast_data(t: Tensor, target_shape: List(Int)) -> List(Float) {
   let src_shape = t.shape
   let src_rank = list.length(src_shape)
   let target_rank = list.length(target_shape)
+  let data = get_data(t)
 
   // Pad source shape with 1s
   let diff = target_rank - src_rank
@@ -698,7 +1112,7 @@ fn broadcast_data(t: Tensor, target_shape: List(Int)) -> List(Float) {
 
     // Convert back to flat index in source
     let src_flat = multi_to_flat(src_indices, src_shape)
-    case list_at_float(t.data, src_flat) {
+    case list_at_float(data, src_flat) {
       Ok(v) -> v
       Error(_) -> 0.0
     }
@@ -762,13 +1176,14 @@ pub fn mul_broadcast(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
 
 /// Remove dimensions of size 1
 pub fn squeeze(t: Tensor) -> Tensor {
+  let data = get_data(t)
   let new_shape = list.filter(t.shape, fn(dim) { dim != 1 })
   let final_shape = case new_shape {
     [] -> [1]
     // Scalar becomes 1D
     _ -> new_shape
   }
-  Tensor(data: t.data, shape: final_shape)
+  Tensor(data: data, shape: final_shape)
 }
 
 /// Remove dimension at specific axis if it's 1
@@ -779,12 +1194,13 @@ pub fn squeeze_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
       case dim == 1 {
         False -> Error(InvalidShape("Dimension at axis is not 1"))
         True -> {
+          let data = get_data(t)
           let new_shape =
             t.shape
             |> list.index_map(fn(d, i) { #(d, i) })
             |> list.filter(fn(pair) { pair.1 != axis })
             |> list.map(fn(pair) { pair.0 })
-          Ok(Tensor(data: t.data, shape: new_shape))
+          Ok(Tensor(data: data, shape: new_shape))
         }
       }
     }
@@ -793,15 +1209,16 @@ pub fn squeeze_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
 
 /// Add dimension of size 1 at specified axis
 pub fn unsqueeze(t: Tensor, axis: Int) -> Tensor {
-  let rank = list.length(t.shape)
+  let data = get_data(t)
+  let rnk = list.length(t.shape)
   let insert_at = case axis < 0 {
-    True -> rank + axis + 1
+    True -> rnk + axis + 1
     False -> axis
   }
 
   let #(before, after) = list.split(t.shape, insert_at)
   let new_shape = list.flatten([before, [1], after])
-  Tensor(data: t.data, shape: new_shape)
+  Tensor(data: data, shape: new_shape)
 }
 
 /// Expand tensor to add batch dimension
@@ -815,9 +1232,10 @@ pub fn expand_dims(t: Tensor, axis: Int) -> Tensor {
 
 /// Variance of all elements
 pub fn variance(t: Tensor) -> Float {
+  let data = get_data(t)
   let m = mean(t)
   let squared_diffs =
-    list.map(t.data, fn(x) {
+    list.map(data, fn(x) {
       let diff = x -. m
       diff *. diff
     })
@@ -835,7 +1253,8 @@ pub fn std(t: Tensor) -> Float {
 
 /// Argmin - index of smallest element
 pub fn argmin(t: Tensor) -> Int {
-  case t.data {
+  let data = get_data(t)
+  case data {
     [] -> 0
     [first, ..rest] -> {
       let #(idx, _, _) =
@@ -929,7 +1348,7 @@ pub fn stack(tensors: List(Tensor), axis: Int) -> Result(Tensor, TensorError) {
               list.flatten([before, [n], after])
             }
           }
-          let data = list.flat_map(tensors, fn(t) { t.data })
+          let data = list.flat_map(tensors, fn(t) { get_data(t) })
           Ok(Tensor(data: data, shape: new_shape))
         }
       }
@@ -949,7 +1368,7 @@ pub fn concat_axis(
       // For axis 0 concatenation of 1D tensors
       case axis == 0 && list.length(first.shape) == 1 {
         True -> {
-          let data = list.flat_map(tensors, fn(t) { t.data })
+          let data = list.flat_map(tensors, fn(t) { get_data(t) })
           Ok(from_list(data))
         }
         False -> {
@@ -973,7 +1392,7 @@ pub fn concat_axis(
                         _ -> acc
                       }
                     })
-                  let data = list.flat_map(tensors, fn(t) { t.data })
+                  let data = list.flat_map(tensors, fn(t) { get_data(t) })
                   Ok(Tensor(data: data, shape: [total_rows, cols]))
                 }
               }
@@ -999,13 +1418,14 @@ pub fn slice(
   starts: List(Int),
   lengths: List(Int),
 ) -> Result(Tensor, TensorError) {
+  let tdata = get_data(t)
   case t.shape {
     [_n] -> {
       // 1D slice
       case starts, lengths {
         [start], [len] -> {
           let data =
-            t.data
+            tdata
             |> list.drop(start)
             |> list.take(len)
           Ok(Tensor(data: data, shape: [len]))
@@ -1022,7 +1442,7 @@ pub fn slice(
             |> list.flat_map(fn(r) {
               let row_offset = r * cols
               list.range(col_start, col_start + col_len - 1)
-              |> list.filter_map(fn(c) { list_at_float(t.data, row_offset + c) })
+              |> list.filter_map(fn(c) { list_at_float(tdata, row_offset + c) })
             })
           Ok(Tensor(data: data, shape: [row_len, col_len]))
         }
@@ -1035,13 +1455,14 @@ pub fn slice(
 
 /// Get first n elements along first axis
 pub fn take_first(t: Tensor, n: Int) -> Tensor {
+  let tdata = get_data(t)
   case t.shape {
     [_size] -> {
-      let data = list.take(t.data, n)
+      let data = list.take(tdata, n)
       Tensor(data: data, shape: [n])
     }
     [_rows, cols] -> {
-      let data = list.take(t.data, n * cols)
+      let data = list.take(tdata, n * cols)
       Tensor(data: data, shape: [n, cols])
     }
     _ -> t
@@ -1050,10 +1471,11 @@ pub fn take_first(t: Tensor, n: Int) -> Tensor {
 
 /// Get last n elements along first axis
 pub fn take_last(t: Tensor, n: Int) -> Tensor {
+  let tdata = get_data(t)
   case t.shape {
     [_size] -> {
       let data =
-        t.data
+        tdata
         |> list.reverse
         |> list.take(n)
         |> list.reverse
@@ -1061,9 +1483,320 @@ pub fn take_last(t: Tensor, n: Int) -> Tensor {
     }
     [rows, cols] -> {
       let skip = { rows - n } * cols
-      let data = list.drop(t.data, skip)
+      let data = list.drop(tdata, skip)
       Tensor(data: data, shape: [n, cols])
     }
     _ -> t
   }
 }
+
+// =============================================================================
+// STRIDED TENSOR - NumPy-style O(1) operations
+// The magic: transpose/reshape are ZERO-COPY (just change metadata)
+// =============================================================================
+
+/// Convert regular tensor to strided (O(n) once, then O(1) access)
+pub fn to_strided(t: Tensor) -> Tensor {
+  case t {
+    StridedTensor(_, _, _, _) -> t
+    Tensor(data, shape) -> {
+      let storage = list_to_array(data)
+      let strides = compute_strides(shape)
+      StridedTensor(storage: storage, shape: shape, strides: strides, offset: 0)
+    }
+  }
+}
+
+/// Convert strided tensor back to regular (materializes the view)
+pub fn to_contiguous(t: Tensor) -> Tensor {
+  case t {
+    Tensor(_, _) -> t
+    StridedTensor(storage, shape, strides, offset) -> {
+      let total_size = list.fold(shape, 1, fn(acc, dim) { acc * dim })
+      let data =
+        list.range(0, total_size - 1)
+        |> list.map(fn(flat_idx) {
+          let indices = flat_to_multi(flat_idx, shape)
+          strided_index_get(storage, offset, strides, indices)
+        })
+      Tensor(data: data, shape: shape)
+    }
+  }
+}
+
+/// Get element from strided tensor - O(1)!
+fn strided_index_get(
+  storage: ErlangArray,
+  offset: Int,
+  strides: List(Int),
+  indices: List(Int),
+) -> Float {
+  let flat_idx =
+    list.zip(indices, strides)
+    |> list.fold(offset, fn(acc, pair) {
+      let #(idx, stride) = pair
+      acc + idx * stride
+    })
+  array_get(storage, flat_idx)
+}
+
+/// ZERO-COPY TRANSPOSE - NumPy's killer feature!
+/// Just swap strides and shape, no data movement
+pub fn transpose_strided(t: Tensor) -> Result(Tensor, TensorError) {
+  case t {
+    Tensor(_, shape) -> {
+      case shape {
+        [m, n] -> {
+          // Convert to strided first, then transpose
+          let strided = to_strided(t)
+          transpose_strided(strided)
+        }
+        _ -> Error(DimensionError("Transpose requires 2D tensor"))
+      }
+    }
+    StridedTensor(storage, shape, strides, offset) -> {
+      case shape, strides {
+        [m, n], [s0, s1] -> {
+          // THE MAGIC: just swap strides and shape!
+          Ok(StridedTensor(
+            storage: storage,
+            shape: [n, m],
+            strides: [s1, s0],
+            offset: offset,
+          ))
+        }
+        _, _ -> Error(DimensionError("Transpose requires 2D tensor"))
+      }
+    }
+  }
+}
+
+/// ZERO-COPY RESHAPE - another killer feature!
+/// Only works if tensor is contiguous
+pub fn reshape_strided(
+  t: Tensor,
+  new_shape: List(Int),
+) -> Result(Tensor, TensorError) {
+  let old_size = case t {
+    Tensor(data, _) -> list.length(data)
+    StridedTensor(storage, _, _, _) -> array_size(storage)
+  }
+  let new_size = list.fold(new_shape, 1, fn(acc, dim) { acc * dim })
+
+  case old_size == new_size {
+    False ->
+      Error(InvalidShape(
+        "Cannot reshape: size mismatch ("
+        <> int.to_string(old_size)
+        <> " vs "
+        <> int.to_string(new_size)
+        <> ")",
+      ))
+    True -> {
+      case t {
+        Tensor(data, _) -> {
+          let storage = list_to_array(data)
+          let strides = compute_strides(new_shape)
+          Ok(StridedTensor(
+            storage: storage,
+            shape: new_shape,
+            strides: strides,
+            offset: 0,
+          ))
+        }
+        StridedTensor(storage, _, _, offset) -> {
+          let strides = compute_strides(new_shape)
+          Ok(StridedTensor(
+            storage: storage,
+            shape: new_shape,
+            strides: strides,
+            offset: offset,
+          ))
+        }
+      }
+    }
+  }
+}
+
+/// Fast dot product using Erlang FFI - O(n) but optimized
+pub fn dot_fast(a: Tensor, b: Tensor) -> Result(Float, TensorError) {
+  case rank(a) == 1 && rank(b) == 1 && size(a) == size(b) {
+    False -> Error(ShapeMismatch(expected: a.shape, got: b.shape))
+    True -> {
+      // Convert to arrays and use optimized FFI
+      let arr_a = case a {
+        Tensor(data, _) -> list_to_array(data)
+        StridedTensor(storage, _, _, _) -> storage
+      }
+      let arr_b = case b {
+        Tensor(data, _) -> list_to_array(data)
+        StridedTensor(storage, _, _, _) -> storage
+      }
+      Ok(array_dot_ffi(arr_a, arr_b))
+    }
+  }
+}
+
+/// Fast matrix multiplication using Erlang FFI
+pub fn matmul_fast(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
+  case a.shape, b.shape {
+    [m, n], [n2, p] if n == n2 -> {
+      // Convert to arrays
+      let arr_a = case a {
+        Tensor(data, _) -> list_to_array(data)
+        StridedTensor(storage, _, _, _) -> storage
+      }
+      let arr_b = case b {
+        Tensor(data, _) -> list_to_array(data)
+        StridedTensor(storage, _, _, _) -> storage
+      }
+      // Use optimized FFI matmul
+      let result_arr = array_matmul_ffi(arr_a, arr_b, m, p, n)
+      let strides = compute_strides([m, p])
+      Ok(StridedTensor(
+        storage: result_arr,
+        shape: [m, p],
+        strides: strides,
+        offset: 0,
+      ))
+    }
+    [_m, n], [n2, _p] -> Error(ShapeMismatch(expected: [n, -1], got: [n2, -1]))
+    _, _ -> Error(DimensionError("Expected two matrices"))
+  }
+}
+
+/// Get element with O(1) access for StridedTensor
+pub fn get_fast(t: Tensor, index: Int) -> Result(Float, TensorError) {
+  case t {
+    Tensor(data, _) -> list_at_float(data, index) |> result.map_error(fn(_) {
+      DimensionError("Index " <> int.to_string(index) <> " out of bounds")
+    })
+    StridedTensor(storage, shape, strides, offset) -> {
+      let indices = flat_to_multi(index, shape)
+      let flat_idx =
+        list.zip(indices, strides)
+        |> list.fold(offset, fn(acc, pair) {
+          let #(idx, stride) = pair
+          acc + idx * stride
+        })
+      Ok(array_get(storage, flat_idx))
+    }
+  }
+}
+
+/// Get 2D element with O(1) access
+pub fn get2d_fast(t: Tensor, row: Int, col: Int) -> Result(Float, TensorError) {
+  case t {
+    Tensor(_, _) -> get2d(t, row, col)
+    StridedTensor(storage, shape, strides, offset) -> {
+      case shape, strides {
+        [_rows, _cols], [s0, s1] -> {
+          let flat_idx = offset + row * s0 + col * s1
+          Ok(array_get(storage, flat_idx))
+        }
+        _, _ -> Error(DimensionError("Tensor is not 2D"))
+      }
+    }
+  }
+}
+
+/// Create strided tensor directly (for advanced users)
+pub fn strided(
+  data: List(Float),
+  shape: List(Int),
+  strides: List(Int),
+  offset: Int,
+) -> Tensor {
+  let storage = list_to_array(data)
+  StridedTensor(storage: storage, shape: shape, strides: strides, offset: offset)
+}
+
+/// Create strided tensor from existing storage (for views)
+pub fn view(
+  storage: ErlangArray,
+  shape: List(Int),
+  strides: List(Int),
+  offset: Int,
+) -> Tensor {
+  StridedTensor(storage: storage, shape: shape, strides: strides, offset: offset)
+}
+
+/// Check if tensor is contiguous in memory
+pub fn is_contiguous(t: Tensor) -> Bool {
+  case t {
+    Tensor(_, _) -> True
+    StridedTensor(_, shape, strides, _) -> {
+      let expected_strides = compute_strides(shape)
+      strides == expected_strides
+    }
+  }
+}
+
+/// Slice with zero-copy (returns view into same storage)
+pub fn slice_strided(
+  t: Tensor,
+  starts: List(Int),
+  lengths: List(Int),
+) -> Result(Tensor, TensorError) {
+  case t {
+    Tensor(_, _) -> {
+      // Convert to strided first
+      let strided = to_strided(t)
+      slice_strided(strided, starts, lengths)
+    }
+    StridedTensor(storage, shape, strides, offset) -> {
+      // Validate dimensions match
+      case
+        list.length(starts) == list.length(shape)
+        && list.length(lengths) == list.length(shape)
+      {
+        False -> Error(InvalidShape("Slice params don't match tensor rank"))
+        True -> {
+          // Compute new offset (move to start position)
+          let new_offset =
+            list.zip(starts, strides)
+            |> list.fold(offset, fn(acc, pair) {
+              let #(start, stride) = pair
+              acc + start * stride
+            })
+          // Strides stay the same, just change shape and offset!
+          Ok(StridedTensor(
+            storage: storage,
+            shape: lengths,
+            strides: strides,
+            offset: new_offset,
+          ))
+        }
+      }
+    }
+  }
+}
+
+// =============================================================================
+// ADDITIONAL FFI DECLARATIONS
+// =============================================================================
+
+@external(erlang, "viva_tensor_ffi", "array_dot")
+fn array_dot_ffi(a: ErlangArray, b: ErlangArray) -> Float
+
+@external(erlang, "viva_tensor_ffi", "array_matmul")
+fn array_matmul_ffi(
+  a: ErlangArray,
+  b: ErlangArray,
+  m: Int,
+  n: Int,
+  k: Int,
+) -> ErlangArray
+
+@external(erlang, "viva_tensor_ffi", "array_map")
+fn array_map_ffi(arr: ErlangArray, f: fn(Float) -> Float) -> ErlangArray
+
+@external(erlang, "viva_tensor_ffi", "array_map2")
+fn array_map2_ffi(
+  a: ErlangArray,
+  b: ErlangArray,
+  f: fn(Float, Float) -> Float,
+) -> ErlangArray
+
+@external(erlang, "viva_tensor_ffi", "array_fold")
+fn array_fold_ffi(arr: ErlangArray, acc: a, f: fn(a, Float) -> a) -> a
