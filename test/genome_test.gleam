@@ -443,7 +443,7 @@ pub fn vaccination_three_doses_max_immunity_test() {
   // Second dose (200 ticks later)
   let #(g2, state2) = genome.emotional_vaccination(g1, state1, 300)
   // Third dose (200 ticks later)
-  let #(g3, state3) = genome.emotional_vaccination(g2, state2, 500)
+  let #(_g3, state3) = genome.emotional_vaccination(g2, state2, 500)
 
   // Should have 3 doses
   should.equal(state3.doses, 3)

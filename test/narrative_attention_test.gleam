@@ -1,5 +1,5 @@
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{Some}
 import gleeunit/should
 import viva/narrative
 import viva/narrative_attention

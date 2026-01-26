@@ -208,7 +208,7 @@ pub fn survival_evaluate_learns_danger_test() {
   let s = survival.new()
 
   // Negative pleasure + loud sound = danger
-  let #(s2, events) =
+  let #(s2, _events) =
     survival.evaluate(
       s,
       0.5,
@@ -267,7 +267,7 @@ pub fn imprint_tick_processes_all_systems_test() {
     imprint.new_default()
     |> imprint.start(0)
 
-  let #(state2, events) =
+  let #(state2, _events) =
     imprint.tick(
       state,
       0.7,
