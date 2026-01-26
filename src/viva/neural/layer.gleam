@@ -22,7 +22,7 @@ import viva/neural/recurrent.{
 import viva/neural/regularization.{
   type DropoutCache, type DropoutGradients, type DropoutLayer,
 }
-import viva/neural/tensor.{type Tensor, type TensorError}
+import viva_tensor/tensor.{type Tensor, type TensorError}
 
 // =============================================================================
 // TYPES
@@ -195,9 +195,8 @@ pub fn forward(
     False ->
       Error(tensor.ShapeMismatch(expected: [layer.input_size], got: input.shape))
     True -> {
-      // z = W^T @ x + b (transpose because weights is [in, out])
-      use weights_t <- result.try(tensor.transpose(layer.weights))
-      use z <- result.try(tensor.matmul_vec(weights_t, input))
+      // z = W @ x + b (weights is [out, in] from xavier_init PyTorch convention)
+      use z <- result.try(tensor.matmul_vec(layer.weights, input))
       use pre_activation <- result.try(tensor.add(z, layer.biases))
 
       // Apply activation
@@ -255,11 +254,12 @@ pub fn backward(
   // 2. Biases gradient = delta
   let d_biases = delta
 
-  // 3. Weights gradient = outer(input, delta)
-  use d_weights <- result.try(tensor.outer(cache.input, delta))
+  // 3. Weights gradient = outer(delta, input) to match W shape [out, in]
+  use d_weights <- result.try(tensor.outer(delta, cache.input))
 
-  // 4. Gradient for previous layer = W @ delta
-  use d_input <- result.try(tensor.matmul_vec(layer.weights, delta))
+  // 4. Gradient for previous layer = W^T @ delta (W is [out, in])
+  use weights_t <- result.try(tensor.transpose(layer.weights))
+  use d_input <- result.try(tensor.matmul_vec(weights_t, delta))
 
   Ok(DenseGradients(d_weights: d_weights, d_biases: d_biases, d_input: d_input))
 }
@@ -348,8 +348,9 @@ pub fn zero_gradients(layer: DenseLayer) -> DenseGradients {
 
 /// Initialize velocities for momentum (zeros)
 pub fn init_velocities(layer: DenseLayer) -> #(Tensor, Tensor) {
+  // Velocities match weight shape [out, in] (PyTorch convention)
   #(
-    tensor.zeros([layer.input_size, layer.output_size]),
+    tensor.zeros([layer.output_size, layer.input_size]),
     tensor.zeros([layer.output_size]),
   )
 }
