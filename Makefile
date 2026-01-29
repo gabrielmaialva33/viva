@@ -12,6 +12,7 @@ RESET  := \033[0m
 # Erlang include path
 ERL_INCLUDE := $(shell erl -eval 'io:format("~s", [code:lib_dir(erts, include)])' -s init stop -noshell 2>/dev/null)
 ERL_INTERFACE := $(shell erl -eval 'io:format("~s", [code:lib_dir(erl_interface, include)])' -s init stop -noshell 2>/dev/null)
+ERL_ROOT := $(shell erl -eval 'io:format("~s", [code:root_dir()])' -s init stop -noshell 2>/dev/null)
 
 # Compiler flags
 CC := gcc
@@ -40,7 +41,7 @@ nif: $(PRIV)/viva_simd_nif.so
 $(PRIV)/viva_simd_nif.so: $(C_SRC)/viva_simd_nif.c
 	@mkdir -p $(PRIV)
 	@echo "$(CYAN)[NIF]$(RESET) Compiling SIMD NIF..."
-	@$(CC) $(CFLAGS) -I$(ERL_INCLUDE) -I$(ERL_INTERFACE) $(LDFLAGS) -o $@ $<
+	@$(CC) $(CFLAGS) -I$(ERL_INCLUDE) -I$(ERL_ROOT)/usr/include -I$(ERL_INTERFACE) $(LDFLAGS) -o $@ $<
 
 ## Download dependencies
 deps:
