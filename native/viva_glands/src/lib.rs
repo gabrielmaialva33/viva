@@ -910,7 +910,7 @@ fn glands_check() -> String {
 // INIT
 // ============================================================================
 
-rustler::init!("Elixir.Viva.Glands.Native");
+rustler::init!("Elixir.Viva.Glands.Native", load = load);
 
 fn load(env: Env, _info: Term) -> bool {
     rustler::resource!(GlandsResource, env);
