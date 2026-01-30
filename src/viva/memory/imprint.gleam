@@ -15,11 +15,11 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option}
-import viva/imprint/motor.{type MotorImprint}
-import viva/imprint/sensory.{type SensoryImprint}
-import viva/imprint/social.{type SocialImprint}
-import viva/imprint/survival.{type SurvivalImprint}
-import viva/imprint/types.{type ImprintEvent, CriticalPeriodEnded}
+import viva/memory/imprint/motor.{type MotorImprint}
+import viva/memory/imprint/sensory.{type SensoryImprint}
+import viva/memory/imprint/social.{type SocialImprint}
+import viva/memory/imprint/survival.{type SurvivalImprint}
+import viva/memory/imprint/types.{type ImprintEvent, CriticalPeriodEnded}
 
 // =============================================================================
 // TYPES

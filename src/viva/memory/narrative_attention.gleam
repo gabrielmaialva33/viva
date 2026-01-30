@@ -12,7 +12,7 @@
 import gleam/float
 import gleam/list
 import gleam/option.{type Option, Some}
-import viva/narrative.{
+import viva/memory/narrative.{
   type NarrativeLink, type NarrativeMemory, type NarrativeResult, type Thought,
   type VoiceStyle, FromAssociation, FromCausal,
 }

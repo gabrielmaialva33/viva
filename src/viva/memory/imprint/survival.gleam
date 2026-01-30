@@ -5,7 +5,7 @@
 
 import gleam/list
 import gleam/option.{type Option, None}
-import viva/imprint/types.{type ImprintEvent, DangerLearned, SafetyLearned}
+import viva/memory/imprint/types.{type ImprintEvent, DangerLearned, SafetyLearned}
 
 // =============================================================================
 // TYPES

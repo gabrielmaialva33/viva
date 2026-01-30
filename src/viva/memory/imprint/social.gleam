@@ -4,7 +4,7 @@
 
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import viva/imprint/types.{type ImprintEvent, AttachmentChanged}
+import viva/memory/imprint/types.{type ImprintEvent, AttachmentChanged}
 
 // =============================================================================
 // TYPES
