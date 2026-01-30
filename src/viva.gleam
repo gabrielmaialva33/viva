@@ -6,7 +6,7 @@
 ////
 //// Entry point delegates to CLI module.
 
-import viva/cli
+import viva/infra/cli
 
 /// VIVA version
 pub const version = "0.1.0"

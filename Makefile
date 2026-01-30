@@ -31,9 +31,10 @@ all: build
 # =============================================================================
 
 ## Build NIF and Gleam project
-build: nif
+build: nif burn
 	@echo "$(CYAN)[BUILD]$(RESET) Compiling Gleam..."
 	@gleam build
+	@$(MAKE) copy-nifs
 
 ## Build SIMD NIF
 nif: $(PRIV)/viva_simd_nif.so
@@ -42,6 +43,19 @@ $(PRIV)/viva_simd_nif.so: $(C_SRC)/viva_simd_nif.c
 	@mkdir -p $(PRIV)
 	@echo "$(CYAN)[NIF]$(RESET) Compiling SIMD NIF..."
 	@$(CC) $(CFLAGS) -I$(ERL_INCLUDE) -I$(ERL_ROOT)/usr/include -I$(ERL_INTERFACE) $(LDFLAGS) -o $@ $<
+
+## Build viva_burn Rust NIF (GPU-accelerated neural ops)
+burn:
+	@echo "$(CYAN)[BURN]$(RESET) Compiling Rust NIF (CUDA/GPU)..."
+	@cd native/viva_burn && cargo build --release
+	@mkdir -p $(PRIV)
+	@cp native/viva_burn/target/release/libviva_burn.so $(PRIV)/viva_burn.so
+	@echo "$(GREEN)[BURN]$(RESET) viva_burn.so ready"
+
+## Copy NIFs to build output
+copy-nifs:
+	@mkdir -p build/dev/erlang/viva/priv
+	@cp $(PRIV)/*.so build/dev/erlang/viva/priv/ 2>/dev/null || true
 
 ## Download dependencies
 deps:
@@ -126,13 +140,15 @@ site: build
 clean:
 	@echo "$(YELLOW)[CLEAN]$(RESET) Removing build artifacts..."
 	@rm -f $(PRIV)/viva_simd_nif.so
+	@rm -f $(PRIV)/viva_burn.so
 	@rm -rf build
 	@rm -f erl_crash.dump
-	@echo "$(GREEN)[CLEAN]$(RESET) Done"
+	@echo "$(GREEN)[CLEAN]$(RESET) Done
 
-## Deep clean (including deps)
+## Deep clean (including deps and Rust build)
 distclean: clean
 	@rm -rf _build deps
+	@cd native/viva_burn && cargo clean 2>/dev/null || true
 
 # =============================================================================
 # DEV
