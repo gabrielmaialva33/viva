@@ -5,11 +5,11 @@
 
 import gleam/list
 import gleam/int
-import viva/billiards/table.{
+import viva/embodied/billiards/table.{
   type BallType, type Shot, type Table, CueBall, EightBall,
   Solid, Stripe,
 }
-import viva/jolt.{type Vec3, Vec3}
+import viva/lifecycle/jolt.{type Vec3, Vec3}
 
 // =============================================================================
 // FITNESS CONFIGURATION

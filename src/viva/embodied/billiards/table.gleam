@@ -5,7 +5,7 @@
 
 import gleam/list
 import gleam/int
-import viva/jolt.{
+import viva/lifecycle/jolt.{
   type BodyId, type Vec3, type World, BodyId, Dynamic, Static, Vec3,
 }
 

@@ -6,9 +6,9 @@ import gleam/int
 import gleam/io
 import gleam/list
 import gleam/float
-import viva/billiards/sinuca
-import viva/billiards/sinuca_trainer as trainer
-import viva/billiards/sinuca_fitness as fitness
+import viva/embodied/billiards/sinuca
+import viva/embodied/billiards/sinuca_trainer as trainer
+import viva/embodied/billiards/sinuca_fitness as fitness
 
 pub fn main() {
   io.println("=== VIVA Sinuca - Extended Training ===")

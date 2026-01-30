@@ -7,9 +7,9 @@ import gleam/float
 import gleam/int
 import gleam/io
 import gleam/list
-import viva/billiards/fitness
-import viva/billiards/table.{type Shot, type Table, Shot}
-import viva/jolt.{type Vec3, Vec3}
+import viva/embodied/billiards/fitness
+import viva/embodied/billiards/table.{type Shot, type Table, Shot}
+import viva/lifecycle/jolt.{type Vec3, Vec3}
 import viva/neural/neat.{
   type FitnessResult, type Genome, type NeatConfig, type Population,
   FitnessResult, Genome, NeatConfig,

@@ -1,49 +1,43 @@
-//// VIVA Sinuca - Hybrid Novelty + MAP-Elites Trainer
+//// VIVA Sinuca - HoloMAP Trainer v2
 ////
-//// Implementation based on Qwen3-235B recommendations:
-//// - 70% Novelty Search for exploration
-//// - 30% MAP-Elites for quality tracking
-//// - 5x5 grid initially, dynamic expansion
-//// - 20% elite selection ratio
-////
+//// Hybrid Quality-Diversity: MAP-Elites grid + NEAT evolution.
+//// Grid tracks elites for diversity, NEAT handles actual genome evolution.
 //// Created at GATO-PC, Brazil, 2026.
+////
+//// Key insight: Use MAP-Elites for SELECTION, not genome reconstruction.
 
 import gleam/float
 import gleam/int
 import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import viva/billiards/sinuca.{type Shot, type Table, Shot}
-import viva/billiards/sinuca_fitness as fitness
-import viva/glands
-import viva/jolt.{Vec3}
+import viva/embodied/billiards/sinuca.{type Shot, type Table, Shot}
+import viva/embodied/billiards/sinuca_fitness as fitness
+import viva/soul/glands
+import viva/lifecycle/jolt.{Vec3}
 import viva/neural/neat.{type Genome, type NeatConfig, Genome, NeatConfig}
 import viva/neural/holomap.{type HoloMapConfig, type HoloMapStats, type MapElitesGrid}
-import viva/neural/novelty.{type Behavior, type NoveltyArchive, type NoveltyConfig}
+import viva/neural/novelty.{type Behavior}
 
 // =============================================================================
 // CONFIGURATION
 // =============================================================================
 
-pub type HybridConfig {
-  HybridConfig(
+pub type TrainerConfig {
+  TrainerConfig(
     max_steps_per_shot: Int,
     shots_per_episode: Int,
     log_interval: Int,
-    novelty_ratio: Float,     // 70% from novelty archive
-    elite_ratio: Float,       // 20% from MAP-Elites
-    population_ratio: Float,  // 10% from top performers
+    elite_selection_ratio: Float,
   )
 }
 
-pub fn default_hybrid_config() -> HybridConfig {
-  HybridConfig(
+pub fn default_trainer_config() -> TrainerConfig {
+  TrainerConfig(
     max_steps_per_shot: 200,
     shots_per_episode: 3,
     log_interval: 5,
-    novelty_ratio: 0.70,      // Qwen3 recommendation
-    elite_ratio: 0.20,        // Qwen3 recommendation for <30% coverage
-    population_ratio: 0.10,
+    elite_selection_ratio: 0.5,
   )
 }
 
@@ -67,12 +61,8 @@ fn sinuca_neat_config() -> NeatConfig {
   )
 }
 
-fn novelty_config() -> NoveltyConfig {
-  novelty.exploration_config()  // Higher novelty weight
-}
-
 // =============================================================================
-// INPUT/OUTPUT ENCODING
+// GENOME EVALUATION
 // =============================================================================
 
 fn float_clamp(x: Float, min: Float, max: Float) -> Float {
@@ -130,23 +120,20 @@ fn decode_outputs(outputs: List(Float)) -> Shot {
   }
 }
 
-// =============================================================================
-// GENOME EVALUATION
-// =============================================================================
-
-fn evaluate_genome_full(
+/// Evaluate genome and extract behavior for MAP-Elites
+fn evaluate_genome_with_behavior(
   genome: Genome,
-  config: HybridConfig,
-) -> #(Float, Behavior, List(Float)) {
+  config: TrainerConfig,
+) -> #(Float, Behavior) {
   let table = sinuca.new()
   let episode = fitness.new_episode()
 
-  let #(total_fitness, behavior_features, entropy_score, _, _, _) =
+  let #(total_fitness, behavior_features, _, _, _, _) =
     list.fold(
       list.range(1, config.shots_per_episode),
-      #(0.0, [], 0.0, 0, table, episode),
+      #(0.0, [], 0, 0, table, episode),
       fn(acc, _shot_num) {
-        let #(fitness_sum, features, entropy, foul_count, current, ep) = acc
+        let #(fitness_sum, features, foul_count, max_combo, current, ep) = acc
 
         case sinuca.balls_on_table(current) <= 1 {
           True -> acc
@@ -164,28 +151,24 @@ fn evaluate_genome_full(
                 fitness.default_config(),
               )
 
-            // Enhanced behavior features (Qwen3 recommendation)
+            // Extract behavior features
             let #(cue_x, cue_z) = case sinuca.get_cue_ball_position(next) {
               Some(Vec3(x, _, z)) -> #(x, z)
               None -> #(0.0, 0.0)
             }
-
-            // Ball distribution entropy (simplified)
-            let balls = sinuca.balls_on_table(next)
-            let distribution_score = int.to_float(balls) /. 16.0
-
             let new_features = list.append(features, [
               shot.angle /. 6.28,
               shot.power,
               cue_x /. 1.5,
               cue_z /. 0.75,
-              distribution_score,
             ])
 
             let new_fouls = case sinuca.is_scratch(next) {
               True -> foul_count + 1
               False -> foul_count
             }
+
+            let new_max_combo = int.max(max_combo, new_ep.consecutive_pockets)
 
             let table_next = case sinuca.is_scratch(next) {
               True -> sinuca.reset_cue_ball(next)
@@ -195,8 +178,8 @@ fn evaluate_genome_full(
             #(
               fitness_sum +. shot_fitness,
               new_features,
-              entropy +. distribution_score,
               new_fouls,
+              new_max_combo,
               table_next,
               new_ep,
             )
@@ -206,9 +189,12 @@ fn evaluate_genome_full(
     )
 
   let behavior = novelty.behavior_from_features(behavior_features)
-  let hrr_features = list.append(behavior_features, [entropy_score])
-  #(total_fitness, behavior, hrr_features)
+  #(total_fitness, behavior)
 }
+
+// =============================================================================
+// GENOME TO HRR ENCODING (simplified - uses genome weights)
+// =============================================================================
 
 fn genome_to_hrr(genome: Genome, dim: Int, seed: Int) -> List(Float) {
   let weight_features = list.map(genome.connections, fn(c) { c.weight })
@@ -255,10 +241,10 @@ fn float_str(x: Float) -> String {
 // =============================================================================
 
 pub fn main() {
-  let hybrid_config = default_hybrid_config()
-  let holomap_config = holomap.qwen3_optimized_config()
+  let trainer_config = default_trainer_config()
+  let holomap_config = holomap.fast_config()
 
-  let #(_grid, stats, _archive) = train(50, holomap_config, hybrid_config)
+  let #(_grid, stats) = train(50, holomap_config, trainer_config)
 
   io.println("")
   io.println("Final Stats:")
@@ -270,313 +256,232 @@ pub fn main() {
 pub fn train(
   generations: Int,
   holomap_config: HoloMapConfig,
-  hybrid_config: HybridConfig,
-) -> #(MapElitesGrid, HoloMapStats, NoveltyArchive) {
+  trainer_config: TrainerConfig,
+) -> #(MapElitesGrid, HoloMapStats) {
   let neat_config = sinuca_neat_config()
-  let nov_config = novelty_config()
 
-  io.println("=== VIVA Sinuca Hybrid (Novelty + MAP-Elites) ===")
+  io.println("=== VIVA Sinuca HoloMAP v2 Training ===")
   io.println("GPU Status: " <> glands.check())
   io.println(
     "Grid: " <> int.to_string(holomap_config.grid_size) <> "x"
     <> int.to_string(holomap_config.grid_size)
-    <> " | Novelty: " <> float_str(hybrid_config.novelty_ratio *. 100.0) <> "%"
-    <> " | Elite: " <> float_str(hybrid_config.elite_ratio *. 100.0) <> "%",
+    <> " | Pop: " <> int.to_string(neat_config.population_size)
+    <> " | Elite ratio: " <> float_str(trainer_config.elite_selection_ratio *. 100.0) <> "%",
   )
   io.println("")
 
   // Initialize
   let grid = holomap.new_grid(holomap_config)
-  let archive = novelty.new_archive(nov_config)
   let population = neat.create_population(neat_config, 42)
 
-  // Evaluate initial population
-  let #(grid_init, archive_init, pop_evaluated) = evaluate_population(
-    grid, archive, population.genomes, hybrid_config, holomap_config, nov_config, 0
+  // Evaluate and seed grid with initial population
+  let #(grid_seeded, pop_evaluated) = evaluate_and_update_grid(
+    grid, population.genomes, trainer_config, holomap_config, 0
   )
 
-  // Main loop
+  // Main evolution loop
   train_loop(
-    grid_init,
-    archive_init,
+    grid_seeded,
     pop_evaluated,
     population,
     generations,
     0,
     holomap_config,
-    hybrid_config,
+    trainer_config,
     neat_config,
-    nov_config,
     42,
   )
 }
 
-fn evaluate_population(
+/// Evaluate genomes and update MAP-Elites grid
+fn evaluate_and_update_grid(
   grid: MapElitesGrid,
-  archive: NoveltyArchive,
   genomes: List(Genome),
-  hybrid_config: HybridConfig,
+  trainer_config: TrainerConfig,
   holomap_config: HoloMapConfig,
-  nov_config: NoveltyConfig,
   generation: Int,
-) -> #(MapElitesGrid, NoveltyArchive, List(#(Genome, Float, Behavior))) {
-  // Evaluate all genomes
+) -> #(MapElitesGrid, List(#(Genome, Float, Behavior))) {
   let evaluated = list.map(genomes, fn(genome) {
-    let #(fitness, behavior, _hrr_features) = evaluate_genome_full(genome, hybrid_config)
+    let #(fitness, behavior) = evaluate_genome_with_behavior(genome, trainer_config)
     #(genome, fitness, behavior)
   })
 
-  // Extract behaviors for novelty calculation
-  let behaviors = list.map(evaluated, fn(item) { item.2 })
+  let new_grid = list.fold(evaluated, grid, fn(g, item) {
+    let #(genome, fitness, behavior) = item
+    let hrr = genome_to_hrr(genome, holomap_config.hrr_dim, genome.id * 1000)
+    let #(updated_grid, _) = holomap.try_add_elite(g, genome.id, behavior, hrr, fitness, generation)
+    updated_grid
+  })
 
-  // Calculate novelty scores and update archive
-  let #(combined_fitness, new_archive) = novelty.batch_combined_fitness(
-    list.map(evaluated, fn(item) { item.1 }),
-    behaviors,
-    archive,
-    nov_config,
-  )
-
-  // Update grid with elites
-  let new_grid = list.fold(
-    list.zip(evaluated, combined_fitness),
-    grid,
-    fn(g, pair) {
-      let #(#(genome, _obj_fit, behavior), comb_fit) = pair
-      let hrr = genome_to_hrr(genome, holomap_config.hrr_dim, genome.id * 1000)
-      let #(updated_grid, _) = holomap.try_add_elite(g, genome.id, behavior, hrr, comb_fit, generation)
-      updated_grid
-    }
-  )
-
-  // Return evaluated with combined fitness
-  let result = list.zip(evaluated, combined_fitness)
-    |> list.map(fn(pair) {
-      let #(#(genome, _, behavior), comb_fit) = pair
-      #(genome, comb_fit, behavior)
-    })
-
-  #(new_grid, new_archive, result)
+  #(new_grid, evaluated)
 }
 
+/// Main evolution loop
 fn train_loop(
   grid: MapElitesGrid,
-  archive: NoveltyArchive,
   current_pop: List(#(Genome, Float, Behavior)),
   population: neat.Population,
   remaining: Int,
   generation: Int,
   holomap_config: HoloMapConfig,
-  hybrid_config: HybridConfig,
+  trainer_config: TrainerConfig,
   neat_config: NeatConfig,
-  nov_config: NoveltyConfig,
   seed: Int,
-) -> #(MapElitesGrid, HoloMapStats, NoveltyArchive) {
+) -> #(MapElitesGrid, HoloMapStats) {
   case remaining <= 0 {
     True -> {
       let stats = holomap.compute_stats(grid, generation, holomap_config)
       io.println("")
-      io.println("=== Hybrid Training Complete ===")
+      io.println("=== HoloMAP v2 Training Complete ===")
       io.println("Best fitness: " <> float_str(stats.best_fitness))
       io.println("Coverage: " <> float_str(stats.coverage) <> "%")
-      io.println("Archive size: " <> int.to_string(list.length(archive.behaviors)))
-      #(grid, stats, archive)
+      io.println("QD-Score: " <> float_str(stats.qd_score))
+      #(grid, stats)
     }
     False -> {
       // Log progress
-      case generation % hybrid_config.log_interval == 0 {
+      case generation % trainer_config.log_interval == 0 {
         True -> {
           let stats = holomap.compute_stats(grid, generation, holomap_config)
-          let best_obj = list.fold(current_pop, 0.0, fn(acc, item) {
-            float.max(acc, item.1)
-          })
           io.println(
             "Gen " <> int.to_string(generation)
-            <> " | Obj: " <> float_str(best_obj)
+            <> " | Best: " <> float_str(stats.best_fitness)
             <> " | Cov: " <> float_str(stats.coverage) <> "%"
             <> " | QD: " <> float_str(stats.qd_score)
-            <> " | Arch: " <> int.to_string(list.length(archive.behaviors))
+            <> " | Nov: " <> float_str(stats.novelty_weight *. 100.0) <> "%"
           )
         }
         False -> Nil
       }
 
-      // Generate offspring with hybrid selection
-      let #(offspring, new_pop) = generate_hybrid_offspring(
+      // Generate offspring using HYBRID selection (grid elites + current pop)
+      let #(offspring, new_population) = generate_offspring_hybrid(
         grid,
-        archive,
         current_pop,
         population,
         neat_config.population_size,
-        hybrid_config,
+        trainer_config,
         neat_config,
         seed + generation * 1000,
       )
 
-      // Evaluate offspring
-      let #(new_grid, new_archive, evaluated) = evaluate_population(
-        grid, archive, offspring, hybrid_config, holomap_config, nov_config, generation + 1
+      // Evaluate offspring and update grid
+      let #(new_grid, new_pop) = evaluate_and_update_grid(
+        grid, offspring, trainer_config, holomap_config, generation + 1
       )
 
       // Continue
       train_loop(
         new_grid,
-        new_archive,
-        evaluated,
         new_pop,
+        new_population,
         remaining - 1,
         generation + 1,
         holomap_config,
-        hybrid_config,
+        trainer_config,
         neat_config,
-        nov_config,
         seed,
       )
     }
   }
 }
 
-/// Hybrid selection: 70% novelty, 20% elites, 10% population
-fn generate_hybrid_offspring(
+/// Generate offspring using hybrid selection
+fn generate_offspring_hybrid(
   grid: MapElitesGrid,
-  archive: NoveltyArchive,
   current_pop: List(#(Genome, Float, Behavior)),
   population: neat.Population,
   count: Int,
-  hybrid_config: HybridConfig,
+  trainer_config: TrainerConfig,
   neat_config: NeatConfig,
   seed: Int,
 ) -> #(List(Genome), neat.Population) {
-  let novelty_count = float.truncate(int.to_float(count) *. hybrid_config.novelty_ratio)
-  let elite_count = float.truncate(int.to_float(count) *. hybrid_config.elite_ratio)
-  let pop_count = count - novelty_count - elite_count
+  let elite_count = float.truncate(int.to_float(count) *. trainer_config.elite_selection_ratio)
+  let pop_count = count - elite_count
 
-  // Get genomes sorted by fitness
+  // Get elites from grid
+  let elites = holomap.get_elites(grid)
+
+  // Get genomes from current pop sorted by fitness
   let pop_sorted = current_pop
-    |> list.sort(fn(a, b) { float.compare(b.1, a.1) })
+    |> list.sort(fn(a, b) {
+      let #(_, fit_a, _) = a
+      let #(_, fit_b, _) = b
+      float.compare(fit_b, fit_a)
+    })
     |> list.map(fn(item) { item.0 })
 
-  // Generate from novelty archive (random selection from diverse behaviors)
-  let #(novelty_offspring, pop1) = generate_from_novelty(
-    archive, pop_sorted, novelty_count, population, neat_config, seed
-  )
-
-  // Generate from MAP-Elites grid
-  let #(elite_offspring, pop2) = generate_from_elites(
-    grid, pop_sorted, elite_count, pop1, neat_config, seed + 3000
-  )
-
-  // Generate from top population performers
-  let #(pop_offspring, pop3) = generate_from_top_performers(
-    pop_sorted, pop_count, pop2, neat_config, seed + 6000
-  )
-
-  #(list.flatten([novelty_offspring, elite_offspring, pop_offspring]), pop3)
-}
-
-fn generate_from_novelty(
-  archive: NoveltyArchive,
-  pop_sorted: List(Genome),
-  count: Int,
-  population: neat.Population,
-  neat_config: NeatConfig,
-  seed: Int,
-) -> #(List(Genome), neat.Population) {
-  case archive.behaviors != [] && pop_sorted != [] {
+  // Generate offspring from elites
+  let #(elite_offspring, pop1) = case elites != [] {
     True -> {
-      list.fold(list.range(1, count), #([], population), fn(acc, i) {
-        let #(genomes, pop) = acc
-        // Select random genome from top performers
-        let idx = pseudo_random_int(seed + i * 17, int.min(10, list.length(pop_sorted)))
-        case list_at(pop_sorted, idx) {
-          Some(genome) -> {
-            let #(mutated, new_pop) = apply_mutations(genome, pop, neat_config, seed + i * 100)
-            #([mutated, ..genomes], new_pop)
-          }
-          None -> acc
-        }
-      })
+      generate_from_elites(elites, pop_sorted, elite_count, population, neat_config, seed)
     }
-    False -> {
-      // Fallback to random from population
-      list.fold(list.range(1, count), #([], population), fn(acc, i) {
-        let #(genomes, pop) = acc
-        case list.first(pop_sorted) {
-          Ok(genome) -> {
-            let #(mutated, new_pop) = apply_mutations(genome, pop, neat_config, seed + i * 100)
-            #([mutated, ..genomes], new_pop)
-          }
-          Error(_) -> acc
-        }
-      })
-    }
+    False -> #([], population)
   }
+
+  // Generate offspring from current population
+  let #(pop_offspring, pop2) = case pop_sorted != [] {
+    True -> {
+      generate_from_population(pop_sorted, pop_count, pop1, neat_config, seed + 5000)
+    }
+    False -> #([], pop1)
+  }
+
+  #(list.append(elite_offspring, pop_offspring), pop2)
 }
 
 fn generate_from_elites(
-  grid: MapElitesGrid,
+  elites: List(holomap.Elite),
   pop_sorted: List(Genome),
   count: Int,
   population: neat.Population,
   neat_config: NeatConfig,
   seed: Int,
 ) -> #(List(Genome), neat.Population) {
-  let elites = holomap.get_elites(grid)
-  case elites != [] && pop_sorted != [] {
-    True -> {
-      list.fold(list.range(1, count), #([], population), fn(acc, i) {
-        let #(genomes, pop) = acc
-        let idx = pseudo_random_int(seed + i * 13, list.length(elites))
-        case list_at(elites, idx) {
-          Some(elite) -> {
-            case find_genome_by_id(pop_sorted, elite.genome_id) {
-              Some(genome) -> {
-                let #(mutated, new_pop) = apply_mutations(genome, pop, neat_config, seed + i * 100)
-                #([mutated, ..genomes], new_pop)
-              }
-              None -> {
-                case list.first(pop_sorted) {
-                  Ok(genome) -> {
-                    let #(mutated, new_pop) = apply_mutations(genome, pop, neat_config, seed + i * 100)
-                    #([mutated, ..genomes], new_pop)
-                  }
-                  Error(_) -> acc
-                }
-              }
-            }
-          }
-          None -> acc
-        }
-      })
-    }
-    False -> #([], population)
-  }
-}
-
-fn generate_from_top_performers(
-  pop_sorted: List(Genome),
-  count: Int,
-  population: neat.Population,
-  neat_config: NeatConfig,
-  seed: Int,
-) -> #(List(Genome), neat.Population) {
-  case pop_sorted != [] {
-    True -> {
-      list.fold(list.range(1, count), #([], population), fn(acc, i) {
-        let #(genomes, pop) = acc
-        // Tournament selection from top 5
-        let idx = pseudo_random_int(seed + i * 29, int.min(5, list.length(pop_sorted)))
-        case list_at(pop_sorted, idx) {
+  list.fold(list.range(1, count), #([], population), fn(acc, i) {
+    let #(genomes, pop) = acc
+    let idx = pseudo_random_int(seed + i * 13, list.length(elites))
+    case list_at(elites, idx) {
+      Some(elite) -> {
+        case find_genome_by_id(pop_sorted, elite.genome_id) {
           Some(genome) -> {
-            let #(mutated, new_pop) = apply_mutations(genome, pop, neat_config, seed + i * 200)
+            let #(mutated, new_pop) = apply_neat_mutations(genome, pop, neat_config, seed + i * 100)
             #([mutated, ..genomes], new_pop)
           }
-          None -> acc
+          None -> {
+            case list.first(pop_sorted) {
+              Ok(genome) -> {
+                let #(mutated, new_pop) = apply_neat_mutations(genome, pop, neat_config, seed + i * 100)
+                #([mutated, ..genomes], new_pop)
+              }
+              Error(_) -> acc
+            }
+          }
         }
-      })
+      }
+      None -> acc
     }
-    False -> #([], population)
-  }
+  })
+}
+
+fn generate_from_population(
+  pop_sorted: List(Genome),
+  count: Int,
+  population: neat.Population,
+  neat_config: NeatConfig,
+  seed: Int,
+) -> #(List(Genome), neat.Population) {
+  list.fold(list.range(1, count), #([], population), fn(acc, i) {
+    let #(genomes, pop) = acc
+    let winner = tournament_select_from_list(pop_sorted, 3, seed + i * 29)
+    case winner {
+      Some(genome) -> {
+        let #(mutated, new_pop) = apply_neat_mutations(genome, pop, neat_config, seed + i * 200)
+        #([mutated, ..genomes], new_pop)
+      }
+      None -> acc
+    }
+  })
 }
 
 fn find_genome_by_id(genomes: List(Genome), id: Int) -> Option(Genome) {
@@ -584,19 +489,44 @@ fn find_genome_by_id(genomes: List(Genome), id: Int) -> Option(Genome) {
   |> option.from_result
 }
 
-fn apply_mutations(
+fn tournament_select_from_list(
+  genomes: List(Genome),
+  size: Int,
+  seed: Int,
+) -> Option(Genome) {
+  let len = list.length(genomes)
+  case len == 0 {
+    True -> None
+    False -> {
+      let participants = list.range(0, size - 1)
+        |> list.filter_map(fn(i) {
+          let idx = pseudo_random_int(seed + i * 11, len)
+          case list_at(genomes, idx) {
+            Some(g) -> Ok(g)
+            None -> Error(Nil)
+          }
+        })
+      list.first(participants) |> option.from_result
+    }
+  }
+}
+
+fn apply_neat_mutations(
   genome: Genome,
   population: neat.Population,
   config: NeatConfig,
   seed: Int,
 ) -> #(Genome, neat.Population) {
+  // Apply weight mutation
   let g1 = neat.mutate_weights(genome, config, seed)
 
+  // Maybe add node
   let #(g2, pop1) = case pseudo_random(seed + 100) <. config.add_node_rate {
     True -> neat.mutate_add_node(g1, population, seed + 200)
     False -> #(g1, population)
   }
 
+  // Maybe add connection
   let #(g3, pop2) = case pseudo_random(seed + 300) <. config.add_connection_rate {
     True -> neat.mutate_add_connection(g2, pop1, seed + 400)
     False -> #(g2, pop1)

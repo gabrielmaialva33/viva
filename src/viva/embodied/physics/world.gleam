@@ -11,8 +11,8 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import viva/physics/body.{type MemoryBody}
-import viva/physics/vec4.{type Vec4}
+import viva/embodied/physics/body.{type MemoryBody}
+import viva/embodied/physics/vec4.{type Vec4}
 import viva_glyph
 import viva_glyph/glyph.{type Glyph}
 

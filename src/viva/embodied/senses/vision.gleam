@@ -4,7 +4,7 @@
 //// Integrates with windows.gleam for webcam capture.
 
 import gleam/string
-import viva/senses/windows.{type SenseConfig}
+import viva/embodied/senses/windows.{type SenseConfig}
 
 // ============================================================================
 // Types

@@ -8,10 +8,10 @@ import gleam/int
 import gleam/io
 import gleam/list
 import gleam/option
-import viva/billiards/sinuca.{type Shot, type Table, Shot}
-import viva/billiards/sinuca_fitness as fitness
-import viva/glands
-import viva/jolt.{Vec3}
+import viva/embodied/billiards/sinuca.{type Shot, type Table, Shot}
+import viva/embodied/billiards/sinuca_fitness as fitness
+import viva/soul/glands
+import viva/lifecycle/jolt.{Vec3}
 import viva/neural/neat.{
   type FitnessResult, type Genome, type NeatConfig, type Population,
   FitnessResult, Genome, NeatConfig,

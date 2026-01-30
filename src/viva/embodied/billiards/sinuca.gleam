@@ -8,7 +8,7 @@
 
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import viva/jolt.{
+import viva/lifecycle/jolt.{
   type BodyId, type Vec3, type World, BodyId, Dynamic, Static, Vec3,
 }
 

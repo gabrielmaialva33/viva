@@ -1,6 +1,6 @@
 //// MemoryBody - A body in 4D semantic space
 
-import viva/physics/vec4.{type Vec4}
+import viva/embodied/physics/vec4.{type Vec4}
 import viva_glyph/glyph.{type Glyph}
 
 /// Motion type

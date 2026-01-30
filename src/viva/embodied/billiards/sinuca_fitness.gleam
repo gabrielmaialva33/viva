@@ -7,8 +7,8 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option
-import viva/billiards/sinuca.{type Table, type Shot, White}
-import viva/jolt.{type Vec3, Vec3}
+import viva/embodied/billiards/sinuca.{type Table, type Shot, White}
+import viva/lifecycle/jolt.{type Vec3, Vec3}
 
 // =============================================================================
 // FITNESS CONFIGURATION

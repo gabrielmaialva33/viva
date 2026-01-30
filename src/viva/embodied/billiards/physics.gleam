@@ -9,7 +9,7 @@
 
 import gleam/float
 import gleam/option.{type Option, None, Some}
-import viva/jolt.{type BodyId, type Vec3, type World, Vec3}
+import viva/lifecycle/jolt.{type BodyId, type Vec3, type World, Vec3}
 
 // =============================================================================
 // PHYSICS CONSTANTS (Scientific Literature)

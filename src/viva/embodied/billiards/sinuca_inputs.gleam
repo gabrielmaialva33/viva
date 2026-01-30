@@ -10,8 +10,8 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option
-import viva/billiards/sinuca.{type Table, type BallColor, White, Red, Yellow, Green, Brown, Blue, Pink, Black}
-import viva/jolt.{type Vec3, Vec3}
+import viva/embodied/billiards/sinuca.{type Table, type BallColor, White, Red, Yellow, Green, Brown, Blue, Pink, Black}
+import viva/lifecycle/jolt.{type Vec3, Vec3}
 
 // =============================================================================
 // CONFIGURATION
