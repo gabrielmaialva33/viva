@@ -37,9 +37,17 @@ pub type ActivationResult {
 // SCALAR ACTIVATIONS
 // =============================================================================
 
-/// Sigmoid: 1 / (1 + e^(-x))
+/// Sigmoid: 1 / (1 + e^(-x)) with overflow protection
 pub fn sigmoid(x: Float) -> ActivationResult {
-  let s = 1.0 /. { 1.0 +. float_exp(0.0 -. x) }
+  // Clip to avoid overflow in exp() - exp(709) overflows in Erlang
+  let x_clipped = case x >. 500.0 {
+    True -> 500.0
+    False -> case x <. -500.0 {
+      True -> -500.0
+      False -> x
+    }
+  }
+  let s = 1.0 /. { 1.0 +. float_exp(0.0 -. x_clipped) }
   ActivationResult(value: s, derivative: s *. { 1.0 -. s })
 }
 

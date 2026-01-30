@@ -110,6 +110,33 @@ pub type NeatConfig {
   )
 }
 
+/// Config com threshold ajustado dinamicamente
+pub fn adjust_threshold(config: NeatConfig, num_species: Int) -> NeatConfig {
+  // Target: 5-10 espécies
+  let target_min = 5
+  let target_max = 10
+  let adjustment = 0.1
+
+  let new_threshold = case num_species < target_min {
+    True -> config.compatibility_threshold -. adjustment  // Diminui = mais espécies
+    False -> case num_species > target_max {
+      True -> config.compatibility_threshold +. adjustment  // Aumenta = menos espécies
+      False -> config.compatibility_threshold
+    }
+  }
+
+  // Clamp entre 0.1 e 3.0
+  let clamped = case new_threshold <. 0.1 {
+    True -> 0.1
+    False -> case new_threshold >. 3.0 {
+      True -> 3.0
+      False -> new_threshold
+    }
+  }
+
+  NeatConfig(..config, compatibility_threshold: clamped)
+}
+
 /// Resultado de avaliação de fitness
 pub type FitnessResult {
   FitnessResult(genome_id: Int, fitness: Float)
@@ -225,13 +252,22 @@ pub fn create_population(config: NeatConfig, seed: Int) -> Population {
 
   let max_innovation = { config.num_inputs + 1 } * config.num_outputs
 
-  // Cria genomas com pesos randomizados
+  // Create genomes with random weights and REAL structural diversity
+  // (some connections removed entirely, not just disabled)
   let genomes =
     list.range(1, config.population_size)
     |> list.map(fn(i) {
       let connections =
-        list.index_map(initial_connections, fn(conn, idx) {
-          ConnectionGene(..conn, weight: random_weight(seed + i * 1000 + idx))
+        initial_connections
+        |> list.index_map(fn(conn, idx) {
+          let weight = random_weight(seed + i * 1000 + idx)
+          ConnectionGene(..conn, weight: weight, enabled: True)
+        })
+        // Remove 10-30% of connections for structural diversity
+        |> list.filter(fn(conn) {
+          let r = pseudo_random(seed + i * 3000 + conn.innovation)
+          let keep_rate = 0.7 +. pseudo_random(seed + i) *. 0.2
+          r <. keep_rate
         })
       Genome(
         id: i,
@@ -898,17 +934,21 @@ pub fn evolve(
   config: NeatConfig,
   seed: Int,
 ) -> Population {
+  // Ajusta threshold dinamicamente baseado no número de espécies
+  let num_species = list.length(population.species)
+  let adjusted_config = adjust_threshold(config, num_species)
+
   // Atualiza fitness dos genomas
   let pop_with_fitness = update_fitness(population, fitness_results)
 
-  // Especiação
-  let speciated = speciate(pop_with_fitness, config)
+  // Especiação com threshold ajustado
+  let speciated = speciate(pop_with_fitness, adjusted_config)
 
   // Calcula adjusted fitness
   let with_adjusted = calculate_adjusted_fitness(speciated)
 
   // Seleciona e reproduz
-  let next_gen = reproduce(with_adjusted, config, seed)
+  let next_gen = reproduce(with_adjusted, adjusted_config, seed)
 
   Population(..next_gen, generation: population.generation + 1)
 }
