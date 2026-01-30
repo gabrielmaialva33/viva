@@ -9,8 +9,8 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
 import viva_telemetry/log
-import viva/hardware/cobs
-import viva/hardware/packet.{type Packet}
+import viva/infra/hardware/cobs
+import viva/infra/hardware/packet.{type Packet}
 
 // ============================================================================
 // Types

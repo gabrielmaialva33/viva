@@ -10,7 +10,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
 import gleam/string
-import viva/serial.{type Serial}
+import viva/infra/serial.{type Serial}
 
 // ============================================================================
 // Types

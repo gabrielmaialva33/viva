@@ -26,11 +26,11 @@ import gleam/set.{type Set}
 import mist.{type Connection, type ResponseData}
 import viva/memory/world.{type World}
 import viva_tensor/tensor.{type Tensor}
-import viva/telemetry/frontend
-import viva/telemetry/metrics
-import viva/telemetry/perf
-import viva/telemetry/system
-import viva/telemetry/world_json
+import viva/infra/telemetry/frontend
+import viva/infra/telemetry/metrics
+import viva/infra/telemetry/perf
+import viva/infra/telemetry/system
+import viva/infra/telemetry/world_json
 
 /// Helper to extract data from tensor
 fn td(t: Tensor) -> List(Float) {

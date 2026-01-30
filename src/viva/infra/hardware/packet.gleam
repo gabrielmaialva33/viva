@@ -6,7 +6,7 @@
 import gleam/bit_array
 import gleam/float
 import gleam/int
-import viva/hardware/crc8
+import viva/infra/hardware/crc8
 
 // ============================================================================
 // Packet Type IDs

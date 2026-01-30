@@ -4,7 +4,7 @@
 //// Falls back to CPU gracefully if GPU unavailable.
 ////
 //// Usage:
-////   import viva/gpu
+////   import viva/infra/gpu
 ////   let backend = gpu.detect()  // Auto-detect best backend
 ////   let result = gpu.batch_matmul(inputs, weights, backend)
 
