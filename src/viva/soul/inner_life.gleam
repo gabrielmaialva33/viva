@@ -12,11 +12,11 @@ import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
-import viva/narrative.{
+import viva/memory/narrative.{
   type NarrativeMemory, type ThoughtStream, type VoiceStyle, Emotional, Factual,
   Poetic, Reflective,
 }
-import viva/reflexivity.{
+import viva/soul/reflexivity.{
   type IdentityCrisis, type Insight, type Introspection, type MetaCognition,
   type SelfDescription, type SelfModel, Arousal, Assertive, Calm, Decreasing,
   Dominance, Energetic, Increasing, Optimistic, Pessimistic, Pleasure,
