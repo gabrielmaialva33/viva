@@ -5,8 +5,8 @@
 import gleam/list
 import gleam/option.{None}
 import gleeunit/should
-import viva/bardo
-import viva/memory
+import viva/lifecycle/bardo
+import viva/memory/memory
 import viva_emotion/pad
 import viva_glyph/glyph
 

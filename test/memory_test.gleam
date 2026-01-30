@@ -5,7 +5,7 @@
 import gleam/list
 import gleam/option.{None}
 import gleeunit/should
-import viva/memory
+import viva/memory/memory
 import viva_glyph/glyph
 
 // =============================================================================

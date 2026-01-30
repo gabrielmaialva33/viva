@@ -6,7 +6,7 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import gleeunit/should
-import viva/narrative.{
+import viva/memory/narrative.{
   Associated, Caused, Contrasted, Emotional, Factual, FromAssociation,
   FromCausal, Poetic, Preceded, Reflective, Spontaneous,
 }

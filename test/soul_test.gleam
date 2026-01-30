@@ -4,7 +4,7 @@
 
 import gleam/erlang/process
 import gleeunit/should
-import viva/soul
+import viva/soul/soul
 import viva/types
 import viva_emotion/stimulus
 

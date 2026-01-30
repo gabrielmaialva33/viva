@@ -6,9 +6,9 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import gleeunit/should
-import viva/inner_life
-import viva/narrative.{Emotional, Factual, Poetic, Reflective}
-import viva/reflexivity.{Arousal, Decreasing, Dominance, Increasing, Pleasure}
+import viva/soul/inner_life
+import viva/memory/narrative.{Emotional, Factual, Poetic, Reflective}
+import viva/soul/reflexivity.{Arousal, Decreasing, Dominance, Increasing, Pleasure}
 import viva_emotion/pad
 import viva_glyph/glyph
 

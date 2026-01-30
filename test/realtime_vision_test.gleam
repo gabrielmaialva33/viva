@@ -8,7 +8,7 @@ import gleam/list
 import gleam/option.{None}
 import gleeunit/should
 import viva/memory/hrr
-import viva/senses/realtime_vision.{
+import viva/embodied/senses/realtime_vision.{
   DramaticChange, MajorChange, MinorChange, NoChange,
 }
 

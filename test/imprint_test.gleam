@@ -4,11 +4,11 @@
 
 import gleam/option.{None, Some}
 import gleeunit/should
-import viva/imprint
-import viva/imprint/motor
-import viva/imprint/sensory
-import viva/imprint/social
-import viva/imprint/survival
+import viva/memory/imprint
+import viva/memory/imprint/motor
+import viva/memory/imprint/sensory
+import viva/memory/imprint/social
+import viva/memory/imprint/survival
 
 // =============================================================================
 // LIFECYCLE

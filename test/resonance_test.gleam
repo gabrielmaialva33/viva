@@ -5,7 +5,7 @@
 import gleam/list
 import gleam/option.{None, Some}
 import gleeunit/should
-import viva/resonance
+import viva/soul/resonance
 import viva_emotion/pad
 import viva_glyph/glyph
 

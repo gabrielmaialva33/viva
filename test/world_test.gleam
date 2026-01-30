@@ -7,9 +7,9 @@ import gleam/float
 import gleam/list
 import gleam/option.{None, Some}
 import gleeunit/should
-import viva/physics/body
-import viva/physics/vec4.{Vec4}
-import viva/physics/world
+import viva/embodied/physics/body
+import viva/embodied/physics/vec4.{Vec4}
+import viva/embodied/physics/world
 import viva_glyph/glyph
 
 // =============================================================================

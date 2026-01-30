@@ -5,7 +5,7 @@
 import gleam/erlang/process
 import gleam/list
 import gleeunit/should
-import viva/supervisor
+import viva/infra/supervisor
 
 // =============================================================================
 // SUPERVISOR BASICS

@@ -5,7 +5,7 @@
 import gleam/list
 import gleam/option.{None, Some}
 import gleeunit/should
-import viva/cognition/broker.{
+import viva/infra/cognition/broker.{
   AllEvents, Arousal, Associated, Caused, CrisisEvents, Decreasing,
   EmotionalEvents, Increasing, IntrospectionEvents, NarrativeEvents, Pleasure,
 }

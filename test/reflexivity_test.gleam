@@ -5,7 +5,7 @@
 import gleam/list
 import gleam/option
 import gleeunit/should
-import viva/reflexivity.{
+import viva/soul/reflexivity.{
   Arousal, Assertive, Calm, Decreasing, Dominance, Energetic, Increasing,
   Optimistic, Pessimistic, Pleasure, Submissive,
 }

@@ -1,8 +1,8 @@
 import gleam/list
 import gleam/option.{Some}
 import gleeunit/should
-import viva/narrative
-import viva/narrative_attention
+import viva/memory/narrative
+import viva/memory/narrative_attention
 import viva_glyph/glyph
 
 // =============================================================================

@@ -4,8 +4,8 @@
 
 import gleam/float
 import gleeunit/should
-import viva/physics/body
-import viva/physics/vec4.{Vec4}
+import viva/embodied/physics/body
+import viva/embodied/physics/vec4.{Vec4}
 import viva_glyph/glyph
 
 // =============================================================================
