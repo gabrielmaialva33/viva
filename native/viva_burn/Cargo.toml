@@ -1,0 +1,45 @@
+[package]
+name = "viva_burn"
+version = "0.2.0"
+edition = "2021"
+authors = ["Gabriel Maia <mrootx@proton.me>"]
+description = "GPU-accelerated neural network batch operations for VIVA using burn-rs"
+
+[lib]
+name = "viva_burn"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Burn ML Framework
+burn = { version = "0.16", default-features = false, features = ["std", "autodiff"] }
+
+# CPU Backend (always available as fallback)
+burn-ndarray = { version = "0.16", default-features = false, features = ["std"] }
+
+# CUDA Backend - RTX 4090 optimized
+burn-cuda = { version = "0.16", optional = true }
+
+# NIF binding
+rustler = "0.35"
+
+# Parallelism (fallback for CPU)
+rayon = "1.10"
+
+# Math
+rand = "0.8"
+rand_distr = "0.4"
+
+[features]
+default = ["cuda"]
+cpu = []
+cuda = ["dep:burn-cuda"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+strip = true
+
+[profile.dev]
+opt-level = 1
