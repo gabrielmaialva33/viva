@@ -255,9 +255,15 @@ fn glyph_to_features(g: Glyph) -> List(Float) {
   ]
 }
 
-/// Hash a glyph to an integer
+/// Hash for glyph using positional encoding (avoids collisions)
 fn glyph_hash(g: Glyph) -> Int {
-  list.fold(g.tokens, 0, fn(acc, t) { acc + t })
+  case g.tokens {
+    [t1, t2, t3, t4] -> t1 + t2 * 256 + t3 * 65536 + t4 * 16_777_216
+    [t1, t2, t3] -> t1 + t2 * 256 + t3 * 65536
+    [t1, t2] -> t1 + t2 * 256
+    [t1] -> t1
+    _ -> list.fold(g.tokens, 0, fn(acc, t) { acc * 256 + t })
+  }
 }
 
 /// Convert relation type to features
@@ -410,46 +416,15 @@ fn average_or_default(values: List(Float), default: Float) -> Float {
   }
 }
 
-fn float_exp(x: Float) -> Float {
-  // Approximation for exp using Taylor series
-  // exp(x) ≈ 1 + x + x²/2 + x³/6 + x⁴/24
-  let x2 = x *. x
-  let x3 = x2 *. x
-  let x4 = x3 *. x
-  1.0 +. x +. x2 /. 2.0 +. x3 /. 6.0 +. x4 /. 24.0
-}
+// =============================================================================
+// FFI - Native performance (replaced O(n) implementations)
+// =============================================================================
 
-fn float_sqrt(x: Float) -> Float {
-  // Newton's method for sqrt
-  case x <=. 0.0 {
-    True -> 0.0
-    False -> {
-      let guess = x /. 2.0
-      sqrt_iterate(x, guess, 10)
-    }
-  }
-}
+@external(erlang, "math", "exp")
+fn float_exp(x: Float) -> Float
 
-fn sqrt_iterate(x: Float, guess: Float, iterations: Int) -> Float {
-  case iterations <= 0 {
-    True -> guess
-    False -> {
-      let new_guess = { guess +. x /. guess } /. 2.0
-      sqrt_iterate(x, new_guess, iterations - 1)
-    }
-  }
-}
+@external(erlang, "math", "sqrt")
+fn float_sqrt(x: Float) -> Float
 
-fn int_to_float(n: Int) -> Float {
-  case n >= 0 {
-    True -> positive_int_to_float(n, 0.0)
-    False -> 0.0 -. positive_int_to_float(0 - n, 0.0)
-  }
-}
-
-fn positive_int_to_float(n: Int, acc: Float) -> Float {
-  case n {
-    0 -> acc
-    _ -> positive_int_to_float(n - 1, acc +. 1.0)
-  }
-}
+@external(erlang, "erlang", "float")
+fn int_to_float(i: Int) -> Float

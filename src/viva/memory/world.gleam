@@ -234,7 +234,7 @@ pub fn step(world: World) -> World {
   |> step_forces(dt)
   |> step_integration(dt)
   |> step_energy_decay()
-  |> step_update_islands()
+  |> step_update_islands_periodic()
   |> increment_tick()
 }
 
@@ -244,8 +244,16 @@ pub fn step_dt(world: World, dt: Float) -> World {
   |> step_forces(dt)
   |> step_integration(dt)
   |> step_energy_decay()
-  |> step_update_islands()
+  |> step_update_islands_periodic()
   |> increment_tick()
+}
+
+/// Update islands only every 10 ticks (O(n²) optimization)
+fn step_update_islands_periodic(world: World) -> World {
+  case world.tick % 10 == 0 {
+    True -> step_update_islands(world)
+    False -> world
+  }
 }
 
 /// Apply forces to all dynamic bodies

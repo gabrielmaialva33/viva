@@ -82,11 +82,13 @@ pub fn from_list(data: List(Float)) -> HRR {
 /// Binding (*): Associates two concepts
 /// Mathematically: circular convolution
 /// bind(A, B) creates a new vector that "contains" the association A*B
+/// Uses FFT O(n log n) when available, falls back to O(n²) naive
 pub fn bind(a: HRR, b: HRR) -> Result(HRR, HRRError) {
   case a.dim == b.dim {
     False -> Error(DimensionMismatch(expected: a.dim, got: b.dim))
     True -> {
-      let result = circular_convolution(td(a.vector), td(b.vector))
+      // Use FFT-accelerated version (has internal fallback to naive)
+      let result = nx_circular_conv(td(a.vector), td(b.vector))
       Ok(HRR(vector: tensor.Tensor(data: result, shape: [a.dim]), dim: a.dim))
     }
   }
@@ -95,12 +97,14 @@ pub fn bind(a: HRR, b: HRR) -> Result(HRR, HRRError) {
 /// Unbinding (#): Recovers associated concept
 /// Mathematically: circular correlation (convolution with inverse)
 /// unbind(A*B, A) ≈ B (approximate recovery)
+/// Uses FFT O(n log n) when available, falls back to O(n²) naive
 pub fn unbind(trace: HRR, cue: HRR) -> Result(HRR, HRRError) {
   case trace.dim == cue.dim {
     False -> Error(DimensionMismatch(expected: trace.dim, got: cue.dim))
     True -> {
       let cue_inv = approximate_inverse(td(cue.vector))
-      let result = circular_convolution(td(trace.vector), cue_inv)
+      // Use FFT-accelerated version (has internal fallback to naive)
+      let result = nx_circular_conv(td(trace.vector), cue_inv)
       Ok(HRR(
         vector: tensor.Tensor(data: result, shape: [trace.dim]),
         dim: trace.dim,
