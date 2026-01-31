@@ -478,8 +478,9 @@ pub fn tensor_random_uniform_test() {
 }
 
 pub fn tensor_xavier_init_test() {
+  // xavier_init(fan_in, fan_out) returns shape [fan_out, fan_in] (PyTorch convention)
   let t = tensor.xavier_init(100, 50)
-  t.shape |> should.equal([100, 50])
+  t.shape |> should.equal([50, 100])
 
   // Xavier limit = sqrt(6 / 150) ≈ 0.2
   let limit = 0.3

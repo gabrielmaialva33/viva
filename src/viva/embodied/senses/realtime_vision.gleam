@@ -674,6 +674,6 @@ fn clip_embed_ffi(
 @external(erlang, "viva_vision_ffi", "ocr_extract")
 fn ocr_extract_ffi(image_bytes: BitArray, url: String) -> Result(String, String)
 
-/// Tensor to list conversion
-@external(erlang, "viva_tensor_ffi", "tensor_to_list")
+/// Tensor to list conversion (uses viva_vision_ffi which has this function)
+@external(erlang, "viva_vision_ffi", "tensor_to_list")
 fn viva_tensor_to_list(tensor: a) -> List(Float)

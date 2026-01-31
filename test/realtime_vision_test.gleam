@@ -140,7 +140,8 @@ pub fn classify_change_thresholds_test() {
 // =============================================================================
 
 pub fn no_change_no_stimulus_test() {
-  let emb = hrr.random(1024)
+  // Use from_list instead of random to avoid FFI dependencies
+  let emb = hrr.from_list(list.repeat(0.1, 1024))
 
   let stimulus = realtime_vision.embedding_to_stimulus(emb, NoChange)
 
@@ -149,7 +150,9 @@ pub fn no_change_no_stimulus_test() {
 }
 
 pub fn dramatic_change_produces_stimulus_test() {
-  let emb = hrr.random(1024)
+  // Use from_list with high norm to trigger DramaticChange stimulus
+  // Embedding norm > 0.8 with DramaticChange should produce Threat
+  let emb = hrr.from_list(list.repeat(0.5, 1024))
 
   let stimulus = realtime_vision.embedding_to_stimulus(emb, DramaticChange)
 
