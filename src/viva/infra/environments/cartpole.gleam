@@ -433,16 +433,8 @@ fn result_unwrap(r: Result(a, e), default: a) -> a {
   case r { Ok(v) -> v Error(_) -> default }
 }
 
-fn int_to_float(x: Int) -> Float {
-  do_int_to_float(x, 0.0)
-}
-
-fn do_int_to_float(x: Int, acc: Float) -> Float {
-  case x <= 0 {
-    True -> acc
-    False -> do_int_to_float(x - 1, acc +. 1.0)
-  }
-}
+@external(erlang, "erlang", "float")
+fn int_to_float(x: Int) -> Float
 
 fn int_abs(x: Int) -> Int {
   case x < 0 { True -> 0 - x False -> x }

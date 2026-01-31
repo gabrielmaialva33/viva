@@ -537,9 +537,5 @@ fn int_to_string(n: Int) -> String
 @external(erlang, "erlang", "trunc")
 fn float_truncate(f: Float) -> Int
 
-fn int_to_float(n: Int) -> Float {
-  case n <= 0 {
-    True -> 0.0
-    False -> 1.0 +. int_to_float(n - 1)
-  }
-}
+@external(erlang, "erlang", "float")
+fn int_to_float(n: Int) -> Float
