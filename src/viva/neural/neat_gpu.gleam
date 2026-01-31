@@ -11,7 +11,7 @@ import gleam/float
 import gleam/int
 import gleam/io
 import gleam/list
-import viva/soul/glands.{type GlandsHandle}
+import viva/neural/glands.{type GlandsHandle}
 import viva/neural/neat.{
   type FitnessResult, type Genome, type NeatConfig, type Population,
   FitnessResult,

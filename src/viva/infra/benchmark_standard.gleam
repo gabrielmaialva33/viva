@@ -28,7 +28,7 @@ import viva/infra/environments/environment.{
   type BenchmarkMetrics, type StepResult, BenchmarkMetrics, Continuous, Discrete,
 }
 import viva/infra/environments/pendulum
-import viva/soul/glands
+import viva/neural/glands
 import viva/neural/neat.{type FitnessResult, type Genome, type Population, FitnessResult}
 
 // =============================================================================

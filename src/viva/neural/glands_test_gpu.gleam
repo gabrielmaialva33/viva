@@ -1,7 +1,7 @@
 //// Quick test for viva_glands GPU NIF
 
 import gleam/io
-import viva/soul/glands
+import viva/neural/glands
 
 pub fn main() {
   io.println("=== VIVA Glands GPU Test ===\n")

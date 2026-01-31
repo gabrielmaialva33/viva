@@ -689,8 +689,12 @@ pub fn last_insight(self_model: SelfModel) -> Option(Insight) {
 // =============================================================================
 
 fn to_float(n: Int) -> Float {
+  // Fix: O(1) instead of O(n) recursive
   case n <= 0 {
     True -> 0.0
-    False -> 1.0 +. to_float(n - 1)
+    False -> do_to_float(n)
   }
 }
+
+@external(erlang, "erlang", "float")
+fn do_to_float(n: Int) -> Float

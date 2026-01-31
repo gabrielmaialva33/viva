@@ -9,9 +9,10 @@ import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
 import viva/embodied/embodiment.{type Body, type BodyStimulus}
 import viva/memory/imprint.{type ImprintState}
-import viva/soul/inner_life.{type InnerLife}
 import viva/memory/memory.{type GlyphMemory, type KarmaBank}
 import viva/memory/narrative.{type NarrativeMemory}
+import viva/soul/cognition
+import viva/soul/inner_life.{type InnerLife}
 import viva/soul/reflexivity.{type SelfModel}
 import viva/types.{type VivaConfig, type VivaId, type VivaSnapshot}
 import viva_emotion
@@ -492,51 +493,38 @@ fn handle_message(
       // Karma bank tick
       let karma_bank = memory.tick(karma_bank)
 
-      // Self-observation (reflexivity)
+      // Get current PAD for cognitive processing
       let current_pad = viva_emotion.get_pad(emotional)
-      let new_self_model =
-        reflexivity.observe(
+
+      // Process all cognitive subsystems in one call
+      let cognitive_state =
+        cognition.from_components(
           state.self_model,
-          current_pad,
-          new_glyph,
-          state.tick_count + 1,
+          state.narrative,
+          state.imprint,
+          state.inner_life,
         )
 
-      // Narrative: record temporal link if glyph changed
-      let new_narrative = case glyph.equals(state.current_glyph, new_glyph) {
-        True -> narrative.tick(state.narrative)
-        // Same state, just decay
-        False -> {
-          // Record: previous glyph preceded current glyph
-          state.narrative
-          |> narrative.record_preceded(
-            state.current_glyph,
-            new_glyph,
-            state.tick_count + 1,
-          )
-          |> narrative.tick()
-        }
-      }
+      let sensation =
+        cognition.SensoryInput(
+          light: state.last_sensation.light,
+          sound: state.last_sensation.sound,
+          touch: state.last_sensation.touch,
+          entity: state.last_sensation.entity,
+        )
 
-      // Imprinting: process critical period learning
-      let #(new_imprint, _imprint_events) =
-        imprint.tick(
-          state.imprint,
-          current_pad.pleasure,
-          current_pad.arousal,
-          current_pad.dominance,
-          state.last_sensation.light,
-          state.last_sensation.sound,
-          state.last_sensation.touch,
-          state.last_sensation.entity,
+      let cog_result =
+        cognition.tick(
+          cognitive_state,
+          current_pad,
+          new_glyph,
+          state.current_glyph,
+          sensation,
           new_body.energy,
           state.tick_count + 1,
         )
 
-      // Inner life: verbalized self-reflection
-      let #(new_inner_life, _inner_voice) =
-        inner_life.tick(state.inner_life, current_pad, new_glyph)
-
+      // Build new state with cognitive results
       let new_state =
         SoulState(
           ..state,
@@ -544,10 +532,10 @@ fn handle_message(
           current_glyph: new_glyph,
           karma_bank: karma_bank,
           body: new_body,
-          self_model: new_self_model,
-          narrative: new_narrative,
-          imprint: new_imprint,
-          inner_life: new_inner_life,
+          self_model: cog_result.self_model,
+          narrative: cog_result.narrative,
+          imprint: cog_result.imprint,
+          inner_life: cog_result.inner_life,
           tick_count: state.tick_count + 1,
         )
       actor.continue(new_state)

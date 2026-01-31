@@ -21,7 +21,7 @@ import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
-import viva/soul/glands.{type GlandsHandle}
+import viva/neural/glands.{type GlandsHandle}
 import viva/neural/neat.{
   type ConnectionGene, type Genome, type NodeGene, type NeatConfig,
   ConnectionGene, Genome, NodeGene,
