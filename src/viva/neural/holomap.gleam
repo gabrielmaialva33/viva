@@ -19,6 +19,7 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import viva/neural/math_ffi
 import viva/neural/novelty.{type Behavior}
 
 // =============================================================================
@@ -402,32 +403,9 @@ fn float_exp(x: Float) -> Float {
   list.fold(terms, 0.0, fn(acc, t) { acc +. t })
 }
 
+// Use centralized FFI (O(1) vs O(n) Newton-Raphson)
 fn float_sqrt(x: Float) -> Float {
-  case x <=. 0.0 {
-    True -> 0.0
-    False -> do_sqrt(x, x /. 2.0, 0)
-  }
-}
-
-fn do_sqrt(x: Float, guess: Float, iterations: Int) -> Float {
-  case iterations > 20 {
-    True -> guess
-    False -> {
-      let new_guess = { guess +. x /. guess } /. 2.0
-      let diff = float_abs(new_guess -. guess)
-      case diff <. 0.0001 {
-        True -> new_guess
-        False -> do_sqrt(x, new_guess, iterations + 1)
-      }
-    }
-  }
-}
-
-fn float_abs(x: Float) -> Float {
-  case x <. 0.0 {
-    True -> 0.0 -. x
-    False -> x
-  }
+  math_ffi.safe_sqrt(x)
 }
 
 fn pseudo_random(seed: Int) -> Float {

@@ -17,6 +17,7 @@ import gleam/float
 import gleam/list
 import gleam/option
 import viva/neural/activation.{type ActivationType}
+import viva/neural/math_ffi
 import viva/neural/attention
 import viva/neural/conv
 import viva/neural/neat.{
@@ -865,24 +866,9 @@ fn positive_int_to_float(n: Int, acc: Float) -> Float {
   }
 }
 
+// Use centralized FFI (O(1) vs O(n) Newton-Raphson)
 fn float_sqrt(x: Float) -> Float {
-  case x <=. 0.0 {
-    True -> 0.0
-    False -> {
-      let guess = x /. 2.0
-      sqrt_iterate(x, guess, 10)
-    }
-  }
-}
-
-fn sqrt_iterate(x: Float, guess: Float, iterations: Int) -> Float {
-  case iterations <= 0 {
-    True -> guess
-    False -> {
-      let new_guess = { guess +. x /. guess } /. 2.0
-      sqrt_iterate(x, new_guess, iterations - 1)
-    }
-  }
+  math_ffi.safe_sqrt(x)
 }
 
 fn float_to_int(f: Float) -> Int {

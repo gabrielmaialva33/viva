@@ -13,6 +13,7 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import viva/neural/math_ffi
 
 // =============================================================================
 // TYPES - Estruturas de Dados NEAT
@@ -309,46 +310,17 @@ pub fn activate(value: Float, activation: ActivationType) -> Float {
   }
 }
 
+// Use centralized FFI implementations (O(1) vs O(n²) Taylor)
 fn sigmoid(x: Float) -> Float {
-  1.0 /. { 1.0 +. float_exp(0.0 -. x) }
+  math_ffi.sigmoid(x)
 }
 
 fn tanh(x: Float) -> Float {
-  let ex = float_exp(x)
-  let emx = float_exp(0.0 -. x)
-  { ex -. emx } /. { ex +. emx }
+  math_ffi.tanh(x)
 }
 
 fn relu(x: Float) -> Float {
   float.max(0.0, x)
-}
-
-fn float_exp(x: Float) -> Float {
-  // Aproximação de Taylor para e^x (clamp para evitar overflow)
-  let clamped = float.clamp(x, -20.0, 20.0)
-  exp_taylor(clamped, 20)
-}
-
-fn exp_taylor(x: Float, terms: Int) -> Float {
-  list.range(0, terms - 1)
-  |> list.fold(0.0, fn(acc, n) { acc +. power(x, n) /. factorial(n) })
-}
-
-fn power(base: Float, exp: Int) -> Float {
-  case exp {
-    0 -> 1.0
-    1 -> base
-    n if n > 0 -> base *. power(base, n - 1)
-    _ -> 1.0
-  }
-}
-
-fn factorial(n: Int) -> Float {
-  case n {
-    0 -> 1.0
-    1 -> 1.0
-    _ -> int.to_float(n) *. factorial(n - 1)
-  }
 }
 
 // =============================================================================
