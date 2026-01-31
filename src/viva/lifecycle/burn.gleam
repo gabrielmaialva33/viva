@@ -208,19 +208,12 @@ fn generate_weights_loop(remaining: Int, seed: Int, acc: List(Float)) -> List(Fl
   }
 }
 
-fn int_to_float(x: Int) -> Float {
-  case x >= 0 {
-    True -> do_int_to_float(x, 0.0)
-    False -> 0.0 -. do_int_to_float(-x, 0.0)
-  }
-}
+// =============================================================================
+// FFI - O(1) int_to_float (replaced O(n) loop)
+// =============================================================================
 
-fn do_int_to_float(x: Int, acc: Float) -> Float {
-  case x <= 0 {
-    True -> acc
-    False -> do_int_to_float(x - 1, acc +. 1.0)
-  }
-}
+@external(erlang, "erlang", "float")
+fn int_to_float(x: Int) -> Float
 
 // =============================================================================
 // HIGH-LEVEL API
