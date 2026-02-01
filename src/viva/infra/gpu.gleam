@@ -10,8 +10,8 @@
 
 import gleam/dict.{type Dict}
 import gleam/float
-import gleam/io
 import gleam/list
+import viva_telemetry/log
 import gleam/result
 import viva_tensor/tensor.{type Tensor}
 import viva_emotion/pad.{type Pad}
@@ -95,13 +95,13 @@ pub fn print_status() -> Nil {
   let info = gpu_info()
   case info.available {
     True -> {
-      io.println("GPU: " <> info.name)
-      io.println("VRAM: " <> int_to_string(info.memory_mb) <> " MB")
-      io.println("Compute: " <> info.compute_capability)
+      log.info("GPU: " <> info.name, [])
+      log.info("VRAM: " <> int_to_string(info.memory_mb) <> " MB", [])
+      log.info("Compute: " <> info.compute_capability, [])
     }
     False -> {
-      io.println("GPU: Not available")
-      io.println("Using CPU backend")
+      log.info("GPU: Not available", [])
+      log.info("Using CPU backend", [])
     }
   }
 }

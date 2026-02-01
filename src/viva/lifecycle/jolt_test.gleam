@@ -1,20 +1,21 @@
 //// JoltPhysics Complete Test
 //// Demonstrates: physics, raycast, kinematic character control, CONTACT EVENTS
 
-import gleam/io
+import gleam/string
 import viva/lifecycle/jolt
+import viva_telemetry/log
 
 pub fn main() {
-  io.println("=== JoltPhysics Complete Test v0.2.0 ===")
-  io.println("Features: Physics, Raycast, Kinematic, ContactListener")
-  io.println("")
+  log.info("=== JoltPhysics Complete Test v0.2.0 ===", [])
+  log.info("Features: Physics, Raycast, Kinematic, ContactListener", [])
+  log.info("", [])
 
   // Check NIF loaded
-  io.println("NIF: " <> jolt.check())
+  log.info("NIF: " <> jolt.check(), [])
 
   // Create physics world
-  io.println("")
-  io.println("--- World Setup ---")
+  log.info("", [])
+  log.info("--- World Setup ---", [])
   let world = jolt.world_new()
 
   // Create floor (static)
@@ -24,7 +25,7 @@ pub fn main() {
     jolt.vec3(50.0, 1.0, 50.0),
     jolt.Static,
   )
-  io.println("Floor created: body " <> int_to_string(floor.index))
+  log.info("Floor created: body " <> int_to_string(floor.index), [])
 
   // Create falling sphere (dynamic)
   let sphere = jolt.create_sphere(
@@ -33,7 +34,7 @@ pub fn main() {
     0.5,
     jolt.Dynamic,
   )
-  io.println("Sphere created: body " <> int_to_string(sphere.index))
+  log.info("Sphere created: body " <> int_to_string(sphere.index), [])
 
   // Create kinematic character (for character controller demo)
   let character = jolt.create_capsule(
@@ -43,7 +44,7 @@ pub fn main() {
     0.4,  // radius
     jolt.Kinematic,
   )
-  io.println("Character (kinematic capsule): body " <> int_to_string(character.index))
+  log.info("Character (kinematic capsule): body " <> int_to_string(character.index), [])
 
   // Create a wall for raycast test
   let wall = jolt.create_box(
@@ -52,110 +53,110 @@ pub fn main() {
     jolt.vec3(1.0, 5.0, 5.0),
     jolt.Static,
   )
-  io.println("Wall created: body " <> int_to_string(wall.index))
+  log.info("Wall created: body " <> int_to_string(wall.index), [])
 
   // Optimize broad phase
   jolt.optimize(world)
-  io.println("Broad phase optimized")
+  log.info("Broad phase optimized", [])
 
   // Initial state
-  io.println("")
-  io.println("--- Initial State ---")
+  log.info("", [])
+  log.info("--- Initial State ---", [])
   print_body_state(world, "Sphere", sphere)
 
   // Test raycast - ray from origin towards wall
-  io.println("")
-  io.println("--- Raycast Test ---")
+  log.info("", [])
+  log.info("--- Raycast Test ---", [])
   let ray_origin = jolt.vec3(0.0, 5.0, 0.0)
   let ray_direction = jolt.vec3(20.0, 0.0, 0.0)  // 20 units to the right
-  io.println("Casting ray from (0,5,0) direction (20,0,0)...")
+  log.info("Casting ray from (0,5,0) direction (20,0,0)...", [])
   case jolt.cast_ray(world, ray_origin, ray_direction) {
     jolt.Hit(hit) -> {
-      io.println("  HIT!")
-      io.println("  Body: " <> int_to_string(hit.body.index))
-      io.println("  Fraction: " <> float_to_string(hit.fraction))
-      io.println("  Point: (" <> float_to_string(hit.point.x) <> ", " <>
+      log.info("  HIT!", [])
+      log.info("  Body: " <> int_to_string(hit.body.index), [])
+      log.info("  Fraction: " <> float_to_string(hit.fraction), [])
+      log.info("  Point: (" <> float_to_string(hit.point.x) <> ", " <>
                               float_to_string(hit.point.y) <> ", " <>
-                              float_to_string(hit.point.z) <> ")")
+                              float_to_string(hit.point.z) <> ")", [])
     }
-    jolt.Miss -> io.println("  MISS")
+    jolt.Miss -> log.info("  MISS", [])
   }
 
   // Test raycast downward (ground check)
-  io.println("")
-  io.println("Casting ray down from sphere position...")
+  log.info("", [])
+  log.info("Casting ray down from sphere position...", [])
   case jolt.get_position(world, sphere) {
     Ok(pos) -> {
       case jolt.cast_ray_down(world, pos, 20.0) {
         jolt.Hit(hit) -> {
-          io.println("  Ground found at fraction: " <> float_to_string(hit.fraction))
-          io.println("  Ground point Y: " <> float_to_string(hit.point.y))
+          log.info("  Ground found at fraction: " <> float_to_string(hit.fraction), [])
+          log.info("  Ground point Y: " <> float_to_string(hit.point.y), [])
         }
-        jolt.Miss -> io.println("  No ground found")
+        jolt.Miss -> log.info("  No ground found", [])
       }
     }
-    Error(_) -> io.println("  Could not get sphere position")
+    Error(_) -> log.info("  Could not get sphere position", [])
   }
 
   // Simulate physics with contact detection
-  io.println("")
-  io.println("--- Physics Simulation (120 steps) with Contact Detection ---")
-  io.println("Sphere falling from y=10 to floor at y=0...")
+  log.info("", [])
+  log.info("--- Physics Simulation (120 steps) with Contact Detection ---", [])
+  log.info("Sphere falling from y=10 to floor at y=0...", [])
   simulate_with_contacts(world, 120, 0)
-  io.println("Simulation complete")
+  log.info("Simulation complete", [])
 
   // After simulation
-  io.println("")
-  io.println("--- After Simulation ---")
+  log.info("", [])
+  log.info("--- After Simulation ---", [])
   print_body_state(world, "Sphere", sphere)
 
   // Test kinematic character movement
-  io.println("")
-  io.println("--- Kinematic Character Movement ---")
-  io.println("Moving character from (5,2,0) to (5,2,3)...")
+  log.info("", [])
+  log.info("--- Kinematic Character Movement ---", [])
+  log.info("Moving character from (5,2,0) to (5,2,3)...", [])
   let target = jolt.vec3(5.0, 2.0, 3.0)
   let _ = jolt.move_kinematic_to(world, character, target, 1.0 /. 60.0)
   let _ = jolt.step(world, 1.0 /. 60.0)
   print_body_state(world, "Character", character)
 
   // Test body properties
-  io.println("")
-  io.println("--- Body Properties ---")
+  log.info("", [])
+  log.info("--- Body Properties ---", [])
   case jolt.get_friction(world, sphere) {
-    Ok(f) -> io.println("Sphere friction: " <> float_to_string(f))
+    Ok(f) -> log.info("Sphere friction: " <> float_to_string(f), [])
     Error(_) -> Nil
   }
   case jolt.get_restitution(world, sphere) {
-    Ok(r) -> io.println("Sphere restitution: " <> float_to_string(r))
+    Ok(r) -> log.info("Sphere restitution: " <> float_to_string(r), [])
     Error(_) -> Nil
   }
   case jolt.get_gravity_factor(world, sphere) {
-    Ok(g) -> io.println("Sphere gravity factor: " <> float_to_string(g))
+    Ok(g) -> log.info("Sphere gravity factor: " <> float_to_string(g), [])
     Error(_) -> Nil
   }
 
   // Test gravity modification
-  io.println("")
-  io.println("--- Gravity Test ---")
-  io.println("Setting sphere gravity factor to 0 (weightless)...")
+  log.info("", [])
+  log.info("--- Gravity Test ---", [])
+  log.info("Setting sphere gravity factor to 0 (weightless)...", [])
   let _ = jolt.set_gravity_factor(world, sphere, 0.0)
   let _ = jolt.set_position(world, sphere, jolt.vec3(0.0, 5.0, 0.0))
   let _ = jolt.set_velocity(world, sphere, jolt.vec3_zero())
   let _ = jolt.activate(world, sphere)
   simulate_loop(world, 30)
   case jolt.get_position(world, sphere) {
-    Ok(pos) -> io.println("Sphere Y after 30 steps (no gravity): " <> float_to_string(pos.y))
+    Ok(pos) -> log.info("Sphere Y after 30 steps (no gravity): " <> float_to_string(pos.y), [])
     Error(_) -> Nil
   }
 
   // Summary
-  io.println("")
-  io.println("--- Summary ---")
-  io.println("Tick: " <> int_to_string(jolt.get_tick(world)))
-  io.println("Bodies: " <> int_to_string(jolt.body_count(world)))
+  log.info("", [])
+  log.info("--- Summary ---", [])
+  log.info("Tick: " <> int_to_string(jolt.get_tick(world)), [])
+  log.info("Bodies: " <> int_to_string(jolt.body_count(world)), [])
 
-  io.println("")
-  io.println("=== Test Complete ===")
+  log.info("", [])
+  log.info("=== Test Complete ===", [])
 }
 
 fn simulate_loop(world, remaining) {
@@ -170,14 +171,14 @@ fn simulate_loop(world, remaining) {
 
 fn simulate_with_contacts(world, remaining, total_contacts) {
   case remaining {
-    0 -> io.println("Total contact events: " <> int_to_string(total_contacts))
+    0 -> log.info("Total contact events: " <> int_to_string(total_contacts), [])
     _ -> {
       let _ = jolt.step(world, 1.0 /. 60.0)
       let contacts = jolt.get_contacts(world)
       let contact_count = list_length(contacts)
       case contact_count > 0 {
         True -> {
-          io.println("Frame " <> int_to_string(60 - remaining + 1) <> ": " <> int_to_string(contact_count) <> " contact(s)")
+          log.info("Frame " <> int_to_string(60 - remaining + 1) <> ": " <> int_to_string(contact_count) <> " contact(s)", [])
           print_contacts(contacts)
         }
         False -> Nil
@@ -196,8 +197,7 @@ fn print_contacts(contacts: List(jolt.ContactEvent)) {
         jolt.ContactPersisted -> "PERSISTED"
         jolt.ContactRemoved -> "REMOVED"
       }
-      io.println("  " <> type_str <> " body " <> int_to_string(contact.body1.index) <> " <-> body " <> int_to_string(contact.body2.index) <>
-        " depth=" <> float_to_string(contact.penetration_depth))
+      log.debug(string.inspect(#(type_str, "body", contact.body1.index, "<->", "body", contact.body2.index, "depth=", contact.penetration_depth)), [])
       print_contacts(rest)
     }
   }
@@ -213,16 +213,16 @@ fn list_length(list) {
 fn print_body_state(world, name, body) {
   case jolt.get_state(world, body) {
     Ok(state) -> {
-      io.println(name <> " state:")
-      io.println("  Position: (" <> float_to_string(state.position.x) <> ", " <>
+      log.info(name <> " state:", [])
+      log.info("  Position: (" <> float_to_string(state.position.x) <> ", " <>
                                   float_to_string(state.position.y) <> ", " <>
-                                  float_to_string(state.position.z) <> ")")
-      io.println("  Velocity: (" <> float_to_string(state.velocity.x) <> ", " <>
+                                  float_to_string(state.position.z) <> ")", [])
+      log.info("  Velocity: (" <> float_to_string(state.velocity.x) <> ", " <>
                                   float_to_string(state.velocity.y) <> ", " <>
-                                  float_to_string(state.velocity.z) <> ")")
-      io.println("  Active: " <> bool_to_string(state.active))
+                                  float_to_string(state.velocity.z) <> ")", [])
+      log.info("  Active: " <> bool_to_string(state.active), [])
     }
-    Error(_) -> io.println(name <> ": Error getting state")
+    Error(_) -> log.info(name <> ": Error getting state", [])
   }
 }
 

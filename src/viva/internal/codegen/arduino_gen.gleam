@@ -3,10 +3,10 @@
 //// Meta-programming: Gleam generates Arduino C++ headers and implementation
 //// ensuring type-safety across the Soul-Body boundary.
 
-import gleam/io
 import gleam/list
 import gleam/string
 import simplifile
+import viva_telemetry/log
 
 // ============================================================================
 // Field Types
@@ -270,10 +270,10 @@ pub fn main() {
   let path = "arduino/viva_body/viva_packets.h"
   case write_header(path) {
     Ok(_) -> {
-      io.println("Generated: " <> path)
+      log.info("Generated: " <> path, [])
     }
     Error(e) -> {
-      io.println("Error writing file: " <> string.inspect(e))
+      log.error("Error writing file: " <> string.inspect(e), [])
     }
   }
 }

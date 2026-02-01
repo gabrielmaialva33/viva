@@ -19,9 +19,9 @@
 
 import gleam/float
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import viva_telemetry/log
 import viva/neural/math_ffi
 
 // =============================================================================
@@ -529,8 +529,8 @@ pub fn hybrid_update(
   trainer: HybridTrainer,
   population: List(List(Float)),
   fitnesses: List(Float),
-  behaviors: List(List(Float)),
-  seed: Int,
+  _behaviors: List(List(Float)),
+  _seed: Int,
 ) -> HybridTrainer {
   // Update global CMA-ES
   update(trainer.global_cma, population, fitnesses)
@@ -615,12 +615,6 @@ fn float_sqrt(x: Float) -> Float {
   math_ffi.safe_sqrt(x)
 }
 
-fn float_abs(x: Float) -> Float {
-  case x <. 0.0 {
-    True -> 0.0 -. x
-    False -> x
-  }
-}
 
 // =============================================================================
 // LOGGING AND MONITORING
@@ -633,10 +627,11 @@ pub fn log_state(state: CmaEsState, label: String) -> Nil {
   let cond_str = float_str(diag.condition_number)
   let ps_str = float_str(diag.normalized_ps_norm)
 
-  io.println(
+  log.info(
     label <> " | sigma: " <> sigma_str
     <> " | cond: " <> cond_str
-    <> " | ps_norm: " <> ps_str
+    <> " | ps_norm: " <> ps_str,
+    [],
   )
 }
 

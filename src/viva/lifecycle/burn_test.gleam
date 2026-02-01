@@ -1,60 +1,60 @@
 //// VIVA Burn Test - Quick benchmark of batch neural forward
 
-import gleam/io
-import gleam/int
 import gleam/float
+import gleam/int
 import gleam/list
 import viva/lifecycle/burn
+import viva_telemetry/log
 
 pub fn main() {
-  io.println("=== VIVA Burn GPU Test ===")
-  io.println("")
+  log.info("=== VIVA Burn GPU Test ===", [])
+  log.info("", [])
 
   // Check status
-  io.println("Status: " <> burn.check())
-  io.println("")
+  log.info("Status: " <> burn.check(), [])
+  log.info("", [])
 
   // Test batch forward
-  io.println("Testing batch forward...")
+  log.info("Testing batch forward...", [])
 
   let architecture = [8, 32, 16, 3]
   let weight_count = burn.weight_count(architecture)
-  io.println("Architecture: [8, 32, 16, 3]")
-  io.println("Weight count: " <> int.to_string(weight_count))
+  log.info("Architecture: [8, 32, 16, 3]", [])
+  log.info("Weight count: " <> int.to_string(weight_count), [])
 
   // Create test data
   let pop_size = 100
   let weights_list = generate_weights(pop_size, weight_count, 42)
   let inputs_list = generate_inputs(pop_size, 8, 123)
 
-  io.println("Population: " <> int.to_string(pop_size))
-  io.println("")
+  log.info("Population: " <> int.to_string(pop_size), [])
+  log.info("", [])
 
   // Run batch forward
   case burn.batch_forward(weights_list, inputs_list, architecture) {
     Ok(results) -> {
-      io.println("Batch forward SUCCESS!")
-      io.println("Results count: " <> int.to_string(list.length(results)))
+      log.info("Batch forward SUCCESS!", [])
+      log.info("Results count: " <> int.to_string(list.length(results)), [])
 
       // Show first result
       case results {
         [first, ..] -> {
-          io.println("First output: " <> format_floats(first))
+          log.info("First output: " <> format_floats(first), [])
         }
-        [] -> io.println("Empty results")
+        [] -> log.info("Empty results", [])
       }
     }
     Error(e) -> {
-      io.println("Batch forward FAILED: " <> e)
+      log.error("Batch forward FAILED: " <> e, [])
     }
   }
 
-  io.println("")
+  log.info("", [])
 
   // Run benchmark
-  io.println("Running benchmark...")
+  log.info("Running benchmark...", [])
   let bench_result = burn.benchmark(1000, 8, 32, 3, 100)
-  io.println(bench_result)
+  log.info(bench_result, [])
 }
 
 fn generate_weights(count: Int, size: Int, seed: Int) -> List(List(Float)) {

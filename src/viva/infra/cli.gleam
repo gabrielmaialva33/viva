@@ -11,18 +11,19 @@ import gleam/io
 import gleam/list
 import gleam/string
 import glint
-import viva_telemetry/log
 import viva/infra/benchmark
+import viva/infra/supervisor
+import viva/lifecycle/breath
 import viva/soul/reflexivity
 import viva/soul/soul
-import viva/infra/supervisor
 import viva_emotion/stimulus
+import viva_telemetry/log
 
-/// VIVA version
-pub const version = "0.1.0"
-
-/// Tick interval in ms (10 Hz = 100ms)
+const version = "0.2.0"
 const tick_interval_ms = 100
+
+@external(erlang, "io", "get_line")
+fn get_line(prompt: String) -> Result(String, Nil)
 
 // =============================================================================
 // MAIN ENTRY POINT
@@ -33,6 +34,7 @@ pub fn main() {
   |> glint.with_name("viva")
   |> glint.pretty_help(glint.default_pretty_help())
   |> glint.add(at: [], do: run_command())
+  |> glint.add(at: ["start"], do: start_command())
   |> glint.add(at: ["epic"], do: epic_command())
   |> glint.add(at: ["spawn"], do: spawn_command())
   |> glint.add(at: ["kill"], do: kill_command())
@@ -119,7 +121,7 @@ fn spawn_command() -> glint.Command(Nil) {
   let assert Ok(sup) = supervisor.start()
 
   let id = supervisor.spawn_viva(sup)
-  io.println("Spawned VIVA-" <> int.to_string(id))
+  log.info("Spawned VIVA-" <> int.to_string(id), [])
 }
 
 /// Kill VIVA by ID
@@ -138,14 +140,14 @@ fn kill_command() -> glint.Command(Nil) {
       case int.parse(id_str) {
         Ok(id) -> {
           supervisor.kill_viva(sup, id)
-          io.println("Killed VIVA-" <> int.to_string(id))
+          log.info("Killed VIVA-" <> int.to_string(id), [])
         }
         Error(_) -> {
-          io.println("Error: Invalid ID '" <> id_str <> "'")
+          log.error("Invalid ID '" <> id_str <> "'", [])
         }
       }
     }
-    _ -> io.println("Error: No ID provided")
+    _ -> log.error("No ID provided", [])
   }
 }
 
@@ -166,10 +168,10 @@ fn list_command() -> glint.Command(Nil) {
   let alive = supervisor.list_alive(sup)
 
   case alive {
-    [] -> io.println("No VIVAs alive")
+    [] -> log.info("No VIVAs alive", [])
     ids -> {
-      io.println("Alive VIVAs:")
-      list.each(ids, fn(id) { io.println("  - VIVA-" <> int.to_string(id)) })
+      log.info("Alive VIVAs:", [])
+      list.each(ids, fn(id) { log.info("  - VIVA-" <> int.to_string(id), []) })
     }
   }
 }
@@ -245,6 +247,62 @@ fn compare_command() -> glint.Command(Nil) {
 }
 
 // =============================================================================
+// START COMMAND (THE PULSE)
+// =============================================================================
+
+/// Start VIVA Autonomic Loop (The Pulse)
+fn start_command() -> glint.Command(Nil) {
+  use <- glint.command_help("Start VIVA Autonomic Loop (Living Mode)")
+  use <- glint.unnamed_args(glint.EqArgs(0))
+  use named, _, _flags <- glint.command()
+  let _ = named
+
+  // Initialize logging
+  log.configure_console(log.debug_level)
+
+  io.println("═══════════════════════════════════════════════════════════")
+  io.println("  VIVA - AUTONOMIC LOOP ACTIVATED")
+  io.println("  Type to teach. Ctrl+C to stop.")
+  io.println("═══════════════════════════════════════════════════════════")
+
+  case breath.start() {
+    Ok(b) -> {
+      log.info("Pulse started (10Hz)", [])
+      interactive_loop(b)
+    }
+    Error(e) -> {
+      log.error("Error starting breath: " <> string.inspect(e), [])
+    }
+  }
+}
+
+fn interactive_loop(b: process.Subject(breath.BreathMsg)) -> Nil {
+  case get_line("You > ") {
+    Ok(line) -> {
+      let input = string.trim(line)
+      case input {
+        "exit" -> {
+          breath.stop(b)
+          log.info("VIVA stopped.", [])
+        }
+        "quit" -> {
+          breath.stop(b)
+          log.info("VIVA stopped.", [])
+        }
+        _ -> {
+          breath.teach(b, input)
+          interactive_loop(b)
+        }
+      }
+    }
+    Error(_) -> {
+      // End of input / error
+      breath.stop(b)
+    }
+  }
+}
+
+// =============================================================================
 // SIMPLE SIMULATION
 // =============================================================================
 
@@ -259,26 +317,27 @@ fn run_simulation(ticks: Int, hz: Int) -> Nil {
   io.println("")
 
   let assert Ok(sup) = supervisor.start()
-  io.println("[VIVA] Supervisor started")
+  log.info("[VIVA] Supervisor started", [])
 
-  io.println("[LIFECYCLE] Spawning VIVAs...")
+  log.info("[LIFECYCLE] Spawning VIVAs...", [])
   let viva_1 = supervisor.spawn_viva(sup)
-  io.println("[LIFECYCLE] VIVA-" <> int.to_string(viva_1) <> " born (life #1)")
+  log.info("[LIFECYCLE] VIVA-" <> int.to_string(viva_1) <> " born (life #1)", [])
 
   let viva_2 = supervisor.spawn_viva(sup)
-  io.println("[LIFECYCLE] VIVA-" <> int.to_string(viva_2) <> " born (life #1)")
+  log.info("[LIFECYCLE] VIVA-" <> int.to_string(viva_2) <> " born (life #1)", [])
 
   let interval = case hz > 0 {
     True -> 1000 / hz
     False -> tick_interval_ms
   }
 
-  io.println(
+  log.info(
     "[SIMULATION] Running "
     <> int.to_string(ticks)
     <> " ticks at "
     <> int.to_string(hz)
     <> " Hz...",
+    [],
   )
   io.println("")
 
@@ -289,8 +348,9 @@ fn run_simulation(ticks: Int, hz: Int) -> Nil {
   io.println(stats)
 
   let alive = supervisor.list_alive(sup)
-  io.println(
+  log.info(
     "[STATUS] Alive: " <> list.map(alive, int.to_string) |> string.join(", "),
+    [],
   )
 
   io.println("")
@@ -312,7 +372,7 @@ fn run_loop(
       supervisor.global_tick(sup, 0.1)
 
       case n % 5 == 0 {
-        True -> io.println("  tick " <> int.to_string(current) <> "...")
+        True -> log.debug("  tick " <> int.to_string(current) <> "...", [])
         False -> Nil
       }
 
@@ -374,7 +434,7 @@ fn run_epic_simulation(viva_count: Int, ticks: Int) -> Nil {
 
   // Start supervisor
   let assert Ok(sup) = supervisor.start()
-  io.println("[SUPERVISOR] Started")
+  log.info("[SUPERVISOR] Started", [])
   io.println("")
 
   // Get state for soul access
@@ -399,7 +459,7 @@ fn run_epic_simulation(viva_count: Int, ticks: Int) -> Nil {
     list.range(1, viva_count)
     |> list.map(fn(_) {
       let id = supervisor.spawn_viva(sup)
-      io.println("  [BORN] VIVA-" <> int.to_string(id) <> " enters existence")
+      log.info("[BORN] VIVA-" <> int.to_string(id) <> " enters existence", [])
       id
     })
 
@@ -495,32 +555,34 @@ fn epic_loop(
           |> list.each(fn(event) {
             case event {
               types.Died(id, _glyph, karma) -> {
-                io.println("")
-                io.println(
-                  "  ☠️  [DEATH] VIVA-"
+                log.warning(
+                  "[DEATH] VIVA-"
                   <> int.to_string(id)
                   <> " died at tick "
-                  <> int.to_string(current),
+                  <> int.to_string(current)
+                  <> " | Karma: "
+                  <> float_to_str(karma, 2),
+                  [],
                 )
-                io.println("              Karma: " <> float_to_str(karma, 2))
               }
               types.Reborn(id, life_num) -> {
-                io.println(
-                  "  🔄 [REBIRTH] VIVA-"
+                log.info(
+                  "[REBIRTH] VIVA-"
                   <> int.to_string(id)
                   <> " reborn (life #"
                   <> int.to_string(life_num)
                   <> ")",
+                  [],
                 )
-                io.println("")
               }
               types.BardoComplete(id, liberated) -> {
                 case liberated {
                   True ->
-                    io.println(
-                      "  ✨ [LIBERATION] VIVA-"
+                    log.info(
+                      "[LIBERATION] VIVA-"
                       <> int.to_string(id)
                       <> " achieved liberation!",
+                      [],
                     )
                   False -> Nil
                 }
@@ -583,12 +645,13 @@ fn apply_random_stimuli(state: supervisor.SupervisorState, tick: Int) -> Nil {
       let #(stim_name, stim_val) = stim
       soul.feel(soul_subject, stim_val, 0.6)
 
-      io.println(
-        "  [STIMULUS] VIVA-"
+      log.debug(
+        "[STIMULUS] VIVA-"
         <> int.to_string(id)
         <> " feels "
         <> stim_name
         <> " (intensity 0.6)",
+        [],
       )
 
       // Feed a random soul
@@ -597,10 +660,11 @@ fn apply_random_stimuli(state: supervisor.SupervisorState, tick: Int) -> Nil {
           case list.last(souls_list) {
             Ok(#(id2, soul2)) -> {
               soul.feed(soul2, 0.3)
-              io.println(
-                "  [EMBODIMENT] VIVA-"
+              log.debug(
+                "[EMBODIMENT] VIVA-"
                 <> int.to_string(id2)
                 <> " fed (satiety +0.3)",
+                [],
               )
             }
             Error(_) -> Nil
@@ -617,29 +681,21 @@ fn print_progress(
   tick: Int,
   alive: Int,
 ) -> Nil {
-  io.println("")
-  io.println("  ─── Tick " <> int.to_string(tick) <> " ───")
-  io.println(
-    "  Alive: "
+  log.info(
+    "Tick "
+    <> int.to_string(tick)
+    <> " | Alive: "
     <> int.to_string(alive)
     <> " | Events: "
     <> int.to_string(list.length(state.events)),
+    [],
   )
-  io.println("")
 }
 
 fn print_soul_details(state: supervisor.SupervisorState, tick: Int) -> Nil {
   let souls_list = dict.to_list(state.souls)
 
-  io.println("")
-  io.println("  ╭─────────────────────────────────────────────────────╮")
-  io.println(
-    "  │ SOUL STATUS @ tick "
-    <> int.to_string(tick)
-    <> string.repeat(" ", 30 - string.length(int.to_string(tick)))
-    <> "│",
-  )
-  io.println("  ╰─────────────────────────────────────────────────────╯")
+  log.info("SOUL STATUS @ tick " <> int.to_string(tick), [])
 
   list.each(souls_list, fn(pair) {
     let #(id, soul_subject) = pair
@@ -651,36 +707,33 @@ fn print_soul_details(state: supervisor.SupervisorState, tick: Int) -> Nil {
     let who = soul.who_am_i(soul_subject)
     let identity = soul.identity_strength(soul_subject)
 
-    io.println("")
-    io.println("  VIVA-" <> int.to_string(id) <> ":")
-    io.println(
-      "    PAD: P="
+    log.info(
+      "VIVA-"
+      <> int.to_string(id)
+      <> " | PAD: P="
       <> float_to_str(pad.pleasure, 2)
       <> " A="
       <> float_to_str(pad.arousal, 2)
       <> " D="
-      <> float_to_str(pad.dominance, 2),
-    )
-    io.println(
-      "    Body: wellbeing="
+      <> float_to_str(pad.dominance, 2)
+      <> " | Body: wellbeing="
       <> float_to_str(wellbeing, 2)
       <> " energy="
       <> float_to_str(soul_state.body.energy, 2)
       <> " satiety="
-      <> float_to_str(soul_state.body.satiety, 2),
-    )
-    io.println(
-      "    Self: trait="
+      <> float_to_str(soul_state.body.satiety, 2)
+      <> " | Self: trait="
       <> reflexivity.trait_to_string(who.dominant_trait)
       <> " identity="
       <> float_to_str(identity, 2)
       <> " stable="
-      <> float_to_str(who.stability, 2),
+      <> float_to_str(who.stability, 2)
+      <> " | Age: "
+      <> int.to_string(soul_state.tick_count)
+      <> " ticks",
+      [],
     )
-    io.println("    Age: " <> int.to_string(soul_state.tick_count) <> " ticks")
   })
-
-  io.println("")
 }
 
 fn print_final_report(sup: process.Subject(supervisor.Message)) -> Nil {
@@ -688,20 +741,21 @@ fn print_final_report(sup: process.Subject(supervisor.Message)) -> Nil {
   let alive = dict.keys(state.souls)
   let alive_count = list.length(alive)
 
-  io.println("  SUPERVISOR:")
-  io.println("    Total ticks: " <> int.to_string(state.tick))
-  io.println("    Events: " <> int.to_string(list.length(state.events)))
-  io.println("    Alive: " <> int.to_string(alive_count))
-  io.println("")
+  log.info(
+    "SUPERVISOR: Total ticks: "
+    <> int.to_string(state.tick)
+    <> " | Events: "
+    <> int.to_string(list.length(state.events))
+    <> " | Alive: "
+    <> int.to_string(alive_count),
+    [],
+  )
 
   // Creator stats
-  io.println("  CREATOR (Collective Memory):")
   let creator_stats = supervisor.get_stats(sup)
-  io.println("    " <> creator_stats)
-  io.println("")
+  log.info("CREATOR (Collective Memory): " <> creator_stats, [])
 
   // Event breakdown
-  io.println("  LIFECYCLE EVENTS:")
   let births =
     list.filter(state.events, fn(e) {
       case e {
@@ -724,33 +778,43 @@ fn print_final_report(sup: process.Subject(supervisor.Message)) -> Nil {
       }
     })
 
-  io.println("    Births: " <> int.to_string(list.length(births)))
-  io.println("    Deaths: " <> int.to_string(list.length(deaths_list)))
-  io.println("    Rebirths: " <> int.to_string(list.length(rebirths)))
-  io.println("")
+  log.info(
+    "LIFECYCLE EVENTS: Births: "
+    <> int.to_string(list.length(births))
+    <> " | Deaths: "
+    <> int.to_string(list.length(deaths_list))
+    <> " | Rebirths: "
+    <> int.to_string(list.length(rebirths)),
+    [],
+  )
 
   // Surviving souls details
   case alive_count > 0 {
     True -> {
-      io.println("  SURVIVING SOULS:")
+      log.info("SURVIVING SOULS:", [])
       list.each(dict.to_list(state.souls), fn(pair) {
         let #(id, soul_subject) = pair
         let who = soul.who_am_i(soul_subject)
         let identity = soul.identity_strength(soul_subject)
         let changing = soul.am_i_changing(soul_subject)
 
-        io.println("    VIVA-" <> int.to_string(id) <> ":")
-        io.println(
-          "      Personality: "
-          <> reflexivity.trait_to_string(who.dominant_trait),
+        log.info(
+          "VIVA-"
+          <> int.to_string(id)
+          <> ": Personality: "
+          <> reflexivity.trait_to_string(who.dominant_trait)
+          <> " | Identity strength: "
+          <> float_to_str(identity, 3)
+          <> " | Stability: "
+          <> float_to_str(who.stability, 3)
+          <> " | Currently changing: "
+          <> bool_to_str(changing),
+          [],
         )
-        io.println("      Identity strength: " <> float_to_str(identity, 3))
-        io.println("      Stability: " <> float_to_str(who.stability, 3))
-        io.println("      Currently changing: " <> bool_to_str(changing))
       })
     }
     False -> {
-      io.println("  No souls survived the simulation.")
+      log.warning("No souls survived the simulation.", [])
     }
   }
 }

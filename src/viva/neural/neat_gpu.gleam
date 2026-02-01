@@ -9,9 +9,9 @@
 
 import gleam/float
 import gleam/int
-import gleam/io
 import gleam/list
 import viva/neural/glands.{type GlandsHandle}
+import viva_telemetry/log
 import viva/neural/neat.{
   type FitnessResult, type Genome, type NeatConfig, type Population,
   FitnessResult,
@@ -137,7 +137,7 @@ pub fn train_gpu(
 
   case glands.init(glands_config) {
     Ok(handle) -> {
-      io.println("GPU: " <> glands.check())
+      log.info("GPU: " <> glands.check(), [])
       train_loop_gpu(
         neat.create_population(config, 42),
         generations,
@@ -148,7 +148,7 @@ pub fn train_gpu(
       )
     }
     Error(msg) -> {
-      io.println("GPU init failed: " <> msg <> " - falling back to CPU")
+      log.warning("GPU init failed: " <> msg <> " - falling back to CPU", [])
       train_loop_cpu(
         neat.create_population(config, 42),
         generations,
@@ -252,7 +252,7 @@ fn log_progress(population: Population, results: List(FitnessResult)) -> Nil {
     n -> list.fold(fitnesses, 0.0, fn(acc, f) { acc +. f }) /. int.to_float(n)
   }
 
-  io.println(
+  log.info(
     "Gen "
     <> int.to_string(population.generation)
     <> " | Best: "
@@ -261,6 +261,7 @@ fn log_progress(population: Population, results: List(FitnessResult)) -> Nil {
     <> float_str(avg)
     <> " | Species: "
     <> int.to_string(list.length(population.species)),
+    [],
   )
 }
 

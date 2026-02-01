@@ -5,6 +5,7 @@
 import gleam/io
 import viva/lifecycle/burn
 import viva/lifecycle/burn_physics
+import viva_telemetry/log
 
 pub fn main() {
   io.println("╔══════════════════════════════════════════════════════════════╗")
@@ -13,7 +14,7 @@ pub fn main() {
   io.println("")
 
   // Backend info
-  io.println("Backend: " <> burn.check())
+  log.info("Backend: " <> burn.check(), [])
   io.println("")
 
   // Batch Physics Benchmark
@@ -61,6 +62,6 @@ pub fn main() {
   io.println("")
 
   io.println("═══════════════════════════════════════════════════════════════")
-  io.println(" Benchmark complete!")
+  log.info("Benchmark complete!", [])
   io.println("═══════════════════════════════════════════════════════════════")
 }

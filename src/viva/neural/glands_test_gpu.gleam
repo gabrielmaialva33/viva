@@ -1,30 +1,30 @@
 //// Quick test for viva_glands GPU NIF
 
-import gleam/io
 import viva/neural/glands
+import viva_telemetry/log
 
 pub fn main() {
-  io.println("=== VIVA Glands GPU Test ===\n")
+  log.info("=== VIVA Glands GPU Test ===", [])
 
   // Check native status
-  io.println("Status: " <> glands.check())
+  log.info("Status: " <> glands.check(), [])
 
   // Try to initialize
-  io.println("\nInitializing with default config...")
+  log.info("Initializing with default config...", [])
   let config = glands.default_config()
-  io.println("  llm_dim: 4096")
-  io.println("  hrr_dim: 8192")
-  io.println("  gpu_layers: 99")
+  log.info("  llm_dim: 4096", [])
+  log.info("  hrr_dim: 8192", [])
+  log.info("  gpu_layers: 99", [])
 
   case glands.init(config) {
     Ok(handle) -> {
-      io.println("  ✅ Glands initialized!")
+      log.info("  Glands initialized!", [])
 
       // Run benchmark
-      io.println("\n" <> glands.benchmark(handle, 100))
+      log.info(glands.benchmark(handle, 100), [])
     }
     Error(msg) -> {
-      io.println("  ❌ Init failed: " <> msg)
+      log.error("  Init failed: " <> msg, [])
     }
   }
 }

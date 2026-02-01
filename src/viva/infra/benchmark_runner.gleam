@@ -7,9 +7,9 @@
 ////   gleam run -m viva/benchmark_runner -- quick
 ////   gleam run -m viva/benchmark_runner -- full
 
-import gleam/io
 import gleam/list
 import viva/infra/benchmark_standard
+import viva_telemetry/log
 import viva/infra/environments/environment.{type BenchmarkMetrics}
 
 pub fn main() {
@@ -17,45 +17,45 @@ pub fn main() {
 
   case list.first(args) {
     Ok("quick") -> {
-      io.println("Running QUICK benchmark...")
+      log.info("Running QUICK benchmark...", [])
       let _ = benchmark_standard.run_quick()
       Nil
     }
     Ok("full") -> {
-      io.println("Running FULL benchmark...")
+      log.info("Running FULL benchmark...", [])
       let _ = benchmark_standard.run_all()
       Nil
     }
     Ok("cartpole") -> {
-      io.println("Running CartPole benchmark only...")
+      log.info("Running CartPole benchmark only...", [])
       let config = benchmark_standard.fast_config()
       let metrics = benchmark_standard.benchmark_cartpole(config)
       print_single_metrics(metrics)
     }
     Ok("pendulum") -> {
-      io.println("Running Pendulum benchmark only...")
+      log.info("Running Pendulum benchmark only...", [])
       let config = benchmark_standard.fast_config()
       let metrics = benchmark_standard.benchmark_pendulum(config)
       print_single_metrics(metrics)
     }
     Ok("billiards") -> {
-      io.println("Running Billiards benchmark only...")
+      log.info("Running Billiards benchmark only...", [])
       let config = benchmark_standard.fast_config()
       let metrics = benchmark_standard.benchmark_billiards(config)
       print_single_metrics(metrics)
     }
     _ -> {
-      io.println("VIVA Benchmark Runner")
-      io.println("=====================")
-      io.println("")
-      io.println("Usage:")
-      io.println("  gleam run -m viva/benchmark_runner -- quick     # Fast benchmarks")
-      io.println("  gleam run -m viva/benchmark_runner -- full      # Full benchmarks")
-      io.println("  gleam run -m viva/benchmark_runner -- cartpole  # CartPole only")
-      io.println("  gleam run -m viva/benchmark_runner -- pendulum  # Pendulum only")
-      io.println("  gleam run -m viva/benchmark_runner -- billiards # Billiards only")
-      io.println("")
-      io.println("Running quick benchmark by default...")
+      log.info("VIVA Benchmark Runner", [])
+      log.info("=====================", [])
+      log.info("", [])
+      log.info("Usage:", [])
+      log.info("  gleam run -m viva/benchmark_runner -- quick     # Fast benchmarks", [])
+      log.info("  gleam run -m viva/benchmark_runner -- full      # Full benchmarks", [])
+      log.info("  gleam run -m viva/benchmark_runner -- cartpole  # CartPole only", [])
+      log.info("  gleam run -m viva/benchmark_runner -- pendulum  # Pendulum only", [])
+      log.info("  gleam run -m viva/benchmark_runner -- billiards # Billiards only", [])
+      log.info("", [])
+      log.info("Running quick benchmark by default...", [])
       let _ = benchmark_standard.run_quick()
       Nil
     }
@@ -63,14 +63,14 @@ pub fn main() {
 }
 
 fn print_single_metrics(m: BenchmarkMetrics) -> Nil {
-  io.println("")
-  io.println("Results:")
-  io.println("  Environment:  " <> m.env_name)
-  io.println("  Evals/sec:    " <> format_number(m.evals_per_sec))
-  io.println("  Steps/sec:    " <> format_number(m.steps_per_sec))
-  io.println("  Wall time:    " <> float_str(m.wall_time) <> " sec")
-  io.println("  Total evals:  " <> int_str(m.num_evals))
-  io.println("  Final return: " <> float_str(m.final_return))
+  log.info("", [])
+  log.info("Results:", [])
+  log.info("  Environment:  " <> m.env_name, [])
+  log.info("  Evals/sec:    " <> format_number(m.evals_per_sec), [])
+  log.info("  Steps/sec:    " <> format_number(m.steps_per_sec), [])
+  log.info("  Wall time:    " <> float_str(m.wall_time) <> " sec", [])
+  log.info("  Total evals:  " <> int_str(m.num_evals), [])
+  log.info("  Final return: " <> float_str(m.final_return), [])
 }
 
 fn format_number(n: Float) -> String {

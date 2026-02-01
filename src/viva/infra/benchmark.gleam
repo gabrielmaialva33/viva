@@ -21,6 +21,7 @@ import viva/soul/soul
 import viva/soul/soul_pool
 import viva_emotion/pad
 import viva_glyph/glyph
+import viva_telemetry/log
 
 // =============================================================================
 // BENCHMARK SUITE
@@ -30,61 +31,61 @@ import viva_glyph/glyph
 pub fn run_all() -> Nil {
   print_banner()
 
-  io.println("\n[1/8] GLYPH SIMILARITY")
+  log.info("[1/8] GLYPH SIMILARITY", [])
   io.println(string.repeat("─", 60))
   bench_glyph_similarity() |> print_results()
 
-  io.println("\n[2/8] PAD OPERATIONS")
+  log.info("[2/8] PAD OPERATIONS", [])
   io.println(string.repeat("─", 60))
   bench_pad() |> print_results()
 
-  io.println("\n[3/8] SOUL ACTOR (individual)")
+  log.info("[3/8] SOUL ACTOR (individual)", [])
   io.println(string.repeat("─", 60))
   bench_soul() |> print_results()
 
-  io.println("\n[4/8] SOUL POOL (batched) ⚡")
+  log.info("[4/8] SOUL POOL (batched)", [])
   io.println(string.repeat("─", 60))
   bench_soul_pool() |> print_results()
 
-  io.println("\n[5/8] BARDO CYCLE")
+  log.info("[5/8] BARDO CYCLE", [])
   io.println(string.repeat("─", 60))
   bench_bardo() |> print_results()
 
-  io.println("\n[6/8] RESONANCE")
+  log.info("[6/8] RESONANCE", [])
   io.println(string.repeat("─", 60))
   bench_resonance() |> print_results()
 
-  io.println("\n[7/8] REFLEXIVITY")
+  log.info("[7/8] REFLEXIVITY", [])
   io.println(string.repeat("─", 60))
   bench_reflexivity() |> print_results()
 
-  io.println("\n[8/8] GPU STATUS")
+  log.info("[8/8] GPU STATUS", [])
   io.println(string.repeat("─", 60))
   bench_gpu()
 
   io.println("\n" <> string.repeat("═", 60))
-  io.println("BENCHMARK COMPLETE")
+  log.info("BENCHMARK COMPLETE", [])
   io.println(string.repeat("═", 60))
 }
 
 /// Run quick benchmarks
 pub fn run_quick() -> Nil {
   print_banner()
-  io.println("(Quick mode)\n")
+  log.info("Quick mode", [])
 
-  io.println("[GLYPH]")
+  log.info("[GLYPH]", [])
   bench_glyph_quick() |> print_results()
 
-  io.println("\n[PAD]")
+  log.info("[PAD]", [])
   bench_pad_quick() |> print_results()
 
-  io.println("\n[SOUL ACTOR]")
+  log.info("[SOUL ACTOR]", [])
   bench_soul_quick() |> print_results()
 
-  io.println("\n[SOUL POOL] ⚡")
+  log.info("[SOUL POOL]", [])
   bench_soul_pool_quick() |> print_results()
 
-  io.println("\nDone.")
+  log.info("Done", [])
 }
 
 fn bench_soul_pool_quick() -> BenchResults {
@@ -566,17 +567,17 @@ fn bench_gpu() -> Nil {
 
   case backend {
     gpu.GPU -> {
-      io.println("  Backend: EXLA/CUDA (RTX 4090)")
+      log.info("Backend: EXLA/CUDA (RTX 4090)", [])
       gpu.print_status()
       bench_gpu_ops()
     }
     gpu.ExlaCpu -> {
-      io.println("  Backend: EXLA/CPU")
-      io.println("  (GPU not detected, using CPU EXLA)")
+      log.info("Backend: EXLA/CPU", [])
+      log.info("GPU not detected, using CPU EXLA", [])
     }
     gpu.CPU -> {
-      io.println("  Backend: Pure Gleam (CPU)")
-      io.println("  (EXLA not available)")
+      log.info("Backend: Pure Gleam (CPU)", [])
+      log.info("EXLA not available", [])
     }
   }
 }

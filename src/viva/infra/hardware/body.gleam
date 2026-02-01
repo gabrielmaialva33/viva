@@ -5,12 +5,12 @@
 
 import gleam/erlang/process.{type Subject}
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
 import gleam/string
 import viva/infra/serial.{type Serial}
+import viva_telemetry/log
 
 // ============================================================================
 // Types
@@ -211,11 +211,11 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
       // Open serial inside this actor's process
       case serial.open_arduino(state.device) {
         Error(_e) -> {
-          io.println("Body: Failed to open " <> state.device)
+          log.error("Body: Failed to open " <> state.device, [])
           actor.continue(state)
         }
         Ok(ser) -> {
-          io.println("Body: Connected to " <> state.device)
+          log.info("Body: Connected to " <> state.device, [])
           // Start polling for data
           case state.self_subject {
             Some(self) -> {

@@ -6,10 +6,10 @@
 import gleam/erlang/process.{type Subject}
 import gleam/float
 import gleam/int
-import gleam/io
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
 import gleam/string
+import viva_telemetry/log
 
 // ============================================================================
 // Types
@@ -112,7 +112,7 @@ pub fn start() -> Result(Subject(Message), actor.StartError) {
       process.send(subject, SetSelf(subject))
       // Start the autonomous perception loop
       process.send(subject, Tick)
-      io.println("Perceiver: VIVA's senses are awake")
+      log.info("Perceiver: VIVA's senses are awake", [])
       Ok(subject)
     }
     Error(e) -> Error(e)
@@ -153,7 +153,7 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
       case should_look, state.self_subject {
         True, Some(self) -> {
           // Yes! Capture and analyze
-          io.println("Perceiver: *curious* looking around...")
+          log.info("Perceiver: *curious* looking around...", [])
           let percept = do_perception(state, None)
           process.send(self, PerceptionComplete(percept))
           Nil
@@ -178,7 +178,7 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
     }
 
     Look -> {
-      io.println("Perceiver: *looking*")
+      log.info("Perceiver: *looking*", [])
       let percept = do_perception(state, None)
 
       case state.self_subject {
@@ -190,7 +190,7 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
     }
 
     Ask(question) -> {
-      io.println("Perceiver: *looking to answer* " <> question)
+      log.info("Perceiver: *looking to answer* " <> question, [])
       let percept = do_perception(state, Some(question))
 
       case state.self_subject {
@@ -202,8 +202,9 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
     }
 
     Listen(duration_ms) -> {
-      io.println(
+      log.info(
         "Perceiver: *listening for " <> int.to_string(duration_ms) <> "ms*",
+        [],
       )
       // TODO: Implement audio capture + Whisper
       actor.continue(state)
@@ -213,7 +214,7 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
       // VIVA received a percept - react!
       case percept.visual {
         Some(desc) -> {
-          io.println("Perceiver: I see: " <> truncate(desc, 100))
+          log.info("Perceiver: I see: " <> truncate(desc, 100), [])
 
           // Interesting things boost curiosity
           let curiosity_boost = percept.salience *. 0.3
@@ -246,12 +247,12 @@ fn handle_message(state: State, msg: Message) -> actor.Next(State, Message) {
     }
 
     SetCuriosity(c) -> {
-      io.println("Perceiver: curiosity now " <> float.to_string(c))
+      log.info("Perceiver: curiosity now " <> float.to_string(c), [])
       actor.continue(State(..state, curiosity: c))
     }
 
     Shutdown -> {
-      io.println("Perceiver: closing eyes...")
+      log.info("Perceiver: closing eyes...", [])
       actor.stop()
     }
   }

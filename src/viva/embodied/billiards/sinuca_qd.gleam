@@ -14,10 +14,10 @@
 import gleam/dict.{type Dict}
 import gleam/float
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/set.{type Set}
 import viva/lifecycle/burn_physics
+import viva_telemetry/log
 
 // =============================================================================
 // CONFIGURATION
@@ -375,9 +375,9 @@ fn train_loop(state: TrainState, pop: List(List(Float)), remaining: Int, wc: Int
           let heat = case new_stag > cfg.stagnation_threshold { True -> "[HEAT]" False -> "" }
           let hc = case gen > 0 && gen % cfg.hc_interval == 0 { True -> "+HC" False -> "" }
           let cells = case new_cells > 0 { True -> " +" <> int.to_string(new_cells) False -> "" }
-          io.println("Gen " <> int.to_string(gen) <> " | Best: " <> fmt(best_fitness(arch2))
+          log.info("Gen " <> int.to_string(gen) <> " | Best: " <> fmt(best_fitness(arch2))
             <> " | Cov: " <> fmt(coverage(arch2)) <> "%" <> " | QD: " <> fmt(qd_score(arch2))
-            <> " " <> heat <> hc <> cells)
+            <> " " <> heat <> hc <> cells, [])
         }
         False -> Nil
       }
@@ -388,7 +388,7 @@ fn train_loop(state: TrainState, pop: List(List(Float)), remaining: Int, wc: Int
       // Random restart
       let final_pop = case gen > 0 && gen % cfg.restart_interval == 0 {
         True -> {
-          io.println("[RESTART]")
+          log.info("[RESTART]", [])
           let keep = float.truncate(int.to_float(cfg.population_size) *. { 1.0 -. cfg.restart_ratio })
           let fresh = cfg.population_size - keep
           list.append(list.take(next, keep), list.range(0, fresh - 1) |> list.map(fn(i) { random_weights(wc, gen * 999 + i) }))
@@ -454,14 +454,14 @@ fn fmt(x: Float) -> String {
 // =============================================================================
 
 pub fn main() {
-  io.println("=== VIVA Sinuca QD Training ===")
-  io.println("")
+  log.info("=== VIVA Sinuca QD Training ===", [])
+  log.info("", [])
   let result = train(300)
-  io.println("")
-  io.println("=== Complete ===")
-  io.println("Best Fitness: " <> float.to_string(result.best_fitness))
-  io.println("Coverage: " <> float.to_string(result.coverage) <> "%")
-  io.println("QD-Score: " <> float.to_string(result.qd_score))
+  log.info("", [])
+  log.info("=== Complete ===", [])
+  log.info("Best Fitness: " <> float.to_string(result.best_fitness), [])
+  log.info("Coverage: " <> float.to_string(result.coverage) <> "%", [])
+  log.info("QD-Score: " <> float.to_string(result.qd_score), [])
 }
 
 // FFI

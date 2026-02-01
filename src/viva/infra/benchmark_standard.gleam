@@ -21,11 +21,12 @@ import gleam/int
 import gleam/io
 import gleam/list
 import gleam/string
-import viva/embodied/billiards/sinuca.{type Shot, Shot}
+import viva_telemetry/log
+import viva/embodied/billiards/sinuca.{Shot}
 import viva/infra/environments/billiards
 import viva/infra/environments/cartpole
 import viva/infra/environments/environment.{
-  type BenchmarkMetrics, type StepResult, BenchmarkMetrics, Continuous, Discrete,
+  type BenchmarkMetrics, BenchmarkMetrics,
 }
 import viva/infra/environments/pendulum
 import viva/neural/glands
@@ -172,37 +173,37 @@ pub fn run_quick() -> BenchmarkResults {
 pub fn run_with_config(config: BenchConfig) -> BenchmarkResults {
   print_banner()
 
-  io.println("Configuration:")
-  io.println("  Parallel envs:  " <> int.to_string(config.num_envs))
-  io.println("  Episode length: " <> int.to_string(config.episode_length))
-  io.println("  Population:     " <> int.to_string(config.population_size))
-  io.println("  Generations:    " <> int.to_string(config.num_generations))
-  io.println("  Hardware:       " <> config.hardware)
+  log.info("Configuration:", [])
+  log.info("  Parallel envs:  " <> int.to_string(config.num_envs), [])
+  log.info("  Episode length: " <> int.to_string(config.episode_length), [])
+  log.info("  Population:     " <> int.to_string(config.population_size), [])
+  log.info("  Generations:    " <> int.to_string(config.num_generations), [])
+  log.info("  Hardware:       " <> config.hardware, [])
   io.println("")
 
   // Check GPU
-  io.println("GPU Status: " <> glands.check())
+  log.info("GPU Status: " <> glands.check(), [])
   io.println("")
 
   // Warmup
-  io.println("Warming up...")
+  log.info("Warming up...", [])
   warmup(config.warmup_iters)
   io.println("")
 
   // Run benchmarks
-  io.println("[1/3] CartPole Benchmark")
+  log.info("[1/3] CartPole Benchmark", [])
   io.println(string.repeat("-", 50))
   let cartpole_metrics = benchmark_cartpole(config)
   print_metrics(cartpole_metrics)
 
   io.println("")
-  io.println("[2/3] Pendulum Benchmark")
+  log.info("[2/3] Pendulum Benchmark", [])
   io.println(string.repeat("-", 50))
   let pendulum_metrics = benchmark_pendulum(config)
   print_metrics(pendulum_metrics)
 
   io.println("")
-  io.println("[3/3] Billiards Benchmark (VIVA Flagship)")
+  log.info("[3/3] Billiards Benchmark (VIVA Flagship)", [])
   io.println(string.repeat("-", 50))
   let billiards_metrics = benchmark_billiards(config)
   print_metrics(billiards_metrics)
@@ -884,7 +885,7 @@ fn print_markdown_table(results: BenchmarkResults) -> Nil {
 pub fn main() {
   let _results = run_quick()
   io.println("")
-  io.println("Benchmark complete!")
+  log.info("Benchmark complete!", [])
 }
 
 // =============================================================================
