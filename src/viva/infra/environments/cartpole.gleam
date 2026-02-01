@@ -24,7 +24,7 @@
 import gleam/float
 import gleam/list
 import viva/infra/environments/environment.{
-  type Action, type EnvInfo, type Environment, type EnvOps, type EnvSpec,
+  type Action, type Environment, type EnvOps, type EnvSpec,
   type Observation, type StepResult, Continuous, Discrete, EnvInfo, EnvOps,
   EnvSpec, Environment, Observation, StepResult,
 }
@@ -35,9 +35,6 @@ import viva/infra/environments/environment.{
 
 /// Gravity (m/s^2)
 const gravity: Float = 9.8
-
-/// Cart mass (kg)
-const cart_mass: Float = 1.0
 
 /// Pole mass (kg)
 const pole_mass: Float = 0.1

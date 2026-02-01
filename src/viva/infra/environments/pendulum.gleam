@@ -18,10 +18,9 @@
 //// Reward: -(theta^2 + 0.1*theta_dot^2 + 0.001*action^2)
 //// Episode length: 200 steps (no early termination)
 
-import gleam/float
 import gleam/list
 import viva/infra/environments/environment.{
-  type Action, type EnvInfo, type Environment, type EnvOps, type EnvSpec,
+  type Action, type Environment, type EnvOps, type EnvSpec,
   type Observation, type StepResult, Continuous, Discrete, EnvInfo, EnvOps,
   EnvSpec, Environment, Observation, StepResult,
 }

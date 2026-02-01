@@ -32,14 +32,13 @@
 ////   +0.5 for good position (cue near target)
 ////   -0.1 per step (encourage fast play)
 
-import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
 import viva/embodied/billiards/sinuca.{type Shot, type Table, Shot}
 import viva/infra/environments/environment.{
-  type Action, type EnvInfo, type Environment, type EnvOps, type EnvSpec,
-  type Observation, type StepResult, Continuous, Discrete, EnvInfo, EnvOps,
+  type Action, type Environment, type EnvOps, type EnvSpec,
+  type Observation, type StepResult, Continuous, EnvInfo, EnvOps,
   EnvSpec, Environment, Observation, StepResult,
 }
 import viva/lifecycle/jolt.{Vec3}
