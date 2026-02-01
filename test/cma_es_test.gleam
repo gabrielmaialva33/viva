@@ -3,10 +3,8 @@
 //// Tests for Covariance Matrix Adaptation Evolution Strategy implementation.
 //// These tests run without GPU to verify Pure Gleam logic.
 
-import gleam/float
-import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{Some}
 import gleeunit/should
 import viva/neural/cma_es
 

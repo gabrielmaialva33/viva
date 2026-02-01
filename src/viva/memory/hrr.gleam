@@ -71,8 +71,18 @@ pub fn from_tensor(t: Tensor) -> Result(HRR, HRRError) {
 
 /// Create HRR from list of floats
 pub fn from_list(data: List(Float)) -> HRR {
-  let dim = list.length(data)
-  HRR(vector: tensor.Tensor(data: data, shape: [dim]), dim: dim)
+  let d = list.length(data)
+  HRR(vector: tensor.Tensor(data: data, shape: [d]), dim: d)
+}
+
+/// Extract data from HRR as list
+pub fn to_list(h: HRR) -> List(Float) {
+  tensor.to_list(h.vector)
+}
+
+/// Get the dimensionality of an HRR vector
+pub fn dim(h: HRR) -> Int {
+  h.dim
 }
 
 // =============================================================================
@@ -243,23 +253,6 @@ pub fn query(
 // CIRCULAR CONVOLUTION (Pure Gleam - O(n²))
 // =============================================================================
 
-/// Circular convolution (naive O(n²) implementation)
-/// For production, use FFT via Nx: O(n log n)
-fn circular_convolution(a: List(Float), b: List(Float)) -> List(Float) {
-  let n = list.length(a)
-
-  list.range(0, n - 1)
-  |> list.map(fn(k) {
-    list.range(0, n - 1)
-    |> list.fold(0.0, fn(acc, j) {
-      let a_j = list_get(a, j, 0.0)
-      let b_idx = mod(k - j + n, n)
-      let b_kj = list_get(b, b_idx, 0.0)
-      acc +. { a_j *. b_kj }
-    })
-  })
-}
-
 /// Approximate inverse for unbinding
 /// For random vectors: inverse ≈ reverse (except element 0)
 fn approximate_inverse(v: List(Float)) -> List(Float) {
@@ -311,20 +304,6 @@ fn vector_norm(v: List(Float)) -> Float {
   |> float_sqrt
 }
 
-fn list_get(l: List(a), idx: Int, default: a) -> a {
-  case list.drop(l, idx) {
-    [x, ..] -> x
-    [] -> default
-  }
-}
-
-fn mod(a: Int, b: Int) -> Int {
-  let r = a % b
-  case r < 0 {
-    True -> r + b
-    False -> r
-  }
-}
 
 // =============================================================================
 // EXTERNAL

@@ -10,8 +10,6 @@
 ////   CPU (Rayon):  ~50,000 forwards/sec
 ////   GPU (CUDA):   ~500,000 forwards/sec (10x speedup)
 
-import gleam/dynamic.{type Dynamic}
-import gleam/result
 
 // =============================================================================
 // EXTERNAL NIF FUNCTIONS

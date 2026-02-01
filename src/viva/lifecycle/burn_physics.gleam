@@ -10,9 +10,7 @@
 ////   let results = burn_physics.simulate_batch(batch, shots, 200)
 ////   let fitness = burn_physics.calculate_fitness(batch, results)
 
-import gleam/int
 import gleam/list
-import gleam/result
 
 // =============================================================================
 // TYPES

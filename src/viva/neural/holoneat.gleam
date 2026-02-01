@@ -20,11 +20,10 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/result
 import viva/neural/glands.{type GlandsHandle}
 import viva/neural/math_ffi
 import viva/neural/neat.{
-  type ConnectionGene, type Genome, type NodeGene, type NeatConfig,
+  type ConnectionGene, type Genome, type NodeGene,
   ConnectionGene, Genome, NodeGene,
 }
 
@@ -115,7 +114,7 @@ pub fn fast_config() -> HoloConfig {
 // =============================================================================
 
 /// Generate random orthogonal role vectors for HRR encoding
-pub fn generate_role_vectors(handle: GlandsHandle, dim: Int, seed: Int) -> RoleVectors {
+pub fn generate_role_vectors(_handle: GlandsHandle, dim: Int, seed: Int) -> RoleVectors {
   RoleVectors(
     node_role: random_unit_vector(dim, seed),
     connection_role: random_unit_vector(dim, seed + 1000),
@@ -142,7 +141,7 @@ fn random_unit_vector(dim: Int, seed: Int) -> List(Float) {
 
 /// Encode a traditional NEAT genome as a holographic vector
 pub fn encode_genome(
-  handle: GlandsHandle,
+  _handle: GlandsHandle,
   genome: Genome,
   roles: RoleVectors,
   config: HoloConfig,
@@ -205,7 +204,7 @@ fn encode_connection(conn: ConnectionGene, roles: RoleVectors, dim: Int) -> List
 /// Crossover via circular convolution - THE KEY INNOVATION
 /// Instead of swapping genes, we blend holographic representations
 pub fn holographic_crossover(
-  handle: GlandsHandle,
+  _handle: GlandsHandle,
   parent1: HoloGenome,
   parent2: HoloGenome,
   blend_ratio: Float,
@@ -276,7 +275,7 @@ pub fn holographic_compatibility(
 
 /// Batch speciation using GPU similarity
 pub fn batch_speciation(
-  handle: GlandsHandle,
+  _handle: GlandsHandle,
   genomes: List(HoloGenome),
   representatives: List(HoloGenome),
   threshold: Float,
@@ -370,9 +369,9 @@ pub fn maybe_add_to_archive(
 /// Decode holographic vector back to traditional genome (approximate)
 /// Uses unbinding to extract components
 pub fn decode_genome(
-  handle: GlandsHandle,
+  _handle: GlandsHandle,
   holo: HoloGenome,
-  roles: RoleVectors,
+  _roles: RoleVectors,
   config: HoloConfig,
 ) -> Result(Genome, String) {
   // This is approximate - HRR decoding is lossy
