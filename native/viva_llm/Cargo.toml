@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 rustler = "0.36"
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-llama-cpp-2 = { version = "0.1.132", features = ["cuda"] }  # GPU acceleration
+llama-cpp-2 = "0.1.132"  # CPU-only, use Ollama for GPU
 sysinfo = "0.30"
 
 [profile.release]
