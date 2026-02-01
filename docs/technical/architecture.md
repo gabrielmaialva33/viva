@@ -563,4 +563,306 @@ pub type HoloMapConfig {
     tournament_size: Int,         // 3-4
   )
 }
+
+## VIVA Billiards Visualization (bevy_sinuca)
+
+This section details the architecture of the `bevy_sinuca` crate, a real-time 3D visualization and physics simulation client for the VIVA billiards environment. It communicates with the main Gleam application over WebSockets.
+
+### 1. WebSocket Message Protocol
+
+Communication uses JSON-serialized messages. MessagePack is a planned optimization for reduced network overhead.
+
+#### **Clientbound (Gleam -> Bevy)**
+
+These messages are commands or state updates sent from the Gleam server to the Bevy client.
+
+```json
+// Example Clientbound Message Enum (conceptual)
+[
+  // Sets the entire state of the table. Used for initial setup and state correction.
+  {
+    "type": "SetTableState",
+    "balls": [
+      { "id": 0, "position": [0.0, 0.2, 0.5], "velocity": [0.0, 0.0, 0.0], "is_active": true },
+      { "id": 1, "position": [-0.1, 0.2, -0.5], "velocity": [0.0, 0.0, 0.0], "is_active": true }
+    ]
+  },
+  // Commands the client to allow the user to place the cue ball.
+  // The provided region is a constraint for legal placement.
+  {
+    "type": "PlaceCueBall",
+    "region": { "type": "kitchen", "extents": [2.0, 1.0] }
+  },
+  // Informs the client that the game has ended and who won.
+  {
+    "type": "GameEnd",
+    "winner": "PlayerA"
+  }
+]
+```
+
+#### **Serverbound (Bevy -> Gleam)**
+
+These messages are events or results sent from the Bevy client to the Gleam server.
+
+```json
+// Example Serverbound Message Enum (conceptual)
+[
+  // Sent by Bevy upon successful connection and initialization.
+  {
+    "type": "Ready"
+  },
+  // Sent when the player executes a shot.
+  {
+    "type": "ShotTaken",
+    "cue_ball_id": 0,
+    "force": 50.0, // A value representing shot power
+    "angle_xy": 1.57, // Horizontal angle in radians
+    "angle_z": 0.1, // Vertical angle for elevation
+    "spin": {
+      "top": 0.2, // -1.0 to 1.0
+      "side": -0.5 // -1.0 to 1.0 (english)
+    }
+  },
+  // Sent after a physics simulation has concluded (all balls stopped).
+  {
+    "type": "ShotResult",
+    "balls": [
+      { "id": 0, "position": [0.5, 0.2, 1.0], "is_active": false }, // Ball 0 was pocketed
+      { "id": 1, "position": [-0.3, 0.2, -0.8], "is_active": true }
+    ]
+  },
+  // Sent after the user places the cue ball during a ball-in-hand scenario.
+  {
+    "type": "CueBallPlaced",
+    "position": [-0.4, 0.2, 0.6]
+  }
+]
+```
+
+### 2. Bevy Project Structure
+
+The project follows a standard Bevy application layout.
+
+**`Cargo.toml` Dependencies:**
+
+```toml
+[dependencies]
+bevy = "0.13"
+bevy_xpbd_3d = "0.4"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.23"
+futures-util = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+```
+
+**Folder Structure:**
+
+```
+bevy_sinuca/
+├── Cargo.toml
+└── src/
+    ├── main.rs         # App entry point, Bevy plugins
+    ├── components.rs   # Custom components (e.g., Ball, Cue)
+    ├── resources.rs    # Global resources (e.g., WebSocket connection)
+    ├── systems/        # Game logic systems
+    │   ├── setup.rs
+    │   ├── network.rs
+    │   ├── physics.rs
+    │   └── rendering.rs
+    └── plugins/        # Custom Bevy plugins for organization
+```
+
+### 3. Ball Rendering Details
+
+For photorealistic pool balls on high-end hardware like the RTX 4090, a combination of procedural textures and advanced PBR materials is used.
+
+**Procedural Ball Textures:**
+
+A system runs at startup to generate the ball textures. A full font renderer is complex; a simpler method is to draw pre-rendered number sprites onto a colored circle background.
+
+```rust
+// In a Bevy system, e.g., setup_ball_materials
+use bevy::prelude::*;
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+
+fn generate_ball_texture(
+    color: Color,
+    number: u8,
+    number_sprite: &Image, // Pre-loaded sprite asset
+    images: &mut ResMut<Assets<Image>>,
+) -> Handle<Image> {
+    let size = Extent3d { width: 512, height: 512, depth_or_array_layers: 1 };
+    let mut image = Image::new_fill(
+        size,
+        TextureDimension::D2,
+        &color.as_rgba_u8(),
+        TextureFormat::Rgba8UnormSrgb,
+        default(),
+    );
+
+    // This is a simplified concept. A real implementation would need
+    // to correctly blend the number_sprite onto the background.
+    // E.g., copy pixels from the sprite to the center of the `image` buffer.
+
+    images.add(image)
+}
+```
+
+**PBR Material Setup:**
+
+The key to a realistic billiard ball is the `StandardMaterial`'s clearcoat properties, which simulate a layer of varnish over the base material.
+
+```rust
+// In a Bevy system, when spawning a ball entity
+commands.spawn((
+    PbrBundle {
+        mesh: meshes.add(Sphere::new(0.057)), // Standard pool ball diameter
+        material: materials.add(StandardMaterial {
+            base_color_texture: Some(ball_texture_handle), // From procedural generation
+            // Simulates the polished plastic/resin of the ball
+            metallic: 0.1,
+            perceptual_roughness: 0.08,
+            // The crucial clear coat layer
+            clearcoat: 1.0, // Full strength clearcoat
+            clearcoat_perceptual_roughness: 0.01, // Very smooth coat
+            ..default()
+        }),
+        ..default()
+    },
+    // ... other components like RigidBody, Collider, etc.
+));
+```
+
+**Environment and Shadows:**
+
+- **Reflections:** An HDRI environment map is loaded and set as the `EnvironmentMapLight` for realistic, image-based reflections on the balls.
+- **Shadows:** High-quality shadows are enabled on the primary `DirectionalLight` to ground the objects.
+
+### 4. Spin Physics in bevy_xpbd
+
+`bevy_xpbd` allows for direct application of angular forces to simulate spin.
+
+**Applying Spin:**
+
+When a shot is taken, the `ShotTaken` parameters are translated into physical forces and torques applied to the cue ball's `RigidBody`.
+
+```rust
+use bevy::prelude::*;
+use bevy_xpbd_3d::prelude::*;
+
+fn apply_shot_physics(
+    // Query for the cue ball entity
+    mut query: Query<(&mut LinearVelocity, &mut AngularVelocity, &Transform), With<CueBall>>,
+    shot_params: Res<ShotParams>, // Resource holding shot data
+) {
+    for (mut lin_vel, mut ang_vel, transform) in query.iter_mut() {
+        // 1. Apply linear force for the main shot power
+        let forward_vector = transform.forward();
+        *lin_vel = LinearVelocity(forward_vector * shot_params.power);
+
+        // 2. Apply torque for spin (english, top/back spin)
+        let transform = transform.compute_transform();
+        let right_vector = transform.right();
+        let up_vector = transform.up();
+
+        // Top/back spin applies torque around the right-axis
+        let topspin_torque = right_vector * shot_params.spin.top * 100.0;
+        // Side spin applies torque around the up-axis
+        let sidespin_torque = up_vector * shot_params.spin.side * 100.0;
+
+        *ang_vel = AngularVelocity(topspin_torque + sidespin_torque);
+    }
+}
+```
+
+**Advanced Effects:**
+
+- **Magnus Effect:** Not typically built-in. Can be implemented as a custom system applying an `ExternalForce` to the ball. The force is calculated as `F = k * cross(angular_velocity, linear_velocity)`, causing the ball to curve.
+- **Friction and Damping:** `LinearDamping(0.5)` and `AngularDamping(0.8)` components are added to all balls to simulate the spin and speed decay from the table cloth. These values require careful tuning.
+
+### 5. State Synchronization Edge Cases
+
+A state machine in Bevy manages the game flow based on server messages.
+
+- **Initial Table Setup:**
+  1. Bevy connects to the WebSocket and sends `Serverbound::Ready`.
+  2. Bevy enters a `WaitingForState` state.
+  3. Gleam sends `Clientbound::SetTableState`.
+  4. Bevy despawns any existing balls and spawns new ones based on the received positions, applying the `RigidBody` and `Collider` components.
+
+- **Ball-in-Hand (Cue Ball Placement):**
+  1. Gleam sends `Clientbound::PlaceCueBall`.
+  2. Bevy enters a `PlacingCueBall` state. The cue ball's `RigidBody` is set to `Kinematic` and its `Collider` is temporarily disabled or moved to a non-colliding layer.
+  3. A system updates the cue ball's `Transform` to follow the mouse cursor, constrained by the region sent by the server.
+  4. On player click, Bevy sends `Serverbound::CueBallPlaced` with the final position.
+  5. Bevy waits for a new `Clientbound::SetTableState` from Gleam to confirm the placement and restore the cue ball to a `Dynamic` `RigidBody`.
+
+- **Foul Handling:**
+  - Bevy's responsibility is limited to reporting the simulation outcome.
+  - After a shot, Bevy sends `Serverbound::ShotResult`.
+  - Gleam's logic determines if a foul occurred (e.g., cue ball pocketed, no rail hit).
+  - If a foul occurs, Gleam's response will be a `SetTableState` (to respawn balls if necessary) followed by a `PlaceCueBall` message for the opponent.
+
+- **Game End Conditions:**
+  - Gleam tracks the game rules. When a win condition is met (e.g., 8-ball pocketed legally), it sends `Clientbound::GameEnd`.
+  - Bevy receives this message, enters a `GameOver` state, and can display a UI element with the result.
+
+### 6. Performance Metrics System
+
+A debug overlay provides real-time performance feedback, crucial for optimization.
+
+```rust
+use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
+use bevy::prelude::*;
+
+// Component to tag the FPS text UI element
+#[derive(Component)]
+struct FpsText;
+
+// System to set up the UI
+fn setup_performance_ui(mut commands: Commands) {
+    commands.spawn((
+        TextBundle::from_sections([
+            TextSection::new(
+                "FPS: ",
+                TextStyle { font_size: 20.0, color: Color::WHITE, ..default() },
+            ),
+            TextSection::from_style(TextStyle { font_size: 20.0, color: Color::GOLD, ..default() }),
+            // Add more sections for other metrics
+        ]).with_style(Style {
+            position_type: PositionType::Absolute,
+            top: Val::Px(5.0),
+            left: Val::Px(5.0),
+            ..default()
+        }),
+        FpsText,
+    ));
+}
+
+// System to update the UI
+fn update_fps_text(
+    diagnostics: Res<DiagnosticsStore>,
+    mut query: Query<&mut Text, With<FpsText>>,
+) {
+    for mut text in &mut query {
+        if let Some(fps) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS) {
+            if let Some(value) = fps.smoothed() {
+                // Update the value of the second section
+                text.sections[1].value = format!("{value:.2}");
+            }
+        }
+        // Update other metrics like network latency from a resource
+    }
+}
+
+// In the main App builder:
+// app.add_plugins(FrameTimeDiagnosticsPlugin)
+//    .add_systems(Startup, setup_performance_ui)
+//    .add_systems(Update, update_fps_text);
+```
+- **Physics Steps:** Can be tracked by incrementing a resource counter within the fixed-update physics schedule.
+- **Network Latency:** Can be measured by recording ping-pong message timings with the server.
+- **Memory Usage:** More complex; requires platform-specific libraries or external tools.
 ```
