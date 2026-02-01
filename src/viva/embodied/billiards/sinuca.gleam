@@ -40,21 +40,34 @@ pub const pocket_radius: Float = 0.05
 /// Ball mass (kg)
 pub const ball_mass: Float = 0.16
 
-/// Physics based on Mathavan 2014 + pooltool
-/// Ball-cloth friction (sliding)
-pub const cloth_friction: Float = 0.2
+/// Physics based on Mathavan 2014 + pooltool + Dr. Dave
+/// ============================================================
 
-/// Ball-ball friction
+/// Sliding friction (ball-cloth) - when ball slides before rolling
+pub const sliding_friction: Float = 0.20
+
+/// Rolling friction (ball-cloth) - very low, ball rolls for long time
+pub const rolling_friction: Float = 0.01
+
+/// Spinning friction - ball spinning in place decays
+pub const spinning_friction: Float = 0.044
+
+/// Ball-ball friction (causes "throw" effect)
 pub const ball_ball_friction: Float = 0.05
 
 /// Ball-cushion friction
-pub const cushion_friction: Float = 0.21
+pub const cushion_friction: Float = 0.14
 
-/// Coefficient of restitution (bounciness)
-pub const ball_restitution: Float = 0.89
+/// Coefficient of restitution (ball-ball)
+/// Mathavan 2014: 0.89-0.95, using 0.93 for realistic energy loss
+pub const ball_restitution: Float = 0.93
 
-/// Cushion restitution
+/// Cushion restitution (K-66 rubber profile)
+/// Real cushions absorb more energy than balls
 pub const cushion_restitution: Float = 0.75
+
+/// Gravity (m/s²)
+pub const gravity: Float = 9.81
 
 // =============================================================================
 // TYPES - Brazilian Sinuca
@@ -170,7 +183,7 @@ pub fn new() -> Table {
     Vec3(table_length /. 2.0, table_height /. 2.0, table_width /. 2.0),
     Static,
   )
-  let _ = jolt.set_friction(world, surface, cloth_friction)
+  let _ = jolt.set_friction(world, surface, sliding_friction)
 
   // Cushions
   let cushions = create_cushions(world)
@@ -301,12 +314,13 @@ fn create_balls(world: World) -> List(Ball) {
   })
 }
 
-/// Create individual ball
+/// Create individual ball with full 3D physics
 fn create_ball(world: World, position: Vec3, color: BallColor, radius: Float) -> Ball {
   let body = jolt.create_sphere(world, position, radius, Dynamic)
   let _ = jolt.set_friction(world, body, ball_ball_friction)
   let _ = jolt.set_restitution(world, body, ball_restitution)
-  let _ = jolt.set_gravity_factor(world, body, 0.0)  // Flat table
+  // Gravity enabled for realistic 3D physics - balls can jump off table!
+  let _ = jolt.set_gravity_factor(world, body, 1.0)
   Ball(body: body, color: color, pocketed: False)
 }
 
@@ -314,25 +328,33 @@ fn create_ball(world: World, position: Vec3, color: BallColor, radius: Float) ->
 // PHYSICS SIMULATION
 // =============================================================================
 
-/// Execute a shot
+/// Execute a shot with full 3D physics
+/// Elevation allows massé shots where the ball jumps
 pub fn shoot(table: Table, shot: Shot) -> Table {
-  let Shot(angle, power, english, _elevation) = shot
+  let Shot(angle, power, english, elevation) = shot
 
-  // Impulse direction
-  let dir_x = float_cos(angle)
-  let dir_z = float_sin(angle)
+  // Impulse direction in 3D (elevation affects Y component)
+  let horizontal_factor = float_cos(elevation)
+  let vertical_factor = float_sin(elevation)
 
-  // Max realistic impulse (~8 N*s for hard shot)
-  let max_impulse = 8.0
+  let dir_x = float_cos(angle) *. horizontal_factor
+  let dir_z = float_sin(angle) *. horizontal_factor
+  let dir_y = vertical_factor  // Upward component from elevated cue
+
+  // Max realistic impulse (~8 N*s for hard shot, +2 for jump shots)
+  let max_impulse = 8.0 +. { elevation *. 4.0 }  // More power for jump shots
   let magnitude = power *. max_impulse
 
-  // Apply linear impulse
-  let impulse = Vec3(dir_x *. magnitude, 0.0, dir_z *. magnitude)
+  // Apply 3D linear impulse
+  let impulse = Vec3(dir_x *. magnitude, dir_y *. magnitude *. 0.5, dir_z *. magnitude)
   let _ = jolt.add_impulse(table.world, table.cue_ball, impulse)
 
-  // Apply english (side spin)
-  let spin_magnitude = english *. 4.0
-  let spin = Vec3(0.0, spin_magnitude, 0.0)
+  // Apply english (side spin) + topspin/backspin from elevation
+  let side_spin = english *. 4.0
+  // Elevation creates backspin (negative X rotation for massé)
+  let back_spin = elevation *. 8.0 *. float_cos(angle)
+  let front_spin = elevation *. 8.0 *. float_sin(angle)
+  let spin = Vec3(back_spin, side_spin, front_spin)
   let _ = jolt.add_angular_impulse(table.world, table.cue_ball, spin)
 
   // Activate cue ball
@@ -341,10 +363,130 @@ pub fn shoot(table: Table, shot: Shot) -> Table {
   table
 }
 
-/// Advance simulation
+/// Advance simulation with realistic friction
 pub fn step(table: Table, dt: Float) -> Table {
-  let _ = jolt.step(table.world, dt)
+  // Apply realistic friction before physics step
+  let table2 = apply_realistic_friction(table, dt)
+  let _ = jolt.step(table2.world, dt)
+  table2
+}
+
+/// Apply correct friction based on ball state (rolling vs sliding)
+/// Based on Mathavan 2014 and pooltool physics
+fn apply_realistic_friction(table: Table, dt: Float) -> Table {
+  list.each(table.balls, fn(ball) {
+    case ball.pocketed {
+      True -> Nil
+      False -> {
+        case jolt.get_velocity(table.world, ball.body) {
+          Ok(v) -> {
+            case jolt.get_angular_velocity(table.world, ball.body) {
+              Ok(w) -> {
+                let r = case ball.color {
+                  White -> cue_ball_radius
+                  _ -> ball_radius
+                }
+
+                // Speed in XZ plane (table surface)
+                let speed = float_sqrt(v.x *. v.x +. v.z *. v.z)
+
+                // Surface speed from rotation (omega * R)
+                let surface_speed = float_sqrt(w.x *. w.x +. w.z *. w.z) *. r
+
+                // Slip = difference between linear and rotational surface speed
+                let slip = float_abs(speed -. surface_speed)
+
+                // Determine friction regime
+                let friction = case slip >. 0.01 {
+                  // SLIDING: high friction until pure rolling achieved
+                  True -> sliding_friction
+                  // ROLLING: low friction, ball rolls for long time
+                  False -> rolling_friction
+                }
+
+                // Apply linear deceleration
+                let decel = friction *. gravity
+                case speed >. 0.001 {
+                  True -> {
+                    let dv = float_min(decel *. dt, speed)
+                    let factor = { speed -. dv } /. speed
+                    let new_v = Vec3(v.x *. factor, v.y, v.z *. factor)
+                    let _ = jolt.set_velocity(table.world, ball.body, new_v)
+                    Nil
+                  }
+                  False -> {
+                    let _ = jolt.set_velocity(table.world, ball.body, Vec3(0.0, v.y, 0.0))
+                    Nil
+                  }
+                }
+
+                // SPINNING friction: ball spinning in place after stopping
+                case speed <. 0.01 && float_abs(w.y) >. 0.1 {
+                  True -> {
+                    // Spin decays due to contact patch friction
+                    // alpha = 5/(2*R) * mu_spin * g
+                    let spin_decel = { 5.0 /. { 2.0 *. r } } *. spinning_friction *. gravity
+                    let new_wy = sign_decay(w.y, spin_decel *. dt)
+                    let _ = jolt.set_angular_velocity(table.world, ball.body,
+                      Vec3(w.x, new_wy, w.z))
+                    Nil
+                  }
+                  False -> Nil
+                }
+
+                // Accelerate rotation towards rolling condition when sliding
+                case slip >. 0.01 && speed >. 0.01 {
+                  True -> {
+                    // Torque from friction: alpha = 5/(2*R) * mu * g
+                    let alpha = { 5.0 /. { 2.0 *. r } } *. sliding_friction *. gravity
+
+                    // Target angular velocity for pure rolling
+                    // omega_x = -v_z / R, omega_z = v_x / R
+                    let target_wx = neg(v.z) /. r
+                    let target_wz = v.x /. r
+
+                    let new_wx = approach(w.x, target_wx, alpha *. dt)
+                    let new_wz = approach(w.z, target_wz, alpha *. dt)
+
+                    let _ = jolt.set_angular_velocity(table.world, ball.body,
+                      Vec3(new_wx, w.y, new_wz))
+                    Nil
+                  }
+                  False -> Nil
+                }
+
+                Nil
+              }
+              Error(_) -> Nil
+            }
+          }
+          Error(_) -> Nil
+        }
+      }
+    }
+  })
+
   table
+}
+
+/// Decay value towards zero
+fn sign_decay(value: Float, amount: Float) -> Float {
+  case value >. 0.0 {
+    True -> float_max(0.0, value -. amount)
+    False -> float_min(0.0, value +. amount)
+  }
+}
+
+/// Move value towards target by amount
+fn approach(current: Float, target: Float, amount: Float) -> Float {
+  let diff = target -. current
+  case float_abs(diff) <. amount {
+    True -> target
+    False -> case diff >. 0.0 {
+      True -> current +. amount
+      False -> current -. amount
+    }
+  }
 }
 
 /// Advance N steps
@@ -664,3 +806,12 @@ fn float_sin(x: Float) -> Float
 
 @external(erlang, "math", "sqrt")
 fn float_sqrt(x: Float) -> Float
+
+@external(erlang, "erlang", "max")
+fn float_max(a: Float, b: Float) -> Float
+
+@external(erlang, "erlang", "min")
+fn float_min(a: Float, b: Float) -> Float
+
+@external(erlang, "erlang", "abs")
+fn float_abs(x: Float) -> Float
