@@ -1,6 +1,6 @@
 [package]
 name = "viva_llm"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["mrootx"]
 edition = "2021"
 
@@ -13,8 +13,8 @@ crate-type = ["cdylib"]
 rustler = "0.36"
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-llama-cpp-2 = "0.1.68"
-sysinfo = "0.30" # Added for Proprioception
+llama-cpp-2 = { version = "0.1.132", features = ["cuda"] }  # GPU acceleration
+sysinfo = "0.30"
 
 [profile.release]
 lto = "fat"
