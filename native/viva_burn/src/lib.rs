@@ -454,9 +454,9 @@ fn burn_benchmark(
 // BATCH PHYSICS SIMULATION
 // =============================================================================
 
-/// Batch physics simulation for sinuca tables
+/// Batch physics simulation for multiple dynamic scenes
 ///
-/// Simulates multiple billiards tables in parallel.
+/// Simulates multiple scenes in parallel.
 /// Uses Rayon for CPU parallelism (GPU tensor version planned).
 ///
 /// Arguments:
@@ -512,7 +512,7 @@ fn burn_batch_physics_simulate(
 /// - English: side spin that causes curved ball paths (Magnus effect)
 /// - Elevation: top/back spin that affects ball behavior after contact
 ///
-/// Simulates multiple billiards tables in parallel with full spin physics.
+/// Simulates multiple scenes in parallel with full spin physics.
 ///
 /// Arguments:
 /// - positions_x: [batch, 8] - ball X positions
@@ -561,7 +561,7 @@ fn burn_batch_physics_simulate_with_spin(
     Ok((final_px, final_pz, final_pocketed, steps))
 }
 
-/// Create initial state for a batch of sinuca tables
+/// Create initial state for a batch of scenes
 ///
 /// Returns: (positions_x, positions_z, velocities_x, velocities_z, pocketed)
 /// All shapes are [batch_size, 8]
@@ -586,7 +586,7 @@ fn burn_batch_physics_create_tables(batch_size: usize) -> (
 /// - final_pos_z: [batch, 8] final Z positions
 /// - initial_pos_x: [batch, 8] initial X positions
 /// - initial_pos_z: [batch, 8] initial Z positions
-/// - target_ball_idx: index of target ball (1 for Red in sinuca)
+/// - target_ball_idx: index of target object
 ///
 /// Returns: Vec<(fitness, hit_angle, scatter_ratio)>
 #[rustler::nif(schedule = "DirtyCpu")]

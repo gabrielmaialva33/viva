@@ -177,7 +177,7 @@ impl TensorPhysicsEngine {
 /// Burn tensor-based simulation using existing burn_cuda backend
 ///
 /// This uses Burn's tensor operations which compile to cuBLAS/cuDNN.
-/// Good for prototyping, but custom kernels are faster for billiards-specific ops.
+/// Good for prototyping, but custom kernels are faster for this workload.
 #[cfg(feature = "cuda")]
 pub fn tensor_simulate_burn(
     positions_x: Vec<Vec<f32>>,

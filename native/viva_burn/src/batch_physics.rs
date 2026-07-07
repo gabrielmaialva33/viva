@@ -1,6 +1,6 @@
 //! VIVA Batch Physics Simulation
 //!
-//! GPU-accelerated 2D billiards physics for batch simulation.
+//! GPU-accelerated 2D batch physics simulation.
 //! Processes 1000+ simultaneous table simulations on RTX 4090.
 //!
 //! Key optimizations:
@@ -19,7 +19,7 @@ use burn_cuda::{Cuda, CudaDevice};
 use burn_ndarray::NdArray;
 
 // =============================================================================
-// PHYSICS CONSTANTS (from sinuca.gleam)
+// PHYSICS CONSTANTS (from gleam simulation config)
 // =============================================================================
 
 /// Table dimensions (meters)
@@ -87,7 +87,7 @@ pub const POCKET_X: [f32; 6] = [-TABLE_HALF_L, TABLE_HALF_L, -TABLE_HALF_L, TABL
 pub const POCKET_Z: [f32; 6] = [TABLE_HALF_W, TABLE_HALF_W, -TABLE_HALF_W, -TABLE_HALF_W, TABLE_HALF_W, -TABLE_HALF_W];
 
 // =============================================================================
-// INITIAL BALL POSITIONS (Brazilian Sinuca)
+// INITIAL BALL POSITIONS
 // =============================================================================
 
 /// Initial X positions for balls [cue, red, yellow, green, brown, blue, pink, black]
@@ -1713,7 +1713,7 @@ fn simulate_single_episode(
 
 /// Encode current table state into neural network inputs
 ///
-/// 8 inputs matching sinuca_trainer format:
+/// 8 inputs matching legacy trainer format:
 /// [cue_x, cue_z, target_x, target_z, pocket_angle, pocket_dist, target_value, balls_left]
 fn encode_state_inputs(
     pos_x: &[f32],

@@ -156,7 +156,7 @@ burn_benchmark_nes(_WeightCount, _NumPerturbations, _Iterations) ->
 %% Batch Physics Simulation (NEW)
 %% =============================================================================
 
-%% Simulate multiple billiards tables in parallel
+%% Simulate multiple object batches in parallel
 %% Args:
 %%   PositionsX: [[float]] - ball X positions [batch, 8]
 %%   PositionsZ: [[float]] - ball Z positions [batch, 8]
@@ -177,7 +177,7 @@ burn_batch_physics_simulate_with_spin(_PositionsX, _PositionsZ, _VelocitiesX, _V
                                       _Pocketed, _Shots, _MaxSteps) ->
     erlang:nif_error(nif_not_loaded).
 
-%% Create initial state for batch of sinuca tables
+%% Create initial state for a batch of scenes
 %% Returns: {PositionsX, PositionsZ, VelocitiesX, VelocitiesZ, Pocketed}
 burn_batch_physics_create_tables(_BatchSize) ->
     erlang:nif_error(nif_not_loaded).
