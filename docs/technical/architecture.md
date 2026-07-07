@@ -17,7 +17,7 @@ VIVA-QD implements a heterogeneous neuroevolution system spanning four technolog
     | viva/neural/neat.gleam     | NEAT genome, mutations, crossover   |
     | viva/neural/holomap.gleam  | MAP-Elites grid, behavior mapping   |
     | viva/neural/novelty.gleam  | Behavior descriptors, novelty calc  |
-    | viva/billiards/sinuca*.gleam | Domain-specific trainers          |
+    | [legacy] domain-specific trainers removed    | Domain-specific trainers removed          |
     +------------------------------------------------------------------+
                                     |
                                     | Gleam FFI (@external)
@@ -158,16 +158,11 @@ Key functions:
 | `adaptive_novelty_weight(gen, config)` | Sigmoid decay |
 | `tournament_select(grid, size, seed)` | Selection from archive |
 
-#### 1.3 Domain Trainers (`viva/billiards/sinuca_*.gleam`)
+#### 1.3 Domain Trainers (legacy)
 
-Multiple QD variants implemented:
+Legacy trainer modules were removed from this codebase. Remaining trainer behavior is now exercised through core NeuroEvolution modules (`neat`, `holomap`, `novelty`) and NIF-backed physical simulations.
 
-| Trainer | Description |
-|---------|-------------|
-| `sinuca_trainer.gleam` | Basic NEAT training |
-| `sinuca_qd_trainer.gleam` | QD v3 - Decoupled selection |
-| `sinuca_hybrid_trainer.gleam` | QD v6 - NEAT-QD hybrid |
-| `sinuca_qd_v9.gleam` | QD v9 - GPU-accelerated NES |
+No dedicated legacy domain modules are present in the active repository.
 
 ### 2. Erlang/OTP Layer
 
@@ -564,9 +559,9 @@ pub type HoloMapConfig {
   )
 }
 
-## VIVA Billiards Visualization (bevy_sinuca)
+## VIVA Simulation Visualizer (legacy, removed)
 
-This section details the architecture of the `bevy_sinuca` crate, a real-time 3D visualization and physics simulation client for the VIVA billiards environment. It communicates with the main Gleam application over WebSockets.
+This section documented a legacy Bevy-based visualizer (`bevy_simulator`) for a removed simulation client. The current repository no longer includes this client code.
 
 ### 1. WebSocket Message Protocol
 
@@ -660,7 +655,7 @@ serde_json = "1.0"
 **Folder Structure:**
 
 ```
-bevy_sinuca/
+bevy_simulator/
 ├── Cargo.toml
 └── src/
     ├── main.rs         # App entry point, Bevy plugins
@@ -712,7 +707,7 @@ fn generate_ball_texture(
 
 **PBR Material Setup:**
 
-The key to a realistic billiard ball is the `StandardMaterial`'s clearcoat properties, which simulate a layer of varnish over the base material.
+The key to a realistic simulation sphere is the `StandardMaterial`'s clearcoat properties, which simulate a polished reflective coating over the base material.
 
 ```rust
 // In a Bevy system, when spawning a ball entity

@@ -113,7 +113,7 @@ pub fn hrr_to_behavior(hrr_vector: List(Float), dims: Int) -> Behavior {
 }
 ```
 
-For the sinuca domain, we use 2D descriptors:
+For the benchmark domain, we use 2D descriptors:
 - **Dimension 0**: Average shot angle (normalized)
 - **Dimension 1**: Ball scatter ratio (movement diversity)
 
@@ -240,7 +240,7 @@ Jolt Physics integration enables parallel simulation:
 ```gleam
 // Batch evaluate N genomes in parallel
 let results = list.map(genomes, fn(genome) {
-  let table = sinuca.new()
+  let env = environment.new()
   let episode = fitness.new_episode()
 
   list.fold(range(1, shots_per_episode), #(0.0, table, episode), fn(acc, _) {
@@ -256,28 +256,28 @@ let results = list.map(genomes, fn(genome) {
 })
 ```
 
-## 3.5 Sinuca Domain Specification
+## 3.5 Domain Specification
 
 ### 3.5.1 State Representation (8 inputs)
 
 | Input | Range | Description |
 |-------|-------|-------------|
-| cue_x | [-1, 1] | Cue ball X position (normalized) |
-| cue_z | [-1, 1] | Cue ball Z position (normalized) |
-| target_x | [-1, 1] | Target ball X position |
-| target_z | [-1, 1] | Target ball Z position |
-| pocket_angle | [-1, 1] | Angle to best pocket (normalized by pi) |
-| pocket_dist | [-1, 1] | Distance to best pocket (normalized) |
-| target_value | [-1, 1] | Point value of target (1-7 mapped to [-1,1]) |
-| balls_left | [-1, 1] | Remaining balls (normalized) |
+| cue_x | [-1, 1] | Primary object X position (normalized) |
+| cue_z | [-1, 1] | Primary object Z position (normalized) |
+| target_x | [-1, 1] | Target feature X position |
+| target_z | [-1, 1] | Target feature Z position |
+| pocket_angle | [-1, 1] | Angular feature to target (normalized by pi) |
+| pocket_dist | [-1, 1] | Distance to target feature (normalized) |
+| target_value | [-1, 1] | Scalar target value mapped to [-1,1] |
+| balls_left | [-1, 1] | Remaining target objects (normalized) |
 
 ### 3.5.2 Action Space (3 outputs)
 
 | Output | Range | Description |
 |--------|-------|-------------|
-| angle_adj | [0, 1] | Adjustment to pocket angle (+-45 degrees) |
-| power | [0, 1] | Shot power (mapped to 0.1-1.0) |
-| english | [0, 1] | Cue ball spin (mapped to [-0.8, 0.8]) |
+| angle_adj | [0, 1] | Angular adjustment (mapped)
+| power | [0, 1] | Power coefficient |
+| english | [0, 1] | Spin coefficient |
 
 ### 3.5.3 Fitness Function
 
@@ -285,7 +285,7 @@ let results = list.map(genomes, fn(genome) {
 fitness = sum(shot_rewards) where:
 
 shot_reward =
-    25.0 * balls_pocketed +
+    25.0 * task_reward +
     10.0 * approach_bonus +
     5.0 * combo_bonus +
     -15.0 * if_scratch

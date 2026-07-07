@@ -235,6 +235,6 @@ Comparing against published QD benchmarks (where applicable):
 |--------|--------|-----------|----------|-------|
 | CMA-ME | Arm Repertoire | 8,500 | 68% | CPU-only |
 | PGA-MAP-Elites | QDax Suite | 125,000 | 71% | JAX/TPU |
-| VIVA-QD | Sinuca | 320,000 | 57.9% | RTX 4090 |
+| VIVA-QD | Control Domain | 320,000 | 57.9% | RTX 4090 |
 
-Note: Direct comparison is limited due to different domains. Our coverage is lower because the sinuca domain has challenging sparse rewards; the throughput advantage enables more exploration.
+Note: Direct comparison is limited due to different domains. Our coverage is lower because the benchmark task has challenging sparse rewards; the throughput advantage enables more exploration.

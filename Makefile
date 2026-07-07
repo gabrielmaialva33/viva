@@ -102,7 +102,7 @@ test: build
 ## Run benchmarks
 bench: build
 	@echo "$(CYAN)[BENCH]$(RESET) Running benchmarks..."
-	@gleam run -m viva/benchmark
+	@gleam run -- bench
 
 ## Type check
 check:
@@ -127,10 +127,9 @@ docs:
 	@echo "$(CYAN)[DOCS]$(RESET) Generating documentation..."
 	@gleam docs build
 
-## Build static site
-site: build
-	@echo "$(CYAN)[SITE]$(RESET) Building site..."
-	@gleam run -m site/build
+# Static site target removed in cleanup; docs pipeline now handled externally.
+site:
+	@echo "$(YELLOW)[SITE]$(RESET) static site target removed (src/site deleted). Use docs/ tooling."
 
 # =============================================================================
 # CLEAN
@@ -143,7 +142,7 @@ clean:
 	@rm -f $(PRIV)/viva_burn.so
 	@rm -rf build
 	@rm -f erl_crash.dump
-	@echo "$(GREEN)[CLEAN]$(RESET) Done
+	@echo "$(GREEN)[CLEAN]$(RESET) Done"
 
 ## Deep clean (including deps and Rust build)
 distclean: clean
@@ -201,7 +200,7 @@ help:
 	@echo ""
 	@echo "$(YELLOW)Docs:$(RESET)"
 	@echo "  docs      Generate documentation"
-	@echo "  site      Build static site"
+	@echo "  site      Static site target removed (use docs tooling directly)"
 	@echo ""
 	@echo "$(YELLOW)Clean:$(RESET)"
 	@echo "  clean     Clean build artifacts"

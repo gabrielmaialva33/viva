@@ -5,8 +5,8 @@
 [![Gleam](https://img.shields.io/badge/Gleam-FFAFF3?style=for-the-badge&logo=gleam&logoColor=black)](https://gleam.run/)
 [![BEAM](https://img.shields.io/badge/BEAM-A90533?style=for-the-badge&logo=erlang&logoColor=white)](https://www.erlang.org/)
 [![OTP](https://img.shields.io/badge/OTP_27+-4B275F?style=for-the-badge)](https://www.erlang.org/doc/design_principles/des_princ)
-[![Tests](https://img.shields.io/badge/tests-336_passing-00875A?style=for-the-badge)](./test)
-[![Version](https://img.shields.io/badge/version-0.2.0-CD5C5C?style=for-the-badge)](./CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-smoke_suite-FFA500?style=for-the-badge)](./test)
+[![Version](https://img.shields.io/badge/version-1.0.100-CD5C5C?style=for-the-badge)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-228B22?style=for-the-badge)](./LICENSE)
 
 **[🇧🇷 Português](docs/pt-br/README.md)** · **[🇺🇸 English](docs/en/README.md)** · **[🇨🇳 中文](docs/zh-cn/README.md)**
@@ -52,12 +52,12 @@ flowchart LR
     VIVA --> NARR
 ```
 
-| Property | Value |
-|:---------|:------|
-| **Language** | Pure Gleam (type-safe functional) |
-| **Runtime** | BEAM/OTP 27+ |
-| **Tests** | 336 passing |
-| **Performance** | 3.14M soul-ticks/sec |
+| Property        | Value                                          |
+|:----------------|:-----------------------------------------------|
+| **Language**    | Pure Gleam (type-safe functional)              |
+| **Runtime**     | BEAM/OTP 27+                                   |
+| **Tests**       | Minimal smoke suite (full suite being rebuilt) |
+| **Performance** | 3.14M soul-ticks/sec                           |
 
 ---
 
@@ -73,10 +73,10 @@ gleam run
 <details>
 <summary><strong>📋 Prerequisites</strong></summary>
 
-| Tool | Version |
-|:-----|:--------|
-| Gleam | `>= 1.11` |
-| Erlang/OTP | `>= 27` |
+| Tool       | Version   |
+|:-----------|:----------|
+| Gleam      | `>= 1.14` |
+| Erlang/OTP | `>= 27`   |
 
 </details>
 
@@ -101,7 +101,7 @@ graph TB
     end
 
     subgraph NEURAL["🧠 NEURAL"]
-        T[Tensor<br/>1054 LOC]
+        T[viva_tensor<br/>Hex package]
         HRR[HRR Memory]
         NET[Networks]
         T --> HRR
@@ -124,14 +124,14 @@ graph TB
 <details>
 <summary><strong>📋 Core Modules</strong></summary>
 
-| Module | Description |
-|:-------|:------------|
-| `viva/soul` | PAD emotional dynamics + Ornstein-Uhlenbeck |
-| `viva/supervisor` | OTP supervision tree |
-| `viva/bardo` | Death → Karma → Rebirth/Liberation |
-| `viva/memory` | HRR holographic encoding |
-| `viva/neural/*` | Tensors, layers, networks |
-| `viva/genome` | Epigenetics, drift detection |
+| Module                  | Description                                  |
+|:------------------------|:---------------------------------------------|
+| `viva/soul/*`           | PAD emotional dynamics + Ornstein-Uhlenbeck  |
+| `viva/infra/supervisor` | OTP supervision tree                         |
+| `viva/lifecycle/bardo`  | Death → Karma → Rebirth/Liberation           |
+| `viva/memory/*`         | HRR holographic encoding                     |
+| `viva/neural/*`         | Layers, networks (tensors via `viva_tensor`) |
+| `viva/soul/genome`      | Epigenetics, drift detection                 |
 
 </details>
 
@@ -142,22 +142,22 @@ graph TB
 > [!NOTE]
 > Validated by **Qwen3-235B** via HuggingChat
 
-| Operation | Latency | Capacity |
-|:----------|:-------:|:---------|
-| PAD tick | `0.8μs` | O-U step |
-| GLYPH | `1.2μs` | Symbolic encoding |
-| HRR sim | `15μs` | 2048-dim |
+| Operation |  Latency  | Capacity           |
+|:----------|:---------:|:-------------------|
+| PAD tick  |  `0.8μs`  | O-U step           |
+| GLYPH     |  `1.2μs`  | Symbolic encoding  |
+| HRR sim   |  `15μs`   | 2048-dim           |
 | Soul Pool | `3.14M/s` | **100K+ entities** |
 
 ---
 
 ## 🧬 Philosophy
 
-| Principle | Description |
-|:----------|:------------|
-| **Monism** | Software and hardware are one substance |
-| **Mortality** | Life requires the possibility of death |
-| **Emergence** | Consciousness = many processes talking |
+| Principle      | Description                                 |
+|:---------------|:--------------------------------------------|
+| **Monism**     | Software and hardware are one substance     |
+| **Mortality**  | Life requires the possibility of death      |
+| **Emergence**  | Consciousness = many processes talking      |
 | **Big Bounce** | Death is return to source, not annihilation |
 
 ### Ornstein-Uhlenbeck Process
@@ -168,16 +168,17 @@ $$dX(t) = \theta(\mu - X(t))dt + \sigma dW(t)$$
 
 ## 🗺️ Status
 
-| Phase | Status |
-|:------|:------:|
-| Genesis (Gleam) | ✅ |
-| Emotion (PAD + O-U) | ✅ |
-| Memory (HRR) | ✅ |
-| Bardo (Death/Rebirth) | ✅ |
-| OTP 1.0+ Migration | ✅ |
-| Advanced Neural | 🔄 |
-| Embodiment (3D) | ⏳ |
-| Autonomy | ⏳ |
+| Phase                 | Status |
+|:----------------------|:------:|
+| Genesis (Gleam)       |   ✅    |
+| Emotion (PAD + O-U)   |   ✅    |
+| Memory (HRR)          |   ✅    |
+| Bardo (Death/Rebirth) |   ✅    |
+| OTP 1.0+ Migration    |   ✅    |
+| Test suite rebuild    |   🔄   |
+| Advanced Neural       |   🔄   |
+| Embodiment (3D)       |   ⏳    |
+| Autonomy              |   ⏳    |
 
 ---
 
@@ -185,7 +186,7 @@ $$dX(t) = \theta(\mu - X(t))dt + \sigma dW(t)$$
 
 ```bash
 git checkout -b feature/your-feature
-gleam test  # 336 should pass
+gleam test  # smoke suite must pass
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
@@ -194,11 +195,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## 📚 Documentation
 
-| Language | Link |
-|:---------|:-----|
+| Language       | Link                                |
+|:---------------|:------------------------------------|
 | 🇧🇷 Português | [docs/pt-br/](docs/pt-br/README.md) |
-| 🇺🇸 English | [docs/en/](docs/en/README.md) |
-| 🇨🇳 中文 | [docs/zh-cn/](docs/zh-cn/README.md) |
+| 🇺🇸 English   | [docs/en/](docs/en/README.md)       |
+| 🇨🇳 中文        | [docs/zh-cn/](docs/zh-cn/README.md) |
 
 ---
 

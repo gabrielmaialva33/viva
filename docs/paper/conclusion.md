@@ -34,7 +34,7 @@ The linear annealing schedule (0.7 to 0.3) outperformed fixed weights and expone
 
 ### 5.1.4 Limitations
 
-**Domain Specificity**: Results are validated on a single domain (sinuca). Generalization to other control tasks requires further investigation.
+**Domain Specificity**: Results are validated on a single control domain. Generalization to broader task classes requires further investigation.
 
 **Physics Bottleneck**: At 57.7% of per-evaluation time, physics simulation limits throughput. GPU-accelerated physics (e.g., Warp, PhysX) could provide additional 3-5x speedups.
 

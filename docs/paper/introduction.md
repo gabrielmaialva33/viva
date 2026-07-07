@@ -38,15 +38,15 @@ This paper makes the following contributions:
 
 ## 1.3 Problem Domain
 
-We evaluate VIVA-QD on Brazilian sinuca (snooker variant), a challenging billiards domain requiring:
+We evaluate VIVA-QD on a challenging dynamic control domain requiring:
 
 - **Geometric Reasoning**: Computing optimal cue ball angles to pocket target balls
 - **Multi-step Planning**: Positioning the cue ball for subsequent shots
 - **Continuous Control**: 3 continuous outputs (angle, power, english)
 - **Partial Observability**: Limited information about table friction and ball interactions
 
-The domain provides a rich behavioral space with clear metrics (balls pocketed, position quality, combo length) while maintaining computational tractability for high-throughput evaluation.
+The domain provides a rich behavioral space with clear metrics while maintaining computational tractability for high-throughput evaluation.
 
 ## 1.4 Paper Organization
 
-Section 2 reviews related work in QD algorithms, NEAT, and GPU-accelerated evolution. Section 3 details our methodology including the HoloMAP-Elites algorithm and GPU pipeline. Section 4 presents experimental results on the sinuca domain. Section 5 discusses implications and limitations. Section 6 concludes with future research directions.
+Section 2 reviews related work in QD algorithms, NEAT, and GPU-accelerated evolution. Section 3 details our methodology including the HoloMAP-Elites algorithm and GPU pipeline. Section 4 presents experimental results. Section 5 discusses implications and limitations. Section 6 concludes with future research directions.

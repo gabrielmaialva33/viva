@@ -90,7 +90,7 @@ Você verá o supervisor OTP iniciar e aguardar comandos.
 Para ver a VIVA em ação:
 
 ```bash
-gleam run -m viva/benchmark
+gleam run -- bench
 ```
 
 Exemplo de output:

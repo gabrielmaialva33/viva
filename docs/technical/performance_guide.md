@@ -100,7 +100,7 @@ pub fn batch_size_sweep(config: QDConfig) {
     let start = erlang.system_time(microsecond)
 
     // Run 10 batches
-    list.range(1, 10)
+    range_inclusive(1, 10)
     |> list.each(fn(_) {
       batch_evaluate(generate_random_weights(batch_size, 867), config)
     })
@@ -438,7 +438,7 @@ fn benchmark_nif_throughput() {
   let vec_b = list.repeat(0.3, 8192)
 
   let start = erlang.system_time(microsecond)
-  list.range(1, 10000)
+  range_inclusive(1, 10000)
   |> list.each(fn(_) { glands.bind(handle, vec_a, vec_b) })
   let elapsed = erlang.system_time(microsecond) - start
 
@@ -483,7 +483,6 @@ Before production runs:
 | Domain | Batch Size | Target Evals/sec | Notes |
 |--------|------------|------------------|-------|
 | XOR | 1000 | 1,500,000 | Simple, CPU may be faster |
-| Sinuca | 4800 | 320,000 | Physics-limited |
 | MuJoCo | 2000 | 150,000 | Complex physics |
 | Atari | 500 | 45,000 | Frame rendering |
 

@@ -17,7 +17,7 @@ VIVA-QD combines NEAT topology evolution with MAP-Elites diversity maintenance, 
 - **Decoupled QD-NEAT**: Separation of fitness evaluation from selection pressure with linear weight annealing
 - **Heterogeneous Architecture**: Functional programming benefits (type safety, fault tolerance) with GPU performance
 
-Evaluated on Brazilian sinuca (billiards), VIVA-QD achieves:
+Evaluated on a benchmark control domain set, VIVA-QD achieves:
 - **320,000 evaluations/second** sustained throughput
 - **50,000x speedup** over sequential CPU baseline
 - **57.9% MAP-Elites coverage** in 50 generations
@@ -59,7 +59,7 @@ Evaluated on Brazilian sinuca (billiards), VIVA-QD achieves:
 | Physics Simulations | 4,800 parallel | Jolt Physics |
 | MAP-Elites Coverage | 57.9% | 50 generations |
 | QD-Score | 908.3 | Sum of elite fitnesses |
-| Best Fitness | 92.8 | Sinuca domain |
+| Best Fitness | 92.8 | Benchmark domain |
 
 ---
 
@@ -108,27 +108,11 @@ gleam test
 ### Training a QD-NEAT Population
 
 ```gleam
-import viva/billiards/sinuca_qd_trainer as qd
-import viva/neural/holomap
+import gleam/io
 
 pub fn main() {
-  // Configure QD parameters
-  let qd_config = qd.QDConfig(
-    max_steps_per_shot: 200,
-    shots_per_episode: 3,
-    log_interval: 5,
-    initial_novelty_weight: 0.7,
-    final_novelty_weight: 0.3,
-    annealing_gens: 50,
-  )
-
-  let holomap_config = holomap.qwen3_optimized_config()
-
-  // Train for 50 generations
-  let #(archive, stats) = qd.train(50, holomap_config, qd_config)
-
-  io.println("Coverage: " <> float.to_string(stats.coverage) <> "%")
-  io.println("QD-Score: " <> float.to_string(stats.qd_score))
+  // Run training via CLI entrypoint documented below
+  io.println("Run benchmark scripts from viva/infra/benchmark_runner")
 }
 ```
 
@@ -191,20 +175,16 @@ let seed = 42
 ### Running Paper Experiments
 
 ```bash
-# Full training run (50 generations)
-gleam run -m viva/billiards/sinuca_qd_trainer
+# QD training entrypoint (default config, 300 generations)
+gleam run -m viva/infra/benchmark_runner -- full
 
-# Extended run (100 generations)
-gleam run -m viva/billiards/sinuca_qd_v9
-
-# Ablation study
-gleam run -m viva/benchmark -- --ablation
+# For custom generation counts, pass the generation count in your own wrapper module.
 ```
 
 ### Expected Output
 
 ```
-=== VIVA Sinuca QD v6 (QD-NEAT Hybrid) ===
+=== VIVA QD v6 (QD-NEAT Hybrid) ===
 GPU Status: GLANDS_ULTRA_OK (SIMD: AVX2, GPU: CUDA, Threads: 16)
 Grid: 10x10 | Annealing: w=0.7 -> w=0.3
 
@@ -233,10 +213,6 @@ viva_gleam/
 │       │   ├── holomap.gleam       # HoloMAP-Elites
 │       │   ├── novelty.gleam       # Behavior descriptors
 │       │   └── neat_hybrid.gleam   # Hybrid architectures
-│       ├── billiards/
-│       │   ├── sinuca.gleam        # Game simulation
-│       │   ├── sinuca_fitness.gleam # Fitness evaluation
-│       │   └── sinuca_qd_*.gleam   # QD trainers (v3-v9)
 │       ├── glands.gleam            # GPU NIF interface
 │       └── jolt.gleam              # Physics engine
 ├── native/

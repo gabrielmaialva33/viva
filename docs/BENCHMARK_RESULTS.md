@@ -13,17 +13,17 @@ VIVA achieves competitive throughput for evolutionary optimization compared to e
 |-------------|-----------------|---------------|-----------------|-------------|
 | CartPole-v1 | ~180 | 1.2M | 2M | 5K |
 | Pendulum-v1 | ~240 | 800K | 1.5M | 3K |
-| Billiards-v1 | **320K*** | N/A | N/A | N/A |
+| CustomPhysics-v1 | **320K*** | N/A | N/A | N/A |
 
-*Billiards uses batch GPU physics simulation via burn-rs/CUDA
+*CustomPhysics uses batched simulation via burn-rs/CUDA.
 
 ## Performance Notes
 
 ### Why Lower evals/sec on Simple Envs?
 
-The current benchmark uses NEAT topology evolution which has overhead vs fixed-topology networks. The strength of VIVA is in complex environments like Billiards where:
+The current benchmark uses NEAT topology evolution which has overhead vs fixed-topology networks. The strength of VIVA is in complex environments where:
 
-1. **GPU Physics Simulation:** 320K evals/sec for realistic pool physics
+1. **GPU Physics Simulation:** 320K evals/sec for batched dynamic simulations
 2. **Topology Evolution:** Networks discover optimal structure
 3. **Quality-Diversity:** Maintains diverse solution archives
 
@@ -51,27 +51,26 @@ The current benchmark uses NEAT topology evolution which has overhead vs fixed-t
 - **Reward:** -(angle^2 + 0.1*vel^2 + 0.001*action^2)
 - **Episode:** 200 steps
 
-### Billiards-v1 (VIVA Flagship)
+### CustomPhysics-v1 (Legacy)
 
-- **Observation:** 16 dimensions (positions, angles, distances)
-- **Action:** Continuous [angle, power, english, elevation]
-- **Reward:** +10 pocket, -7 scratch, position bonus
+- **Observation:** 16 dimensions (feature vector chosen by benchmark task)
+- **Action:** Continuous 3D control commands
+- **Reward:** Domain-specific task reward signal
 - **Physics:** JoltPhysics + burn-rs GPU acceleration
-- **Episode:** 50 shots max
+- **Episode:** Task-dependent duration
 
 ## Running Benchmarks
 
 ```bash
 # Quick benchmark (5-10 minutes)
-gleam run -m viva/benchmark_runner -- quick
+gleam run -m viva/infra/benchmark_runner -- quick
 
 # Full benchmark (30+ minutes)
-gleam run -m viva/benchmark_runner -- full
+gleam run -m viva/infra/benchmark_runner -- full
 
 # Individual environments
-gleam run -m viva/benchmark_runner -- cartpole
-gleam run -m viva/benchmark_runner -- pendulum
-gleam run -m viva/benchmark_runner -- billiards
+gleam run -m viva/infra/benchmark_runner -- cartpole
+gleam run -m viva/infra/benchmark_runner -- pendulum
 ```
 
 ## Methodology
@@ -102,5 +101,4 @@ src/viva/
     environment.gleam         # Standard interface
     cartpole.gleam            # CartPole-v1
     pendulum.gleam            # Pendulum-v1
-    billiards.gleam           # Billiards-v1 (VIVA)
 ```

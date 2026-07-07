@@ -25,7 +25,7 @@ This directory contains technical reference documentation for VIVA-QD implementa
 - [viva/neural/neat](api_reference.md#vivaneuralneat) - NEAT neuroevolution
 - [viva/neural/holomap](api_reference.md#vivaneuralholomap) - MAP-Elites
 - [viva/glands](api_reference.md#vivaglands) - GPU HRR operations
-- [viva/billiards/sinuca](api_reference.md#vivabilliards) - Game domain
+- [viva/lifecycle/burn_physics](api_reference.md#vivaglands) - Legacy physics helpers
 
 ### Performance
 

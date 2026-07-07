@@ -9,8 +9,7 @@
 | `viva/neural/novelty` | Behavior descriptors and novelty |
 | `viva/neural/neat_hybrid` | NEAT with Conv/Attention modules |
 | `viva/glands` | GPU-accelerated HRR operations |
-| `viva/billiards/sinuca` | Sinuca game simulation |
-| `viva/billiards/sinuca_fitness` | Fitness evaluation |
+| `viva/lifecycle/burn_physics` | Legacy physics batch simulation helpers |
 | `viva/jolt` | Jolt Physics engine bindings |
 
 ---
@@ -474,128 +473,9 @@ Runs benchmark and returns timing report.
 
 ---
 
-## viva/billiards/sinuca
+## Legacy domain modules removed
 
-### Types
-
-#### `BallType`
-```gleam
-pub type BallType {
-  Cue
-  Red
-  Yellow
-  Green
-  Brown
-  Blue
-  Pink
-  Black
-}
-```
-
-#### `Shot`
-```gleam
-pub type Shot {
-  Shot(
-    angle: Float,      // Radians
-    power: Float,      // 0.0 - 1.0
-    english: Float,    // -1.0 to 1.0 (spin)
-    elevation: Float,  // Cue elevation
-  )
-}
-```
-
-#### `Table`
-```gleam
-pub type Table {
-  Table(
-    balls: Dict(BallType, Ball),
-    pocketed: List(BallType),
-    target_ball: BallType,
-    is_scratch: Bool,
-  )
-}
-```
-
-### Constants
-
-```gleam
-pub const table_length: Float = 3.569
-pub const table_width: Float = 1.778
-pub const ball_radius: Float = 0.026
-```
-
-### Functions
-
-#### `new() -> Table`
-Creates new table with standard sinuca setup.
-
-#### `get_cue_ball_position(table: Table) -> Option(Vec3)`
-Returns cue ball position.
-
-#### `get_ball_position(table: Table, ball: BallType) -> Option(Vec3)`
-Returns position of specified ball.
-
-#### `balls_on_table(table: Table) -> Int`
-Returns count of balls still on table.
-
-#### `get_pocketed_balls(table: Table) -> List(BallType)`
-Returns list of pocketed balls.
-
-#### `is_scratch(table: Table) -> Bool`
-Returns whether cue ball was pocketed.
-
-#### `point_value(ball: BallType) -> Int`
-Returns point value (1-7).
-
-#### `reset_cue_ball(table: Table) -> Table`
-Places cue ball at default position.
-
----
-
-## viva/billiards/sinuca_fitness
-
-### Types
-
-#### `FitnessConfig`
-```gleam
-pub type FitnessConfig {
-  FitnessConfig(
-    pocket_reward: Float,
-    approach_bonus: Float,
-    combo_multiplier: Float,
-    scratch_penalty: Float,
-  )
-}
-```
-
-#### `Episode`
-```gleam
-pub type Episode {
-  Episode(
-    total_pocketed: Int,
-    consecutive_pockets: Int,
-    max_combo: Int,
-    fouls: Int,
-  )
-}
-```
-
-### Functions
-
-#### `default_config() -> FitnessConfig`
-Returns default fitness configuration.
-
-#### `new_episode() -> Episode`
-Creates new episode tracker.
-
-#### `quick_evaluate(table: Table, shot: Shot, max_steps: Int) -> #(Float, Table)`
-Evaluates shot and returns (fitness, resulting table).
-
-#### `quick_evaluate_full(table: Table, shot: Shot, max_steps: Int, episode: Episode, config: FitnessConfig) -> #(Float, Table, Episode)`
-Full evaluation with episode tracking.
-
-#### `best_pocket_angle(table: Table) -> #(Float, Float)`
-Returns (angle, distance) to best pocket for target ball.
+The domain-specific training modules from a previous iteration were removed from the active codebase.
 
 ---
 
@@ -665,8 +545,7 @@ case glands.init(glands.default_config()) {
 Position lookups return `Option`:
 
 ```gleam
-case sinuca.get_ball_position(table, sinuca.Red) {
-  option.Some(pos) -> {
+case option.Some(pos) {
     io.println("Red ball at: " <> vec3_to_string(pos))
   }
   option.None -> {
