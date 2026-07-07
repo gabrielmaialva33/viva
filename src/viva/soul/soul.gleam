@@ -20,6 +20,7 @@ import viva_emotion/emotion
 import viva_emotion/pad.{type Pad}
 import viva_emotion/stimulus.{type Stimulus}
 import viva_glyph/glyph.{type Glyph}
+import viva_math/common
 
 // =============================================================================
 // TYPES
@@ -174,7 +175,11 @@ pub fn start_with_config(
 }
 
 /// Send stimulus to Soul
-pub fn feel(soul: Subject(Message), stimulus: Stimulus, intensity: Float) -> Nil {
+pub fn feel(
+  soul: Subject(Message),
+  stimulus: Stimulus,
+  intensity: Float,
+) -> Nil {
   process.send(soul, Feel(stimulus, intensity))
 }
 
@@ -742,16 +747,8 @@ fn pad_to_glyph(p: Pad) -> Glyph {
 fn float_to_token(f: Float) -> Int {
   // [-1, 1] -> [0, 255]
   let normalized = { f +. 1.0 } /. 2.0
-  let clamped = clamp(normalized, 0.0, 1.0)
+  let clamped = common.clamp(normalized, 0.0, 1.0)
   float_to_int(clamped *. 255.0)
-}
-
-fn clamp(value: Float, min: Float, max: Float) -> Float {
-  case value {
-    v if v <. min -> min
-    v if v >. max -> max
-    v -> v
-  }
 }
 
 fn abs(f: Float) -> Float {

@@ -214,13 +214,19 @@ fn glyph_to_pad_estimate(g: Glyph) -> Pad {
 // =============================================================================
 
 /// Get recent events for a VIVA
-pub fn events_for(pool: ResonancePool, viva_id: VivaId) -> List(ResonanceEvent) {
+pub fn events_for(
+  pool: ResonancePool,
+  viva_id: VivaId,
+) -> List(ResonanceEvent) {
   pool.events
   |> list.filter(fn(e) { e.target == viva_id })
 }
 
 /// Get events emitted by a VIVA
-pub fn events_from(pool: ResonancePool, viva_id: VivaId) -> List(ResonanceEvent) {
+pub fn events_from(
+  pool: ResonancePool,
+  viva_id: VivaId,
+) -> List(ResonanceEvent) {
   pool.events
   |> list.filter(fn(e) { e.source == viva_id })
 }

@@ -6,11 +6,11 @@
 //// Before: soul.gleam tick had 10 sequential operations
 //// After: soul.gleam calls cognition.tick() for cognitive part
 
+import gleam/option.{type Option}
 import viva/memory/imprint.{type ImprintState}
 import viva/memory/narrative.{type NarrativeMemory}
 import viva/soul/inner_life.{type InnerLife}
 import viva/soul/reflexivity.{type SelfModel}
-import gleam/option.{type Option}
 import viva_emotion/pad.{type Pad}
 import viva_glyph/glyph.{type Glyph}
 
@@ -30,12 +30,7 @@ pub type CognitiveState {
 
 /// Sensory input for cognitive processing
 pub type SensoryInput {
-  SensoryInput(
-    light: Int,
-    sound: Int,
-    touch: Bool,
-    entity: Option(String),
-  )
+  SensoryInput(light: Int, sound: Int, touch: Bool, entity: Option(String))
 }
 
 /// Result of cognitive tick

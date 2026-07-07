@@ -15,6 +15,7 @@ import gleam/otp/actor
 import viva/types.{type VivaConfig, type VivaId}
 import viva_emotion/pad.{type Pad}
 import viva_glyph/glyph.{type Glyph}
+import viva_math/common
 
 // =============================================================================
 // TYPES
@@ -474,21 +475,10 @@ fn do_apply_delta_all(
 
 fn clamp_pad(p: Pad) -> Pad {
   pad.new(
-    clamp(p.pleasure, -1.0, 1.0),
-    clamp(p.arousal, -1.0, 1.0),
-    clamp(p.dominance, -1.0, 1.0),
+    common.clamp(p.pleasure, -1.0, 1.0),
+    common.clamp(p.arousal, -1.0, 1.0),
+    common.clamp(p.dominance, -1.0, 1.0),
   )
-}
-
-fn clamp(value: Float, min: Float, max: Float) -> Float {
-  case value <. min {
-    True -> min
-    False ->
-      case value >. max {
-        True -> max
-        False -> value
-      }
-  }
 }
 
 fn update_glyph(g: Glyph, p: Pad) -> Glyph {

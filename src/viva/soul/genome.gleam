@@ -10,6 +10,7 @@
 
 import gleam/int
 import gleam/list
+import viva_math/common
 
 // =============================================================================
 // CORE TYPES
@@ -398,9 +399,9 @@ pub fn get_effective_inertia(
   }
 
   #(
-    clamp(base_p *. modifier, 0.0, 0.99),
-    clamp(base_a *. modifier, 0.0, 0.99),
-    clamp(base_d *. modifier, 0.0, 0.99),
+    common.clamp(base_p *. modifier, 0.0, 0.99),
+    common.clamp(base_a *. modifier, 0.0, 0.99),
+    common.clamp(base_d *. modifier, 0.0, 0.99),
   )
 }
 
@@ -486,8 +487,8 @@ pub fn apply_crisis_methylation(
     ..genome,
     epigenetics: EpigeneticState(
       ..genome.epigenetics,
-      trauma_methylation: clamp(new_trauma, 0.0, 1.0),
-      methylation: clamp(new_methyl, 0.0, 1.0),
+      trauma_methylation: common.clamp(new_trauma, 0.0, 1.0),
+      methylation: common.clamp(new_methyl, 0.0, 1.0),
       methylation_history: list.take(new_history, 100),
     ),
   )
@@ -512,9 +513,9 @@ pub fn apply_celebration_healing(
   Genome(
     ..genome,
     epigenetics: EpigeneticState(
-      trauma_methylation: clamp(new_trauma, 0.0, 1.0),
-      methylation: clamp(new_methyl, 0.0, 1.0),
-      healing_factor: clamp(
+      trauma_methylation: common.clamp(new_trauma, 0.0, 1.0),
+      methylation: common.clamp(new_methyl, 0.0, 1.0),
+      healing_factor: common.clamp(
         genome.epigenetics.healing_factor +. { celebration_intensity *. 0.1 },
         0.0,
         1.0,
@@ -535,8 +536,8 @@ pub fn reset_methylation(genome: Genome, therapy_intensity: Float) -> Genome {
     ..genome,
     epigenetics: EpigeneticState(
       ..genome.epigenetics,
-      methylation: clamp(new_methyl, 0.0, 1.0),
-      trauma_methylation: clamp(new_trauma, 0.0, 1.0),
+      methylation: common.clamp(new_methyl, 0.0, 1.0),
+      trauma_methylation: common.clamp(new_trauma, 0.0, 1.0),
     ),
   )
 }
@@ -740,14 +741,6 @@ pub fn personality_to_string(personality: PersonalityType) -> String {
 // HELPERS
 // =============================================================================
 
-fn clamp(value: Float, min: Float, max: Float) -> Float {
-  case value {
-    v if v <. min -> min
-    v if v >. max -> max
-    v -> v
-  }
-}
-
 fn sigmoid(x: Float) -> Float {
   1.0 /. { 1.0 +. exp(0.0 -. x) }
 }
@@ -865,7 +858,8 @@ pub fn population_stats(
 
 /// Boost recovery gene (adaptive mutation under extreme stress)
 pub fn boost_recovery(genome: Genome, amount: Float) -> Genome {
-  let new_recovery = clamp(genome.modulators.recovery_gene +. amount, 0.0, 1.0)
+  let new_recovery =
+    common.clamp(genome.modulators.recovery_gene +. amount, 0.0, 1.0)
   Genome(
     ..genome,
     modulators: ModulatorGenes(..genome.modulators, recovery_gene: new_recovery),
@@ -905,7 +899,7 @@ pub fn apply_social_contagion(
     ..genome,
     epigenetics: EpigeneticState(
       ..genome.epigenetics,
-      methylation: clamp(current_methyl +. delta, 0.0, 1.0),
+      methylation: common.clamp(current_methyl +. delta, 0.0, 1.0),
     ),
   )
 }
@@ -1058,13 +1052,13 @@ pub fn forced_adaptive_mutation(
         ..genome,
         modulators: ModulatorGenes(
           ..genome.modulators,
-          recovery_gene: clamp(
+          recovery_gene: common.clamp(
             genome.modulators.recovery_gene +. boost_amount,
             0.0,
             1.0,
           ),
           // Also reduce crisis sensitivity to prevent re-trauma
-          crisis_sensitivity: clamp(
+          crisis_sensitivity: common.clamp(
             genome.modulators.crisis_sensitivity -. boost_amount *. 0.3,
             0.05,
             1.0,
@@ -1072,12 +1066,12 @@ pub fn forced_adaptive_mutation(
         ),
         epigenetics: EpigeneticState(
           ..genome.epigenetics,
-          trauma_methylation: clamp(
+          trauma_methylation: common.clamp(
             genome.epigenetics.trauma_methylation -. trauma_reduction,
             0.0,
             1.0,
           ),
-          methylation: clamp(
+          methylation: common.clamp(
             genome.epigenetics.methylation -. trauma_reduction *. 0.5,
             0.0,
             1.0,
@@ -1121,13 +1115,13 @@ pub fn neurotic_emergency_protocol(genome: Genome, intensity: Float) -> Genome {
         ..genome,
         modulators: ModulatorGenes(
           ..genome.modulators,
-          social_contagion: clamp(new_contagion, 0.1, 1.0),
-          recovery_gene: clamp(
+          social_contagion: common.clamp(new_contagion, 0.1, 1.0),
+          recovery_gene: common.clamp(
             genome.modulators.recovery_gene +. recovery_boost,
             0.0,
             0.6,
           ),
-          crisis_sensitivity: clamp(
+          crisis_sensitivity: common.clamp(
             genome.modulators.crisis_sensitivity -. sensitivity_reduction,
             0.3,
             // Never fully desensitize
@@ -1136,9 +1130,9 @@ pub fn neurotic_emergency_protocol(genome: Genome, intensity: Float) -> Genome {
         ),
         epigenetics: EpigeneticState(
           ..genome.epigenetics,
-          trauma_methylation: clamp(new_trauma, 0.0, 1.0),
-          methylation: clamp(new_methyl, 0.0, 1.0),
-          healing_factor: clamp(
+          trauma_methylation: common.clamp(new_trauma, 0.0, 1.0),
+          methylation: common.clamp(new_methyl, 0.0, 1.0),
+          healing_factor: common.clamp(
             genome.epigenetics.healing_factor +. intensity *. 0.15,
             0.0,
             1.0,
@@ -1204,14 +1198,14 @@ pub fn emotional_vaccination(
               ..genome_after_therapy,
               modulators: ModulatorGenes(
                 ..genome_after_therapy.modulators,
-                recovery_gene: clamp(
+                recovery_gene: common.clamp(
                   genome_after_therapy.modulators.recovery_gene
                     +. immunity_boost
                     *. 0.5,
                   0.0,
                   1.0,
                 ),
-                rupture_threshold: clamp(
+                rupture_threshold: common.clamp(
                   genome_after_therapy.modulators.rupture_threshold
                     +. immunity_boost
                     *. 0.3,
@@ -1219,7 +1213,7 @@ pub fn emotional_vaccination(
                   1.0,
                 ),
                 // Slight desensitization (controlled exposure)
-                crisis_sensitivity: clamp(
+                crisis_sensitivity: common.clamp(
                   genome_after_therapy.modulators.crisis_sensitivity
                     -. immunity_boost
                     *. 0.1,
@@ -1231,7 +1225,7 @@ pub fn emotional_vaccination(
             )
 
           let new_immunity =
-            clamp(
+            common.clamp(
               vaccination_state.immunity_level +. 0.25,
               0.0,
               0.75,
