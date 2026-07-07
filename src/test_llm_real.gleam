@@ -1,13 +1,13 @@
 // Real LLM Distillation Test - loads Qwen3-32B
 // Run with: gleam run -m test_llm_real
 
-import gleam/io
-import gleam/int
 import gleam/float
+import gleam/int
+import gleam/io
 import gleam/list
-import viva/neural/llm
-import viva/neural/distillation
 import viva/memory/hrr
+import viva/neural/distillation
+import viva/neural/llm
 
 pub fn main() {
   io.println("=== VIVA LLM Distillation Test ===")
@@ -53,7 +53,9 @@ pub fn main() {
   io.println("   Prompt: \"" <> test_text <> "\"")
   io.println("   N tokens: " <> int.to_string(states.n_tokens))
   io.println("   N embedding: " <> int.to_string(states.n_embd))
-  io.println("   Total floats: " <> int.to_string(list.length(states.embeddings)))
+  io.println(
+    "   Total floats: " <> int.to_string(list.length(states.embeddings)),
+  )
   io.println("")
 
   // 6. Mean pooled embedding
@@ -81,17 +83,30 @@ pub fn main() {
   io.println("8. Progressive Distillation Schedule")
   let config = distillation.advanced_config()
   let prog = distillation.init_progressive(10)
-  io.println("   Epoch 0: alpha_kd=" <> float.to_string(prog.alpha_kd) <> " temp=" <> float.to_string(prog.temperature))
+  io.println(
+    "   Epoch 0: alpha_kd="
+    <> float.to_string(prog.alpha_kd)
+    <> " temp="
+    <> float.to_string(prog.temperature),
+  )
 
-  let prog5 = list.fold(list.range(1, 5), prog, fn(p, _) {
-    distillation.step_progressive(p, config)
-  })
-  io.println("   Epoch 5: alpha_kd=" <> float.to_string(prog5.alpha_kd) <> " temp=" <> float.to_string(prog5.temperature))
+  let prog5 =
+    int.range(1, 6, prog, fn(p, _) { distillation.step_progressive(p, config) })
+  io.println(
+    "   Epoch 5: alpha_kd="
+    <> float.to_string(prog5.alpha_kd)
+    <> " temp="
+    <> float.to_string(prog5.temperature),
+  )
 
-  let prog10 = list.fold(list.range(1, 5), prog5, fn(p, _) {
-    distillation.step_progressive(p, config)
-  })
-  io.println("   Epoch 10: alpha_kd=" <> float.to_string(prog10.alpha_kd) <> " temp=" <> float.to_string(prog10.temperature))
+  let prog10 =
+    int.range(1, 6, prog5, fn(p, _) { distillation.step_progressive(p, config) })
+  io.println(
+    "   Epoch 10: alpha_kd="
+    <> float.to_string(prog10.alpha_kd)
+    <> " temp="
+    <> float.to_string(prog10.temperature),
+  )
   io.println("")
 
   io.println("=== Test Complete ===")

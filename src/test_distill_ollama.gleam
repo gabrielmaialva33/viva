@@ -1,15 +1,14 @@
 // Test LLM Distillation - Pure Gleam test
 // Run with: gleam run -m test_distill_ollama
 
-import gleam/io
 import gleam/float
 import gleam/int
-import gleam/list
-import viva/neural/distillation.{
-  init_progressive, step_progressive, advanced_config,
-  compute_cka, compute_cka_loss,
-}
+import gleam/io
 import viva/memory/hrr
+import viva/neural/distillation.{
+  advanced_config, compute_cka, compute_cka_loss, init_progressive,
+  step_progressive,
+}
 
 pub fn main() {
   io.println("=== VIVA Distillation Test ===")
@@ -20,7 +19,9 @@ pub fn main() {
   io.println("1. Creating simulated teacher embedding...")
   let dim = 768
   let teacher_hrr = hrr.random(dim)
-  io.println("   Teacher HRR dimension: " <> int.to_string(hrr.dim(teacher_hrr)))
+  io.println(
+    "   Teacher HRR dimension: " <> int.to_string(hrr.dim(teacher_hrr)),
+  )
   io.println("")
 
   // 2. Test CKA
@@ -40,20 +41,28 @@ pub fn main() {
   io.println("3. Progressive Distillation Schedule...")
   let config = advanced_config()
   let prog0 = init_progressive(10)
-  io.println("   Epoch 0: alpha_kd=" <> float.to_string(prog0.alpha_kd)
-             <> " temp=" <> float.to_string(prog0.temperature))
+  io.println(
+    "   Epoch 0: alpha_kd="
+    <> float.to_string(prog0.alpha_kd)
+    <> " temp="
+    <> float.to_string(prog0.temperature),
+  )
 
-  let prog5 = list.fold(list.range(1, 5), prog0, fn(p, _) {
-    step_progressive(p, config)
-  })
-  io.println("   Epoch 5: alpha_kd=" <> float.to_string(prog5.alpha_kd)
-             <> " temp=" <> float.to_string(prog5.temperature))
+  let prog5 = int.range(1, 6, prog0, fn(p, _) { step_progressive(p, config) })
+  io.println(
+    "   Epoch 5: alpha_kd="
+    <> float.to_string(prog5.alpha_kd)
+    <> " temp="
+    <> float.to_string(prog5.temperature),
+  )
 
-  let prog10 = list.fold(list.range(1, 5), prog5, fn(p, _) {
-    step_progressive(p, config)
-  })
-  io.println("   Epoch 10: alpha_kd=" <> float.to_string(prog10.alpha_kd)
-             <> " temp=" <> float.to_string(prog10.temperature))
+  let prog10 = int.range(1, 6, prog5, fn(p, _) { step_progressive(p, config) })
+  io.println(
+    "   Epoch 10: alpha_kd="
+    <> float.to_string(prog10.alpha_kd)
+    <> " temp="
+    <> float.to_string(prog10.temperature),
+  )
   io.println("")
 
   // 4. Multi-prompt Distillation Test
@@ -85,7 +94,9 @@ pub fn main() {
       case hrr.unbind(bound, concept_a) {
         Ok(recovered_b) -> {
           let recovery_sim = hrr.similarity(recovered_b, concept_b)
-          io.println("   Recovery similarity: " <> float.to_string(recovery_sim))
+          io.println(
+            "   Recovery similarity: " <> float.to_string(recovery_sim),
+          )
         }
         Error(_) -> io.println("   Unbind failed")
       }
