@@ -58,15 +58,11 @@ pub fn main() {
 }
 
 fn generate_weights(count: Int, size: Int, seed: Int) -> List(List(Float)) {
-  generate_list(count, fn(i) {
-    generate_floats(size, seed + i * 1000)
-  })
+  generate_list(count, fn(i) { generate_floats(size, seed + i * 1000) })
 }
 
 fn generate_inputs(count: Int, size: Int, seed: Int) -> List(List(Float)) {
-  generate_list(count, fn(i) {
-    generate_floats(size, seed + i * 100)
-  })
+  generate_list(count, fn(i) { generate_floats(size, seed + i * 100) })
 }
 
 fn generate_list(n: Int, f: fn(Int) -> a) -> List(a) {
@@ -88,7 +84,7 @@ fn do_generate_floats(n: Int, seed: Int, acc: List(Float)) -> List(Float) {
   case n <= 0 {
     True -> list.reverse(acc)
     False -> {
-      let next = { seed * 1103515245 + 12345 } % 2147483648
+      let next = { seed * 1_103_515_245 + 12_345 } % 2_147_483_648
       let value = int.to_float(next % 1000 - 500) /. 1000.0
       do_generate_floats(n - 1, next, [value, ..acc])
     }

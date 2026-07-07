@@ -46,11 +46,7 @@ pub type BodyState {
 
 /// Raycast hit result
 pub type RayHit {
-  RayHit(
-    body: BodyId,
-    fraction: Float,
-    point: Vec3,
-  )
+  RayHit(body: BodyId, fraction: Float, point: Vec3)
 }
 
 /// Raycast result
@@ -144,42 +140,86 @@ fn native_create_cylinder(
 
 // Position & Rotation
 @external(erlang, "Elixir.Viva.Jolt.Native", "get_position")
-fn native_get_position(world: World, index: Int) -> Result(#(Float, Float, Float), Nil)
+fn native_get_position(
+  world: World,
+  index: Int,
+) -> Result(#(Float, Float, Float), Nil)
 
 @external(erlang, "Elixir.Viva.Jolt.Native", "set_position")
-fn native_set_position(world: World, index: Int, pos: #(Float, Float, Float)) -> Bool
+fn native_set_position(
+  world: World,
+  index: Int,
+  pos: #(Float, Float, Float),
+) -> Bool
 
 @external(erlang, "Elixir.Viva.Jolt.Native", "get_rotation")
-fn native_get_rotation(world: World, index: Int) -> Result(#(Float, Float, Float, Float), Nil)
+fn native_get_rotation(
+  world: World,
+  index: Int,
+) -> Result(#(Float, Float, Float, Float), Nil)
 
 @external(erlang, "Elixir.Viva.Jolt.Native", "set_rotation")
-fn native_set_rotation(world: World, index: Int, rot: #(Float, Float, Float, Float)) -> Bool
+fn native_set_rotation(
+  world: World,
+  index: Int,
+  rot: #(Float, Float, Float, Float),
+) -> Bool
 
 // Velocity
 @external(erlang, "Elixir.Viva.Jolt.Native", "get_velocity")
-fn native_get_velocity(world: World, index: Int) -> Result(#(Float, Float, Float), Nil)
+fn native_get_velocity(
+  world: World,
+  index: Int,
+) -> Result(#(Float, Float, Float), Nil)
 
 @external(erlang, "Elixir.Viva.Jolt.Native", "set_velocity")
-fn native_set_velocity(world: World, index: Int, vel: #(Float, Float, Float)) -> Bool
+fn native_set_velocity(
+  world: World,
+  index: Int,
+  vel: #(Float, Float, Float),
+) -> Bool
 
 @external(erlang, "Elixir.Viva.Jolt.Native", "get_angular_velocity")
-fn native_get_angular_velocity(world: World, index: Int) -> Result(#(Float, Float, Float), Nil)
+fn native_get_angular_velocity(
+  world: World,
+  index: Int,
+) -> Result(#(Float, Float, Float), Nil)
 
 @external(erlang, "Elixir.Viva.Jolt.Native", "set_angular_velocity")
-fn native_set_angular_velocity(world: World, index: Int, vel: #(Float, Float, Float)) -> Bool
+fn native_set_angular_velocity(
+  world: World,
+  index: Int,
+  vel: #(Float, Float, Float),
+) -> Bool
 
 // Forces & Impulses
 @external(erlang, "Elixir.Viva.Jolt.Native", "add_force")
-fn native_add_force(world: World, index: Int, force: #(Float, Float, Float)) -> Bool
+fn native_add_force(
+  world: World,
+  index: Int,
+  force: #(Float, Float, Float),
+) -> Bool
 
 @external(erlang, "Elixir.Viva.Jolt.Native", "add_torque")
-fn native_add_torque(world: World, index: Int, torque: #(Float, Float, Float)) -> Bool
+fn native_add_torque(
+  world: World,
+  index: Int,
+  torque: #(Float, Float, Float),
+) -> Bool
 
 @external(erlang, "Elixir.Viva.Jolt.Native", "add_impulse")
-fn native_add_impulse(world: World, index: Int, impulse: #(Float, Float, Float)) -> Bool
+fn native_add_impulse(
+  world: World,
+  index: Int,
+  impulse: #(Float, Float, Float),
+) -> Bool
 
 @external(erlang, "Elixir.Viva.Jolt.Native", "add_angular_impulse")
-fn native_add_angular_impulse(world: World, index: Int, impulse: #(Float, Float, Float)) -> Bool
+fn native_add_angular_impulse(
+  world: World,
+  index: Int,
+  impulse: #(Float, Float, Float),
+) -> Bool
 
 // Kinematic movement
 @external(erlang, "Elixir.Viva.Jolt.Native", "move_kinematic")
@@ -262,12 +302,29 @@ pub fn vec3_zero() -> Vec3 {
 }
 
 /// Unit vectors
-pub fn vec3_up() -> Vec3 { Vec3(0.0, 1.0, 0.0) }
-pub fn vec3_down() -> Vec3 { Vec3(0.0, -1.0, 0.0) }
-pub fn vec3_forward() -> Vec3 { Vec3(0.0, 0.0, 1.0) }
-pub fn vec3_back() -> Vec3 { Vec3(0.0, 0.0, -1.0) }
-pub fn vec3_right() -> Vec3 { Vec3(1.0, 0.0, 0.0) }
-pub fn vec3_left() -> Vec3 { Vec3(-1.0, 0.0, 0.0) }
+pub fn vec3_up() -> Vec3 {
+  Vec3(0.0, 1.0, 0.0)
+}
+
+pub fn vec3_down() -> Vec3 {
+  Vec3(0.0, -1.0, 0.0)
+}
+
+pub fn vec3_forward() -> Vec3 {
+  Vec3(0.0, 0.0, 1.0)
+}
+
+pub fn vec3_back() -> Vec3 {
+  Vec3(0.0, 0.0, -1.0)
+}
+
+pub fn vec3_right() -> Vec3 {
+  Vec3(1.0, 0.0, 0.0)
+}
+
+pub fn vec3_left() -> Vec3 {
+  Vec3(-1.0, 0.0, 0.0)
+}
 
 /// Create Quat from components
 pub fn quat(x: Float, y: Float, z: Float, w: Float) -> Quat {
@@ -350,7 +407,8 @@ pub fn create_capsule(
 ) -> BodyId {
   let Vec3(px, py, pz) = position
   let mt = motion_type_to_atom(motion_type)
-  let index = native_create_capsule(world, #(px, py, pz), half_height, radius, mt)
+  let index =
+    native_create_capsule(world, #(px, py, pz), half_height, radius, mt)
   BodyId(index)
 }
 
@@ -364,7 +422,8 @@ pub fn create_cylinder(
 ) -> BodyId {
   let Vec3(px, py, pz) = position
   let mt = motion_type_to_atom(motion_type)
-  let index = native_create_cylinder(world, #(px, py, pz), half_height, radius, mt)
+  let index =
+    native_create_cylinder(world, #(px, py, pz), half_height, radius, mt)
   BodyId(index)
 }
 
@@ -465,7 +524,11 @@ pub fn get_angular_velocity(world: World, body: BodyId) -> Result(Vec3, Nil) {
 }
 
 /// Set body angular velocity
-pub fn set_angular_velocity(world: World, body: BodyId, velocity: Vec3) -> Bool {
+pub fn set_angular_velocity(
+  world: World,
+  body: BodyId,
+  velocity: Vec3,
+) -> Bool {
   let BodyId(index) = body
   let Vec3(x, y, z) = velocity
   native_set_angular_velocity(world, index, #(x, y, z))
@@ -524,7 +587,12 @@ pub fn move_kinematic(
 }
 
 /// Simplified kinematic move (keeps current rotation)
-pub fn move_kinematic_to(world: World, body: BodyId, target: Vec3, dt: Float) -> Bool {
+pub fn move_kinematic_to(
+  world: World,
+  body: BodyId,
+  target: Vec3,
+  dt: Float,
+) -> Bool {
   move_kinematic(world, body, target, quat_identity(), dt)
 }
 

@@ -1,6 +1,6 @@
-//// VIVA Burn Physics - GPU-Accelerated Batch Billiards Simulation
+//// VIVA Burn Physics - GPU-Accelerated Batch Dynamics Simulation
 ////
-//// Batch physics simulation for sinuca tables using viva_burn.
+//// Batch physics simulation for multi-object table-like dynamics using viva_burn.
 //// Processes 1000+ simultaneous table simulations.
 ////
 //// Performance target: 100-1000x speedup over sequential Jolt
@@ -16,7 +16,7 @@ import gleam/list
 // TYPES
 // =============================================================================
 
-/// Batch state for multiple sinuca tables
+/// Batch state for multiple simulation scenes
 pub type BatchState {
   BatchState(
     /// Ball X positions [batch, 8]
@@ -78,9 +78,11 @@ pub type FitnessResult {
 // EXTERNAL NIF FUNCTIONS
 // =============================================================================
 
-/// Create initial batch of sinuca tables
+/// Create initial batch of simulation scenes
 @external(erlang, "Elixir.Viva.Burn.Native", "burn_batch_physics_create_tables")
-fn native_create_tables(batch_size: Int) -> #(
+fn native_create_tables(
+  batch_size: Int,
+) -> #(
   List(List(Float)),
   List(List(Float)),
   List(List(Float)),
@@ -131,17 +133,13 @@ fn native_calculate_fitness(
 
 /// Benchmark batch physics
 @external(erlang, "Elixir.Viva.Burn.Native", "burn_batch_physics_benchmark")
-pub fn benchmark(
-  batch_size: Int,
-  max_steps: Int,
-  iterations: Int,
-) -> String
+pub fn benchmark(batch_size: Int, max_steps: Int, iterations: Int) -> String
 
 // =============================================================================
 // PUBLIC API
 // =============================================================================
 
-/// Create a batch of sinuca tables in initial configuration
+/// Create a batch of scenes in initial configuration
 pub fn create_batch(batch_size: Int) -> BatchState {
   let #(px, pz, vx, vz, pocketed) = native_create_tables(batch_size)
   BatchState(
@@ -163,19 +161,21 @@ pub fn simulate_batch(
   max_steps: Int,
 ) -> Result(BatchState, String) {
   // Convert shots to list format
-  let shots_list = list.map(shots, fn(shot) {
-    [shot.angle, shot.power, shot.english, shot.elevation]
-  })
+  let shots_list =
+    list.map(shots, fn(shot) {
+      [shot.angle, shot.power, shot.english, shot.elevation]
+    })
 
-  let #(final_px, final_pz, final_pocketed, _steps) = native_simulate(
-    initial.positions_x,
-    initial.positions_z,
-    initial.velocities_x,
-    initial.velocities_z,
-    initial.pocketed,
-    shots_list,
-    max_steps,
-  )
+  let #(final_px, final_pz, final_pocketed, _steps) =
+    native_simulate(
+      initial.positions_x,
+      initial.positions_z,
+      initial.velocities_x,
+      initial.velocities_z,
+      initial.pocketed,
+      shots_list,
+      max_steps,
+    )
 
   Ok(BatchState(
     positions_x: final_px,
@@ -200,19 +200,21 @@ pub fn simulate_batch_with_spin(
   max_steps: Int,
 ) -> Result(BatchState, String) {
   // Convert shots to list format
-  let shots_list = list.map(shots, fn(shot) {
-    [shot.angle, shot.power, shot.english, shot.elevation]
-  })
+  let shots_list =
+    list.map(shots, fn(shot) {
+      [shot.angle, shot.power, shot.english, shot.elevation]
+    })
 
-  let #(final_px, final_pz, final_pocketed, _steps) = native_simulate_with_spin(
-    initial.positions_x,
-    initial.positions_z,
-    initial.velocities_x,
-    initial.velocities_z,
-    initial.pocketed,
-    shots_list,
-    max_steps,
-  )
+  let #(final_px, final_pz, final_pocketed, _steps) =
+    native_simulate_with_spin(
+      initial.positions_x,
+      initial.positions_z,
+      initial.velocities_x,
+      initial.velocities_z,
+      initial.pocketed,
+      shots_list,
+      max_steps,
+    )
 
   Ok(BatchState(
     positions_x: final_px,
@@ -230,29 +232,27 @@ pub fn simulate_batch_full(
   shots: List(BatchShot),
   max_steps: Int,
 ) -> Result(List(SimResult), String) {
-  let shots_list = list.map(shots, fn(shot) {
-    [shot.angle, shot.power, shot.english, shot.elevation]
-  })
+  let shots_list =
+    list.map(shots, fn(shot) {
+      [shot.angle, shot.power, shot.english, shot.elevation]
+    })
 
-  let #(final_px, final_pz, final_pocketed, steps) = native_simulate(
-    initial.positions_x,
-    initial.positions_z,
-    initial.velocities_x,
-    initial.velocities_z,
-    initial.pocketed,
-    shots_list,
-    max_steps,
-  )
+  let #(final_px, final_pz, final_pocketed, steps) =
+    native_simulate(
+      initial.positions_x,
+      initial.positions_z,
+      initial.velocities_x,
+      initial.velocities_z,
+      initial.pocketed,
+      shots_list,
+      max_steps,
+    )
 
-  let results = zip4(final_px, final_pz, final_pocketed, steps)
+  let results =
+    zip4(final_px, final_pz, final_pocketed, steps)
     |> list.map(fn(tuple) {
       let #(px, pz, pck, s) = tuple
-      SimResult(
-        positions_x: px,
-        positions_z: pz,
-        pocketed: pck,
-        steps_taken: s,
-      )
+      SimResult(positions_x: px, positions_z: pz, pocketed: pck, steps_taken: s)
     })
   Ok(results)
 }
@@ -263,16 +263,17 @@ pub fn calculate_fitness(
   final_state: BatchState,
   target_ball_idx: Int,
 ) -> List(FitnessResult) {
-  let results = native_calculate_fitness(
-    initial.batch_size,
-    initial.pocketed,
-    final_state.pocketed,
-    final_state.positions_x,
-    final_state.positions_z,
-    initial.positions_x,
-    initial.positions_z,
-    target_ball_idx,
-  )
+  let results =
+    native_calculate_fitness(
+      initial.batch_size,
+      initial.pocketed,
+      final_state.pocketed,
+      final_state.positions_x,
+      final_state.positions_z,
+      initial.positions_x,
+      initial.positions_z,
+      target_ball_idx,
+    )
 
   list.map(results, fn(r) {
     let #(fitness, hit_angle, scatter) = r
@@ -297,7 +298,8 @@ pub fn evaluate_batch(
 
   case simulate_batch(initial, shots, max_steps) {
     Ok(final_state) -> {
-      let fitness_results = calculate_fitness(initial, final_state, target_ball_idx)
+      let fitness_results =
+        calculate_fitness(initial, final_state, target_ball_idx)
       Ok(fitness_results)
     }
     Error(e) -> Error(e)
@@ -315,7 +317,8 @@ pub fn evaluate_batch_with_outputs(
   max_steps: Int,
 ) -> Result(List(FitnessResult), String) {
   // Convert outputs to shots
-  let shots = list.zip(outputs, pocket_angles)
+  let shots =
+    list.zip(outputs, pocket_angles)
     |> list.map(fn(pair) {
       let #(out, pocket_angle) = pair
       decode_shot(out, pocket_angle)
@@ -334,7 +337,8 @@ fn decode_shot(outputs: List(Float), pocket_angle: Float) -> BatchShot {
   case outputs {
     [angle_adj_raw, power_raw, english_raw, ..] -> {
       // Adjustment range: +/- 45 degrees
-      let angle_adjustment = { angle_adj_raw *. 2.0 -. 1.0 } *. 0.785398  // pi/4
+      let angle_adjustment = { angle_adj_raw *. 2.0 -. 1.0 } *. 0.785398
+      // pi/4
       BatchShot(
         angle: pocket_angle +. angle_adjustment,
         power: 0.1 +. power_raw *. 0.9,
@@ -342,7 +346,8 @@ fn decode_shot(outputs: List(Float), pocket_angle: Float) -> BatchShot {
         elevation: 0.0,
       )
     }
-    _ -> BatchShot(angle: pocket_angle, power: 0.5, english: 0.0, elevation: 0.0)
+    _ ->
+      BatchShot(angle: pocket_angle, power: 0.5, english: 0.0, elevation: 0.0)
   }
 }
 
@@ -351,15 +356,12 @@ fn decode_shot(outputs: List(Float), pocket_angle: Float) -> BatchShot {
 // =============================================================================
 
 /// Zip 4 lists together
-fn zip4(
-  a: List(a),
-  b: List(b),
-  c: List(c),
-  d: List(d),
-) -> List(#(a, b, c, d)) {
+fn zip4(a: List(a), b: List(b), c: List(c), d: List(d)) -> List(#(a, b, c, d)) {
   case a, b, c, d {
-    [ah, ..at], [bh, ..bt], [ch, ..ct], [dh, ..dt] ->
-      [#(ah, bh, ch, dh), ..zip4(at, bt, ct, dt)]
+    [ah, ..at], [bh, ..bt], [ch, ..ct], [dh, ..dt] -> [
+      #(ah, bh, ch, dh),
+      ..zip4(at, bt, ct, dt)
+    ]
     _, _, _, _ -> []
   }
 }
@@ -398,7 +400,9 @@ fn native_simulate_episodes(
   architecture: List(Int),
   shots_per_episode: Int,
   max_steps_per_shot: Int,
-) -> List(#(#(Float, Int, Int, Float, Float), #(List(Float), List(Float), List(Float))))
+) -> List(
+  #(#(Float, Int, Int, Float, Float), #(List(Float), List(Float), List(Float))),
+)
 
 /// Native NIF for episode evaluation (simplified)
 @external(erlang, "Elixir.Viva.Burn.Native", "burn_batch_evaluate_episodes")
@@ -498,10 +502,17 @@ pub const num_balls: Int = 8
 
 /// Ball indices
 pub const cue_ball_idx: Int = 0
+
 pub const red_ball_idx: Int = 1
+
 pub const yellow_ball_idx: Int = 2
+
 pub const green_ball_idx: Int = 3
+
 pub const brown_ball_idx: Int = 4
+
 pub const blue_ball_idx: Int = 5
+
 pub const pink_ball_idx: Int = 6
+
 pub const black_ball_idx: Int = 7

@@ -19,40 +19,44 @@ pub fn main() {
   let world = jolt.world_new()
 
   // Create floor (static)
-  let floor = jolt.create_box(
-    world,
-    jolt.vec3(0.0, -1.0, 0.0),
-    jolt.vec3(50.0, 1.0, 50.0),
-    jolt.Static,
-  )
+  let floor =
+    jolt.create_box(
+      world,
+      jolt.vec3(0.0, -1.0, 0.0),
+      jolt.vec3(50.0, 1.0, 50.0),
+      jolt.Static,
+    )
   log.info("Floor created: body " <> int_to_string(floor.index), [])
 
   // Create falling sphere (dynamic)
-  let sphere = jolt.create_sphere(
-    world,
-    jolt.vec3(0.0, 10.0, 0.0),
-    0.5,
-    jolt.Dynamic,
-  )
+  let sphere =
+    jolt.create_sphere(world, jolt.vec3(0.0, 10.0, 0.0), 0.5, jolt.Dynamic)
   log.info("Sphere created: body " <> int_to_string(sphere.index), [])
 
   // Create kinematic character (for character controller demo)
-  let character = jolt.create_capsule(
-    world,
-    jolt.vec3(5.0, 2.0, 0.0),
-    0.9,  // half height
-    0.4,  // radius
-    jolt.Kinematic,
+  let character =
+    jolt.create_capsule(
+      world,
+      jolt.vec3(5.0, 2.0, 0.0),
+      0.9,
+      // half height
+      0.4,
+      // radius
+      jolt.Kinematic,
+    )
+  log.info(
+    "Character (kinematic capsule): body " <> int_to_string(character.index),
+    [],
   )
-  log.info("Character (kinematic capsule): body " <> int_to_string(character.index), [])
 
   // Create a wall for raycast test
-  let wall = jolt.create_box(
-    world,
-    jolt.vec3(10.0, 5.0, 0.0),
-    jolt.vec3(1.0, 5.0, 5.0),
-    jolt.Static,
-  )
+  let wall =
+    jolt.create_box(
+      world,
+      jolt.vec3(10.0, 5.0, 0.0),
+      jolt.vec3(1.0, 5.0, 5.0),
+      jolt.Static,
+    )
   log.info("Wall created: body " <> int_to_string(wall.index), [])
 
   // Optimize broad phase
@@ -68,16 +72,24 @@ pub fn main() {
   log.info("", [])
   log.info("--- Raycast Test ---", [])
   let ray_origin = jolt.vec3(0.0, 5.0, 0.0)
-  let ray_direction = jolt.vec3(20.0, 0.0, 0.0)  // 20 units to the right
+  let ray_direction = jolt.vec3(20.0, 0.0, 0.0)
+  // 20 units to the right
   log.info("Casting ray from (0,5,0) direction (20,0,0)...", [])
   case jolt.cast_ray(world, ray_origin, ray_direction) {
     jolt.Hit(hit) -> {
       log.info("  HIT!", [])
       log.info("  Body: " <> int_to_string(hit.body.index), [])
       log.info("  Fraction: " <> float_to_string(hit.fraction), [])
-      log.info("  Point: (" <> float_to_string(hit.point.x) <> ", " <>
-                              float_to_string(hit.point.y) <> ", " <>
-                              float_to_string(hit.point.z) <> ")", [])
+      log.info(
+        "  Point: ("
+          <> float_to_string(hit.point.x)
+          <> ", "
+          <> float_to_string(hit.point.y)
+          <> ", "
+          <> float_to_string(hit.point.z)
+          <> ")",
+        [],
+      )
     }
     jolt.Miss -> log.info("  MISS", [])
   }
@@ -89,7 +101,10 @@ pub fn main() {
     Ok(pos) -> {
       case jolt.cast_ray_down(world, pos, 20.0) {
         jolt.Hit(hit) -> {
-          log.info("  Ground found at fraction: " <> float_to_string(hit.fraction), [])
+          log.info(
+            "  Ground found at fraction: " <> float_to_string(hit.fraction),
+            [],
+          )
           log.info("  Ground point Y: " <> float_to_string(hit.point.y), [])
         }
         jolt.Miss -> log.info("  No ground found", [])
@@ -145,7 +160,11 @@ pub fn main() {
   let _ = jolt.activate(world, sphere)
   simulate_loop(world, 30)
   case jolt.get_position(world, sphere) {
-    Ok(pos) -> log.info("Sphere Y after 30 steps (no gravity): " <> float_to_string(pos.y), [])
+    Ok(pos) ->
+      log.info(
+        "Sphere Y after 30 steps (no gravity): " <> float_to_string(pos.y),
+        [],
+      )
     Error(_) -> Nil
   }
 
@@ -178,12 +197,23 @@ fn simulate_with_contacts(world, remaining, total_contacts) {
       let contact_count = list_length(contacts)
       case contact_count > 0 {
         True -> {
-          log.info("Frame " <> int_to_string(60 - remaining + 1) <> ": " <> int_to_string(contact_count) <> " contact(s)", [])
+          log.info(
+            "Frame "
+              <> int_to_string(60 - remaining + 1)
+              <> ": "
+              <> int_to_string(contact_count)
+              <> " contact(s)",
+            [],
+          )
           print_contacts(contacts)
         }
         False -> Nil
       }
-      simulate_with_contacts(world, remaining - 1, total_contacts + contact_count)
+      simulate_with_contacts(
+        world,
+        remaining - 1,
+        total_contacts + contact_count,
+      )
     }
   }
 }
@@ -197,7 +227,19 @@ fn print_contacts(contacts: List(jolt.ContactEvent)) {
         jolt.ContactPersisted -> "PERSISTED"
         jolt.ContactRemoved -> "REMOVED"
       }
-      log.debug(string.inspect(#(type_str, "body", contact.body1.index, "<->", "body", contact.body2.index, "depth=", contact.penetration_depth)), [])
+      log.debug(
+        string.inspect(#(
+          type_str,
+          "body",
+          contact.body1.index,
+          "<->",
+          "body",
+          contact.body2.index,
+          "depth=",
+          contact.penetration_depth,
+        )),
+        [],
+      )
       print_contacts(rest)
     }
   }
@@ -214,12 +256,26 @@ fn print_body_state(world, name, body) {
   case jolt.get_state(world, body) {
     Ok(state) -> {
       log.info(name <> " state:", [])
-      log.info("  Position: (" <> float_to_string(state.position.x) <> ", " <>
-                                  float_to_string(state.position.y) <> ", " <>
-                                  float_to_string(state.position.z) <> ")", [])
-      log.info("  Velocity: (" <> float_to_string(state.velocity.x) <> ", " <>
-                                  float_to_string(state.velocity.y) <> ", " <>
-                                  float_to_string(state.velocity.z) <> ")", [])
+      log.info(
+        "  Position: ("
+          <> float_to_string(state.position.x)
+          <> ", "
+          <> float_to_string(state.position.y)
+          <> ", "
+          <> float_to_string(state.position.z)
+          <> ")",
+        [],
+      )
+      log.info(
+        "  Velocity: ("
+          <> float_to_string(state.velocity.x)
+          <> ", "
+          <> float_to_string(state.velocity.y)
+          <> ", "
+          <> float_to_string(state.velocity.z)
+          <> ")",
+        [],
+      )
       log.info("  Active: " <> bool_to_string(state.active), [])
     }
     Error(_) -> log.info(name <> ": Error getting state", [])

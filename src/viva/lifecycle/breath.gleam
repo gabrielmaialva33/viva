@@ -131,10 +131,14 @@ fn handle_message(
 
       soul.receive_sensation(
         state.soul,
-        1000,   // light
-        500,    // sound
-        False,  // touch
-        Some("Teacher: " <> instruction),  // entity
+        1000,
+        // light
+        500,
+        // sound
+        False,
+        // touch
+        Some("Teacher: " <> instruction),
+        // entity
       )
 
       actor.continue(state)

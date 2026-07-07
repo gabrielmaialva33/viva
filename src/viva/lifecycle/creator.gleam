@@ -259,7 +259,11 @@ pub fn process_death(
 }
 
 /// Upload glyph to akashic (merge if similar exists)
-pub fn upload_to_akashic(creator: Creator, g: Glyph, source: VivaId) -> Creator {
+pub fn upload_to_akashic(
+  creator: Creator,
+  g: Glyph,
+  source: VivaId,
+) -> Creator {
   // Search similar glyphs
   let similar =
     creator.akashic_glyphs

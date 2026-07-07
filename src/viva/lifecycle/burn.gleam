@@ -10,7 +10,6 @@
 ////   CPU (Rayon):  ~50,000 forwards/sec
 ////   GPU (CUDA):   ~500,000 forwards/sec (10x speedup)
 
-
 // =============================================================================
 // EXTERNAL NIF FUNCTIONS
 // =============================================================================
@@ -156,7 +155,7 @@ pub fn benchmark(
 /// Benchmark NES operations (GPU vs CPU comparison)
 ///
 /// Example: benchmark_nes(867, 16, 100)
-/// For sinuca architecture [8, 32, 16, 3] = 867 weights
+/// For default architecture [8, 32, 16, 3] = 867 weights
 @external(erlang, "Elixir.Viva.Burn.Native", "burn_benchmark_nes")
 pub fn benchmark_nes(
   weight_count: Int,
@@ -195,12 +194,17 @@ fn generate_xavier_weights(count: Int, seed: Int) -> List(Float) {
   generate_weights_loop(count, seed, [])
 }
 
-fn generate_weights_loop(remaining: Int, seed: Int, acc: List(Float)) -> List(Float) {
+fn generate_weights_loop(
+  remaining: Int,
+  seed: Int,
+  acc: List(Float),
+) -> List(Float) {
   case remaining <= 0 {
     True -> acc
     False -> {
-      let next_seed = { seed * 1103515245 + 12345 } % 2147483648
-      let value = { next_seed % 1000 - 500 } |> int_to_float |> fn(x) { x /. 1000.0 }
+      let next_seed = { seed * 1_103_515_245 + 12_345 } % 2_147_483_648
+      let value =
+        { next_seed % 1000 - 500 } |> int_to_float |> fn(x) { x /. 1000.0 }
       generate_weights_loop(remaining - 1, next_seed, [value, ..acc])
     }
   }
@@ -219,30 +223,24 @@ fn int_to_float(x: Int) -> Float
 
 /// Configuration for batch neural forward
 pub type BatchConfig {
-  BatchConfig(
-    architecture: List(Int),
-    population_size: Int,
-  )
+  BatchConfig(architecture: List(Int), population_size: Int)
 }
 
 /// Policy network with weights
 pub type Policy {
-  Policy(
-    weights: List(Float),
-    architecture: List(Int),
-  )
+  Policy(weights: List(Float), architecture: List(Int))
 }
 
 /// Create new policy with random weights
 pub fn new_policy(architecture: List(Int), seed: Int) -> Policy {
-  Policy(
-    weights: init_weights(architecture, seed),
-    architecture: architecture,
-  )
+  Policy(weights: init_weights(architecture, seed), architecture: architecture)
 }
 
 /// Forward pass for single policy
-pub fn forward(policy: Policy, inputs: List(Float)) -> Result(List(Float), String) {
+pub fn forward(
+  policy: Policy,
+  inputs: List(Float),
+) -> Result(List(Float), String) {
   case batch_forward([policy.weights], [inputs], policy.architecture) {
     Ok([output]) -> Ok(output)
     Ok(_) -> Error("Unexpected batch result")
@@ -261,11 +259,7 @@ pub type NESConfig {
 
 /// Default NES config optimized for RTX 4090
 pub fn default_nes_config() -> NESConfig {
-  NESConfig(
-    num_perturbations: 16,
-    perturbation_std: 0.02,
-    learning_rate: 0.1,
-  )
+  NESConfig(num_perturbations: 16, perturbation_std: 0.02, learning_rate: 0.1)
 }
 
 /// Run one NES optimization step
@@ -278,26 +272,29 @@ pub fn nes_step_policy(
   seed: Int,
 ) -> Policy {
   // Generate perturbations
-  let perturbations = perturb_weights(
-    policy.weights,
-    config.num_perturbations,
-    config.perturbation_std,
-    seed,
-  )
+  let perturbations =
+    perturb_weights(
+      policy.weights,
+      config.num_perturbations,
+      config.perturbation_std,
+      seed,
+    )
 
   // Evaluate all perturbations
-  let fitnesses = evaluate_perturbations(
-    perturbations,
-    inputs,
-    policy.architecture,
-    fitness_fn,
-  )
+  let fitnesses =
+    evaluate_perturbations(
+      perturbations,
+      inputs,
+      policy.architecture,
+      fitness_fn,
+    )
 
   // Compute gradient
   let gradient = nes_gradient(perturbations, fitnesses, config.perturbation_std)
 
   // Update weights
-  let new_weights = update_weights(policy.weights, gradient, config.learning_rate)
+  let new_weights =
+    update_weights(policy.weights, gradient, config.learning_rate)
 
   Policy(..policy, weights: new_weights)
 }
@@ -308,7 +305,13 @@ fn evaluate_perturbations(
   architecture: List(Int),
   fitness_fn: fn(List(Float)) -> Float,
 ) -> List(Float) {
-  case batch_forward(perturbations, repeat_list(inputs, list_length(perturbations)), architecture) {
+  case
+    batch_forward(
+      perturbations,
+      repeat_list(inputs, list_length(perturbations)),
+      architecture,
+    )
+  {
     Ok(outputs) -> list_map(outputs, fitness_fn)
     Error(_) -> []
   }
