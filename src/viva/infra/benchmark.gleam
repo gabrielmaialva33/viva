@@ -12,8 +12,9 @@ import gleamy/bench.{
   type BenchResults, Duration, Function, IPS, Input, Max, Mean, Min, Quiet, SD,
   Warmup,
 }
-import viva/lifecycle/bardo
 import viva/infra/gpu
+import viva/utils/range.{range_inclusive}
+import viva/lifecycle/bardo
 import viva/memory/memory
 import viva/soul/reflexivity
 import viva/soul/resonance
@@ -246,7 +247,7 @@ fn bench_scale(n: Int) -> Nil {
 
   // Soul Actor approach: n individual actors
   let souls =
-    list.range(1, n)
+    range_inclusive(1, n)
     |> list.filter_map(fn(i) {
       case soul.start(i) {
         Ok(s) -> Ok(s)
@@ -585,13 +586,13 @@ fn bench_gpu() -> Nil {
 fn bench_gpu_ops() -> Nil {
   // Benchmark batch PAD operations
   let pads =
-    list.range(1, 100)
+    range_inclusive(1, 100)
     |> list.map(fn(i) {
       let f = int.to_float(i) /. 100.0
       pad.new(f, 0.0 -. f, f *. 0.5)
     })
 
-  let ids = list.range(1, 100)
+  let ids = range_inclusive(1, 100)
   let pad_dict = list.zip(ids, pads) |> dict.from_list()
   let batch = gpu.pads_to_batch(pad_dict)
   let delta = pad.new(0.1, 0.1, 0.1)

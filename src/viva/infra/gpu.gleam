@@ -11,10 +11,11 @@
 import gleam/dict.{type Dict}
 import gleam/float
 import gleam/list
-import viva_telemetry/log
 import gleam/result
-import viva_tensor/tensor.{type Tensor}
 import viva_emotion/pad.{type Pad}
+import viva_math/scalar
+import viva_telemetry/log
+import viva_tensor/tensor.{type Tensor}
 
 // =============================================================================
 // TYPES
@@ -153,22 +154,26 @@ fn cpu_batch_apply_delta(batch: PadBatch, delta: Pad) -> PadBatch {
     |> list.index_map(fn(val, idx) {
       let dim = idx % 3
       case dim {
-        0 -> clamp(val +. delta.pleasure, -1.0, 1.0)
-        1 -> clamp(val +. delta.arousal, -1.0, 1.0)
-        _ -> clamp(val +. delta.dominance, -1.0, 1.0)
+        0 -> float.clamp(val +. delta.pleasure, -1.0, 1.0)
+        1 -> float.clamp(val +. delta.arousal, -1.0, 1.0)
+        _ -> float.clamp(val +. delta.dominance, -1.0, 1.0)
       }
     })
   PadBatch(..batch, data: new_data)
 }
 
 /// Scale all PADs in batch
-pub fn batch_scale(batch: PadBatch, factor: Float, backend: Backend) -> PadBatch {
+pub fn batch_scale(
+  batch: PadBatch,
+  factor: Float,
+  backend: Backend,
+) -> PadBatch {
   case backend {
     GPU -> nx_batch_scale(batch, factor)
     ExlaCpu -> nx_batch_scale(batch, factor)
     CPU -> {
       let new_data =
-        list.map(batch.data, fn(v) { clamp(v *. factor, -1.0, 1.0) })
+        list.map(batch.data, fn(v) { float.clamp(v *. factor, -1.0, 1.0) })
       PadBatch(..batch, data: new_data)
     }
   }
@@ -273,7 +278,7 @@ fn apply_activation_cpu(t: Tensor, activation: Activation) -> Tensor {
   case activation {
     Linear -> t
     ReLU -> tensor.map(t, fn(x) { float.max(0.0, x) })
-    Sigmoid -> tensor.map(t, sigmoid)
+    Sigmoid -> tensor.map(t, scalar.sigmoid)
     Tanh -> tensor.map(t, tanh)
     Softmax -> {
       let max_val = tensor.max(t)
@@ -309,25 +314,6 @@ fn pad_similarity(p1: Pad, p2: Pad) -> Float {
   let dist = float_sqrt(dp *. dp +. da *. da +. dd *. dd)
   1.0 -. dist /. 3.464
   // max dist is sqrt(12) ≈ 3.464
-}
-
-// =============================================================================
-// HELPERS
-// =============================================================================
-
-fn clamp(val: Float, min: Float, max: Float) -> Float {
-  case val <. min {
-    True -> min
-    False ->
-      case val >. max {
-        True -> max
-        False -> val
-      }
-  }
-}
-
-fn sigmoid(x: Float) -> Float {
-  1.0 /. { 1.0 +. exp(0.0 -. x) }
 }
 
 // =============================================================================

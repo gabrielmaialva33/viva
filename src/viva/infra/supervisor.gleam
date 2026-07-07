@@ -13,12 +13,12 @@ import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
+import viva/infra/telemetry/server.{type Broadcaster}
 import viva/lifecycle/bardo
 import viva/lifecycle/creator.{type Creator}
 import viva/soul/interoception
 import viva/soul/resonance.{type ResonanceEvent, type ResonancePool}
 import viva/soul/soul
-import viva/infra/telemetry/server.{type Broadcaster}
 import viva/types.{type LifecycleEvent, type VivaId}
 import viva_glyph/glyph
 

@@ -24,10 +24,11 @@
 import gleam/float
 import gleam/list
 import viva/infra/environments/environment.{
-  type Action, type Environment, type EnvOps, type EnvSpec,
-  type Observation, type StepResult, Continuous, Discrete, EnvInfo, EnvOps,
-  EnvSpec, Environment, Observation, StepResult,
+  type Action, type EnvOps, type EnvSpec, type Environment, type Observation,
+  type StepResult, Continuous, Discrete, EnvInfo, EnvOps, EnvSpec, Environment,
+  Observation, StepResult,
 }
+import viva/utils/range.{range_inclusive}
 
 // =============================================================================
 // CONSTANTS (from OpenAI Gym)
@@ -99,12 +100,7 @@ pub fn spec() -> EnvSpec {
 
 /// Create new CartPole environment operations
 pub fn ops() -> EnvOps(CartPoleState) {
-  EnvOps(
-    reset: reset,
-    step: step,
-    spec: spec,
-    clone: clone,
-  )
+  EnvOps(reset: reset, step: step, spec: spec, clone: clone)
 }
 
 /// Reset environment to initial state
@@ -115,12 +111,13 @@ pub fn reset(seed: Int) -> Environment(CartPoleState) {
   let r3 = pseudo_random(seed + 2)
   let r4 = pseudo_random(seed + 3)
 
-  let state = CartPoleState(
-    x: { r1 -. 0.5 } *. 0.1,
-    x_dot: { r2 -. 0.5 } *. 0.1,
-    theta: { r3 -. 0.5 } *. 0.1,
-    theta_dot: { r4 -. 0.5 } *. 0.1,
-  )
+  let state =
+    CartPoleState(
+      x: { r1 -. 0.5 } *. 0.1,
+      x_dot: { r2 -. 0.5 } *. 0.1,
+      theta: { r3 -. 0.5 } *. 0.1,
+      theta_dot: { r4 -. 0.5 } *. 0.1,
+    )
 
   Environment(
     state: state,
@@ -149,14 +146,23 @@ pub fn step(env: Environment(CartPoleState), action: Action) -> StepResult {
   let sin_theta = float_sin(state.theta)
 
   // Intermediate calculation
-  let temp = { force +. pole_mass_length *. state.theta_dot *. state.theta_dot *. sin_theta } /. total_mass
+  let temp =
+    {
+      force
+      +. pole_mass_length
+      *. state.theta_dot
+      *. state.theta_dot
+      *. sin_theta
+    }
+    /. total_mass
 
   // Angular acceleration
-  let theta_acc = {
-    gravity *. sin_theta -. cos_theta *. temp
-  } /. {
-    pole_length *. { 4.0 /. 3.0 -. pole_mass *. cos_theta *. cos_theta /. total_mass }
-  }
+  let theta_acc =
+    { gravity *. sin_theta -. cos_theta *. temp }
+    /. {
+      pole_length
+      *. { 4.0 /. 3.0 -. pole_mass *. cos_theta *. cos_theta /. total_mass }
+    }
 
   // Linear acceleration
   let x_acc = temp -. pole_mass_length *. theta_acc *. cos_theta /. total_mass
@@ -167,12 +173,13 @@ pub fn step(env: Environment(CartPoleState), action: Action) -> StepResult {
   let new_theta = state.theta +. tau *. state.theta_dot
   let new_theta_dot = state.theta_dot +. tau *. theta_acc
 
-  let new_state = CartPoleState(
-    x: new_x,
-    x_dot: new_x_dot,
-    theta: new_theta,
-    theta_dot: new_theta_dot,
-  )
+  let new_state =
+    CartPoleState(
+      x: new_x,
+      x_dot: new_x_dot,
+      theta: new_theta,
+      theta_dot: new_theta_dot,
+    )
 
   // Check termination
   let x_out = float.absolute_value(new_x) >. x_threshold
@@ -192,16 +199,13 @@ pub fn step(env: Environment(CartPoleState), action: Action) -> StepResult {
 
   let new_return = env.episode_return +. reward
 
-  let info = EnvInfo(
-    timestep: new_timestep,
-    episode_return: new_return,
-    metrics: [
+  let info =
+    EnvInfo(timestep: new_timestep, episode_return: new_return, metrics: [
       #("x", new_x),
       #("theta", new_theta),
       #("x_dot", new_x_dot),
       #("theta_dot", new_theta_dot),
-    ],
-  )
+    ])
 
   StepResult(
     observation: state_to_obs(new_state),
@@ -215,12 +219,13 @@ pub fn step(env: Environment(CartPoleState), action: Action) -> StepResult {
 /// Clone environment state
 pub fn clone(env: Environment(CartPoleState)) -> Environment(CartPoleState) {
   let state = env.state
-  let new_state = CartPoleState(
-    x: state.x,
-    x_dot: state.x_dot,
-    theta: state.theta,
-    theta_dot: state.theta_dot,
-  )
+  let new_state =
+    CartPoleState(
+      x: state.x,
+      x_dot: state.x_dot,
+      theta: state.theta,
+      theta_dot: state.theta_dot,
+    )
   Environment(
     state: new_state,
     observation: env.observation,
@@ -249,21 +254,22 @@ pub type CartPoleBatch {
 
 /// Create batch of N environments
 pub fn create_batch(n: Int, seed: Int) -> CartPoleBatch {
-  let indices = list.range(0, n - 1)
+  let indices = range_inclusive(0, n - 1)
 
-  let states = list.map(indices, fn(i) {
-    let s = seed + i * 4
-    let r1 = pseudo_random(s)
-    let r2 = pseudo_random(s + 1)
-    let r3 = pseudo_random(s + 2)
-    let r4 = pseudo_random(s + 3)
-    #(
-      { r1 -. 0.5 } *. 0.1,
-      { r2 -. 0.5 } *. 0.1,
-      { r3 -. 0.5 } *. 0.1,
-      { r4 -. 0.5 } *. 0.1,
-    )
-  })
+  let states =
+    list.map(indices, fn(i) {
+      let s = seed + i * 4
+      let r1 = pseudo_random(s)
+      let r2 = pseudo_random(s + 1)
+      let r3 = pseudo_random(s + 2)
+      let r4 = pseudo_random(s + 3)
+      #(
+        { r1 -. 0.5 } *. 0.1,
+        { r2 -. 0.5 } *. 0.1,
+        { r3 -. 0.5 } *. 0.1,
+        { r4 -. 0.5 } *. 0.1,
+      )
+    })
 
   CartPoleBatch(
     x: list.map(states, fn(s) { s.0 }),
@@ -282,65 +288,85 @@ pub fn batch_step(
   actions: List(Int),
 ) -> #(CartPoleBatch, List(Float), List(Bool)) {
   let n = list.length(batch.x)
-  let indices = list.range(0, n - 1)
+  let indices = range_inclusive(0, n - 1)
 
-  let results = list.map(indices, fn(i) {
-    let x = list_at_float(batch.x, i)
-    let x_dot = list_at_float(batch.x_dot, i)
-    let theta = list_at_float(batch.theta, i)
-    let theta_dot = list_at_float(batch.theta_dot, i)
-    let was_done = list_at_bool(batch.done, i)
-    let timestep = list_at_int(batch.timesteps, i)
-    let ret = list_at_float(batch.returns, i)
-    let action = list_at_int(actions, i)
+  let results =
+    list.map(indices, fn(i) {
+      let x = list_at_float(batch.x, i)
+      let x_dot = list_at_float(batch.x_dot, i)
+      let theta = list_at_float(batch.theta, i)
+      let theta_dot = list_at_float(batch.theta_dot, i)
+      let was_done = list_at_bool(batch.done, i)
+      let timestep = list_at_int(batch.timesteps, i)
+      let ret = list_at_float(batch.returns, i)
+      let action = list_at_int(actions, i)
 
-    case was_done {
-      True -> #(x, x_dot, theta, theta_dot, True, timestep, ret, 0.0)
-      False -> {
-        let force = case action {
-          0 -> 0.0 -. force_mag
-          _ -> force_mag
+      case was_done {
+        True -> #(x, x_dot, theta, theta_dot, True, timestep, ret, 0.0)
+        False -> {
+          let force = case action {
+            0 -> 0.0 -. force_mag
+            _ -> force_mag
+          }
+
+          let cos_theta = float_cos(theta)
+          let sin_theta = float_sin(theta)
+          let temp =
+            { force +. pole_mass_length *. theta_dot *. theta_dot *. sin_theta }
+            /. total_mass
+          let theta_acc =
+            { gravity *. sin_theta -. cos_theta *. temp }
+            /. {
+              pole_length
+              *. {
+                4.0 /. 3.0 -. pole_mass *. cos_theta *. cos_theta /. total_mass
+              }
+            }
+          let x_acc =
+            temp -. pole_mass_length *. theta_acc *. cos_theta /. total_mass
+
+          let new_x = x +. tau *. x_dot
+          let new_x_dot = x_dot +. tau *. x_acc
+          let new_theta = theta +. tau *. theta_dot
+          let new_theta_dot = theta_dot +. tau *. theta_acc
+
+          let x_out = float.absolute_value(new_x) >. x_threshold
+          let theta_out = float.absolute_value(new_theta) >. theta_threshold
+          let terminated = x_out || theta_out
+          let new_timestep = timestep + 1
+          let truncated = new_timestep >= max_steps
+          let done = terminated || truncated
+
+          let reward = case terminated {
+            True -> 0.0
+            False -> 1.0
+          }
+          let new_return = ret +. reward
+
+          #(
+            new_x,
+            new_x_dot,
+            new_theta,
+            new_theta_dot,
+            done,
+            new_timestep,
+            new_return,
+            reward,
+          )
         }
-
-        let cos_theta = float_cos(theta)
-        let sin_theta = float_sin(theta)
-        let temp = { force +. pole_mass_length *. theta_dot *. theta_dot *. sin_theta } /. total_mass
-        let theta_acc = {
-          gravity *. sin_theta -. cos_theta *. temp
-        } /. {
-          pole_length *. { 4.0 /. 3.0 -. pole_mass *. cos_theta *. cos_theta /. total_mass }
-        }
-        let x_acc = temp -. pole_mass_length *. theta_acc *. cos_theta /. total_mass
-
-        let new_x = x +. tau *. x_dot
-        let new_x_dot = x_dot +. tau *. x_acc
-        let new_theta = theta +. tau *. theta_dot
-        let new_theta_dot = theta_dot +. tau *. theta_acc
-
-        let x_out = float.absolute_value(new_x) >. x_threshold
-        let theta_out = float.absolute_value(new_theta) >. theta_threshold
-        let terminated = x_out || theta_out
-        let new_timestep = timestep + 1
-        let truncated = new_timestep >= max_steps
-        let done = terminated || truncated
-
-        let reward = case terminated { True -> 0.0 False -> 1.0 }
-        let new_return = ret +. reward
-
-        #(new_x, new_x_dot, new_theta, new_theta_dot, done, new_timestep, new_return, reward)
       }
-    }
-  })
+    })
 
-  let new_batch = CartPoleBatch(
-    x: list.map(results, fn(r) { r.0 }),
-    x_dot: list.map(results, fn(r) { r.1 }),
-    theta: list.map(results, fn(r) { r.2 }),
-    theta_dot: list.map(results, fn(r) { r.3 }),
-    done: list.map(results, fn(r) { r.4 }),
-    timesteps: list.map(results, fn(r) { r.5 }),
-    returns: list.map(results, fn(r) { r.6 }),
-  )
+  let new_batch =
+    CartPoleBatch(
+      x: list.map(results, fn(r) { r.0 }),
+      x_dot: list.map(results, fn(r) { r.1 }),
+      theta: list.map(results, fn(r) { r.2 }),
+      theta_dot: list.map(results, fn(r) { r.3 }),
+      done: list.map(results, fn(r) { r.4 }),
+      timesteps: list.map(results, fn(r) { r.5 }),
+      returns: list.map(results, fn(r) { r.6 }),
+    )
 
   let rewards = list.map(results, fn(r) { r.7 })
   let dones = list.map(results, fn(r) { r.4 })
@@ -351,37 +377,38 @@ pub fn batch_step(
 /// Reset finished episodes in batch
 pub fn batch_reset(batch: CartPoleBatch, seed: Int) -> CartPoleBatch {
   let n = list.length(batch.x)
-  let indices = list.range(0, n - 1)
+  let indices = range_inclusive(0, n - 1)
 
-  let results = list.map(indices, fn(i) {
-    case list_at_bool(batch.done, i) {
-      True -> {
-        let s = seed + i * 4
-        let r1 = pseudo_random(s)
-        let r2 = pseudo_random(s + 1)
-        let r3 = pseudo_random(s + 2)
-        let r4 = pseudo_random(s + 3)
-        #(
-          { r1 -. 0.5 } *. 0.1,
-          { r2 -. 0.5 } *. 0.1,
-          { r3 -. 0.5 } *. 0.1,
-          { r4 -. 0.5 } *. 0.1,
+  let results =
+    list.map(indices, fn(i) {
+      case list_at_bool(batch.done, i) {
+        True -> {
+          let s = seed + i * 4
+          let r1 = pseudo_random(s)
+          let r2 = pseudo_random(s + 1)
+          let r3 = pseudo_random(s + 2)
+          let r4 = pseudo_random(s + 3)
+          #(
+            { r1 -. 0.5 } *. 0.1,
+            { r2 -. 0.5 } *. 0.1,
+            { r3 -. 0.5 } *. 0.1,
+            { r4 -. 0.5 } *. 0.1,
+            False,
+            0,
+            0.0,
+          )
+        }
+        False -> #(
+          list_at_float(batch.x, i),
+          list_at_float(batch.x_dot, i),
+          list_at_float(batch.theta, i),
+          list_at_float(batch.theta_dot, i),
           False,
-          0,
-          0.0,
+          list_at_int(batch.timesteps, i),
+          list_at_float(batch.returns, i),
         )
       }
-      False -> #(
-        list_at_float(batch.x, i),
-        list_at_float(batch.x_dot, i),
-        list_at_float(batch.theta, i),
-        list_at_float(batch.theta_dot, i),
-        False,
-        list_at_int(batch.timesteps, i),
-        list_at_float(batch.returns, i),
-      )
-    }
-  })
+    })
 
   CartPoleBatch(
     x: list.map(results, fn(r) { r.0 }),
@@ -427,14 +454,20 @@ fn list_at_bool(lst: List(Bool), idx: Int) -> Bool {
 }
 
 fn result_unwrap(r: Result(a, e), default: a) -> a {
-  case r { Ok(v) -> v Error(_) -> default }
+  case r {
+    Ok(v) -> v
+    Error(_) -> default
+  }
 }
 
 @external(erlang, "erlang", "float")
 fn int_to_float(x: Int) -> Float
 
 fn int_abs(x: Int) -> Int {
-  case x < 0 { True -> 0 - x False -> x }
+  case x < 0 {
+    True -> 0 - x
+    False -> x
+  }
 }
 
 fn int_xor(a: Int, b: Int) -> Int {

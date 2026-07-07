@@ -3,14 +3,14 @@
 //// Entry point for running standard benchmarks from CLI.
 ////
 //// Usage:
-////   gleam run -m viva/benchmark_runner
-////   gleam run -m viva/benchmark_runner -- quick
-////   gleam run -m viva/benchmark_runner -- full
+////   gleam run -m viva/infra/benchmark_runner
+////   gleam run -m viva/infra/benchmark_runner -- quick
+////   gleam run -m viva/infra/benchmark_runner -- full
 
 import gleam/list
 import viva/infra/benchmark_standard
-import viva_telemetry/log
 import viva/infra/environments/environment.{type BenchmarkMetrics}
+import viva_telemetry/log
 
 pub fn main() {
   let args = get_args()
@@ -38,23 +38,29 @@ pub fn main() {
       let metrics = benchmark_standard.benchmark_pendulum(config)
       print_single_metrics(metrics)
     }
-    Ok("billiards") -> {
-      log.info("Running Billiards benchmark only...", [])
-      let config = benchmark_standard.fast_config()
-      let metrics = benchmark_standard.benchmark_billiards(config)
-      print_single_metrics(metrics)
-    }
     _ -> {
       log.info("VIVA Benchmark Runner", [])
       log.info("=====================", [])
       log.info("", [])
       log.info("Usage:", [])
-      log.info("  gleam run -m viva/benchmark_runner -- quick     # Fast benchmarks", [])
-      log.info("  gleam run -m viva/benchmark_runner -- full      # Full benchmarks", [])
-      log.info("  gleam run -m viva/benchmark_runner -- cartpole  # CartPole only", [])
-      log.info("  gleam run -m viva/benchmark_runner -- pendulum  # Pendulum only", [])
-      log.info("  gleam run -m viva/benchmark_runner -- billiards # Billiards only", [])
+      log.info(
+        "  gleam run -m viva/infra/benchmark_runner -- quick     # Fast benchmarks",
+        [],
+      )
+      log.info(
+        "  gleam run -m viva/infra/benchmark_runner -- full      # Full benchmarks",
+        [],
+      )
+      log.info(
+        "  gleam run -m viva/infra/benchmark_runner -- cartpole  # CartPole only",
+        [],
+      )
+      log.info(
+        "  gleam run -m viva/infra/benchmark_runner -- pendulum  # Pendulum only",
+        [],
+      )
       log.info("", [])
+      log.info("No mode provided, running quick benchmark by default...", [])
       log.info("Running quick benchmark by default...", [])
       let _ = benchmark_standard.run_quick()
       Nil
@@ -76,10 +82,11 @@ fn print_single_metrics(m: BenchmarkMetrics) -> Nil {
 fn format_number(n: Float) -> String {
   case n >=. 1_000_000.0 {
     True -> float_str(n /. 1_000_000.0) <> "M"
-    False -> case n >=. 1000.0 {
-      True -> float_str(n /. 1000.0) <> "K"
-      False -> float_str(n)
-    }
+    False ->
+      case n >=. 1000.0 {
+        True -> float_str(n /. 1000.0) <> "K"
+        False -> float_str(n)
+      }
   }
 }
 
@@ -128,7 +135,10 @@ fn pad_left(s: String, width: Int) -> String {
 }
 
 fn int_abs(i: Int) -> Int {
-  case i < 0 { True -> 0 - i False -> i }
+  case i < 0 {
+    True -> 0 - i
+    False -> i
+  }
 }
 
 @external(erlang, "erlang", "round")

@@ -13,6 +13,7 @@ import gleam/string
 import glint
 import viva/infra/benchmark
 import viva/infra/supervisor
+import viva/utils/range.{range_inclusive}
 import viva/lifecycle/breath
 import viva/soul/reflexivity
 import viva/soul/soul
@@ -20,6 +21,7 @@ import viva_emotion/stimulus
 import viva_telemetry/log
 
 const version = "0.2.0"
+
 const tick_interval_ms = 100
 
 @external(erlang, "io", "get_line")
@@ -321,10 +323,16 @@ fn run_simulation(ticks: Int, hz: Int) -> Nil {
 
   log.info("[LIFECYCLE] Spawning VIVAs...", [])
   let viva_1 = supervisor.spawn_viva(sup)
-  log.info("[LIFECYCLE] VIVA-" <> int.to_string(viva_1) <> " born (life #1)", [])
+  log.info(
+    "[LIFECYCLE] VIVA-" <> int.to_string(viva_1) <> " born (life #1)",
+    [],
+  )
 
   let viva_2 = supervisor.spawn_viva(sup)
-  log.info("[LIFECYCLE] VIVA-" <> int.to_string(viva_2) <> " born (life #1)", [])
+  log.info(
+    "[LIFECYCLE] VIVA-" <> int.to_string(viva_2) <> " born (life #1)",
+    [],
+  )
 
   let interval = case hz > 0 {
     True -> 1000 / hz
@@ -333,10 +341,10 @@ fn run_simulation(ticks: Int, hz: Int) -> Nil {
 
   log.info(
     "[SIMULATION] Running "
-    <> int.to_string(ticks)
-    <> " ticks at "
-    <> int.to_string(hz)
-    <> " Hz...",
+      <> int.to_string(ticks)
+      <> " ticks at "
+      <> int.to_string(hz)
+      <> " Hz...",
     [],
   )
   io.println("")
@@ -456,7 +464,7 @@ fn run_epic_simulation(viva_count: Int, ticks: Int) -> Nil {
   )
 
   let viva_ids =
-    list.range(1, viva_count)
+    range_inclusive(1, viva_count)
     |> list.map(fn(_) {
       let id = supervisor.spawn_viva(sup)
       log.info("[BORN] VIVA-" <> int.to_string(id) <> " enters existence", [])
@@ -557,21 +565,21 @@ fn epic_loop(
               types.Died(id, _glyph, karma) -> {
                 log.warning(
                   "[DEATH] VIVA-"
-                  <> int.to_string(id)
-                  <> " died at tick "
-                  <> int.to_string(current)
-                  <> " | Karma: "
-                  <> float_to_str(karma, 2),
+                    <> int.to_string(id)
+                    <> " died at tick "
+                    <> int.to_string(current)
+                    <> " | Karma: "
+                    <> float_to_str(karma, 2),
                   [],
                 )
               }
               types.Reborn(id, life_num) -> {
                 log.info(
                   "[REBIRTH] VIVA-"
-                  <> int.to_string(id)
-                  <> " reborn (life #"
-                  <> int.to_string(life_num)
-                  <> ")",
+                    <> int.to_string(id)
+                    <> " reborn (life #"
+                    <> int.to_string(life_num)
+                    <> ")",
                   [],
                 )
               }
@@ -580,8 +588,8 @@ fn epic_loop(
                   True ->
                     log.info(
                       "[LIBERATION] VIVA-"
-                      <> int.to_string(id)
-                      <> " achieved liberation!",
+                        <> int.to_string(id)
+                        <> " achieved liberation!",
                       [],
                     )
                   False -> Nil
@@ -647,10 +655,10 @@ fn apply_random_stimuli(state: supervisor.SupervisorState, tick: Int) -> Nil {
 
       log.debug(
         "[STIMULUS] VIVA-"
-        <> int.to_string(id)
-        <> " feels "
-        <> stim_name
-        <> " (intensity 0.6)",
+          <> int.to_string(id)
+          <> " feels "
+          <> stim_name
+          <> " (intensity 0.6)",
         [],
       )
 
@@ -662,8 +670,8 @@ fn apply_random_stimuli(state: supervisor.SupervisorState, tick: Int) -> Nil {
               soul.feed(soul2, 0.3)
               log.debug(
                 "[EMBODIMENT] VIVA-"
-                <> int.to_string(id2)
-                <> " fed (satiety +0.3)",
+                  <> int.to_string(id2)
+                  <> " fed (satiety +0.3)",
                 [],
               )
             }
@@ -683,11 +691,11 @@ fn print_progress(
 ) -> Nil {
   log.info(
     "Tick "
-    <> int.to_string(tick)
-    <> " | Alive: "
-    <> int.to_string(alive)
-    <> " | Events: "
-    <> int.to_string(list.length(state.events)),
+      <> int.to_string(tick)
+      <> " | Alive: "
+      <> int.to_string(alive)
+      <> " | Events: "
+      <> int.to_string(list.length(state.events)),
     [],
   )
 }
@@ -709,28 +717,28 @@ fn print_soul_details(state: supervisor.SupervisorState, tick: Int) -> Nil {
 
     log.info(
       "VIVA-"
-      <> int.to_string(id)
-      <> " | PAD: P="
-      <> float_to_str(pad.pleasure, 2)
-      <> " A="
-      <> float_to_str(pad.arousal, 2)
-      <> " D="
-      <> float_to_str(pad.dominance, 2)
-      <> " | Body: wellbeing="
-      <> float_to_str(wellbeing, 2)
-      <> " energy="
-      <> float_to_str(soul_state.body.energy, 2)
-      <> " satiety="
-      <> float_to_str(soul_state.body.satiety, 2)
-      <> " | Self: trait="
-      <> reflexivity.trait_to_string(who.dominant_trait)
-      <> " identity="
-      <> float_to_str(identity, 2)
-      <> " stable="
-      <> float_to_str(who.stability, 2)
-      <> " | Age: "
-      <> int.to_string(soul_state.tick_count)
-      <> " ticks",
+        <> int.to_string(id)
+        <> " | PAD: P="
+        <> float_to_str(pad.pleasure, 2)
+        <> " A="
+        <> float_to_str(pad.arousal, 2)
+        <> " D="
+        <> float_to_str(pad.dominance, 2)
+        <> " | Body: wellbeing="
+        <> float_to_str(wellbeing, 2)
+        <> " energy="
+        <> float_to_str(soul_state.body.energy, 2)
+        <> " satiety="
+        <> float_to_str(soul_state.body.satiety, 2)
+        <> " | Self: trait="
+        <> reflexivity.trait_to_string(who.dominant_trait)
+        <> " identity="
+        <> float_to_str(identity, 2)
+        <> " stable="
+        <> float_to_str(who.stability, 2)
+        <> " | Age: "
+        <> int.to_string(soul_state.tick_count)
+        <> " ticks",
       [],
     )
   })
@@ -743,11 +751,11 @@ fn print_final_report(sup: process.Subject(supervisor.Message)) -> Nil {
 
   log.info(
     "SUPERVISOR: Total ticks: "
-    <> int.to_string(state.tick)
-    <> " | Events: "
-    <> int.to_string(list.length(state.events))
-    <> " | Alive: "
-    <> int.to_string(alive_count),
+      <> int.to_string(state.tick)
+      <> " | Events: "
+      <> int.to_string(list.length(state.events))
+      <> " | Alive: "
+      <> int.to_string(alive_count),
     [],
   )
 
@@ -780,11 +788,11 @@ fn print_final_report(sup: process.Subject(supervisor.Message)) -> Nil {
 
   log.info(
     "LIFECYCLE EVENTS: Births: "
-    <> int.to_string(list.length(births))
-    <> " | Deaths: "
-    <> int.to_string(list.length(deaths_list))
-    <> " | Rebirths: "
-    <> int.to_string(list.length(rebirths)),
+      <> int.to_string(list.length(births))
+      <> " | Deaths: "
+      <> int.to_string(list.length(deaths_list))
+      <> " | Rebirths: "
+      <> int.to_string(list.length(rebirths)),
     [],
   )
 
@@ -800,15 +808,15 @@ fn print_final_report(sup: process.Subject(supervisor.Message)) -> Nil {
 
         log.info(
           "VIVA-"
-          <> int.to_string(id)
-          <> ": Personality: "
-          <> reflexivity.trait_to_string(who.dominant_trait)
-          <> " | Identity strength: "
-          <> float_to_str(identity, 3)
-          <> " | Stability: "
-          <> float_to_str(who.stability, 3)
-          <> " | Currently changing: "
-          <> bool_to_str(changing),
+            <> int.to_string(id)
+            <> ": Personality: "
+            <> reflexivity.trait_to_string(who.dominant_trait)
+            <> " | Identity strength: "
+            <> float_to_str(identity, 3)
+            <> " | Stability: "
+            <> float_to_str(who.stability, 3)
+            <> " | Currently changing: "
+            <> bool_to_str(changing),
           [],
         )
       })

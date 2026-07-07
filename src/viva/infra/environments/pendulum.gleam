@@ -20,10 +20,12 @@
 
 import gleam/list
 import viva/infra/environments/environment.{
-  type Action, type Environment, type EnvOps, type EnvSpec,
-  type Observation, type StepResult, Continuous, Discrete, EnvInfo, EnvOps,
-  EnvSpec, Environment, Observation, StepResult,
+  type Action, type EnvOps, type EnvSpec, type Environment, type Observation,
+  type StepResult, Continuous, Discrete, EnvInfo, EnvOps, EnvSpec, Environment,
+  Observation, StepResult,
 }
+import viva/utils/range.{range_inclusive}
+import viva_math/common
 
 // =============================================================================
 // CONSTANTS
@@ -82,12 +84,7 @@ pub fn spec() -> EnvSpec {
 
 /// Create Pendulum environment operations
 pub fn ops() -> EnvOps(PendulumState) {
-  EnvOps(
-    reset: reset,
-    step: step,
-    spec: spec,
-    clone: clone,
-  )
+  EnvOps(reset: reset, step: step, spec: spec, clone: clone)
 }
 
 /// Reset environment
@@ -96,10 +93,13 @@ pub fn reset(seed: Int) -> Environment(PendulumState) {
   let r1 = pseudo_random(seed)
   let r2 = pseudo_random(seed + 1)
 
-  let state = PendulumState(
-    theta: { r1 -. 0.5 } *. 2.0 *. 3.14159,  // Random in [-pi, pi]
-    theta_dot: { r2 -. 0.5 } *. 2.0,          // Random in [-1, 1]
-  )
+  let state =
+    PendulumState(
+      theta: { r1 -. 0.5 } *. 2.0 *. 3.14159,
+      // Random in [-pi, pi]
+      theta_dot: { r2 -. 0.5 } *. 2.0,
+      // Random in [-1, 1]
+    )
 
   Environment(
     state: state,
@@ -116,13 +116,14 @@ pub fn step(env: Environment(PendulumState), action: Action) -> StepResult {
 
   // Get torque from action
   let torque = case action {
-    Continuous([t, ..]) -> clamp(t, neg(max_torque), max_torque)
+    Continuous([t, ..]) -> common.clamp(t, neg(max_torque), max_torque)
     Continuous([]) -> 0.0
-    Discrete(a) -> case a {
-      0 -> neg(max_torque)
-      1 -> 0.0
-      _ -> max_torque
-    }
+    Discrete(a) ->
+      case a {
+        0 -> neg(max_torque)
+        1 -> 0.0
+        _ -> max_torque
+      }
   }
 
   // Normalize angle to [-pi, pi]
@@ -138,35 +139,35 @@ pub fn step(env: Environment(PendulumState), action: Action) -> StepResult {
   // Physics update (Euler integration)
   // theta_ddot = (3*g)/(2*l) * sin(theta) + (3/(m*l^2)) * torque
   let theta_ddot = {
-    3.0 *. gravity /. { 2.0 *. length } *. float_sin(theta)
-    +. 3.0 /. { mass *. length *. length } *. torque
+    3.0
+    *. gravity
+    /. { 2.0 *. length }
+    *. float_sin(theta)
+    +. 3.0
+    /. { mass *. length *. length }
+    *. torque
   }
 
   let new_theta_dot = state.theta_dot +. theta_ddot *. dt
-  let new_theta_dot = clamp(new_theta_dot, neg(max_speed), max_speed)
+  let new_theta_dot = common.clamp(new_theta_dot, neg(max_speed), max_speed)
   let new_theta = state.theta +. new_theta_dot *. dt
 
-  let new_state = PendulumState(
-    theta: new_theta,
-    theta_dot: new_theta_dot,
-  )
+  let new_state = PendulumState(theta: new_theta, theta_dot: new_theta_dot)
 
   let new_timestep = env.timestep + 1
   let truncated = new_timestep >= max_steps
-  let done = truncated  // Pendulum never terminates early
+  let done = truncated
+  // Pendulum never terminates early
 
   let new_return = env.episode_return +. reward
 
-  let info = EnvInfo(
-    timestep: new_timestep,
-    episode_return: new_return,
-    metrics: [
+  let info =
+    EnvInfo(timestep: new_timestep, episode_return: new_return, metrics: [
       #("theta", new_theta),
       #("theta_dot", new_theta_dot),
       #("torque", torque),
       #("cos_theta", float_cos(new_theta)),
-    ],
-  )
+    ])
 
   StepResult(
     observation: state_to_obs(new_state),
@@ -180,10 +181,7 @@ pub fn step(env: Environment(PendulumState), action: Action) -> StepResult {
 /// Clone environment
 pub fn clone(env: Environment(PendulumState)) -> Environment(PendulumState) {
   Environment(
-    state: PendulumState(
-      theta: env.state.theta,
-      theta_dot: env.state.theta_dot,
-    ),
+    state: PendulumState(theta: env.state.theta, theta_dot: env.state.theta_dot),
     observation: env.observation,
     timestep: env.timestep,
     episode_return: env.episode_return,
@@ -208,17 +206,15 @@ pub type PendulumBatch {
 
 /// Create batch of N environments
 pub fn create_batch(n: Int, seed: Int) -> PendulumBatch {
-  let indices = list.range(0, n - 1)
+  let indices = range_inclusive(0, n - 1)
 
-  let states = list.map(indices, fn(i) {
-    let s = seed + i * 2
-    let r1 = pseudo_random(s)
-    let r2 = pseudo_random(s + 1)
-    #(
-      { r1 -. 0.5 } *. 2.0 *. 3.14159,
-      { r2 -. 0.5 } *. 2.0,
-    )
-  })
+  let states =
+    list.map(indices, fn(i) {
+      let s = seed + i * 2
+      let r1 = pseudo_random(s)
+      let r2 = pseudo_random(s + 1)
+      #({ r1 -. 0.5 } *. 2.0 *. 3.14159, { r2 -. 0.5 } *. 2.0)
+    })
 
   PendulumBatch(
     theta: list.map(states, fn(s) { s.0 }),
@@ -235,49 +231,62 @@ pub fn batch_step(
   actions: List(Float),
 ) -> #(PendulumBatch, List(Float), List(Bool)) {
   let n = list.length(batch.theta)
-  let indices = list.range(0, n - 1)
+  let indices = range_inclusive(0, n - 1)
 
-  let results = list.map(indices, fn(i) {
-    let theta = list_at_float(batch.theta, i)
-    let theta_dot = list_at_float(batch.theta_dot, i)
-    let was_done = list_at_bool(batch.done, i)
-    let timestep = list_at_int(batch.timesteps, i)
-    let ret = list_at_float(batch.returns, i)
-    let torque = clamp(list_at_float(actions, i), neg(max_torque), max_torque)
+  let results =
+    list.map(indices, fn(i) {
+      let theta = list_at_float(batch.theta, i)
+      let theta_dot = list_at_float(batch.theta_dot, i)
+      let was_done = list_at_bool(batch.done, i)
+      let timestep = list_at_int(batch.timesteps, i)
+      let ret = list_at_float(batch.returns, i)
+      let torque =
+        common.clamp(list_at_float(actions, i), neg(max_torque), max_torque)
 
-    case was_done {
-      True -> #(theta, theta_dot, True, timestep, ret, 0.0)
-      False -> {
-        let norm_theta = normalize_angle(theta)
-        let angle_cost = norm_theta *. norm_theta
-        let velocity_cost = 0.1 *. theta_dot *. theta_dot
-        let action_cost = 0.001 *. torque *. torque
-        let reward = neg(angle_cost +. velocity_cost +. action_cost)
+      case was_done {
+        True -> #(theta, theta_dot, True, timestep, ret, 0.0)
+        False -> {
+          let norm_theta = normalize_angle(theta)
+          let angle_cost = norm_theta *. norm_theta
+          let velocity_cost = 0.1 *. theta_dot *. theta_dot
+          let action_cost = 0.001 *. torque *. torque
+          let reward = neg(angle_cost +. velocity_cost +. action_cost)
 
-        let theta_ddot = {
-          3.0 *. gravity /. { 2.0 *. length } *. float_sin(norm_theta)
-          +. 3.0 /. { mass *. length *. length } *. torque
+          let theta_ddot = {
+            3.0
+            *. gravity
+            /. { 2.0 *. length }
+            *. float_sin(norm_theta)
+            +. 3.0
+            /. { mass *. length *. length }
+            *. torque
+          }
+
+          let new_theta_dot =
+            common.clamp(
+              theta_dot +. theta_ddot *. dt,
+              neg(max_speed),
+              max_speed,
+            )
+          let new_theta = theta +. new_theta_dot *. dt
+
+          let new_timestep = timestep + 1
+          let done = new_timestep >= max_steps
+          let new_return = ret +. reward
+
+          #(new_theta, new_theta_dot, done, new_timestep, new_return, reward)
         }
-
-        let new_theta_dot = clamp(theta_dot +. theta_ddot *. dt, neg(max_speed), max_speed)
-        let new_theta = theta +. new_theta_dot *. dt
-
-        let new_timestep = timestep + 1
-        let done = new_timestep >= max_steps
-        let new_return = ret +. reward
-
-        #(new_theta, new_theta_dot, done, new_timestep, new_return, reward)
       }
-    }
-  })
+    })
 
-  let new_batch = PendulumBatch(
-    theta: list.map(results, fn(r) { r.0 }),
-    theta_dot: list.map(results, fn(r) { r.1 }),
-    done: list.map(results, fn(r) { r.2 }),
-    timesteps: list.map(results, fn(r) { r.3 }),
-    returns: list.map(results, fn(r) { r.4 }),
-  )
+  let new_batch =
+    PendulumBatch(
+      theta: list.map(results, fn(r) { r.0 }),
+      theta_dot: list.map(results, fn(r) { r.1 }),
+      done: list.map(results, fn(r) { r.2 }),
+      timesteps: list.map(results, fn(r) { r.3 }),
+      returns: list.map(results, fn(r) { r.4 }),
+    )
 
   let rewards = list.map(results, fn(r) { r.5 })
   let dones = list.map(results, fn(r) { r.2 })
@@ -288,31 +297,32 @@ pub fn batch_step(
 /// Reset finished episodes
 pub fn batch_reset(batch: PendulumBatch, seed: Int) -> PendulumBatch {
   let n = list.length(batch.theta)
-  let indices = list.range(0, n - 1)
+  let indices = range_inclusive(0, n - 1)
 
-  let results = list.map(indices, fn(i) {
-    case list_at_bool(batch.done, i) {
-      True -> {
-        let s = seed + i * 2
-        let r1 = pseudo_random(s)
-        let r2 = pseudo_random(s + 1)
-        #(
-          { r1 -. 0.5 } *. 2.0 *. 3.14159,
-          { r2 -. 0.5 } *. 2.0,
+  let results =
+    list.map(indices, fn(i) {
+      case list_at_bool(batch.done, i) {
+        True -> {
+          let s = seed + i * 2
+          let r1 = pseudo_random(s)
+          let r2 = pseudo_random(s + 1)
+          #(
+            { r1 -. 0.5 } *. 2.0 *. 3.14159,
+            { r2 -. 0.5 } *. 2.0,
+            False,
+            0,
+            0.0,
+          )
+        }
+        False -> #(
+          list_at_float(batch.theta, i),
+          list_at_float(batch.theta_dot, i),
           False,
-          0,
-          0.0,
+          list_at_int(batch.timesteps, i),
+          list_at_float(batch.returns, i),
         )
       }
-      False -> #(
-        list_at_float(batch.theta, i),
-        list_at_float(batch.theta_dot, i),
-        False,
-        list_at_int(batch.timesteps, i),
-        list_at_float(batch.returns, i),
-      )
-    }
-  })
+    })
 
   PendulumBatch(
     theta: list.map(results, fn(r) { r.0 }),
@@ -326,7 +336,7 @@ pub fn batch_reset(batch: PendulumBatch, seed: Int) -> PendulumBatch {
 /// Get batch observations (cos, sin, theta_dot)
 pub fn batch_observations(batch: PendulumBatch) -> List(List(Float)) {
   let n = list.length(batch.theta)
-  let indices = list.range(0, n - 1)
+  let indices = range_inclusive(0, n - 1)
 
   list.map(indices, fn(i) {
     let theta = list_at_float(batch.theta, i)
@@ -360,16 +370,6 @@ fn normalize_angle(angle: Float) -> Float {
   }
 }
 
-fn clamp(x: Float, min: Float, max: Float) -> Float {
-  case x <. min {
-    True -> min
-    False -> case x >. max {
-      True -> max
-      False -> x
-    }
-  }
-}
-
 fn neg(x: Float) -> Float {
   0.0 -. x
 }
@@ -396,14 +396,20 @@ fn list_at_bool(lst: List(Bool), idx: Int) -> Bool {
 }
 
 fn result_unwrap(r: Result(a, e), default: a) -> a {
-  case r { Ok(v) -> v Error(_) -> default }
+  case r {
+    Ok(v) -> v
+    Error(_) -> default
+  }
 }
 
 @external(erlang, "erlang", "float")
 fn int_to_float(x: Int) -> Float
 
 fn int_abs(x: Int) -> Int {
-  case x < 0 { True -> 0 - x False -> x }
+  case x < 0 {
+    True -> 0 - x
+    False -> x
+  }
 }
 
 fn int_xor(a: Int, b: Int) -> Int {

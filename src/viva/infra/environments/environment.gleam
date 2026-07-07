@@ -123,15 +123,17 @@ pub fn observation_from_list(values: List(Float)) -> Observation {
 
 /// Get observation as normalized vector (clip to [-1, 1])
 pub fn normalize_observation(obs: Observation) -> Observation {
-  let normalized = list.map(obs.values, fn(v) {
-    case v <. -1.0 {
-      True -> -1.0
-      False -> case v >. 1.0 {
-        True -> 1.0
-        False -> v
+  let normalized =
+    list.map(obs.values, fn(v) {
+      case v <. -1.0 {
+        True -> -1.0
+        False ->
+          case v >. 1.0 {
+            True -> 1.0
+            False -> v
+          }
       }
-    }
-  })
+    })
   Observation(values: normalized, dim: obs.dim)
 }
 
@@ -220,13 +222,7 @@ pub fn unbatch_results(batch: BatchStepResult) -> List(StepResult) {
   zip4(obs, rew, done, info)
   |> list.map(fn(t) {
     let #(o, r, d, i) = t
-    StepResult(
-      observation: o,
-      reward: r,
-      done: d,
-      truncated: False,
-      info: i,
-    )
+    StepResult(observation: o, reward: r, done: d, truncated: False, info: i)
   })
 }
 
@@ -284,15 +280,12 @@ fn list_at(lst: List(a), idx: Int) -> Option(a) {
   |> option.from_result
 }
 
-fn zip4(
-  a: List(a),
-  b: List(b),
-  c: List(c),
-  d: List(d),
-) -> List(#(a, b, c, d)) {
+fn zip4(a: List(a), b: List(b), c: List(c), d: List(d)) -> List(#(a, b, c, d)) {
   case a, b, c, d {
-    [a1, ..ar], [b1, ..br], [c1, ..cr], [d1, ..dr] ->
-      [#(a1, b1, c1, d1), ..zip4(ar, br, cr, dr)]
+    [a1, ..ar], [b1, ..br], [c1, ..cr], [d1, ..dr] -> [
+      #(a1, b1, c1, d1),
+      ..zip4(ar, br, cr, dr)
+    ]
     _, _, _, _ -> []
   }
 }

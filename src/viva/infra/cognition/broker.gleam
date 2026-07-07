@@ -373,13 +373,19 @@ pub fn add_handler(
 }
 
 /// Remove handler by name
-pub fn remove_handler(broker: CognitiveBroker, name: String) -> CognitiveBroker {
+pub fn remove_handler(
+  broker: CognitiveBroker,
+  name: String,
+) -> CognitiveBroker {
   let filtered = list.filter(broker.handlers, fn(h) { h.name != name })
   CognitiveBroker(..broker, handlers: filtered)
 }
 
 /// Enable handler
-pub fn enable_handler(broker: CognitiveBroker, name: String) -> CognitiveBroker {
+pub fn enable_handler(
+  broker: CognitiveBroker,
+  name: String,
+) -> CognitiveBroker {
   let updated =
     list.map(broker.handlers, fn(h) {
       case h.name == name {
@@ -391,7 +397,10 @@ pub fn enable_handler(broker: CognitiveBroker, name: String) -> CognitiveBroker 
 }
 
 /// Disable handler
-pub fn disable_handler(broker: CognitiveBroker, name: String) -> CognitiveBroker {
+pub fn disable_handler(
+  broker: CognitiveBroker,
+  name: String,
+) -> CognitiveBroker {
   let updated =
     list.map(broker.handlers, fn(h) {
       case h.name == name {

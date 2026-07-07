@@ -6,6 +6,7 @@ import gleam/float
 import gleam/int
 import gleam/io
 import gleam/list
+import viva/utils/range.{range_inclusive}
 import viva/memory/hrr
 import viva/memory/simd
 
@@ -22,10 +23,13 @@ pub fn main() {
   io.println("=== VIVA SIMD Benchmark ===\n")
 
   // Check SIMD availability
-  io.println("SIMD Available: " <> case simd.is_available() {
-    True -> "YES (AVX)"
-    False -> "NO (Erlang fallback)"
-  })
+  io.println(
+    "SIMD Available: "
+    <> case simd.is_available() {
+      True -> "YES (AVX)"
+      False -> "NO (Erlang fallback)"
+    },
+  )
   io.println("")
 
   // Benchmark parameters
@@ -45,7 +49,7 @@ pub fn main() {
     let b = hrr.random(dim)
 
     let start = now_us()
-    list.each(list.range(1, iterations), fn(_) {
+    list.each(range_inclusive(1, iterations), fn(_) {
       let _ = hrr.dot(a, b)
       Nil
     })
@@ -55,9 +59,11 @@ pub fn main() {
     let ops_per_sec = 1_000_000.0 /. us_per_op
 
     io.println(
-      pad_left(int.to_string(dim), 8) <> " | " <>
-      pad_left(float.to_string(us_per_op), 9) <> " | " <>
-      pad_left(int.to_string(float.round(ops_per_sec)), 7)
+      pad_left(int.to_string(dim), 8)
+      <> " | "
+      <> pad_left(float.to_string(us_per_op), 9)
+      <> " | "
+      <> pad_left(int.to_string(float.round(ops_per_sec)), 7),
     )
   })
 
@@ -73,7 +79,7 @@ pub fn main() {
     let b = hrr.random(dim)
 
     let start = now_us()
-    list.each(list.range(1, iterations), fn(_) {
+    list.each(range_inclusive(1, iterations), fn(_) {
       let _ = hrr.similarity(a, b)
       Nil
     })
@@ -83,9 +89,11 @@ pub fn main() {
     let ops_per_sec = 1_000_000.0 /. us_per_op
 
     io.println(
-      pad_left(int.to_string(dim), 8) <> " | " <>
-      pad_left(float.to_string(us_per_op), 9) <> " | " <>
-      pad_left(int.to_string(float.round(ops_per_sec)), 7)
+      pad_left(int.to_string(dim), 8)
+      <> " | "
+      <> pad_left(float.to_string(us_per_op), 9)
+      <> " | "
+      <> pad_left(int.to_string(float.round(ops_per_sec)), 7),
     )
   })
 
@@ -100,7 +108,7 @@ pub fn main() {
     let a = hrr.random(dim)
 
     let start = now_us()
-    list.each(list.range(1, iterations), fn(_) {
+    list.each(range_inclusive(1, iterations), fn(_) {
       let _ = hrr.normalize(a)
       Nil
     })
@@ -110,9 +118,11 @@ pub fn main() {
     let ops_per_sec = 1_000_000.0 /. us_per_op
 
     io.println(
-      pad_left(int.to_string(dim), 8) <> " | " <>
-      pad_left(float.to_string(us_per_op), 9) <> " | " <>
-      pad_left(int.to_string(float.round(ops_per_sec)), 7)
+      pad_left(int.to_string(dim), 8)
+      <> " | "
+      <> pad_left(float.to_string(us_per_op), 9)
+      <> " | "
+      <> pad_left(int.to_string(float.round(ops_per_sec)), 7),
     )
   })
 

@@ -8,9 +8,9 @@ import gleam/erlang/process.{type Subject}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
-import viva_telemetry/log
 import viva/infra/hardware/cobs
 import viva/infra/hardware/packet.{type Packet}
+import viva_telemetry/log
 
 // ============================================================================
 // Types
@@ -93,7 +93,10 @@ pub fn send(manager: Subject(Message), pkt: Packet) -> Nil {
 }
 
 /// Subscribe to receive packets from Arduino
-pub fn subscribe(manager: Subject(Message), subscriber: Subject(Packet)) -> Nil {
+pub fn subscribe(
+  manager: Subject(Message),
+  subscriber: Subject(Packet),
+) -> Nil {
   process.send(manager, Subscribe(subscriber))
 }
 
@@ -119,7 +122,10 @@ pub fn shutdown(manager: Subject(Message)) -> Nil {
 // Actor Implementation
 // ============================================================================
 
-fn handle_message(state: State, message: Message) -> actor.Next(State, Message) {
+fn handle_message(
+  state: State,
+  message: Message,
+) -> actor.Next(State, Message) {
   case message {
     // Send packet to Arduino
     Send(pkt) -> {

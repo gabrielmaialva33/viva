@@ -24,13 +24,13 @@ import gleam/option.{type Option, None, Some}
 import gleam/otp/actor
 import gleam/set.{type Set}
 import mist.{type Connection, type ResponseData}
-import viva/memory/world.{type World}
-import viva_tensor/tensor.{type Tensor}
 import viva/infra/telemetry/frontend
 import viva/infra/telemetry/metrics
 import viva/infra/telemetry/perf
 import viva/infra/telemetry/system
 import viva/infra/telemetry/world_json
+import viva/memory/world.{type World}
+import viva_tensor/tensor.{type Tensor}
 
 /// Helper to extract data from tensor
 fn td(t: Tensor) -> List(Float) {
