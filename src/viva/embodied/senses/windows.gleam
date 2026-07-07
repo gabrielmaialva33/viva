@@ -116,7 +116,10 @@ pub fn see_continuous(
 // ============================================================================
 
 /// Record audio for specified duration
-pub fn listen(config: SenseConfig, duration_ms: Int) -> Result(Hearing, String) {
+pub fn listen(
+  config: SenseConfig,
+  duration_ms: Int,
+) -> Result(Hearing, String) {
   let timestamp = erlang_now_ms()
   let filename = "viva_ear_" <> int.to_string(timestamp) <> ".wav"
   let win_path = "viva_ear.wav"

@@ -9,6 +9,7 @@
 import gleam/list
 import gleam/result
 import gleam/string
+import viva_math/common
 
 // =============================================================================
 // SENSE TYPES
@@ -196,7 +197,7 @@ fn has_label(labels: List(String), keyword: String) -> Bool {
 
 /// Blend two emotions
 pub fn blend_emotions(a: Emotion, b: Emotion, weight: Float) -> Emotion {
-  let w = clamp(weight, 0.0, 1.0)
+  let w = common.clamp(weight, 0.0, 1.0)
   let inv_w = 1.0 -. w
 
   Emotion(
@@ -410,17 +411,6 @@ fn nim_think(perception: String) -> Result(SenseResult, String)
 
 @external(erlang, "math", "sqrt")
 fn float_sqrt(x: Float) -> Float
-
-fn clamp(value: Float, min: Float, max: Float) -> Float {
-  case value <. min {
-    True -> min
-    False ->
-      case value >. max {
-        True -> max
-        False -> value
-      }
-  }
-}
 
 fn string_contains(haystack: String, needle: String) -> Bool {
   string.contains(haystack, needle)

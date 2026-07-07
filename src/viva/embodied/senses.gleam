@@ -14,8 +14,7 @@ import gleam/string
 import viva/embodied/awareness.{type AwarenessResult, type AwarenessState}
 import viva/embodied/percept.{type Percept}
 import viva/embodied/sense.{
-  type Hearing, type Reading, type SenseError, type Thought,
-  type Vision,
+  type Hearing, type Reading, type SenseError, type Thought, type Vision,
 }
 
 // =============================================================================
@@ -99,7 +98,9 @@ pub fn quick_think(prompt: String) -> Result(Thought, SenseError) {
 // =============================================================================
 
 /// Perceive multiple images
-pub fn perceive_images(paths: List(String)) -> List(Result(Percept, SenseError)) {
+pub fn perceive_images(
+  paths: List(String),
+) -> List(Result(Percept, SenseError)) {
   // Process sequentially (NIMs may not handle parallel well)
   list_map(paths, perceive_image)
 }

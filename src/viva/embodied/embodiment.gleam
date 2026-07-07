@@ -9,6 +9,7 @@
 //// The body grounds the Soul in physical reality.
 
 import gleam/float
+import viva_math/common
 import viva_math/vector.{type Vec3}
 
 // =============================================================================
@@ -161,7 +162,7 @@ pub fn tick(body: Body) -> Body {
     True -> unmet_count *. body.config.stress_rate
     False -> 0.0 -. body.config.stress_recovery
   }
-  let new_stress = clamp(body.stress +. stress_delta, 0.0, 1.0)
+  let new_stress = common.clamp(body.stress +. stress_delta, 0.0, 1.0)
 
   Body(
     ..body,
@@ -176,15 +177,16 @@ pub fn tick(body: Body) -> Body {
 pub fn apply_stimulus(body: Body, stimulus: BodyStimulus) -> Body {
   case stimulus {
     Energize(amount) ->
-      Body(..body, energy: clamp(body.energy +. amount, 0.0, 1.0))
+      Body(..body, energy: common.clamp(body.energy +. amount, 0.0, 1.0))
 
     Feed(amount) ->
-      Body(..body, satiety: clamp(body.satiety +. amount, 0.0, 1.0))
+      Body(..body, satiety: common.clamp(body.satiety +. amount, 0.0, 1.0))
 
-    Rest(amount) -> Body(..body, rest: clamp(body.rest +. amount, 0.0, 1.0))
+    Rest(amount) ->
+      Body(..body, rest: common.clamp(body.rest +. amount, 0.0, 1.0))
 
     Stress(amount) ->
-      Body(..body, stress: clamp(body.stress +. amount, 0.0, 1.0))
+      Body(..body, stress: common.clamp(body.stress +. amount, 0.0, 1.0))
 
     Pain(intensity) -> {
       // Pain depletes energy and adds stress
@@ -192,8 +194,8 @@ pub fn apply_stimulus(body: Body, stimulus: BodyStimulus) -> Body {
       let stress_gain = intensity *. 0.2
       Body(
         ..body,
-        energy: clamp(body.energy -. energy_loss, 0.0, 1.0),
-        stress: clamp(body.stress +. stress_gain, 0.0, 1.0),
+        energy: common.clamp(body.energy -. energy_loss, 0.0, 1.0),
+        stress: common.clamp(body.stress +. stress_gain, 0.0, 1.0),
       )
     }
 
@@ -203,8 +205,8 @@ pub fn apply_stimulus(body: Body, stimulus: BodyStimulus) -> Body {
       let stress_loss = intensity *. 0.15
       Body(
         ..body,
-        rest: clamp(body.rest +. rest_gain, 0.0, 1.0),
-        stress: clamp(body.stress -. stress_loss, 0.0, 1.0),
+        rest: common.clamp(body.rest +. rest_gain, 0.0, 1.0),
+        stress: common.clamp(body.stress -. stress_loss, 0.0, 1.0),
       )
     }
   }
@@ -304,11 +306,6 @@ pub fn is_suffering(body: Body) -> Bool {
   let needs = assess_needs(body)
   needs.wellbeing <. 0.3 && needs.stressed
 }
-
 // =============================================================================
 // HELPERS
 // =============================================================================
-
-fn clamp(value: Float, min: Float, max: Float) -> Float {
-  float.min(max, float.max(min, value))
-}

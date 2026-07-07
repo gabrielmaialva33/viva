@@ -11,9 +11,10 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import viva/embodied/sense.{
-  type Emotion, type Hearing, type Reading, type SceneType,
-  type Thought, type Vision, Thought,
+  type Emotion, type Hearing, type Reading, type SceneType, type Thought,
+  type Vision, Thought,
 }
+import viva/utils/range.{range_inclusive}
 
 // =============================================================================
 // PERCEPT TYPE
@@ -362,7 +363,7 @@ pub fn to_memory_vector(percept: Percept) -> List(Float) {
   let time_vec = time_to_vector(percept.timestamp, dim)
 
   // Bind components (simplified: weighted sum, normalized)
-  list.range(0, dim - 1)
+  range_inclusive(0, dim - 1)
   |> list.map(fn(i) {
     let a = list_at(attention_vec, i, 0.0)
     let e = list_at(emotion_vec, i, 0.0)
@@ -391,7 +392,7 @@ fn attention_to_vector(attention: AttentionFocus, dim: Int) -> List(Float) {
 
 fn emotion_to_vector(emotion: Emotion, dim: Int) -> List(Float) {
   // Encode PAD as periodic functions
-  list.range(0, dim - 1)
+  range_inclusive(0, dim - 1)
   |> list.map(fn(i) {
     let phase = 2.0 *. pi() *. int.to_float(i) /. int.to_float(dim)
     emotion.valence
@@ -420,7 +421,7 @@ fn time_to_vector(timestamp: Int, dim: Int) -> List(Float) {
   // Cyclic encoding of time
   let hour_phase = int.to_float(timestamp / 3600 % 24) /. 24.0 *. 2.0 *. pi()
 
-  list.range(0, dim - 1)
+  range_inclusive(0, dim - 1)
   |> list.map(fn(i) {
     let phase = 2.0 *. pi() *. int.to_float(i) /. int.to_float(dim)
     float_sin(hour_phase +. phase)
@@ -430,7 +431,7 @@ fn time_to_vector(timestamp: Int, dim: Int) -> List(Float) {
 
 fn pseudo_random_vector(seed: Int, dim: Int) -> List(Float) {
   // Simple LCG-based pseudo-random
-  list.range(0, dim - 1)
+  range_inclusive(0, dim - 1)
   |> list.map(fn(i) {
     let x = { seed * 1_103_515_245 + i * 12_345 } % 2_147_483_648
     int.to_float(x) /. 2_147_483_648.0 *. 2.0 -. 1.0

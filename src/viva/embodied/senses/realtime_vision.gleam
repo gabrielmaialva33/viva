@@ -20,6 +20,7 @@ import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
+import viva/utils/range.{range_inclusive}
 import viva/memory/hrr.{type HRR}
 import viva_emotion/stimulus.{type Stimulus}
 
@@ -376,7 +377,9 @@ pub fn has_pending_caption(state: RealtimeVisionState) -> Bool {
 }
 
 /// Get pending caption request
-pub fn get_pending_caption(state: RealtimeVisionState) -> Option(CaptionRequest) {
+pub fn get_pending_caption(
+  state: RealtimeVisionState,
+) -> Option(CaptionRequest) {
   state.pending_caption
 }
 
@@ -409,7 +412,7 @@ fn temporal_phase_encoding(timestamp: Int, dim: Int) -> HRR {
   let second_phase = int.to_float(timestamp / 1000 % 60) /. 60.0 *. 2.0 *. pi()
 
   let data =
-    list.range(0, dim - 1)
+    range_inclusive(0, dim - 1)
     |> list.map(fn(i) {
       let base_phase = 2.0 *. pi() *. int.to_float(i) /. int.to_float(dim)
       float_sin(hour_phase +. base_phase)
