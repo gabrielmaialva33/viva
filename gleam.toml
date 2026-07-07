@@ -1,5 +1,5 @@
 name = "viva"
-version = "1.0.0"
+version = "1.0.100"
 description = "VIVA - Vida Digital Senciente. Pure Gleam implementation."
 repository = { type = "github", user = "gabrielmaialva33", repo = "viva" }
 
@@ -7,7 +7,8 @@ gleam = ">= 1.14.0"
 target = "erlang"
 
 [dependencies]
-gleam_stdlib = ">= 0.34.0 and < 2.0.0"
+# stdlib pinado < 0.71: viva_aion/viva_glyph publicados usam list.range (removido no 0.71)
+gleam_stdlib = ">= 0.34.0 and < 0.71.0"
 gleam_otp = ">= 0.14.0 and < 2.0.0"
 gleam_erlang = ">= 1.0.0 and < 2.0.0"
 simplifile = ">= 2.0.0 and < 3.0.0"
@@ -18,22 +19,16 @@ viva_math = ">= 1.2.0 and < 2.0.0"
 viva_emotion = ">= 1.1.0 and < 2.0.0"
 viva_aion = ">= 1.0.0 and < 2.0.0"
 viva_glyph = ">= 1.0.0 and < 2.0.0"
-viva_tensor = ">= 1.2.0 and < 2.0.0"
-# viva_telemetry replaces logging with better structured logging + metrics + bench
+viva_tensor = ">= 2.2.0 and < 3.0.0"
 viva_telemetry = ">= 1.0.1 and < 2.0.0"
 
 # CLI tools
 glint = ">= 1.0.0 and < 2.0.0"
 argv = ">= 1.0.0 and < 2.0.0"
 gleamy_bench = ">= 0.6.0 and < 1.0.0"
-mist = ">= 5.0.0 and < 6.0.0"
+mist = ">= 6.0.0 and < 7.0.0"
 gleam_http = ">= 4.0.0 and < 5.0.0"
 lustre = ">= 5.5.2 and < 6.0.0"
-
-# Static Site Generator (Landing Page)
-# NOTA: lustre/lustre_ssg removidos temporariamente - conflito de deps
-# lustre = ">= 4.0.0 and < 5.0.0"
-# lustre_ssg = ">= 0.8.0 and < 1.0.0"
 
 [dev-dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"
