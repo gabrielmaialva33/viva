@@ -7,6 +7,7 @@ import gleam/int
 import gleam/list
 import viva/neural/activation.{type ActivationType}
 import viva/neural/layer.{type DenseCache, type DenseGradients, type DenseLayer}
+import viva_tensor/core/error
 import viva_tensor/tensor.{type Tensor, type TensorError}
 
 // =============================================================================
@@ -58,7 +59,7 @@ pub fn new(
   output_activation: ActivationType,
 ) -> Result(Network, TensorError) {
   case layer_sizes {
-    [] | [_] -> Error(tensor.InvalidShape("Need at least 2 layer sizes"))
+    [] | [_] -> Error(error.InvalidShape("Need at least 2 layer sizes"))
     [input_size, ..rest] -> {
       let layers =
         build_layers(input_size, rest, hidden_activation, output_activation)
@@ -99,7 +100,7 @@ fn build_layers(
 /// Create network from list of pre-built layers
 pub fn from_layers(layers: List(DenseLayer)) -> Result(Network, TensorError) {
   case layers {
-    [] -> Error(tensor.InvalidShape("Need at least one layer"))
+    [] -> Error(error.InvalidShape("Need at least one layer"))
     [first, ..] -> {
       let input_size = first.input_size
       let output_size = case list.last(layers) {
@@ -115,7 +116,7 @@ pub fn from_layers(layers: List(DenseLayer)) -> Result(Network, TensorError) {
             input_size: input_size,
             output_size: output_size,
           ))
-        False -> Error(tensor.InvalidShape("Layer dimensions don't match"))
+        False -> Error(error.InvalidShape("Layer dimensions don't match"))
       }
     }
   }

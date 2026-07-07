@@ -9,8 +9,8 @@
 //// - get_logits(): Get soft labels for distillation
 ////
 
-import gleam/list
 import gleam/int
+import gleam/list
 
 // -----------------------------------------------------------------------------
 // Types
@@ -27,7 +27,8 @@ pub type ModelInfo {
 /// Hidden states extracted from teacher model
 pub type HiddenStates {
   HiddenStates(
-    embeddings: List(Float),  // Flattened [n_tokens, n_embd]
+    embeddings: List(Float),
+    // Flattened [n_tokens, n_embd]
     n_tokens: Int,
     n_embd: Int,
   )
@@ -125,11 +126,7 @@ pub fn get_hidden_states(
   let info = model_info(model)
   let #(embeddings, n_tokens) = ffi_get_hidden_states(model, prompt, ctx_size)
 
-  HiddenStates(
-    embeddings: embeddings,
-    n_tokens: n_tokens,
-    n_embd: info.n_embd,
-  )
+  HiddenStates(embeddings: embeddings, n_tokens: n_tokens, n_embd: info.n_embd)
 }
 
 /// Get logits (output probabilities) for soft-label distillation
@@ -158,18 +155,20 @@ pub fn softmax_with_temperature(
   let scaled = list.map(logits, fn(x) { x /. temperature })
 
   // Find max for numerical stability
-  let max_val = list.fold(scaled, -1_000_000.0, fn(acc, x) {
-    case x >. acc {
-      True -> x
-      False -> acc
-    }
-  })
+  let max_val =
+    list.fold(scaled, -1_000_000.0, fn(acc, x) {
+      case x >. acc {
+        True -> x
+        False -> acc
+      }
+    })
 
   // Compute exp(x - max)
-  let exps = list.map(scaled, fn(x) {
-    let diff = x -. max_val
-    exp(diff)
-  })
+  let exps =
+    list.map(scaled, fn(x) {
+      let diff = x -. max_val
+      exp(diff)
+    })
 
   // Sum of exps
   let sum = list.fold(exps, 0.0, fn(acc, x) { acc +. x })
@@ -210,9 +209,7 @@ pub fn native_check() -> String {
 // -----------------------------------------------------------------------------
 
 /// Reshape flattened embeddings to 2D [n_tokens][n_embd]
-pub fn reshape_hidden_states(
-  states: HiddenStates,
-) -> List(List(Float)) {
+pub fn reshape_hidden_states(states: HiddenStates) -> List(List(Float)) {
   chunk_list(states.embeddings, states.n_embd)
 }
 
@@ -222,9 +219,10 @@ pub fn mean_pooled_embedding(states: HiddenStates) -> List(Float) {
   let n_tokens = int.to_float(states.n_tokens)
 
   // Sum across tokens
-  let summed = list.fold(token_embeddings, list.repeat(0.0, states.n_embd), fn(acc, emb) {
-    list.map2(acc, emb, fn(a, e) { a +. e })
-  })
+  let summed =
+    list.fold(token_embeddings, list.repeat(0.0, states.n_embd), fn(acc, emb) {
+      list.map2(acc, emb, fn(a, e) { a +. e })
+    })
 
   // Average
   list.map(summed, fn(x) { x /. n_tokens })

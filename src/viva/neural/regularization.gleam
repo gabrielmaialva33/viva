@@ -6,8 +6,9 @@
 import gleam/float
 import gleam/list
 import gleam/result
-import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
+import viva/utils/range.{range_inclusive}
 import viva/neural/utils
+import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
 
 /// Helper to extract data from tensor
 fn td(t: Tensor) -> List(Float) {
@@ -241,9 +242,9 @@ pub fn spatial_forward(
 
           // Broadcast mask to full spatial dimensions
           let full_mask_data =
-            list.range(0, batch - 1)
+            range_inclusive(0, batch - 1)
             |> list.flat_map(fn(b) {
-              list.range(0, channels - 1)
+              range_inclusive(0, channels - 1)
               |> list.flat_map(fn(c) {
                 // Get mask value for this batch/channel
                 let idx = b * channels + c
@@ -294,6 +295,7 @@ pub type AlphaDropoutLayer {
 
 /// Alpha dropout constants (for SELU self-normalization)
 const alpha_p: Float = -1.7580993408473766
+
 // a_prime constant removed - unused
 
 /// Create alpha dropout layer

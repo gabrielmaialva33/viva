@@ -19,6 +19,7 @@
 ////   let result = nx_backend.matmul(a, b, Pure) // Gleam puro
 
 import gleam/list
+import viva_tensor/core/error
 import viva_tensor/tensor.{type Tensor, type TensorError}
 
 // =============================================================================
@@ -540,7 +541,7 @@ pub fn conv2d(
   backend: Backend,
 ) -> Result(Tensor, TensorError) {
   case backend {
-    Pure -> Error(tensor.DimensionError("Conv2D requires Nx backend"))
+    Pure -> Error(error.DimensionError("Conv2D requires Nx backend"))
     Nx | CUDA(_) -> {
       let result =
         nx_conv2d(to_nx(input), to_nx(kernel), stride.0, stride.1, padding)

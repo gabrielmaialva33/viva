@@ -29,22 +29,29 @@ import gleam/dynamic.{type Dynamic}
 /// Configuration for Glands initialization
 pub type GlandsConfig {
   GlandsConfig(
-    llm_dim: Int,    // Input embedding dimension (e.g., 4096)
-    hrr_dim: Int,    // HRR vector dimension (e.g., 8192)
-    seed: Int,       // Random seed for projection matrix
-    gpu_layers: Int, // GPU layers for LLM (99 = all on GPU)
+    llm_dim: Int,
+    // Input embedding dimension (e.g., 4096)
+    hrr_dim: Int,
+    // HRR vector dimension (e.g., 8192)
+    seed: Int,
+    // Random seed for projection matrix
+    gpu_layers: Int,
+    // GPU layers for LLM (99 = all on GPU)
   )
 }
 
 /// Legacy config alias
-pub type HRRConfig = GlandsConfig
+pub type HRRConfig =
+  GlandsConfig
 
 /// Result from distillation process
 pub type DistillationResult {
   DistillationResult(
     text: String,
-    embedding: List(Float),      // Raw LLM embedding
-    hrr_vector: List(Float),     // Projected HRR vector
+    embedding: List(Float),
+    // Raw LLM embedding
+    hrr_vector: List(Float),
+    // Projected HRR vector
     dimensions: Int,
   )
 }
@@ -153,7 +160,9 @@ fn native_benchmark(handle: Dynamic, iterations: Int) -> String
 /// let assert Ok(glands) = glands.init(glands.default_config())
 /// ```
 pub fn init(config: GlandsConfig) -> Result(GlandsHandle, String) {
-  case native_init(config.llm_dim, config.hrr_dim, config.seed, config.gpu_layers) {
+  case
+    native_init(config.llm_dim, config.hrr_dim, config.seed, config.gpu_layers)
+  {
     Ok(resource) -> Ok(GlandsHandle(resource))
     Error(msg) -> Error("Failed to initialize Glands: " <> msg)
   }

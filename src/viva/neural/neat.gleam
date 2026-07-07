@@ -13,7 +13,8 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import viva/neural/math_ffi
+import viva/utils/range.{range_inclusive}
+import viva_math/scalar
 
 // =============================================================================
 // TYPES - Estruturas de Dados NEAT
@@ -119,20 +120,24 @@ pub fn adjust_threshold(config: NeatConfig, num_species: Int) -> NeatConfig {
   let adjustment = 0.1
 
   let new_threshold = case num_species < target_min {
-    True -> config.compatibility_threshold -. adjustment  // Diminui = mais espécies
-    False -> case num_species > target_max {
-      True -> config.compatibility_threshold +. adjustment  // Aumenta = menos espécies
-      False -> config.compatibility_threshold
-    }
+    True -> config.compatibility_threshold -. adjustment
+    // Diminui = mais espécies
+    False ->
+      case num_species > target_max {
+        True -> config.compatibility_threshold +. adjustment
+        // Aumenta = menos espécies
+        False -> config.compatibility_threshold
+      }
   }
 
   // Clamp entre 0.1 e 3.0
   let clamped = case new_threshold <. 0.1 {
     True -> 0.1
-    False -> case new_threshold >. 3.0 {
-      True -> 3.0
-      False -> new_threshold
-    }
+    False ->
+      case new_threshold >. 3.0 {
+        True -> 3.0
+        False -> new_threshold
+      }
   }
 
   NeatConfig(..config, compatibility_threshold: clamped)
@@ -210,14 +215,14 @@ pub fn viva_soul_config() -> NeatConfig {
 /// Cria população inicial com genomas mínimos (fully connected, sem hidden)
 pub fn create_population(config: NeatConfig, seed: Int) -> Population {
   let input_nodes =
-    list.range(0, config.num_inputs - 1)
+    range_inclusive(0, config.num_inputs - 1)
     |> list.map(fn(i) { NodeGene(id: i, node_type: Input, activation: Linear) })
 
   let bias_node =
     NodeGene(id: config.num_inputs, node_type: Bias, activation: Linear)
 
   let output_nodes =
-    list.range(0, config.num_outputs - 1)
+    range_inclusive(0, config.num_outputs - 1)
     |> list.map(fn(i) {
       NodeGene(
         id: config.num_inputs + 1 + i,
@@ -229,10 +234,13 @@ pub fn create_population(config: NeatConfig, seed: Int) -> Population {
   let base_nodes = list.flatten([input_nodes, [bias_node], output_nodes])
 
   // Cria conexões iniciais (all inputs + bias → all outputs)
-  let input_ids = list.range(0, config.num_inputs)
+  let input_ids = range_inclusive(0, config.num_inputs)
   // inclui bias
   let output_ids =
-    list.range(config.num_inputs + 1, config.num_inputs + config.num_outputs)
+    range_inclusive(
+      config.num_inputs + 1,
+      config.num_inputs + config.num_outputs,
+    )
 
   let initial_connections =
     list.flatten(
@@ -256,7 +264,7 @@ pub fn create_population(config: NeatConfig, seed: Int) -> Population {
   // Create genomes with random weights and REAL structural diversity
   // (some connections removed entirely, not just disabled)
   let genomes =
-    list.range(1, config.population_size)
+    range_inclusive(1, config.population_size)
     |> list.map(fn(i) {
       let connections =
         initial_connections
@@ -310,13 +318,13 @@ pub fn activate(value: Float, activation: ActivationType) -> Float {
   }
 }
 
-// Use centralized FFI implementations (O(1) vs O(n²) Taylor)
+// Use viva_math/scalar (O(1) hardware FFI, numerically stable sigmoid)
 fn sigmoid(x: Float) -> Float {
-  math_ffi.sigmoid(x)
+  scalar.sigmoid(x)
 }
 
 fn tanh(x: Float) -> Float {
-  math_ffi.tanh(x)
+  scalar.tanh(x)
 }
 
 fn relu(x: Float) -> Float {
@@ -1052,7 +1060,7 @@ fn reproduce_species(
   let remaining = count - list.length(elite)
   let #(offspring, final_pop) =
     list.fold(
-      list.range(1, int.max(0, remaining)),
+      range_inclusive(1, int.max(0, remaining)),
       #([], population),
       fn(acc, i) {
         let #(children, pop) = acc

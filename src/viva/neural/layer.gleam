@@ -22,6 +22,7 @@ import viva/neural/recurrent.{
 import viva/neural/regularization.{
   type DropoutCache, type DropoutGradients, type DropoutLayer,
 }
+import viva_tensor/core/error
 import viva_tensor/tensor.{type Tensor, type TensorError}
 
 // =============================================================================
@@ -172,7 +173,7 @@ pub fn dense_with_weights(
         output_size: output_size,
       ))
     _, _ ->
-      Error(tensor.InvalidShape("Weights and biases dimensions don't match"))
+      Error(error.InvalidShape("Weights and biases dimensions don't match"))
   }
 }
 
@@ -193,7 +194,7 @@ pub fn forward(
   // Check input dimension
   case tensor.size(input) == layer.input_size {
     False ->
-      Error(tensor.ShapeMismatch(expected: [layer.input_size], got: input.shape))
+      Error(error.ShapeMismatch(expected: [layer.input_size], got: input.shape))
     True -> {
       // z = W @ x + b (weights is [out, in] from xavier_init PyTorch convention)
       use z <- result.try(tensor.matmul_vec(layer.weights, input))
@@ -223,7 +224,10 @@ pub fn forward(
 }
 
 /// Simple forward pass (no cache, for inference)
-pub fn predict(layer: DenseLayer, input: Tensor) -> Result(Tensor, TensorError) {
+pub fn predict(
+  layer: DenseLayer,
+  input: Tensor,
+) -> Result(Tensor, TensorError) {
   case forward(layer, input) {
     Ok(#(output, _)) -> Ok(output)
     Error(e) -> Error(e)

@@ -17,12 +17,10 @@ import gleam/float
 import gleam/list
 import gleam/option
 import viva/neural/activation.{type ActivationType}
-import viva/neural/math_ffi
 import viva/neural/attention
 import viva/neural/conv
-import viva/neural/neat.{
-  type Genome, type Population, Genome, Hidden, Output,
-}
+import viva/neural/neat.{type Genome, type Population, Genome, Hidden, Output}
+import viva_math/scalar
 import viva_tensor/tensor.{type Tensor}
 
 // =============================================================================
@@ -658,8 +656,7 @@ fn reshape_for_attention(input: Tensor, d_model: Int) -> Tensor {
     True -> {
       case tensor.reshape(input, [seq_len, d_model]) {
         Ok(reshaped) -> reshaped
-        Error(_) ->
-          tensor.Tensor(data: tensor.to_list(input), shape: [1, size])
+        Error(_) -> tensor.Tensor(data: tensor.to_list(input), shape: [1, size])
       }
     }
     False -> tensor.Tensor(data: tensor.to_list(input), shape: [1, size])
@@ -866,9 +863,9 @@ fn positive_int_to_float(n: Int, acc: Float) -> Float {
   }
 }
 
-// Use centralized FFI (O(1) vs O(n) Newton-Raphson)
+// Use viva_math/scalar (O(1) hardware sqrt, 0.0 for negative input)
 fn float_sqrt(x: Float) -> Float {
-  math_ffi.safe_sqrt(x)
+  scalar.safe_sqrt(x)
 }
 
 fn float_to_int(f: Float) -> Int {

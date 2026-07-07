@@ -475,7 +475,10 @@ pub fn accuracy(
 // =============================================================================
 
 /// Clip gradients to avoid explosion
-fn clip_gradients(grads: NetworkGradients, max_norm: Float) -> NetworkGradients {
+fn clip_gradients(
+  grads: NetworkGradients,
+  max_norm: Float,
+) -> NetworkGradients {
   let clipped =
     list.map(grads.layer_gradients, fn(lg) {
       let w_norm = tensor.norm(lg.d_weights)

@@ -4,6 +4,7 @@
 //// Functional design: pure functions, no side effects.
 
 import gleam/list
+import viva_math/scalar
 import viva_tensor/tensor.{type Tensor}
 
 // =============================================================================
@@ -39,21 +40,15 @@ pub type ActivationResult {
 
 /// Sigmoid: 1 / (1 + e^(-x)) with overflow protection
 pub fn sigmoid(x: Float) -> ActivationResult {
-  // Clip to avoid overflow in exp() - exp(709) overflows in Erlang
-  let x_clipped = case x >. 500.0 {
-    True -> 500.0
-    False -> case x <. -500.0 {
-      True -> -500.0
-      False -> x
-    }
-  }
-  let s = 1.0 /. { 1.0 +. float_exp(0.0 -. x_clipped) }
+  // viva_math/scalar.sigmoid uses the sign-split form, so exp() never
+  // overflows for any input — no manual clipping needed.
+  let s = scalar.sigmoid(x)
   ActivationResult(value: s, derivative: s *. { 1.0 -. s })
 }
 
 /// Tanh: (e^x - e^(-x)) / (e^x + e^(-x))
 pub fn tanh(x: Float) -> ActivationResult {
-  let t = float_tanh(x)
+  let t = scalar.tanh(x)
   ActivationResult(value: t, derivative: 1.0 -. t *. t)
 }
 
@@ -78,7 +73,7 @@ pub fn elu(x: Float, alpha: Float) -> ActivationResult {
   case x >. 0.0 {
     True -> ActivationResult(value: x, derivative: 1.0)
     False -> {
-      let exp_x = float_exp(x)
+      let exp_x = scalar.exp(x)
       ActivationResult(
         value: alpha *. { exp_x -. 1.0 },
         derivative: alpha *. exp_x,
@@ -94,7 +89,7 @@ pub fn linear(x: Float) -> ActivationResult {
 
 /// Swish: x * sigmoid(x)
 pub fn swish(x: Float) -> ActivationResult {
-  let s = 1.0 /. { 1.0 +. float_exp(0.0 -. x) }
+  let s = scalar.sigmoid(x)
   let value = x *. s
   // Derivative: sigmoid(x) + x * sigmoid(x) * (1 - sigmoid(x))
   let derivative = s +. x *. s *. { 1.0 -. s }
@@ -107,7 +102,7 @@ pub fn gelu(x: Float) -> ActivationResult {
   let a = 0.044715
   let x3 = x *. x *. x
   let inner = sqrt_2_pi *. { x +. a *. x3 }
-  let t = float_tanh(inner)
+  let t = scalar.tanh(inner)
   let value = 0.5 *. x *. { 1.0 +. t }
 
   // Approximate derivative
@@ -170,7 +165,7 @@ pub fn softmax(t: Tensor) -> Tensor {
   let shifted = tensor.add_scalar(t, 0.0 -. max_val)
 
   // Compute exponentials
-  let exp_vals = tensor.map(shifted, float_exp)
+  let exp_vals = tensor.map(shifted, scalar.exp)
 
   // Normalize
   let sum_exp = tensor.sum(exp_vals)
@@ -179,7 +174,10 @@ pub fn softmax(t: Tensor) -> Tensor {
 
 /// Softmax derivative (simplified Jacobian for backprop)
 /// Returns d_softmax/d_input given the upstream gradient
-pub fn softmax_backward(softmax_output: Tensor, upstream_grad: Tensor) -> Tensor {
+pub fn softmax_backward(
+  softmax_output: Tensor,
+  upstream_grad: Tensor,
+) -> Tensor {
   // For each element i: sum_j(upstream_j * softmax_j * (delta_ij - softmax_i))
   // Simplified: s * (upstream - sum(upstream * s))
   case tensor.mul(upstream_grad, softmax_output) {
@@ -245,13 +243,3 @@ pub fn default_output_classification() -> ActivationType {
 pub fn default_output_regression() -> ActivationType {
   Linear
 }
-
-// =============================================================================
-// EXTERNAL FUNCTIONS
-// =============================================================================
-
-@external(erlang, "math", "exp")
-fn float_exp(x: Float) -> Float
-
-@external(erlang, "math", "tanh")
-fn float_tanh(x: Float) -> Float

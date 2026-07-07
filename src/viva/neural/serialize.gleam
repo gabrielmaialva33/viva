@@ -221,7 +221,9 @@ pub fn network_from_dynamic(dyn: Dynamic) -> Result(Network, SerializeError) {
 }
 
 /// Load network from JSON string
-pub fn network_from_string(json_str: String) -> Result(Network, SerializeError) {
+pub fn network_from_string(
+  json_str: String,
+) -> Result(Network, SerializeError) {
   case json.parse(json_str, network_decoder()) {
     Ok(net) -> Ok(net)
     Error(_) -> Error(InvalidFormat("Invalid JSON"))

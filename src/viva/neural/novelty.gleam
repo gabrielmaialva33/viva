@@ -9,7 +9,7 @@
 import gleam/float
 import gleam/int
 import gleam/list
-import viva/neural/math_ffi
+import viva_math/scalar
 
 // =============================================================================
 // TYPES
@@ -22,20 +22,20 @@ pub type Behavior {
 
 /// Archive of novel behaviors discovered during evolution
 pub type NoveltyArchive {
-  NoveltyArchive(
-    behaviors: List(Behavior),
-    max_size: Int,
-    add_threshold: Float,
-  )
+  NoveltyArchive(behaviors: List(Behavior), max_size: Int, add_threshold: Float)
 }
 
 /// Novelty search configuration
 pub type NoveltyConfig {
   NoveltyConfig(
-    k_nearest: Int,           // Number of neighbors for novelty calc
-    archive_threshold: Float, // Min novelty to add to archive
-    archive_max_size: Int,    // Max archive size
-    novelty_weight: Float,    // Weight of novelty vs fitness (0-1)
+    k_nearest: Int,
+    // Number of neighbors for novelty calc
+    archive_threshold: Float,
+    // Min novelty to add to archive
+    archive_max_size: Int,
+    // Max archive size
+    novelty_weight: Float,
+    // Weight of novelty vs fitness (0-1)
   )
 }
 
@@ -49,7 +49,8 @@ pub fn default_config() -> NoveltyConfig {
     k_nearest: 15,
     archive_threshold: 0.3,
     archive_max_size: 500,
-    novelty_weight: 0.4,  // 40% novelty, 60% fitness
+    novelty_weight: 0.4,
+    // 40% novelty, 60% fitness
   )
 }
 
@@ -59,7 +60,8 @@ pub fn exploration_config() -> NoveltyConfig {
     k_nearest: 20,
     archive_threshold: 0.2,
     archive_max_size: 1000,
-    novelty_weight: 0.6,  // 60% novelty, 40% fitness
+    novelty_weight: 0.6,
+    // 60% novelty, 40% fitness
   )
 }
 
@@ -69,7 +71,8 @@ pub fn exploitation_config() -> NoveltyConfig {
     k_nearest: 10,
     archive_threshold: 0.5,
     archive_max_size: 200,
-    novelty_weight: 0.2,  // 20% novelty, 80% fitness
+    novelty_weight: 0.2,
+    // 20% novelty, 80% fitness
   )
 }
 
@@ -119,7 +122,8 @@ pub fn calculate_novelty(
   let all_behaviors = list.append(archive.behaviors, population_behaviors)
 
   case list.is_empty(all_behaviors) {
-    True -> 1.0  // Max novelty if no comparison points
+    True -> 1.0
+    // Max novelty if no comparison points
     False -> {
       // Calculate distances to all other behaviors
       let distances =
@@ -168,7 +172,8 @@ pub fn combined_fitness(
   // Normalize novelty: clamp to 0-2 range, then scale to fitness range
   // Typical novelty values are 0-5, fitness is 0-100
   let clamped_novelty = float_min(novelty_score, 2.0)
-  let normalized_novelty = clamped_novelty *. 30.0  // Max 60 from novelty
+  let normalized_novelty = clamped_novelty *. 30.0
+  // Max 60 from novelty
 
   { 1.0 -. w } *. objective_fitness +. w *. normalized_novelty
 }
@@ -230,7 +235,7 @@ pub fn behavior_dimension(behavior: Behavior) -> Int {
 // UTILITIES
 // =============================================================================
 
-// Use centralized FFI (O(1) vs O(n) Newton-Raphson)
+// Use viva_math/scalar (O(1) hardware sqrt, 0.0 for negative input)
 fn float_sqrt(x: Float) -> Float {
-  math_ffi.safe_sqrt(x)
+  scalar.safe_sqrt(x)
 }

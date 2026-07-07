@@ -6,8 +6,10 @@
 import gleam/int
 import gleam/list
 import gleam/result
-import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
+import viva/utils/range.{range_inclusive}
 import viva/neural/utils
+import viva_tensor/core/error
+import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
 
 /// Helper to extract data from tensor
 fn td(t: Tensor) -> List(Float) {
@@ -226,7 +228,7 @@ fn batch_norm_forward_training(
       Ok(#(output, cache, new_layer))
     }
     _ ->
-      Error(tensor.DimensionError("BatchNorm expects [batch, features] input"))
+      Error(error.DimensionError("BatchNorm expects [batch, features] input"))
   }
 }
 
@@ -286,7 +288,7 @@ fn batch_norm_forward_inference(
       Ok(#(output, cache, layer))
     }
     _ ->
-      Error(tensor.DimensionError("BatchNorm expects [batch, features] input"))
+      Error(error.DimensionError("BatchNorm expects [batch, features] input"))
   }
 }
 
@@ -385,7 +387,7 @@ pub fn batch_norm_backward(
 
       Ok(BatchNormGradients(d_input: d_input, d_gamma: d_gamma, d_beta: d_beta))
     }
-    _ -> Error(tensor.DimensionError("Upstream shape mismatch"))
+    _ -> Error(error.DimensionError("Upstream shape mismatch"))
   }
 }
 
@@ -414,7 +416,7 @@ pub fn layer_norm_forward(
     [batch_size, features] -> {
       // Normalize each sample independently
       let result_data =
-        list.range(0, batch_size - 1)
+        range_inclusive(0, batch_size - 1)
         |> list.flat_map(fn(b) {
           let start = b * features
           let sample_data =
@@ -454,7 +456,7 @@ pub fn layer_norm_forward(
       Ok(#(output, cache))
     }
     _ ->
-      Error(tensor.DimensionError("LayerNorm expects [batch, features] input"))
+      Error(error.DimensionError("LayerNorm expects [batch, features] input"))
   }
 }
 
@@ -500,10 +502,10 @@ pub fn group_norm_forward(
       let channels_per_group = num_channels / layer.num_groups
 
       let result_data =
-        list.range(0, batch_size - 1)
+        range_inclusive(0, batch_size - 1)
         |> list.flat_map(fn(b) {
           let sample_start = b * num_channels
-          list.range(0, layer.num_groups - 1)
+          range_inclusive(0, layer.num_groups - 1)
           |> list.flat_map(fn(g) {
             let group_start = sample_start + g * channels_per_group
             let group_data =
@@ -543,7 +545,7 @@ pub fn group_norm_forward(
       Ok(Tensor(data: result_data, shape: [batch_size, num_channels]))
     }
     _ ->
-      Error(tensor.DimensionError("GroupNorm expects [batch, channels] input"))
+      Error(error.DimensionError("GroupNorm expects [batch, channels] input"))
   }
 }
 
@@ -584,7 +586,7 @@ fn broadcast_to_batch(
       let data = list.repeat(value, batch_size * num_features)
       Ok(Tensor(data: data, shape: [batch_size, num_features]))
     }
-    _ -> Error(tensor.ShapeMismatch(expected: [num_features], got: t.shape))
+    _ -> Error(error.ShapeMismatch(expected: [num_features], got: t.shape))
   }
 }
 

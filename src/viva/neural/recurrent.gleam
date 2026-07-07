@@ -7,6 +7,7 @@
 import gleam/int
 import gleam/list
 import gleam/result
+import viva/utils/range.{range_inclusive}
 import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
 
 /// Helper to extract data from tensor
@@ -503,7 +504,7 @@ fn map2_with(a: Tensor, b: Tensor, f: fn(Float, Float) -> Float) -> Tensor {
 fn random_uniform_init(shape: List(Int), limit: Float) -> Tensor {
   let size = list.fold(shape, 1, fn(acc, dim) { acc * dim })
   let data =
-    list.range(1, size)
+    range_inclusive(1, size)
     |> list.map(fn(_) {
       let r = random_float()
       r *. 2.0 *. limit -. limit

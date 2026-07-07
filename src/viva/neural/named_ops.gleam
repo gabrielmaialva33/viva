@@ -2,18 +2,22 @@
 ////
 //// Reduction, element-wise, and matrix operations using named axes.
 
+import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
-import viva/neural/axis.{
-  type Axis, type AxisSpec, Anon, AxisSpec, axes_equal, axis_equals,
+import viva/utils/range.{range_inclusive}
+import viva_tensor/axis.{
+  type Axis, type AxisSpec, Anon, AxisSpec, equals as axis_equals,
+  specs_equal as axes_equal,
 }
+import viva_tensor/named as tensor_named
 import viva_tensor/tensor
 
 // Re-import from named_tensor_core
 import viva/neural/named_tensor_core.{
-  type NamedTensor, type NamedTensorError, AxisNotFound, InvalidOp, NamedTensor,
-  SizeMismatch, TensorErr, find_axis, list_at, remove_axis_at,
+  type NamedTensor, type NamedTensorError, AxisNotFound, InvalidOp, SizeMismatch,
+  TensorErr, find_axis, list_at, remove_axis_at,
 }
 
 // =============================================================================
@@ -21,23 +25,11 @@ import viva/neural/named_tensor_core.{
 // =============================================================================
 
 /// Sum along named axis
-pub fn sum(t: NamedTensor, along: Axis) -> Result(NamedTensor, NamedTensorError) {
-  case find_axis(t, along) {
-    Error(e) -> Error(e)
-    Ok(idx) -> {
-      case tensor.sum_axis(t.data, idx) {
-        Error(e) -> Error(TensorErr(e))
-        Ok(summed) -> {
-          let new_axes = remove_axis_at(t.axes, idx)
-          let final_axes = case new_axes {
-            [] -> [AxisSpec(name: Anon, size: 1)]
-            _ -> new_axes
-          }
-          Ok(NamedTensor(data: summed, axes: final_axes))
-        }
-      }
-    }
-  }
+pub fn sum(
+  t: NamedTensor,
+  along: Axis,
+) -> Result(NamedTensor, NamedTensorError) {
+  named_tensor_core.sum_along(t, along)
 }
 
 /// Mean along named axis
@@ -45,22 +37,7 @@ pub fn mean(
   t: NamedTensor,
   along: Axis,
 ) -> Result(NamedTensor, NamedTensorError) {
-  case find_axis(t, along) {
-    Error(e) -> Error(e)
-    Ok(idx) -> {
-      case tensor.mean_axis(t.data, idx) {
-        Error(e) -> Error(TensorErr(e))
-        Ok(meaned) -> {
-          let new_axes = remove_axis_at(t.axes, idx)
-          let final_axes = case new_axes {
-            [] -> [AxisSpec(name: Anon, size: 1)]
-            _ -> new_axes
-          }
-          Ok(NamedTensor(data: meaned, axes: final_axes))
-        }
-      }
-    }
-  }
+  named_tensor_core.mean_along(t, along)
 }
 
 /// Max value along named axis
@@ -73,10 +50,9 @@ pub fn max_along(
     Ok(axis_idx), [rows, cols] -> {
       let result_data = case axis_idx {
         0 -> {
-          list.range(0, cols - 1)
+          range_inclusive(0, cols - 1)
           |> list.map(fn(col) {
-            list.range(0, rows - 1)
-            |> list.fold(0.0 -. 999_999.0, fn(acc, row) {
+            int.range(0, rows, 0.0 -. 999_999.0, fn(acc, row) {
               case tensor.get2d(t.data, row, col) {
                 Ok(v) -> float_max(acc, v)
                 Error(_) -> acc
@@ -85,10 +61,9 @@ pub fn max_along(
           })
         }
         1 -> {
-          list.range(0, rows - 1)
+          range_inclusive(0, rows - 1)
           |> list.map(fn(row) {
-            list.range(0, cols - 1)
-            |> list.fold(0.0 -. 999_999.0, fn(acc, col) {
+            int.range(0, cols, 0.0 -. 999_999.0, fn(acc, col) {
               case tensor.get2d(t.data, row, col) {
                 Ok(v) -> float_max(acc, v)
                 Error(_) -> acc
@@ -100,7 +75,7 @@ pub fn max_along(
       }
       let new_axes = remove_axis_at(t.axes, axis_idx)
       let result_shape = [list.length(result_data)]
-      Ok(NamedTensor(
+      Ok(tensor_named.NamedTensor(
         data: tensor.Tensor(data: result_data, shape: result_shape),
         axes: new_axes,
       ))
@@ -119,11 +94,10 @@ pub fn argmax_along(
     Ok(axis_idx), [rows, cols] -> {
       let result = case axis_idx {
         0 -> {
-          list.range(0, cols - 1)
+          range_inclusive(0, cols - 1)
           |> list.map(fn(col) {
             let #(best_idx, _, _) =
-              list.range(0, rows - 1)
-              |> list.fold(#(0, 0.0 -. 999_999.0, 0), fn(acc, row) {
+              int.range(0, rows, #(0, 0.0 -. 999_999.0, 0), fn(acc, row) {
                 let #(best, best_val, curr) = acc
                 case tensor.get2d(t.data, row, col) {
                   Ok(v) if v >. best_val -> #(curr, v, curr + 1)
@@ -134,11 +108,10 @@ pub fn argmax_along(
           })
         }
         1 -> {
-          list.range(0, rows - 1)
+          range_inclusive(0, rows - 1)
           |> list.map(fn(row) {
             let #(best_idx, _, _) =
-              list.range(0, cols - 1)
-              |> list.fold(#(0, 0.0 -. 999_999.0, 0), fn(acc, col) {
+              int.range(0, cols, #(0, 0.0 -. 999_999.0, 0), fn(acc, col) {
                 let #(best, best_val, curr) = acc
                 case tensor.get2d(t.data, row, col) {
                   Ok(v) if v >. best_val -> #(curr, v, curr + 1)
@@ -170,7 +143,8 @@ pub fn add(
     Ok(#(a_aligned, b_aligned, result_axes)) -> {
       case tensor.add_broadcast(a_aligned.data, b_aligned.data) {
         Error(e) -> Error(TensorErr(e))
-        Ok(result) -> Ok(NamedTensor(data: result, axes: result_axes))
+        Ok(result) ->
+          Ok(tensor_named.NamedTensor(data: result, axes: result_axes))
       }
     }
   }
@@ -186,7 +160,8 @@ pub fn sub(
     Ok(#(a_aligned, b_aligned, result_axes)) -> {
       case tensor.sub(a_aligned.data, b_aligned.data) {
         Error(e) -> Error(TensorErr(e))
-        Ok(result) -> Ok(NamedTensor(data: result, axes: result_axes))
+        Ok(result) ->
+          Ok(tensor_named.NamedTensor(data: result, axes: result_axes))
       }
     }
   }
@@ -202,7 +177,8 @@ pub fn mul(
     Ok(#(a_aligned, b_aligned, result_axes)) -> {
       case tensor.mul_broadcast(a_aligned.data, b_aligned.data) {
         Error(e) -> Error(TensorErr(e))
-        Ok(result) -> Ok(NamedTensor(data: result, axes: result_axes))
+        Ok(result) ->
+          Ok(tensor_named.NamedTensor(data: result, axes: result_axes))
       }
     }
   }
@@ -210,12 +186,12 @@ pub fn mul(
 
 /// Scale by constant
 pub fn scale(t: NamedTensor, s: Float) -> NamedTensor {
-  NamedTensor(..t, data: tensor.scale(t.data, s))
+  tensor_named.NamedTensor(..t, data: tensor.scale(t.data, s))
 }
 
 /// Apply function to each element
 pub fn map(t: NamedTensor, f: fn(Float) -> Float) -> NamedTensor {
-  NamedTensor(..t, data: tensor.map(t.data, f))
+  tensor_named.NamedTensor(..t, data: tensor.map(t.data, f))
 }
 
 // =============================================================================
@@ -245,7 +221,7 @@ pub fn matmul(
                   let a_remaining = remove_axis_at(a.axes, a_idx)
                   let b_remaining = remove_axis_at(b.axes, b_idx)
                   let result_axes = list.append(a_remaining, b_remaining)
-                  Ok(NamedTensor(data: result, axes: result_axes))
+                  Ok(tensor_named.NamedTensor(data: result, axes: result_axes))
                 }
               }
             }
@@ -312,7 +288,7 @@ pub fn slice(
                 False -> a
               }
             })
-          Ok(NamedTensor(data: new_data, axes: new_axes))
+          Ok(tensor_named.NamedTensor(data: new_data, axes: new_axes))
         }
         Ok(_) -> Error(InvalidOp("SliceFirst only supported on first axis"))
       }
@@ -329,7 +305,7 @@ pub fn slice(
                 False -> a
               }
             })
-          Ok(NamedTensor(data: new_data, axes: new_axes))
+          Ok(tensor_named.NamedTensor(data: new_data, axes: new_axes))
         }
         Ok(_) -> Error(InvalidOp("SliceLast only supported on first axis"))
       }
@@ -362,7 +338,7 @@ pub fn slice(
                     False -> a
                   }
                 })
-              Ok(NamedTensor(data: sliced, axes: new_axes))
+              Ok(tensor_named.NamedTensor(data: sliced, axes: new_axes))
             }
           }
         }
@@ -391,7 +367,7 @@ pub fn slice(
             Ok(sliced) -> {
               let new_axes = remove_axis_at(t.axes, idx)
               let squeezed = tensor.squeeze(sliced)
-              Ok(NamedTensor(data: squeezed, axes: new_axes))
+              Ok(tensor_named.NamedTensor(data: squeezed, axes: new_axes))
             }
           }
         }
@@ -422,7 +398,7 @@ pub fn stack(
             Ok(stacked) -> {
               let n = list.length(tensors)
               let new_axes = [AxisSpec(name: new_axis, size: n), ..first.axes]
-              Ok(NamedTensor(data: stacked, axes: new_axes))
+              Ok(tensor_named.NamedTensor(data: stacked, axes: new_axes))
             }
           }
         }
@@ -482,7 +458,10 @@ pub fn concat(
                         False -> a
                       }
                     })
-                  Ok(NamedTensor(data: concatenated, axes: new_axes))
+                  Ok(tensor_named.NamedTensor(
+                    data: concatenated,
+                    axes: new_axes,
+                  ))
                 }
               }
             }

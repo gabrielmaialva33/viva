@@ -10,12 +10,13 @@
 import gleam/float
 import gleam/int
 import gleam/list
+import viva/utils/range.{range_inclusive}
 import viva/neural/glands.{type GlandsHandle}
-import viva_telemetry/log
 import viva/neural/neat.{
   type FitnessResult, type Genome, type NeatConfig, type Population,
   FitnessResult,
 }
+import viva_telemetry/log
 
 // =============================================================================
 // GPU-ACCELERATED SPECIATION
@@ -30,7 +31,7 @@ pub fn genome_to_vector(genome: Genome, max_innovations: Int) -> List(Float) {
     })
 
   // Build dense vector
-  list.range(0, max_innovations - 1)
+  range_inclusive(0, max_innovations - 1)
   |> list.map(fn(i) {
     case list.find(innovation_map, fn(pair) { pair.0 == i }) {
       Ok(#(_, weight)) -> weight
@@ -187,7 +188,14 @@ fn train_loop_gpu(
       let next_pop =
         neat.evolve(population, results, config, 42 + population.generation)
 
-      train_loop_gpu(next_pop, remaining - 1, config, eval_fn, handle, log_interval)
+      train_loop_gpu(
+        next_pop,
+        remaining - 1,
+        config,
+        eval_fn,
+        handle,
+        log_interval,
+      )
     }
   }
 }
@@ -245,8 +253,7 @@ fn find_best(population: Population) -> Genome {
 
 fn log_progress(population: Population, results: List(FitnessResult)) -> Nil {
   let fitnesses = list.map(results, fn(r) { r.fitness })
-  let best =
-    list.fold(fitnesses, neg_inf(), fn(acc, f) { float.max(acc, f) })
+  let best = list.fold(fitnesses, neg_inf(), fn(acc, f) { float.max(acc, f) })
   let avg = case list.length(fitnesses) {
     0 -> 0.0
     n -> list.fold(fitnesses, 0.0, fn(acc, f) { acc +. f }) /. int.to_float(n)
@@ -254,20 +261,22 @@ fn log_progress(population: Population, results: List(FitnessResult)) -> Nil {
 
   log.info(
     "Gen "
-    <> int.to_string(population.generation)
-    <> " | Best: "
-    <> float_str(best)
-    <> " | Avg: "
-    <> float_str(avg)
-    <> " | Species: "
-    <> int.to_string(list.length(population.species)),
+      <> int.to_string(population.generation)
+      <> " | Best: "
+      <> float_str(best)
+      <> " | Avg: "
+      <> float_str(avg)
+      <> " | Species: "
+      <> int.to_string(list.length(population.species)),
     [],
   )
 }
 
 fn float_str(f: Float) -> String {
   let rounded = float.round(f *. 10.0)
-  int.to_string(rounded / 10) <> "." <> int.to_string(int.absolute_value(rounded % 10))
+  int.to_string(rounded / 10)
+  <> "."
+  <> int.to_string(int.absolute_value(rounded % 10))
 }
 
 fn neg_inf() -> Float {

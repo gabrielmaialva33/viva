@@ -21,8 +21,8 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import viva_math/scalar
 import viva_telemetry/log
-import viva/neural/math_ffi
 
 // =============================================================================
 // TYPES
@@ -85,22 +85,31 @@ pub type CmaEsStepResult {
 pub fn default_config() -> CmaEsConfig {
   CmaEsConfig(
     initial_sigma: 0.3,
-    lambda: None,  // Auto: 4 + 3*ln(n)
-    mu: None,      // Auto: lambda / 2
-    cc: None,      // Auto
-    c1: None,      // Auto
-    cmu: None,     // Auto
-    csigma: None,  // Auto
-    dsigma: None,  // Auto
+    lambda: None,
+    // Auto: 4 + 3*ln(n)
+    mu: None,
+    // Auto: lambda / 2
+    cc: None,
+    // Auto
+    c1: None,
+    // Auto
+    cmu: None,
+    // Auto
+    csigma: None,
+    // Auto
+    dsigma: None,
+    // Auto
   )
 }
 
-/// Config optimized for sinuca neural network [8, 32, 16, 3] = 867 weights
-pub fn sinuca_config() -> CmaEsConfig {
+/// Config for the default QD workload [8, 32, 16, 3] = 867 weights
+pub fn workload_config() -> CmaEsConfig {
   CmaEsConfig(
     initial_sigma: 0.3,
-    lambda: Some(50),   // Match QD population size
-    mu: None,           // Auto: 25
+    lambda: Some(50),
+    // Match QD population size
+    mu: None,
+    // Auto: 25
     cc: None,
     c1: None,
     cmu: None,
@@ -127,7 +136,8 @@ pub fn small_config() -> CmaEsConfig {
 pub fn large_scale_config() -> CmaEsConfig {
   CmaEsConfig(
     initial_sigma: 0.2,
-    lambda: Some(100),  // Larger population for high dimensions
+    lambda: Some(100),
+    // Larger population for high dimensions
     mu: None,
     cc: None,
     c1: None,
@@ -206,7 +216,8 @@ pub fn benchmark(n: Int, lambda: Int, iterations: Int) -> String
 /// Returns: CmaEsState handle for subsequent operations
 pub fn init(initial_mean: List(Float), config: CmaEsConfig) -> CmaEsState {
   case config.lambda {
-    Some(l) -> cma_es_init_with_lambda_nif(initial_mean, config.initial_sigma, l)
+    Some(l) ->
+      cma_es_init_with_lambda_nif(initial_mean, config.initial_sigma, l)
     None -> cma_es_init_auto_nif(initial_mean, config.initial_sigma)
   }
 }
@@ -334,7 +345,7 @@ pub type QdCmaEsConfig {
 /// Default QD-CMA-ES config
 pub fn default_qd_config() -> QdCmaEsConfig {
   QdCmaEsConfig(
-    cma_config: sinuca_config(),
+    cma_config: workload_config(),
     max_stagnation: 10,
     grid_size: 5,
     behavior_dims: 2,
@@ -374,11 +385,7 @@ pub fn update_cell_optimizer(
   case batch_best >. optimizer.best_fitness {
     True -> {
       // Improvement - reset stagnation
-      CellOptimizer(
-        ..optimizer,
-        best_fitness: batch_best,
-        stagnation: 0,
-      )
+      CellOptimizer(..optimizer, best_fitness: batch_best, stagnation: 0)
     }
     False -> {
       // No improvement - increment stagnation
@@ -389,16 +396,13 @@ pub fn update_cell_optimizer(
         True -> {
           // Restart CMA-ES from current mean with fresh sigma
           let current_mean = get_mean(optimizer.state)
-          let fresh_config = CmaEsConfig(
-            ..config.cma_config,
-            initial_sigma: config.restart_sigma,
-          )
+          let fresh_config =
+            CmaEsConfig(
+              ..config.cma_config,
+              initial_sigma: config.restart_sigma,
+            )
           let new_state = init(current_mean, fresh_config)
-          CellOptimizer(
-            ..optimizer,
-            state: new_state,
-            stagnation: 0,
-          )
+          CellOptimizer(..optimizer, state: new_state, stagnation: 0)
         }
         False -> {
           CellOptimizer(..optimizer, stagnation: new_stagnation)
@@ -419,7 +423,10 @@ pub fn update_cell_optimizer(
 /// - n_dims: Number of behavior dimensions to extract
 ///
 /// Returns: Normalized behavior vector
-pub fn extract_behavior(outputs: List(List(Float)), n_dims: Int) -> List(Float) {
+pub fn extract_behavior(
+  outputs: List(List(Float)),
+  n_dims: Int,
+) -> List(Float) {
   case outputs {
     [] -> list.repeat(0.0, n_dims)
     _ -> {
@@ -507,17 +514,14 @@ pub fn hybrid_sample(
   let global_count = list.length(global_pop)
 
   // Calculate how many from global vs cells
-  let from_global = float.round(
-    int.to_float(global_count) *. exploration_ratio
-  )
+  let from_global = float.round(int.to_float(global_count) *. exploration_ratio)
 
   let global_samples = list.take(global_pop, from_global)
 
   // Sample from cell optimizers
-  let cell_samples = trainer.cell_optimizers
-    |> list.index_map(fn(opt, idx) {
-      sample(opt.state, seed + idx * 1000)
-    })
+  let cell_samples =
+    trainer.cell_optimizers
+    |> list.index_map(fn(opt, idx) { sample(opt.state, seed + idx * 1000) })
     |> list.flatten
     |> list.take(global_count - from_global)
 
@@ -556,10 +560,11 @@ pub fn hybrid_update(
 fn float_clamp(x: Float, min: Float, max: Float) -> Float {
   case x <. min {
     True -> min
-    False -> case x >. max {
-      True -> max
-      False -> x
-    }
+    False ->
+      case x >. max {
+        True -> max
+        False -> x
+      }
   }
 }
 
@@ -603,18 +608,17 @@ fn generate_weights_loop(
   case remaining <= 0 {
     True -> list.reverse(acc)
     False -> {
-      let next_seed = { seed * 1103515245 + 12345 } % 2147483648
+      let next_seed = { seed * 1_103_515_245 + 12_345 } % 2_147_483_648
       let value = { int.to_float(next_seed % 2000 - 1000) /. 1000.0 } *. scale
       generate_weights_loop(remaining - 1, next_seed, scale, [value, ..acc])
     }
   }
 }
 
-// Use centralized FFI (O(1) vs O(n) Newton-Raphson)
+// Use viva_math/scalar (O(1) hardware sqrt, 0.0 for negative input)
 fn float_sqrt(x: Float) -> Float {
-  math_ffi.safe_sqrt(x)
+  scalar.safe_sqrt(x)
 }
-
 
 // =============================================================================
 // LOGGING AND MONITORING
@@ -628,9 +632,13 @@ pub fn log_state(state: CmaEsState, label: String) -> Nil {
   let ps_str = float_str(diag.normalized_ps_norm)
 
   log.info(
-    label <> " | sigma: " <> sigma_str
-    <> " | cond: " <> cond_str
-    <> " | ps_norm: " <> ps_str,
+    label
+      <> " | sigma: "
+      <> sigma_str
+      <> " | cond: "
+      <> cond_str
+      <> " | ps_norm: "
+      <> ps_str,
     [],
   )
 }
@@ -640,10 +648,11 @@ fn float_str(x: Float) -> String {
   let whole = scaled / 1000
   let frac = int.absolute_value(scaled % 1000)
   let frac_str = case frac < 100 {
-    True -> case frac < 10 {
-      True -> "00" <> int.to_string(frac)
-      False -> "0" <> int.to_string(frac)
-    }
+    True ->
+      case frac < 10 {
+        True -> "00" <> int.to_string(frac)
+        False -> "0" <> int.to_string(frac)
+      }
     False -> int.to_string(frac)
   }
   int.to_string(whole) <> "." <> frac_str
@@ -665,11 +674,12 @@ pub fn test_basic() -> Bool {
   let pop_size = list.length(pop)
 
   // Create fake fitnesses
-  let fitnesses = list.map(pop, fn(x) {
-    // Sphere function: sum of squares (minimize, so negate)
-    let sum = list.fold(x, 0.0, fn(acc, xi) { acc +. xi *. xi })
-    0.0 -. sum
-  })
+  let fitnesses =
+    list.map(pop, fn(x) {
+      // Sphere function: sum of squares (minimize, so negate)
+      let sum = list.fold(x, 0.0, fn(acc, xi) { acc +. xi *. xi })
+      0.0 -. sum
+    })
 
   // Update
   update(state, pop, fitnesses)

@@ -6,6 +6,8 @@
 import gleam/float
 import gleam/int
 import gleam/list
+import viva/utils/range.{range_inclusive}
+import viva_tensor/core/error
 import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
 
 // =============================================================================
@@ -14,7 +16,11 @@ import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
 
 /// Split tensor into n equal parts along axis
 /// Returns list of tensors, each with shape reduced along axis
-pub fn split(t: Tensor, n: Int, axis: Int) -> Result(List(Tensor), TensorError) {
+pub fn split(
+  t: Tensor,
+  n: Int,
+  axis: Int,
+) -> Result(List(Tensor), TensorError) {
   let tdata = tensor.to_list(t)
   case t.shape {
     [size] if axis == 0 -> {
@@ -38,21 +44,21 @@ pub fn split(t: Tensor, n: Int, axis: Int) -> Result(List(Tensor), TensorError) 
       // Split columns (more complex - need to gather non-contiguous data)
       let cols_per_chunk = cols / n
       let chunks =
-        list.range(0, n - 1)
+        range_inclusive(0, n - 1)
         |> list.map(fn(chunk_idx) {
           let start_col = chunk_idx * cols_per_chunk
           let data =
-            list.range(0, rows - 1)
+            range_inclusive(0, rows - 1)
             |> list.flat_map(fn(row) {
               let row_start = row * cols
-              list.range(start_col, start_col + cols_per_chunk - 1)
+              range_inclusive(start_col, start_col + cols_per_chunk - 1)
               |> list.filter_map(fn(col) { list_at(tdata, row_start + col) })
             })
           Tensor(data: data, shape: [rows, cols_per_chunk])
         })
       Ok(chunks)
     }
-    _ -> Error(tensor.DimensionError("split only supports 1D and 2D tensors"))
+    _ -> Error(error.DimensionError("split only supports 1D and 2D tensors"))
   }
 }
 
@@ -68,7 +74,7 @@ pub fn softmax_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
     [rows, cols] if axis == 1 -> {
       // Softmax per row
       let data =
-        list.range(0, rows - 1)
+        range_inclusive(0, rows - 1)
         |> list.flat_map(fn(row_idx) {
           let start = row_idx * cols
           let row_data =
@@ -84,25 +90,25 @@ pub fn softmax_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
     [rows, cols] if axis == 0 -> {
       // Softmax per column
       let data =
-        list.range(0, cols - 1)
+        range_inclusive(0, cols - 1)
         |> list.flat_map(fn(col_idx) {
           // Extract column
           let col_data =
-            list.range(0, rows - 1)
+            range_inclusive(0, rows - 1)
             |> list.filter_map(fn(row) { list_at(tdata, row * cols + col_idx) })
           let col_tensor = Tensor(data: col_data, shape: [rows])
           tensor.to_list(softmax(col_tensor))
         })
       // Need to transpose result back - data is column-major
       let transposed =
-        list.range(0, rows - 1)
+        range_inclusive(0, rows - 1)
         |> list.flat_map(fn(row) {
-          list.range(0, cols - 1)
+          range_inclusive(0, cols - 1)
           |> list.filter_map(fn(col) { list_at(data, col * rows + row) })
         })
       Ok(Tensor(data: transposed, shape: [rows, cols]))
     }
-    _ -> Error(tensor.DimensionError("softmax_axis only supports 1D and 2D"))
+    _ -> Error(error.DimensionError("softmax_axis only supports 1D and 2D"))
   }
 }
 
@@ -116,10 +122,10 @@ pub fn variance_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
     [rows, cols] if axis == 0 -> {
       // Variance per column
       let vars =
-        list.range(0, cols - 1)
+        range_inclusive(0, cols - 1)
         |> list.map(fn(col_idx) {
           let col_data =
-            list.range(0, rows - 1)
+            range_inclusive(0, rows - 1)
             |> list.filter_map(fn(row) { list_at(tdata, row * cols + col_idx) })
           let col_mean =
             list.fold(col_data, 0.0, fn(a, x) { a +. x }) /. int.to_float(rows)
@@ -136,7 +142,7 @@ pub fn variance_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
     [rows, cols] if axis == 1 -> {
       // Variance per row
       let vars =
-        list.range(0, rows - 1)
+        range_inclusive(0, rows - 1)
         |> list.map(fn(row_idx) {
           let start = row_idx * cols
           let row_data =
@@ -155,7 +161,7 @@ pub fn variance_axis(t: Tensor, axis: Int) -> Result(Tensor, TensorError) {
         })
       Ok(Tensor(data: vars, shape: [rows]))
     }
-    _ -> Error(tensor.DimensionError("variance_axis only supports 1D and 2D"))
+    _ -> Error(error.DimensionError("variance_axis only supports 1D and 2D"))
   }
 }
 
@@ -178,7 +184,7 @@ pub fn sqrt_eps(t: Tensor, epsilon: Float) -> Tensor {
 pub fn random_bernoulli(shape: List(Int), p: Float) -> Tensor {
   let size = list.fold(shape, 1, fn(acc, dim) { acc * dim })
   let data =
-    list.range(1, size)
+    range_inclusive(1, size)
     |> list.map(fn(_) {
       case random_float() <. p {
         True -> 1.0
@@ -209,7 +215,7 @@ pub fn concat_along_axis(
   axis: Int,
 ) -> Result(Tensor, TensorError) {
   case tensors {
-    [] -> Error(tensor.InvalidShape("Cannot concat empty list"))
+    [] -> Error(error.InvalidShape("Cannot concat empty list"))
     [single] -> Ok(single)
     [first, ..rest] -> {
       let _ = rest
@@ -228,7 +234,7 @@ pub fn concat_along_axis(
                 })
               // Interleave data from all tensors row by row
               let data =
-                list.range(0, rows - 1)
+                range_inclusive(0, rows - 1)
                 |> list.flat_map(fn(row) {
                   list.flat_map(tensors, fn(t) {
                     let td = tensor.to_list(t)
@@ -246,7 +252,7 @@ pub fn concat_along_axis(
               Ok(Tensor(data: data, shape: [rows, total_cols]))
             }
             _ ->
-              Error(tensor.DimensionError("concat axis 1 requires 2D tensors"))
+              Error(error.DimensionError("concat axis 1 requires 2D tensors"))
           }
         }
       }
@@ -263,7 +269,7 @@ pub fn maximum(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
       let data = list.map2(a_data, b_data, fn(x, y) { float.max(x, y) })
       Ok(Tensor(data: data, shape: a.shape))
     }
-    False -> Error(tensor.ShapeMismatch(expected: a.shape, got: b.shape))
+    False -> Error(error.ShapeMismatch(expected: a.shape, got: b.shape))
   }
 }
 
@@ -276,7 +282,7 @@ pub fn minimum(a: Tensor, b: Tensor) -> Result(Tensor, TensorError) {
       let data = list.map2(a_data, b_data, fn(x, y) { float.min(x, y) })
       Ok(Tensor(data: data, shape: a.shape))
     }
-    False -> Error(tensor.ShapeMismatch(expected: a.shape, got: b.shape))
+    False -> Error(error.ShapeMismatch(expected: a.shape, got: b.shape))
   }
 }
 

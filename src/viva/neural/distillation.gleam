@@ -25,7 +25,7 @@ import gleam/result
 import viva/memory/hrr.{type HRR}
 import viva/neural/glands.{type GlandsHandle}
 import viva/neural/llm.{type LlmModel}
-import viva_tensor/nf4.{type NF4Config, type NF4Tensor}
+import viva_tensor/quant/nf4.{type NF4Config, type NF4Tensor}
 import viva_tensor/tensor
 
 // =============================================================================
@@ -199,9 +199,12 @@ pub type DistillConfigV2 {
 /// Qwen3-32B has 5120 hidden dim, 64 layers
 pub fn default_config() -> DistillConfig {
   DistillConfig(
-    teacher_dim: 5120,      // Qwen3-32B hidden dimension
-    hrr_dim: 8192,          // VIVA standard HRR size
-    extraction_layer: 32,   // Middle layer (32 of 64)
+    teacher_dim: 5120,
+    // Qwen3-32B hidden dimension
+    hrr_dim: 8192,
+    // VIVA standard HRR size
+    extraction_layer: 32,
+    // Middle layer (32 of 64)
     nf4_config: nf4.default_config(),
     temperature: 2.0,
     alpha_task: 1.0,
@@ -213,11 +216,15 @@ pub fn default_config() -> DistillConfig {
 /// Config specifically for Qwen3-32B-Q4_K_M
 pub fn qwen3_32b_config() -> DistillConfig {
   DistillConfig(
-    teacher_dim: 5120,      // Qwen3-32B: 5120 hidden dim
-    hrr_dim: 8192,          // VIVA HRR dimension
-    extraction_layer: 32,   // Middle layer for best representations
+    teacher_dim: 5120,
+    // Qwen3-32B: 5120 hidden dim
+    hrr_dim: 8192,
+    // VIVA HRR dimension
+    extraction_layer: 32,
+    // Middle layer for best representations
     nf4_config: nf4.default_config(),
-    temperature: 3.0,       // Higher temp for softer distributions
+    temperature: 3.0,
+    // Higher temp for softer distributions
     alpha_task: 0.8,
     alpha_kd: 0.6,
     alpha_ewc: 0.1,
@@ -242,17 +249,24 @@ pub fn small_config() -> DistillConfig {
 pub fn advanced_config() -> DistillConfigV2 {
   DistillConfigV2(
     base: qwen3_32b_config(),
-    alpha_cka: 0.3,           // CKA loss weight
+    alpha_cka: 0.3,
+    // CKA loss weight
     layer_match: LayerMatchConfig(
-      teacher_layers: [0, 16, 32],  // Early, middle, late
-      layer_weights: [0.2, 0.3, 0.5],  // More weight on later layers
+      teacher_layers: [0, 16, 32],
+      // Early, middle, late
+      layer_weights: [0.2, 0.3, 0.5],
+      // More weight on later layers
       feature_type: "hidden",
     ),
     progressive: True,
-    initial_temp: 4.0,        // Start with very soft targets
-    final_temp: 1.5,          // End with sharper targets
-    initial_alpha_kd: 0.3,    // Start with weak KD
-    final_alpha_kd: 0.8,      // End with strong KD
+    initial_temp: 4.0,
+    // Start with very soft targets
+    final_temp: 1.5,
+    // End with sharper targets
+    initial_alpha_kd: 0.3,
+    // Start with weak KD
+    final_alpha_kd: 0.8,
+    // End with strong KD
   )
 }
 
@@ -277,12 +291,16 @@ pub fn step_progressive(
   let progress = int.to_float(new_epoch) /. int.to_float(state.max_epochs)
 
   // Linear interpolation for alpha_kd (increases)
-  let new_alpha_kd = config.initial_alpha_kd +.
-    { config.final_alpha_kd -. config.initial_alpha_kd } *. progress
+  let new_alpha_kd =
+    config.initial_alpha_kd
+    +. { config.final_alpha_kd -. config.initial_alpha_kd }
+    *. progress
 
   // Linear interpolation for temperature (decreases)
-  let new_temp = config.initial_temp -.
-    { config.initial_temp -. config.final_temp } *. progress
+  let new_temp =
+    config.initial_temp
+    -. { config.initial_temp -. config.final_temp }
+    *. progress
 
   // Determine curriculum stage
   let new_stage = case progress {
@@ -344,7 +362,11 @@ pub fn bind_with_key(
   value: HRR,
 ) -> Result(HRR, String) {
   // Use GPU-accelerated circular convolution
-  use bound <- result.try(glands.bind(glands, hrr.to_list(key), hrr.to_list(value)))
+  use bound <- result.try(glands.bind(
+    glands,
+    hrr.to_list(key),
+    hrr.to_list(value),
+  ))
   Ok(hrr.from_list(bound))
 }
 
@@ -352,9 +374,7 @@ pub fn bind_with_key(
 ///
 /// Memory = Σ(key_i ⊛ value_i) normalized
 /// Allows multiple concepts to coexist in the same vector
-pub fn superpose_knowledge(
-  bindings: List(HRR),
-) -> Result(HRR, String) {
+pub fn superpose_knowledge(bindings: List(HRR)) -> Result(HRR, String) {
   let vectors = list.map(bindings, hrr.to_list)
   use superposed <- result.try(glands.superpose(vectors))
   Ok(hrr.from_list(superposed))
@@ -498,7 +518,8 @@ fn center_vector(v: List(Float)) -> List(Float) {
 /// For centered data with linear kernel: HSIC ≈ ||X^T Y||^2_F / n^2
 fn compute_hsic(a: List(Float), b: List(Float)) -> Float {
   // Dot product as similarity (linear kernel)
-  let dot = list.map2(a, b, fn(x, y) { x *. y })
+  let dot =
+    list.map2(a, b, fn(x, y) { x *. y })
     |> list.fold(0.0, fn(acc, x) { acc +. x })
 
   // Normalize by dimension
@@ -576,18 +597,23 @@ pub fn compute_loss_v2(
   let ewc_loss = compute_ewc_loss(ewc_state, current_params)
 
   // Multi-layer matching loss
-  let layer_loss = compute_layer_loss_cka(
-    student_layers,
-    teacher_layers,
-    config.layer_match.layer_weights,
-  )
+  let layer_loss =
+    compute_layer_loss_cka(
+      student_layers,
+      teacher_layers,
+      config.layer_match.layer_weights,
+    )
 
   // Combined loss with progressive alpha_kd
   let total =
-    dynamic_config.alpha_task *. task_loss
-    +. progressive.alpha_kd *. kd_loss
-    +. config.alpha_cka *. cka_loss
-    +. dynamic_config.alpha_ewc *. ewc_loss
+    dynamic_config.alpha_task
+    *. task_loss
+    +. progressive.alpha_kd
+    *. kd_loss
+    +. config.alpha_cka
+    *. cka_loss
+    +. dynamic_config.alpha_ewc
+    *. ewc_loss
     +. layer_loss
 
   DistillLossV2(
@@ -612,7 +638,8 @@ pub fn compute_loss_v2_simple(
   compute_loss_v2(
     student_hrr,
     teacher_hrr,
-    [],  // No layer matching
+    [],
+    // No layer matching
     [],
     ewc_state,
     current_params,
@@ -640,7 +667,10 @@ pub fn package_knowledge(
   // High arousal + high |pleasure| = high salience
   let salience =
     float.clamp(
-      { float.absolute_value(emotional_state.pleasure) +. emotional_state.arousal }
+      {
+        float.absolute_value(emotional_state.pleasure)
+        +. emotional_state.arousal
+      }
         /. 2.0,
       0.0,
       1.0,
@@ -694,12 +724,14 @@ pub fn search_memories(
   memories: List(DistilledKnowledge),
 ) -> Result(List(#(Int, Float)), String) {
   // Decompress all memories
-  let hrr_vecs = list.map(memories, fn(m) {
-    decompress_hrr(m.compressed_hrr) |> hrr.to_list
-  })
+  let hrr_vecs =
+    list.map(memories, fn(m) { decompress_hrr(m.compressed_hrr) |> hrr.to_list })
 
   // Batch similarity (GPU accelerated)
-  use similarities <- result.try(glands.batch_similarity(hrr_vecs, hrr.to_list(query)))
+  use similarities <- result.try(glands.batch_similarity(
+    hrr_vecs,
+    hrr.to_list(query),
+  ))
 
   // Return indexed results sorted by similarity
   similarities
@@ -734,17 +766,14 @@ pub fn update_fisher(
     True -> {
       // Sum of squared gradients
       let grad_squared_sum =
-        list.fold(gradients, list.repeat(0.0, list.length(ewc.fisher_diag)), fn(
-          acc,
-          grad,
-        ) {
-          list.map2(acc, grad, fn(a, g) { a +. g *. g })
-        })
+        list.fold(
+          gradients,
+          list.repeat(0.0, list.length(ewc.fisher_diag)),
+          fn(acc, grad) { list.map2(acc, grad, fn(a, g) { a +. g *. g }) },
+        )
 
       // Average
-      list.map(grad_squared_sum, fn(x) {
-        x /. int.to_float(num_samples)
-      })
+      list.map(grad_squared_sum, fn(x) { x /. int.to_float(num_samples) })
     }
     False -> ewc.fisher_diag
   }
@@ -779,8 +808,7 @@ pub fn compression_stats(
   // FP32 = 4 bytes
   let compressed_bytes = compressed.memory_bytes
 
-  let ratio =
-    int.to_float(original_bytes) /. int.to_float(compressed_bytes)
+  let ratio = int.to_float(original_bytes) /. int.to_float(compressed_bytes)
 
   // Reconstruction error
   let decompressed = decompress_hrr(compressed)
@@ -800,11 +828,7 @@ pub fn compression_stats(
 
 /// Teacher state for distillation session
 pub type TeacherState {
-  TeacherState(
-    model: LlmModel,
-    config: DistillConfig,
-    context_size: Int,
-  )
+  TeacherState(model: LlmModel, config: DistillConfig, context_size: Int)
 }
 
 /// Initialize teacher from Qwen3-32B
@@ -814,16 +838,17 @@ pub fn init_teacher(model_path: String, gpu_layers: Int) -> TeacherState {
   let info = llm.model_info(model)
 
   // Auto-configure based on model dimensions
-  let config = DistillConfig(
-    teacher_dim: info.n_embd,
-    hrr_dim: 8192,
-    extraction_layer: 32,
-    nf4_config: nf4.default_config(),
-    temperature: 2.0,
-    alpha_task: 1.0,
-    alpha_kd: 0.5,
-    alpha_ewc: 0.1,
-  )
+  let config =
+    DistillConfig(
+      teacher_dim: info.n_embd,
+      hrr_dim: 8192,
+      extraction_layer: 32,
+      nf4_config: nf4.default_config(),
+      temperature: 2.0,
+      alpha_task: 1.0,
+      alpha_kd: 0.5,
+      alpha_ewc: 0.1,
+    )
 
   TeacherState(model: model, config: config, context_size: 2048)
 }
@@ -846,11 +871,8 @@ pub fn extract_from_prompt(
   prompt: String,
 ) -> Result(HRR, String) {
   // Get hidden states from teacher
-  let states = llm.get_hidden_states(
-    teacher.model,
-    prompt,
-    teacher.context_size,
-  )
+  let states =
+    llm.get_hidden_states(teacher.model, prompt, teacher.context_size)
 
   // Mean pool across tokens to get single embedding
   let pooled = llm.mean_pooled_embedding(states)
@@ -866,21 +888,23 @@ pub fn extract_with_logits(
   prompt: String,
 ) -> Result(#(HRR, List(Float)), String) {
   // Get hidden states
-  let states = llm.get_hidden_states(
-    teacher.model,
-    prompt,
-    teacher.context_size,
-  )
+  let states =
+    llm.get_hidden_states(teacher.model, prompt, teacher.context_size)
   let pooled = llm.mean_pooled_embedding(states)
 
   // Get logits for soft label distillation
   let logits = llm.get_logits(teacher.model, prompt, teacher.context_size)
 
   // Apply temperature scaling for softer distribution
-  let soft_labels = llm.softmax_with_temperature(logits, teacher.config.temperature)
+  let soft_labels =
+    llm.softmax_with_temperature(logits, teacher.config.temperature)
 
   // Project to HRR
-  use hrr_vec <- result.try(extract_hidden_states(glands, pooled, teacher.config))
+  use hrr_vec <- result.try(extract_hidden_states(
+    glands,
+    pooled,
+    teacher.config,
+  ))
 
   Ok(#(hrr_vec, soft_labels))
 }
@@ -941,13 +965,14 @@ pub fn training_step(
   use teacher_hrr <- result.try(extract_from_prompt(teacher, glands, prompt))
 
   // Compute loss
-  let loss = compute_loss(
-    student_hrr,
-    teacher_hrr,
-    ewc_state,
-    current_params,
-    teacher.config,
-  )
+  let loss =
+    compute_loss(
+      student_hrr,
+      teacher_hrr,
+      ewc_state,
+      current_params,
+      teacher.config,
+    )
 
   Ok(#(loss, teacher_hrr))
 }
@@ -1014,23 +1039,27 @@ pub fn training_step_v2(
   current_params: List(Float),
 ) -> Result(#(DistillLossV2, HRR, TrainingStateV2), String) {
   // Extract teacher representation
-  use teacher_hrr <- result.try(
-    extract_from_prompt(state.teacher, glands, prompt)
-  )
+  use teacher_hrr <- result.try(extract_from_prompt(
+    state.teacher,
+    glands,
+    prompt,
+  ))
 
   // Compute advanced loss
-  let loss = compute_loss_v2_simple(
-    student_hrr,
-    teacher_hrr,
-    state.ewc,
-    current_params,
-    state.config,
-    state.progressive,
-  )
+  let loss =
+    compute_loss_v2_simple(
+      student_hrr,
+      teacher_hrr,
+      state.ewc,
+      current_params,
+      state.config,
+      state.progressive,
+    )
 
   // Update running loss (exponential moving average)
   let alpha = 0.1
-  let new_running_loss = alpha *. loss.total +. { 1.0 -. alpha } *. state.running_loss
+  let new_running_loss =
+    alpha *. loss.total +. { 1.0 -. alpha } *. state.running_loss
 
   // Check for improvement
   let #(new_best, new_steps) = case loss.total <. state.best_loss {
@@ -1039,12 +1068,13 @@ pub fn training_step_v2(
   }
 
   // Update state
-  let new_state = TrainingStateV2(
-    ..state,
-    running_loss: new_running_loss,
-    best_loss: new_best,
-    steps_without_improvement: new_steps,
-  )
+  let new_state =
+    TrainingStateV2(
+      ..state,
+      running_loss: new_running_loss,
+      best_loss: new_best,
+      steps_without_improvement: new_steps,
+    )
 
   Ok(#(loss, teacher_hrr, new_state))
 }
@@ -1064,7 +1094,9 @@ pub fn should_stop_early(state: TrainingStateV2, patience: Int) -> Bool {
 }
 
 /// Get current training metrics
-pub fn training_metrics(state: TrainingStateV2) -> #(Float, Float, Int, CurriculumStage) {
+pub fn training_metrics(
+  state: TrainingStateV2,
+) -> #(Float, Float, Int, CurriculumStage) {
   #(
     state.running_loss,
     state.progressive.alpha_kd,
@@ -1088,7 +1120,15 @@ pub fn train_epochs(
   update_student_fn: fn(DistillLossV2, HRR) -> Nil,
   patience: Int,
 ) -> TrainingStateV2 {
-  train_epochs_loop(initial_state, glands, prompts, get_student_fn, update_student_fn, patience, 0)
+  train_epochs_loop(
+    initial_state,
+    glands,
+    prompts,
+    get_student_fn,
+    update_student_fn,
+    patience,
+    0,
+  )
 }
 
 fn train_epochs_loop(
@@ -1101,20 +1141,33 @@ fn train_epochs_loop(
   epoch: Int,
 ) -> TrainingStateV2 {
   // Check termination conditions
-  case epoch >= state.progressive.max_epochs || should_stop_early(state, patience) {
+  case
+    epoch >= state.progressive.max_epochs || should_stop_early(state, patience)
+  {
     True -> state
     False -> {
       // Train one epoch
-      let state_after_epoch = train_one_epoch(
-        state, glands, prompts, get_student_fn, update_student_fn
-      )
+      let state_after_epoch =
+        train_one_epoch(
+          state,
+          glands,
+          prompts,
+          get_student_fn,
+          update_student_fn,
+        )
 
       // Advance progressive schedule
       let next_state = next_epoch(state_after_epoch)
 
       // Recurse
       train_epochs_loop(
-        next_state, glands, prompts, get_student_fn, update_student_fn, patience, epoch + 1
+        next_state,
+        glands,
+        prompts,
+        get_student_fn,
+        update_student_fn,
+        patience,
+        epoch + 1,
       )
     }
   }

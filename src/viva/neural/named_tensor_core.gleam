@@ -5,10 +5,12 @@
 import gleam/int
 import gleam/list
 import gleam/string
-import viva/neural/axis.{
-  type Axis, type AxisSpec, Anon, AxisSpec, axis_equals,
-  axis_to_string,
+import viva_tensor/axis.{
+  type Axis, type AxisSpec, Anon, equals as axis_equals,
+  to_string as axis_to_string,
 }
+import viva_tensor/core/error
+import viva_tensor/named as tensor_named
 import viva_tensor/tensor.{type Tensor, type TensorError}
 
 // =============================================================================
@@ -16,14 +18,8 @@ import viva_tensor/tensor.{type Tensor, type TensorError}
 // =============================================================================
 
 /// Tensor with named axes
-pub type NamedTensor {
-  NamedTensor(
-    /// Underlying data tensor
-    data: Tensor,
-    /// Axis specifications (names + sizes, in order)
-    axes: List(AxisSpec),
-  )
-}
+pub type NamedTensor =
+  tensor_named.NamedTensor
 
 /// Error types for named tensor operations
 pub type NamedTensorError {
@@ -52,64 +48,35 @@ pub fn new(
   data: Tensor,
   axes: List(AxisSpec),
 ) -> Result(NamedTensor, NamedTensorError) {
-  let data_rank = tensor.rank(data)
-  let axes_count = list.length(axes)
-
-  case data_rank == axes_count {
-    False ->
-      Error(InvalidOp(
-        "Axis count ("
-        <> int.to_string(axes_count)
-        <> ") doesn't match tensor rank ("
-        <> int.to_string(data_rank)
-        <> ")",
-      ))
-    True -> {
-      case validate_sizes(data.shape, axes) {
-        Error(e) -> Error(e)
-        Ok(_) -> {
-          case validate_unique_names(axes) {
-            Error(e) -> Error(e)
-            Ok(_) -> Ok(NamedTensor(data: data, axes: axes))
-          }
-        }
-      }
-    }
+  case tensor_named.new(data, axes) {
+    Ok(tensor) -> Ok(tensor)
+    Error(err) -> Error(normalize_error(err))
   }
 }
 
 /// Create from tensor with inferred anonymous axes
 pub fn from_tensor(t: Tensor) -> NamedTensor {
-  let axes = list.map(t.shape, fn(size) { AxisSpec(name: Anon, size: size) })
-  NamedTensor(data: t, axes: axes)
+  tensor_named.from_tensor(t)
 }
 
 /// Create named tensor of zeros
 pub fn zeros(axes: List(AxisSpec)) -> NamedTensor {
-  let shape = list.map(axes, fn(a) { a.size })
-  let data = tensor.zeros(shape)
-  NamedTensor(data: data, axes: axes)
+  tensor_named.zeros(axes)
 }
 
 /// Create named tensor of ones
 pub fn ones(axes: List(AxisSpec)) -> NamedTensor {
-  let shape = list.map(axes, fn(a) { a.size })
-  let data = tensor.ones(shape)
-  NamedTensor(data: data, axes: axes)
+  tensor_named.ones(axes)
 }
 
 /// Create named tensor with random values
 pub fn random(axes: List(AxisSpec)) -> NamedTensor {
-  let shape = list.map(axes, fn(a) { a.size })
-  let data = tensor.random_uniform(shape)
-  NamedTensor(data: data, axes: axes)
+  tensor_named.random(axes)
 }
 
 /// Create named tensor with normal distribution
 pub fn randn(axes: List(AxisSpec), mean: Float, std: Float) -> NamedTensor {
-  let shape = list.map(axes, fn(a) { a.size })
-  let data = tensor.random_normal(shape, mean, std)
-  NamedTensor(data: data, axes: axes)
+  tensor_named.randn(axes, mean, std)
 }
 
 // =============================================================================
@@ -118,35 +85,17 @@ pub fn randn(axes: List(AxisSpec), mean: Float, std: Float) -> NamedTensor {
 
 /// Find axis index by name
 pub fn find_axis(t: NamedTensor, name: Axis) -> Result(Int, NamedTensorError) {
-  find_axis_in_list(t.axes, name, 0)
-}
-
-fn find_axis_in_list(
-  axes: List(AxisSpec),
-  name: Axis,
-  idx: Int,
-) -> Result(Int, NamedTensorError) {
-  case axes {
-    [] -> Error(AxisNotFound(name))
-    [first, ..rest] -> {
-      case axis_equals(first.name, name) {
-        True -> Ok(idx)
-        False -> find_axis_in_list(rest, name, idx + 1)
-      }
-    }
+  case tensor_named.find_axis(t, name) {
+    Ok(idx) -> Ok(idx)
+    Error(err) -> Error(normalize_error(err))
   }
 }
 
 /// Get axis size by name
 pub fn axis_size(t: NamedTensor, name: Axis) -> Result(Int, NamedTensorError) {
-  case find_axis(t, name) {
-    Error(e) -> Error(e)
-    Ok(idx) -> {
-      case list_at(t.axes, idx) {
-        Error(_) -> Error(AxisNotFound(name))
-        Ok(spec) -> Ok(spec.size)
-      }
-    }
+  case tensor_named.axis_size(t, name) {
+    Ok(size) -> Ok(size)
+    Error(err) -> Error(normalize_error(err))
   }
 }
 
@@ -188,18 +137,9 @@ pub fn rename_axis(
   from: Axis,
   to: Axis,
 ) -> Result(NamedTensor, NamedTensorError) {
-  case find_axis(t, from) {
-    Error(e) -> Error(e)
-    Ok(idx) -> {
-      let new_axes =
-        list.index_map(t.axes, fn(spec, i) {
-          case i == idx {
-            True -> AxisSpec(..spec, name: to)
-            False -> spec
-          }
-        })
-      Ok(NamedTensor(..t, axes: new_axes))
-    }
+  case tensor_named.rename_axis(t, from, to) {
+    Ok(named_tensor) -> Ok(named_tensor)
+    Error(err) -> Error(normalize_error(err))
   }
 }
 
@@ -218,13 +158,15 @@ pub fn transpose(
       case t.data.shape, indices {
         [_, _], [1, 0] -> {
           case tensor.transpose(t.data) {
-            Ok(transposed) -> Ok(NamedTensor(data: transposed, axes: new_axes))
+            Ok(transposed) ->
+              Ok(tensor_named.NamedTensor(data: transposed, axes: new_axes))
             Error(e) -> Error(TensorErr(e))
           }
         }
         _, _ -> {
           case permute_data(t.data, indices) {
-            Ok(permuted) -> Ok(NamedTensor(data: permuted, axes: new_axes))
+            Ok(permuted) ->
+              Ok(tensor_named.NamedTensor(data: permuted, axes: new_axes))
             Error(e) -> Error(TensorErr(e))
           }
         }
@@ -235,11 +177,7 @@ pub fn transpose(
 
 /// Add a new axis of size 1
 pub fn unsqueeze(t: NamedTensor, name: Axis, position: Int) -> NamedTensor {
-  let new_spec = AxisSpec(name: name, size: 1)
-  let #(before, after) = list.split(t.axes, position)
-  let new_axes = list.flatten([before, [new_spec], after])
-  let new_data = tensor.unsqueeze(t.data, position)
-  NamedTensor(data: new_data, axes: new_axes)
+  tensor_named.unsqueeze(t, name, position)
 }
 
 /// Remove axis of size 1 by name
@@ -247,32 +185,9 @@ pub fn squeeze(
   t: NamedTensor,
   name: Axis,
 ) -> Result(NamedTensor, NamedTensorError) {
-  case find_axis(t, name) {
-    Error(e) -> Error(e)
-    Ok(idx) -> {
-      case list_at(t.axes, idx) {
-        Error(_) -> Error(AxisNotFound(name))
-        Ok(spec) -> {
-          case spec.size == 1 {
-            False -> Error(InvalidOp("Cannot squeeze axis with size != 1"))
-            True -> {
-              case tensor.squeeze_axis(t.data, idx) {
-                Error(e) -> Error(TensorErr(e))
-                Ok(squeezed) -> {
-                  let new_axes =
-                    list.filter(
-                      list.index_map(t.axes, fn(a, i) { #(a, i) }),
-                      fn(pair) { pair.1 != idx },
-                    )
-                    |> list.map(fn(pair) { pair.0 })
-                  Ok(NamedTensor(data: squeezed, axes: new_axes))
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+  case tensor_named.squeeze(t, name) {
+    Ok(named_tensor) -> Ok(named_tensor)
+    Error(err) -> Error(normalize_error(err))
   }
 }
 
@@ -293,6 +208,42 @@ pub fn describe(t: NamedTensor) -> String {
     |> string.join(", ")
 
   "NamedTensor[" <> axes_str <> "]"
+}
+
+/// Sum along named axis (compat alias for upstream `sum_along`)
+pub fn sum_along(
+  t: NamedTensor,
+  axis_name: Axis,
+) -> Result(NamedTensor, NamedTensorError) {
+  case tensor_named.sum_along(t, axis_name) {
+    Ok(tensor) -> Ok(tensor)
+    Error(err) -> Error(normalize_error(err))
+  }
+}
+
+/// Mean along named axis (compat alias for upstream `mean_along`)
+pub fn mean_along(
+  t: NamedTensor,
+  axis_name: Axis,
+) -> Result(NamedTensor, NamedTensorError) {
+  case tensor_named.mean_along(t, axis_name) {
+    Ok(tensor) -> Ok(tensor)
+    Error(err) -> Error(normalize_error(err))
+  }
+}
+
+/// Convert upstream `viva_tensor` error into local compatibility error
+fn normalize_error(error: tensor_named.NamedTensorError) -> NamedTensorError {
+  case error {
+    tensor_named.AxisNotFound(name) -> AxisNotFound(name)
+    tensor_named.DuplicateAxis(name) -> DuplicateAxis(name)
+    tensor_named.AxisMismatch(expected, got) -> AxisMismatch(expected, got)
+    tensor_named.SizeMismatch(axis, expected, got) ->
+      SizeMismatch(axis, expected, got)
+    tensor_named.BroadcastErr(reason) -> BroadcastError(reason)
+    tensor_named.TensorErr(err) -> TensorErr(err)
+    tensor_named.InvalidOp(reason) -> InvalidOp(reason)
+  }
 }
 
 // =============================================================================
@@ -361,6 +312,6 @@ fn permute_data(t: Tensor, indices: List(Int)) -> Result(Tensor, TensorError) {
   case indices {
     [1, 0] -> tensor.transpose(t)
     [0, 1] -> Ok(t)
-    _ -> Error(tensor.InvalidShape("Permutation not supported for this rank"))
+    _ -> Error(error.InvalidShape("Permutation not supported for this rank"))
   }
 }

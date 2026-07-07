@@ -2,11 +2,11 @@
 ////
 //// Simplified einsum-style contractions using named axes.
 
-import viva/neural/axis.{type Axis}
 import viva/neural/named_ops
 import viva/neural/named_tensor_core.{
   type NamedTensor, type NamedTensorError, InvalidOp, find_axis,
 }
+import viva_tensor/axis.{type Axis}
 
 // =============================================================================
 // EINSUM-LIKE API

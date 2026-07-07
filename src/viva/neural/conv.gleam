@@ -11,8 +11,11 @@
 import gleam/float
 import gleam/int
 import gleam/list
+import viva/utils/range.{range_inclusive}
 import viva/neural/activation.{type ActivationType}
 import viva/neural/nx_backend.{type Backend, CUDA, Nx, Pure}
+import viva_math/scalar
+import viva_tensor/core/error
 import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
 
 /// Helper to extract data from tensor (avoids t.data which doesn't work with union types)
@@ -208,8 +211,7 @@ pub fn forward(
       let input_data = tensor.to_list(input)
       let biases_data = tensor.to_list(layer.biases)
       let #(output_data, col_data) =
-        list.range(0, batch - 1)
-        |> list.fold(#([], []), fn(acc, b) {
+        int.range(0, batch, #([], []), fn(acc, b) {
           let #(out_acc, col_acc) = acc
 
           // Extract single sample [in_ch, in_h, in_w]
@@ -253,7 +255,7 @@ pub fn forward(
           // Add bias (broadcast to each output position)
           let conv_result_data = tensor.to_list(conv_result)
           let biased_data =
-            list.range(0, layer.out_channels - 1)
+            range_inclusive(0, layer.out_channels - 1)
             |> list.flat_map(fn(c) {
               let bias_val = case list_at(biases_data, c) {
                 Ok(bv) -> bv
@@ -302,7 +304,7 @@ pub fn forward(
       Ok(#(output, cache))
     }
     _ ->
-      Error(tensor.DimensionError(
+      Error(error.DimensionError(
         "Conv2D expects [batch, in_channels, height, width] input",
       ))
   }
@@ -336,8 +338,7 @@ pub fn forward_gpu(
       let input_data_gpu = tensor.to_list(input)
       let biases_data_gpu = tensor.to_list(layer.biases)
       let #(output_data, col_data) =
-        list.range(0, batch - 1)
-        |> list.fold(#([], []), fn(acc, b) {
+        int.range(0, batch, #([], []), fn(acc, b) {
           let #(out_acc, col_acc) = acc
 
           // Extract single sample [in_ch, in_h, in_w]
@@ -381,7 +382,7 @@ pub fn forward_gpu(
           // Add bias (broadcast to each output position)
           let conv_result_data_gpu = tensor.to_list(conv_result)
           let biased_data =
-            list.range(0, layer.out_channels - 1)
+            range_inclusive(0, layer.out_channels - 1)
             |> list.flat_map(fn(c) {
               let bias_val = case list_at(biases_data_gpu, c) {
                 Ok(bv) -> bv
@@ -433,7 +434,7 @@ pub fn forward_gpu(
       Ok(#(output, cache))
     }
     _ ->
-      Error(tensor.DimensionError(
+      Error(error.DimensionError(
         "Conv2D expects [batch, in_channels, height, width] input",
       ))
   }
@@ -488,10 +489,9 @@ pub fn backward(
 
       // Compute d_biases: sum over batch and spatial dims
       let d_biases_data =
-        list.range(0, layer.out_channels - 1)
+        range_inclusive(0, layer.out_channels - 1)
         |> list.map(fn(c) {
-          list.range(0, batch - 1)
-          |> list.fold(0.0, fn(acc, b) {
+          int.range(0, batch, 0.0, fn(acc, b) {
             let start = { b * out_ch + c } * out_h * out_w
             td(d_pre_act)
             |> list.drop(start)
@@ -504,8 +504,9 @@ pub fn backward(
       // Compute d_filters
       // d_filters = d_pre_act @ col^T for each batch, then sum
       let d_filters_data =
-        list.range(0, batch - 1)
-        |> list.fold(
+        int.range(
+          0,
+          batch,
           list.repeat(
             0.0,
             layer.out_channels
@@ -567,7 +568,7 @@ pub fn backward(
       // Compute d_input via col2im
       // d_col = filters^T @ d_pre_act
       let d_input_data =
-        list.range(0, batch - 1)
+        range_inclusive(0, batch - 1)
         |> list.flat_map(fn(b) {
           let d_start = b * out_ch * out_h * out_w
           let d_batch =
@@ -624,7 +625,7 @@ pub fn backward(
         d_biases: d_biases,
       ))
     }
-    _, _ -> Error(tensor.DimensionError("Shape mismatch in Conv2D backward"))
+    _, _ -> Error(error.DimensionError("Shape mismatch in Conv2D backward"))
   }
 }
 
@@ -648,10 +649,9 @@ pub fn backward_gpu(
 
       // Compute d_biases: sum over batch and spatial dims
       let d_biases_data =
-        list.range(0, layer.out_channels - 1)
+        range_inclusive(0, layer.out_channels - 1)
         |> list.map(fn(c) {
-          list.range(0, batch - 1)
-          |> list.fold(0.0, fn(acc, b) {
+          int.range(0, batch, 0.0, fn(acc, b) {
             let start = { b * out_ch + c } * out_h * out_w
             td(d_pre_act)
             |> list.drop(start)
@@ -663,8 +663,9 @@ pub fn backward_gpu(
 
       // Compute d_filters with GPU matmul
       let d_filters_data =
-        list.range(0, batch - 1)
-        |> list.fold(
+        int.range(
+          0,
+          batch,
           list.repeat(
             0.0,
             layer.out_channels
@@ -721,7 +722,7 @@ pub fn backward_gpu(
 
       // Compute d_input with GPU matmul
       let d_input_data =
-        list.range(0, batch - 1)
+        range_inclusive(0, batch - 1)
         |> list.flat_map(fn(b) {
           let d_start = b * out_ch * out_h * out_w
           let d_batch =
@@ -776,7 +777,7 @@ pub fn backward_gpu(
         d_biases: d_biases,
       ))
     }
-    _, _ -> Error(tensor.DimensionError("Shape mismatch in Conv2D backward"))
+    _, _ -> Error(error.DimensionError("Shape mismatch in Conv2D backward"))
   }
 }
 
@@ -821,13 +822,13 @@ fn im2col(
 
       // Extract patches column by column
       let col_data =
-        list.range(0, in_ch * kernel_h * kernel_w - 1)
+        range_inclusive(0, in_ch * kernel_h * kernel_w - 1)
         |> list.flat_map(fn(col_idx) {
           let c = col_idx / { kernel_h * kernel_w }
           let kh = { col_idx % { kernel_h * kernel_w } } / kernel_w
           let kw = col_idx % kernel_w
 
-          list.range(0, out_h * out_w - 1)
+          range_inclusive(0, out_h * out_w - 1)
           |> list.map(fn(out_idx) {
             let oh = out_idx / out_w
             let ow = out_idx % out_w
@@ -873,14 +874,12 @@ fn col2im(
 
   // Accumulate values from col back to image positions
   let accumulated =
-    list.range(0, in_ch * kernel_h * kernel_w - 1)
-    |> list.fold(init_data, fn(acc, col_idx) {
+    int.range(0, in_ch * kernel_h * kernel_w, init_data, fn(acc, col_idx) {
       let c = col_idx / { kernel_h * kernel_w }
       let kh = { col_idx % { kernel_h * kernel_w } } / kernel_w
       let kw = col_idx % kernel_w
 
-      list.range(0, out_h * out_w - 1)
-      |> list.fold(acc, fn(inner_acc, out_idx) {
+      int.range(0, out_h * out_w, acc, fn(inner_acc, out_idx) {
         let oh = out_idx / out_w
         let ow = out_idx % out_w
         let h = oh * stride_h + kh
@@ -928,11 +927,11 @@ fn pad_image(
   let padded_w = in_w + 2 * pad_w
 
   let data =
-    list.range(0, in_ch - 1)
+    range_inclusive(0, in_ch - 1)
     |> list.flat_map(fn(c) {
-      list.range(0, padded_h - 1)
+      range_inclusive(0, padded_h - 1)
       |> list.flat_map(fn(h) {
-        list.range(0, padded_w - 1)
+        range_inclusive(0, padded_w - 1)
         |> list.map(fn(w) {
           // Check if in valid (non-padded) region
           let orig_h = h - pad_h
@@ -966,11 +965,11 @@ fn unpad_image(
   case input.shape {
     [_ch, padded_h, padded_w] -> {
       let data =
-        list.range(0, in_ch - 1)
+        range_inclusive(0, in_ch - 1)
         |> list.flat_map(fn(c) {
-          list.range(0, orig_h - 1)
+          range_inclusive(0, orig_h - 1)
           |> list.flat_map(fn(h) {
-            list.range(0, orig_w - 1)
+            range_inclusive(0, orig_w - 1)
             |> list.map(fn(w) {
               let padded_row = h + pad_h
               let padded_col = w + pad_w
@@ -1024,18 +1023,18 @@ fn he_init_4d(
   kernel_w: Int,
   fan_in: Int,
 ) -> Tensor {
-  let std = float_sqrt(2.0 /. int.to_float(fan_in))
+  let std = scalar.sqrt(2.0 /. int.to_float(fan_in))
   let size = out_ch * in_ch * kernel_h * kernel_w
 
   let data =
-    list.range(1, size)
+    range_inclusive(1, size)
     |> list.map(fn(_) {
       // Box-Muller approximation
-      let u1 = float.max(random_float(), 0.0001)
-      let u2 = random_float()
+      let u1 = float.max(float.random(), 0.0001)
+      let u2 = float.random()
       let z =
-        float_sqrt(-2.0 *. float_log(u1))
-        *. float_cos(2.0 *. 3.14159265359 *. u2)
+        scalar.sqrt(-2.0 *. scalar.ln(u1))
+        *. scalar.cos(2.0 *. 3.14159265359 *. u2)
       z *. std
     })
 
@@ -1047,13 +1046,8 @@ fn apply_activation(t: Tensor, act: ActivationType) -> Tensor {
   case act {
     activation.Linear -> t
     activation.ReLU -> tensor.map(t, fn(x) { float.max(0.0, x) })
-    activation.Sigmoid ->
-      tensor.map(t, fn(x) { 1.0 /. { 1.0 +. float_exp(0.0 -. x) } })
-    activation.Tanh ->
-      tensor.map(t, fn(x) {
-        let e2x = float_exp(2.0 *. x)
-        { e2x -. 1.0 } /. { e2x +. 1.0 }
-      })
+    activation.Sigmoid -> tensor.map(t, scalar.sigmoid)
+    activation.Tanh -> tensor.map(t, scalar.tanh)
     _ -> t
   }
 }
@@ -1079,7 +1073,7 @@ fn apply_activation_backward(
     activation.Sigmoid -> {
       let data =
         list.map2(td(upstream), td(pre_act), fn(u, p) {
-          let s = 1.0 /. { 1.0 +. float_exp(0.0 -. p) }
+          let s = scalar.sigmoid(p)
           u *. s *. { 1.0 -. s }
         })
       Tensor(data: data, shape: upstream.shape)
@@ -1087,8 +1081,7 @@ fn apply_activation_backward(
     activation.Tanh -> {
       let data =
         list.map2(td(upstream), td(pre_act), fn(u, p) {
-          let e2x = float_exp(2.0 *. p)
-          let t = { e2x -. 1.0 } /. { e2x +. 1.0 }
+          let t = scalar.tanh(p)
           u *. { 1.0 -. t *. t }
         })
       Tensor(data: data, shape: upstream.shape)
@@ -1102,18 +1095,3 @@ fn list_at(lst: List(a), index: Int) -> Result(a, Nil) {
   |> list.drop(index)
   |> list.first
 }
-
-@external(erlang, "math", "sqrt")
-fn float_sqrt(x: Float) -> Float
-
-@external(erlang, "math", "exp")
-fn float_exp(x: Float) -> Float
-
-@external(erlang, "math", "log")
-fn float_log(x: Float) -> Float
-
-@external(erlang, "math", "cos")
-fn float_cos(x: Float) -> Float
-
-@external(erlang, "rand", "uniform")
-fn random_float() -> Float

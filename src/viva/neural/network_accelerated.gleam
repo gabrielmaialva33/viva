@@ -7,6 +7,7 @@
 ////   import viva/neural/network_accelerated as net
 ////   let output = net.predict(network, input)  // auto-detecta backend
 
+import gleam/int
 import gleam/list
 import gleam/result
 import viva/neural/activation
@@ -359,8 +360,7 @@ fn benchmark_backend(
 ) -> Int {
   let start = erlang_monotonic_time()
 
-  list.range(1, iterations)
-  |> list.each(fn(_) {
+  int.range(1, iterations + 1, Nil, fn(_, _) {
     let _ = predict_with_backend(net, input, backend)
     Nil
   })

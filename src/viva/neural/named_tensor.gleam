@@ -6,15 +6,15 @@
 //// - Flexible operations: reference axes by name, not position
 ////
 //// This module re-exports from:
-//// - axis.gleam: Axis types and constructors
+//// - viva_tensor/axis (lib): Axis types and constructors
 //// - named_tensor_core.gleam: Core type and basic operations
 //// - named_ops.gleam: Reduction, element-wise, matrix operations
 //// - einsum.gleam: Einstein summation-like API
 
-import viva/neural/axis
 import viva/neural/einsum
 import viva/neural/named_ops.{SliceFirst, SliceIndex, SliceLast, SliceRange}
 import viva/neural/named_tensor_core
+import viva_tensor/axis
 import viva_tensor/tensor.{type Tensor}
 
 // =============================================================================
@@ -100,7 +100,7 @@ pub fn named(name: String, size: Int) -> AxisSpec {
 
 /// Axis to string
 pub fn axis_to_string(a: Axis) -> String {
-  axis.axis_to_string(a)
+  axis.to_string(a)
 }
 
 // =============================================================================
@@ -232,8 +232,19 @@ pub fn describe(t: NamedTensor) -> String {
 // =============================================================================
 
 /// Sum along named axis
-pub fn sum(t: NamedTensor, along: Axis) -> Result(NamedTensor, NamedTensorError) {
+pub fn sum(
+  t: NamedTensor,
+  along: Axis,
+) -> Result(NamedTensor, NamedTensorError) {
   named_ops.sum(t, along)
+}
+
+/// Alias to upstream `sum_along` behavior
+pub fn sum_along(
+  t: NamedTensor,
+  along: Axis,
+) -> Result(NamedTensor, NamedTensorError) {
+  named_tensor_core.sum_along(t, along)
 }
 
 /// Mean along named axis
@@ -242,6 +253,14 @@ pub fn mean(
   along: Axis,
 ) -> Result(NamedTensor, NamedTensorError) {
   named_ops.mean(t, along)
+}
+
+/// Alias to upstream `mean_along` behavior
+pub fn mean_along(
+  t: NamedTensor,
+  along: Axis,
+) -> Result(NamedTensor, NamedTensorError) {
+  named_tensor_core.mean_along(t, along)
 }
 
 /// Max value along named axis

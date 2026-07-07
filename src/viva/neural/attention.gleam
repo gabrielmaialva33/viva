@@ -10,8 +10,10 @@ import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
-import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
+import viva/utils/range.{range_inclusive}
 import viva/neural/utils
+import viva_tensor/core/error
+import viva_tensor/tensor.{type Tensor, type TensorError, Tensor}
 
 // =============================================================================
 // TYPES
@@ -144,7 +146,7 @@ pub fn scaled_dot_product_attention(
 
       Ok(#(result, cache))
     }
-    _, _, _ -> Error(tensor.DimensionError("Attention shape mismatch"))
+    _, _, _ -> Error(error.DimensionError("Attention shape mismatch"))
   }
 }
 
@@ -190,7 +192,7 @@ pub fn attention_backward(
       ))
       let dww_data = tensor.to_list(d_weights_times_weights)
       let row_sums =
-        list.range(0, seq_q - 1)
+        range_inclusive(0, seq_q - 1)
         |> list.map(fn(row) {
           let start = row * seq_k
           dww_data
@@ -202,13 +204,13 @@ pub fn attention_backward(
       let weights_data = tensor.to_list(cache.weights)
       let d_weights_data = tensor.to_list(d_weights)
       let d_scores_data =
-        list.range(0, seq_q - 1)
+        range_inclusive(0, seq_q - 1)
         |> list.flat_map(fn(row) {
           let row_sum = case list_at(row_sums, row) {
             Ok(s) -> s
             Error(_) -> 0.0
           }
-          list.range(0, seq_k - 1)
+          range_inclusive(0, seq_k - 1)
           |> list.map(fn(col) {
             let idx = row * seq_k + col
             let w = case list_at(weights_data, idx) {
@@ -237,7 +239,7 @@ pub fn attention_backward(
 
       Ok(AttentionGradients(d_query: d_query, d_key: d_key, d_value: d_value))
     }
-    _, _, _ -> Error(tensor.DimensionError("Backward shape mismatch"))
+    _, _, _ -> Error(error.DimensionError("Backward shape mismatch"))
   }
 }
 
@@ -285,7 +287,7 @@ pub fn mha_forward(
       // 2. Split into heads
       // Reshape [seq, d_model] -> [seq, num_heads, d_k] -> process each head
       let head_outputs =
-        list.range(0, layer.num_heads - 1)
+        range_inclusive(0, layer.num_heads - 1)
         |> list.filter_map(fn(h) {
           // Extract head h: columns [h * d_k, (h+1) * d_k)
           let q_head = extract_head(q_proj, h, layer.d_k, seq_q)
@@ -301,7 +303,7 @@ pub fn mha_forward(
 
       // 3. Concatenate heads
       let concat_data =
-        list.range(0, seq_q - 1)
+        range_inclusive(0, seq_q - 1)
         |> list.flat_map(fn(row) {
           list.flat_map(head_outputs, fn(head) {
             let head_data = tensor.to_list(head)
@@ -329,7 +331,7 @@ pub fn mha_forward(
 
       Ok(#(output, cache))
     }
-    _, _, _ -> Error(tensor.DimensionError("MHA shape mismatch"))
+    _, _, _ -> Error(error.DimensionError("MHA shape mismatch"))
   }
 }
 
@@ -364,9 +366,9 @@ pub type MHACache {
 /// Prevents attending to future positions
 pub fn causal_mask(seq_len: Int) -> Tensor {
   let data =
-    list.range(0, seq_len - 1)
+    range_inclusive(0, seq_len - 1)
     |> list.flat_map(fn(i) {
-      list.range(0, seq_len - 1)
+      range_inclusive(0, seq_len - 1)
       |> list.map(fn(j) {
         case j > i {
           True -> -1_000_000_000.0
@@ -382,7 +384,7 @@ pub fn causal_mask(seq_len: Int) -> Tensor {
 /// mask_positions: list of indices to mask
 pub fn padding_mask(seq_len: Int, mask_positions: List(Int)) -> Tensor {
   let data =
-    list.range(0, seq_len - 1)
+    range_inclusive(0, seq_len - 1)
     |> list.map(fn(i) {
       case list.contains(mask_positions, i) {
         True -> -1_000_000_000.0
@@ -404,9 +406,9 @@ pub fn combine_masks(
       let causal_data = tensor.to_list(causal)
       let padding_data = tensor.to_list(padding)
       let data =
-        list.range(0, seq - 1)
+        range_inclusive(0, seq - 1)
         |> list.flat_map(fn(i) {
-          list.range(0, seq - 1)
+          range_inclusive(0, seq - 1)
           |> list.map(fn(j) {
             let causal_val = case list_at(causal_data, i * seq + j) {
               Ok(v) -> v
@@ -421,7 +423,7 @@ pub fn combine_masks(
         })
       Ok(Tensor(data: data, shape: [seq, seq]))
     }
-    _, _ -> Error(tensor.DimensionError("Mask shape mismatch"))
+    _, _ -> Error(error.DimensionError("Mask shape mismatch"))
   }
 }
 
@@ -432,11 +434,14 @@ pub fn combine_masks(
 /// Create sinusoidal positional encoding
 /// PE(pos, 2i) = sin(pos / 10000^(2i/d_model))
 /// PE(pos, 2i+1) = cos(pos / 10000^(2i/d_model))
-pub fn positional_encoding_new(max_len: Int, d_model: Int) -> PositionalEncoding {
+pub fn positional_encoding_new(
+  max_len: Int,
+  d_model: Int,
+) -> PositionalEncoding {
   let data =
-    list.range(0, max_len - 1)
+    range_inclusive(0, max_len - 1)
     |> list.flat_map(fn(pos) {
-      list.range(0, d_model - 1)
+      range_inclusive(0, d_model - 1)
       |> list.map(fn(i) {
         let div_term =
           float_pow(
@@ -471,7 +476,7 @@ pub fn add_positional_encoding(
       let pe_slice = Tensor(data: pe_data, shape: [seq_len, d_model])
       tensor.add(input, pe_slice)
     }
-    _ -> Error(tensor.DimensionError("Positional encoding size mismatch"))
+    _ -> Error(error.DimensionError("Positional encoding size mismatch"))
   }
 }
 
@@ -486,7 +491,10 @@ pub type LearnedPositionalEmbedding {
 }
 
 /// Create learned positional embeddings
-pub fn learned_pe_new(max_len: Int, d_model: Int) -> LearnedPositionalEmbedding {
+pub fn learned_pe_new(
+  max_len: Int,
+  d_model: Int,
+) -> LearnedPositionalEmbedding {
   let limit = float_sqrt(6.0 /. int.to_float(d_model))
   LearnedPositionalEmbedding(
     embeddings: random_uniform_init([max_len, d_model], limit),
@@ -521,12 +529,15 @@ pub fn relative_position_bias_new(max_distance: Int) -> RelativePositionBias {
 }
 
 /// Compute relative position bias matrix
-pub fn compute_relative_bias(rpb: RelativePositionBias, seq_len: Int) -> Tensor {
+pub fn compute_relative_bias(
+  rpb: RelativePositionBias,
+  seq_len: Int,
+) -> Tensor {
   let bias_data = tensor.to_list(rpb.bias_table)
   let data =
-    list.range(0, seq_len - 1)
+    range_inclusive(0, seq_len - 1)
     |> list.flat_map(fn(i) {
-      list.range(0, seq_len - 1)
+      range_inclusive(0, seq_len - 1)
       |> list.map(fn(j) {
         let relative_pos = j - i
         let clamped =
@@ -550,7 +561,7 @@ fn extract_head(proj: Tensor, head_idx: Int, d_k: Int, seq_len: Int) -> Tensor {
   let proj_data = tensor.to_list(proj)
   let start_col = head_idx * d_k
   let data =
-    list.range(0, seq_len - 1)
+    range_inclusive(0, seq_len - 1)
     |> list.flat_map(fn(row) {
       case proj.shape {
         [_seq, d_model] -> {
@@ -575,7 +586,7 @@ fn list_at(lst: List(a), index: Int) -> Result(a, Nil) {
 fn random_uniform_init(shape: List(Int), limit: Float) -> Tensor {
   let size = list.fold(shape, 1, fn(acc, dim) { acc * dim })
   let data =
-    list.range(1, size)
+    range_inclusive(1, size)
     |> list.map(fn(_) {
       let r = random_float()
       r *. 2.0 *. limit -. limit
