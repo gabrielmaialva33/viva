@@ -919,8 +919,8 @@ fn average_or_default(values: List(Float), default: Float) -> Float {
 /// [t1, t2, t3, t4] -> t1 + t2*256 + t3*65536 + t4*16777216
 fn glyph_hash(g: Glyph) -> Int {
   case g.tokens {
-    [t1, t2, t3, t4] -> t1 + t2 * 256 + t3 * 65536 + t4 * 16_777_216
-    [t1, t2, t3] -> t1 + t2 * 256 + t3 * 65536
+    [t1, t2, t3, t4] -> t1 + t2 * 256 + t3 * 65_536 + t4 * 16_777_216
+    [t1, t2, t3] -> t1 + t2 * 256 + t3 * 65_536
     [t1, t2] -> t1 + t2 * 256
     [t1] -> t1
     _ -> list.fold(g.tokens, 0, fn(acc, t) { acc * 256 + t })

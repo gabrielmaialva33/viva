@@ -10,6 +10,7 @@ import gleam/dict.{type Dict}
 import gleam/float
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import viva/utils/range.{range_inclusive}
 import viva/memory/body.{type Body}
 import viva/memory/hrr.{type HRR}
 import viva_tensor/tensor.{type Tensor}
@@ -473,7 +474,7 @@ pub fn current_tick(world: World) -> Int {
 
 fn random_position(dims: Int) -> Tensor {
   let data =
-    list.range(1, dims)
+    range_inclusive(1, dims)
     |> list.map(fn(_) { { random_float() -. 0.5 } *. 10.0 })
   tensor.Tensor(data: data, shape: [dims])
 }

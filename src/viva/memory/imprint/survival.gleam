@@ -5,7 +5,9 @@
 
 import gleam/list
 import gleam/option.{type Option, None}
-import viva/memory/imprint/types.{type ImprintEvent, DangerLearned, SafetyLearned}
+import viva/memory/imprint/types.{
+  type ImprintEvent, DangerLearned, SafetyLearned,
+}
 
 // =============================================================================
 // TYPES
@@ -123,14 +125,14 @@ pub fn evaluate(
       hunger_threshold: new_hunger,
       danger_count: imprint.danger_count
         + case is_danger_context {
-          True -> 1
-          False -> 0
-        },
+        True -> 1
+        False -> 0
+      },
       safe_count: imprint.safe_count
         + case is_safe_context {
-          True -> 1
-          False -> 0
-        },
+        True -> 1
+        False -> 0
+      },
     )
 
   #(new_imprint, list.flatten([events, danger_events, safety_events]))

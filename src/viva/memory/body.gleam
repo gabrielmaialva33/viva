@@ -104,7 +104,12 @@ pub fn dynamic(id: Int, position: Tensor, shape: HRR, label: String) -> Body {
 }
 
 /// Create a static body (archetype/landmark)
-pub fn static_body(id: Int, position: Tensor, shape: HRR, label: String) -> Body {
+pub fn static_body(
+  id: Int,
+  position: Tensor,
+  shape: HRR,
+  label: String,
+) -> Body {
   new(
     id,
     BodyConfig(

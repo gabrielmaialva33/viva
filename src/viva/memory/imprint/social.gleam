@@ -5,6 +5,7 @@
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import viva/memory/imprint/types.{type ImprintEvent, AttachmentChanged}
+import viva_math/common
 
 // =============================================================================
 // TYPES
@@ -78,7 +79,7 @@ pub fn observe_presence(
         Ok(att) -> {
           // Update existing
           let delta = { pleasure -. 0.5 } *. intensity *. 0.1
-          let new_strength = clamp(att.strength +. delta, 0.0, 1.0)
+          let new_strength = common.clamp(att.strength +. delta, 0.0, 1.0)
           let new_pleasure_assoc =
             { att.pleasure_association +. pleasure } /. 2.0
 
@@ -112,7 +113,7 @@ pub fn observe_presence(
           let att =
             Attachment(
               name: entity,
-              strength: clamp(initial_strength, 0.1, 0.8),
+              strength: common.clamp(initial_strength, 0.1, 0.8),
               interactions: 1,
               last_seen: current_tick,
               pleasure_association: pleasure,
@@ -159,24 +160,13 @@ pub fn primary_attachment_strength(imprint: SocialImprint) -> Float {
 
 /// Update trust level
 pub fn update_trust(imprint: SocialImprint, delta: Float) -> SocialImprint {
-  let new_trust = clamp(imprint.trust_level +. delta, 0.0, 1.0)
+  let new_trust = common.clamp(imprint.trust_level +. delta, 0.0, 1.0)
   SocialImprint(..imprint, trust_level: new_trust)
 }
 
 // =============================================================================
 // HELPERS
 // =============================================================================
-
-fn clamp(value: Float, min: Float, max: Float) -> Float {
-  case value <. min {
-    True -> min
-    False ->
-      case value >. max {
-        True -> max
-        False -> value
-      }
-  }
-}
 
 fn abs_float(a: Float) -> Float {
   case a <. 0.0 {

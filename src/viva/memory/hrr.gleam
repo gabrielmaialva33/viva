@@ -13,8 +13,12 @@
 ////   let recovered = hrr.unbind(memory, agent)  // ~Action
 
 import gleam/float
+import gleam/int
 import gleam/list
+import viva/utils/range.{range_inclusive}
 import viva/memory/simd
+import viva_math/complex
+import viva_math/fft
 import viva_tensor/tensor.{type Tensor}
 
 /// Helper to extract data from tensor
@@ -51,7 +55,7 @@ pub type HRRError {
 /// Each element drawn from N(0, 1/sqrt(dim)) for unit norm expectation
 pub fn random(dim: Int) -> HRR {
   let data =
-    list.range(1, dim)
+    range_inclusive(1, dim)
     |> list.map(fn(_) { random_gaussian() /. float_sqrt(int_to_float(dim)) })
 
   HRR(vector: tensor.Tensor(data: data, shape: [dim]), dim: dim)
@@ -93,13 +97,12 @@ pub fn dim(h: HRR) -> Int {
 /// Binding (*): Associates two concepts
 /// Mathematically: circular convolution
 /// bind(A, B) creates a new vector that "contains" the association A*B
-/// Uses FFT O(n log n) when available, falls back to O(n²) naive
+/// FFT O(n log n) for power-of-two dims, O(n²) naive otherwise
 pub fn bind(a: HRR, b: HRR) -> Result(HRR, HRRError) {
   case a.dim == b.dim {
     False -> Error(DimensionMismatch(expected: a.dim, got: b.dim))
     True -> {
-      // Use FFT-accelerated version (has internal fallback to naive)
-      let result = nx_circular_conv(td(a.vector), td(b.vector))
+      let result = circular_conv(td(a.vector), td(b.vector))
       Ok(HRR(vector: tensor.Tensor(data: result, shape: [a.dim]), dim: a.dim))
     }
   }
@@ -108,14 +111,13 @@ pub fn bind(a: HRR, b: HRR) -> Result(HRR, HRRError) {
 /// Unbinding (#): Recovers associated concept
 /// Mathematically: circular correlation (convolution with inverse)
 /// unbind(A*B, A) ≈ B (approximate recovery)
-/// Uses FFT O(n log n) when available, falls back to O(n²) naive
+/// FFT O(n log n) for power-of-two dims, O(n²) naive otherwise
 pub fn unbind(trace: HRR, cue: HRR) -> Result(HRR, HRRError) {
   case trace.dim == cue.dim {
     False -> Error(DimensionMismatch(expected: trace.dim, got: cue.dim))
     True -> {
       let cue_inv = approximate_inverse(td(cue.vector))
-      // Use FFT-accelerated version (has internal fallback to naive)
-      let result = nx_circular_conv(td(trace.vector), cue_inv)
+      let result = circular_conv(td(trace.vector), cue_inv)
       Ok(HRR(
         vector: tensor.Tensor(data: result, shape: [trace.dim]),
         dim: trace.dim,
@@ -170,7 +172,8 @@ pub fn normalize(h: HRR) -> HRR {
 pub fn similarity(a: HRR, b: HRR) -> Float {
   case a.dim == b.dim, a.dim > 0 {
     False, _ -> 0.0
-    _, False -> 0.0  // Empty vectors
+    _, False -> 0.0
+    // Empty vectors
     True, True -> {
       let a_data = td(a.vector)
       let b_data = td(b.vector)
@@ -266,33 +269,61 @@ fn approximate_inverse(v: List(Float)) -> List(Float) {
 }
 
 // =============================================================================
-// FFT-ACCELERATED OPERATIONS (via Nx)
+// FFT-ACCELERATED OPERATIONS (viva_math/fft)
 // =============================================================================
 
-/// Binding using FFT (O(n log n)) - requires Nx
-/// circular_conv(a, b) = ifft(fft(a) * fft(b))
+/// Binding using FFT (O(n log n))
+/// Alias of `bind`: the FFT path is chosen automatically for power-of-two dims
 pub fn bind_fft(a: HRR, b: HRR) -> Result(HRR, HRRError) {
-  case a.dim == b.dim {
-    False -> Error(DimensionMismatch(expected: a.dim, got: b.dim))
-    True -> {
-      let result = nx_circular_conv(td(a.vector), td(b.vector))
-      Ok(HRR(vector: tensor.Tensor(data: result, shape: [a.dim]), dim: a.dim))
-    }
+  bind(a, b)
+}
+
+/// Unbinding using FFT (O(n log n))
+/// Alias of `unbind`: the FFT path is chosen automatically for power-of-two dims
+pub fn unbind_fft(trace: HRR, cue: HRR) -> Result(HRR, HRRError) {
+  unbind(trace, cue)
+}
+
+// =============================================================================
+// CIRCULAR CONVOLUTION
+// =============================================================================
+
+/// Circular convolution: c[k] = Σ a[i] * b[(k - i) mod n]
+/// FFT path (viva_math/fft) for power-of-two lengths, naive O(n²) otherwise
+fn circular_conv(a: List(Float), b: List(Float)) -> List(Float) {
+  let n = list.length(a)
+  case n > 0 && int.bitwise_and(n, n - 1) == 0 {
+    True -> circular_conv_fft(a, b)
+    False -> circular_conv_naive(a, b)
   }
 }
 
-/// Unbinding using FFT (O(n log n)) - requires Nx
-pub fn unbind_fft(trace: HRR, cue: HRR) -> Result(HRR, HRRError) {
-  case trace.dim == cue.dim {
-    False -> Error(DimensionMismatch(expected: trace.dim, got: cue.dim))
-    True -> {
-      let cue_inv = approximate_inverse(td(cue.vector))
-      let result = nx_circular_conv(td(trace.vector), cue_inv)
-      Ok(HRR(
-        vector: tensor.Tensor(data: result, shape: [trace.dim]),
-        dim: trace.dim,
-      ))
-    }
+/// circular_conv(a, b) = ifft(fft(a) .* fft(b)), real part
+fn circular_conv_fft(a: List(Float), b: List(Float)) -> List(Float) {
+  let fa = fft.fft(list.map(a, complex.real))
+  let fb = fft.fft(list.map(b, complex.real))
+  list.map2(fa, fb, complex.mul)
+  |> fft.ifft
+  |> list.map(fn(c) { c.re })
+}
+
+/// Naive O(n²): accumulates a[i] * rotate_right(b, i)
+fn circular_conv_naive(a: List(Float), b: List(Float)) -> List(Float) {
+  let n = list.length(b)
+  let zero = list.repeat(0.0, n)
+  let #(acc, _) =
+    list.fold(a, #(zero, b), fn(state, coeff) {
+      let #(acc, rotated) = state
+      let acc = list.map2(acc, rotated, fn(x, y) { x +. coeff *. y })
+      #(acc, rotate_right_once(rotated))
+    })
+  acc
+}
+
+fn rotate_right_once(v: List(Float)) -> List(Float) {
+  case list.reverse(v) {
+    [] -> []
+    [last, ..rev_init] -> [last, ..list.reverse(rev_init)]
   }
 }
 
@@ -300,19 +331,11 @@ pub fn unbind_fft(trace: HRR, cue: HRR) -> Result(HRR, HRRError) {
 // HELPERS
 // =============================================================================
 
-fn vector_norm(v: List(Float)) -> Float {
-  v
-  |> list.map(fn(x) { x *. x })
-  |> list.fold(0.0, fn(acc, x) { acc +. x })
-  |> float_sqrt
-}
-
 /// SIMD-accelerated vector norm (4x faster with AVX)
 fn vector_norm_simd(v: List(Float)) -> Float {
   // ||v|| = sqrt(v · v)
   simd.dot(v, v) |> float_sqrt
 }
-
 
 // =============================================================================
 // EXTERNAL
@@ -326,8 +349,3 @@ fn float_sqrt(x: Float) -> Float
 
 @external(erlang, "erlang", "float")
 fn int_to_float(i: Int) -> Float
-
-/// FFT-based circular convolution (via Nx)
-/// Falls back to naive if Nx not available
-@external(erlang, "viva_hrr_fft", "circular_conv")
-fn nx_circular_conv(a: List(Float), b: List(Float)) -> List(Float)

@@ -12,8 +12,8 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import viva/memory/imprint/types.{type ImprintEvent, SensoryLearned}
 import viva/memory/hrr.{type HRR}
+import viva/memory/imprint/types.{type ImprintEvent, SensoryLearned}
 
 // =============================================================================
 // TYPES

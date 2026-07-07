@@ -16,8 +16,8 @@ import viva/memory/narrative.{
   type NarrativeLink, type NarrativeMemory, type NarrativeResult, type Thought,
   type VoiceStyle, FromAssociation, FromCausal,
 }
-import viva_tensor/tensor.{type Tensor}
 import viva_glyph/glyph.{type Glyph}
+import viva_tensor/tensor.{type Tensor}
 
 // =============================================================================
 // TYPES
@@ -258,8 +258,8 @@ fn glyph_to_features(g: Glyph) -> List(Float) {
 /// Hash for glyph using positional encoding (avoids collisions)
 fn glyph_hash(g: Glyph) -> Int {
   case g.tokens {
-    [t1, t2, t3, t4] -> t1 + t2 * 256 + t3 * 65536 + t4 * 16_777_216
-    [t1, t2, t3] -> t1 + t2 * 256 + t3 * 65536
+    [t1, t2, t3, t4] -> t1 + t2 * 256 + t3 * 65_536 + t4 * 16_777_216
+    [t1, t2, t3] -> t1 + t2 * 256 + t3 * 65_536
     [t1, t2] -> t1 + t2 * 256
     [t1] -> t1
     _ -> list.fold(g.tokens, 0, fn(acc, t) { acc * 256 + t })
@@ -317,7 +317,10 @@ fn attended_thought(
 }
 
 /// Compute emotional weight for a link
-fn compute_emotional_weight(link: NarrativeLink, ctx: NarrativeContext) -> Float {
+fn compute_emotional_weight(
+  link: NarrativeLink,
+  ctx: NarrativeContext,
+) -> Float {
   let base_weight = link.strength
   let emo_data = tensor.to_list(ctx.emotional_state)
 
